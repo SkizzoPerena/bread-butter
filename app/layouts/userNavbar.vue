@@ -1,64 +1,48 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
+
 const items = ref<NavigationMenuItem[][]>([
   [
     {
+      label: 'Dashboard',
 
-      icon: 'app/assets/css/B+B Logos-03.png',
-      to: '/'
-    }
-  ],  
-  [
-    {
-      label: 'Guide',
-      icon: 'i-lucide-book-open',
-      to: '/docs/getting-started'
+      to: '/docs/getting-started',
+            active: true
     },
     {
-      label: 'Composables',
-      icon: 'i-lucide-database',
+      label: 'Events',
+
       to: '/docs/composables'
     },
     {
-      label: 'Components',
-      icon: 'i-lucide-box',
+      label: 'Calendar',
+
       to: '/docs/components',
-      active: true
+
     }
   ],
-  [
-    {
-      label: 'GitHub',
-      icon: 'i-simple-icons-github',
-      badge: '6k',
-      to: 'https://github.com/nuxt/ui',
-      target: '_blank'
-    }
-  ]
 ])
 </script>
 
 <template>
 
-<div class="fixed align-center w-full">
-    <UContainer class=""><UNavigationMenu
-      :items="items"
-      variant="link"
-      color="neutral"
-      class="  mt-5 bg-muted/80 backdrop-blur-sm rounded-xl px-2 sm:px-4 border border-muted/50 shadow-lg shadow-neutral-950/5"
-      :ui="{
-
-        linkLeadingIcon: 'hidden'
-      }"
-    >
-
-    </UNavigationMenu>
+  <div class="fixed align-center w-full z-50">
+    <UContainer>
+      <UNavigationMenu :items="items" variant="link"
+        class="mt-5 bg-bread-500/70 backdrop-blur-sm rounded-xl px-2 sm:px-4 shadow-lg shadow-neutral-950/5">
+        <template #list-leading>
+          <NuxtLink to="/" class="flex items-center mr-4">
+            <img src="../assets/bpb-icons/logo.svg" class="h-6 color-primary-500"/>
+          </NuxtLink>
+        </template>
+        <template #list-trailing>
+          <UColorModeButton color="primary" />
+        </template>
+      </UNavigationMenu>
     </UContainer>
-    </div>
-    <UContainer class="bg-muted/80">
-      test
-    </UContainer>
+  </div>
+
 
 </template>
 
