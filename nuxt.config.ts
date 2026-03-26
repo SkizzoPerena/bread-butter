@@ -14,6 +14,10 @@ export default defineNuxtConfig({
     enabled: true
   },
 
+  colorMode: {
+    preference: 'light' // Sets the default to light mode
+  },
+
   css: ['~/assets/css/main.css'],
 
   routeRules: {
