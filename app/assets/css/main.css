@@ -2,7 +2,8 @@
 @import "@nuxt/ui";
 
 @theme static {
-  --font-sans: 'Public Sans', sans-serif;
+  --font-sans: 'Figtree', sans-serif;
+  --font-serif: 'Libre Baskerville', serif;
 
   --color-green-50: #EFFDF5;
   --color-green-100: #D9FBE8;
@@ -15,4 +16,44 @@
   --color-green-800: #016538;
   --color-green-900: #0A5331;
   --color-green-950: #052E16;
+
+  --color-toast-50: #f5eae5;
+  --color-toast-100: #ebd6cc;
+  --color-toast-200: #d7ae99;
+  --color-toast-300: #c38566;
+  --color-toast-400: #af5d32;
+  --color-toast-500: #9c3500; /* base color */
+  --color-toast-600: #7c2a00;
+  --color-toast-700: #5d1f00;
+  --color-toast-800: #3e1500;
+  --color-toast-900: #1f0a00;
+  --color-toast-950: #0f0500;
+
+  --color-bread-50: #fefdfb;
+  --color-bread-100: #fefbf7;
+  --color-bread-200: #fdf7ef;
+  --color-bread-300: #fcf3e7;
+  --color-bread-400: #fbefdf;
+  --color-bread-500: #faebd7; /* base color */
+  --color-bread-600: #c8bcac;
+  --color-bread-700: #968d81;
+  --color-bread-800: #645e56;
+  --color-bread-900: #322f2b;
+  --color-bread-950: #191715;
+
+  --color-charcoal-50: oklch(95% 0.0045 219.61);
+  --color-charcoal-100: oklch(90% 0.0045 219.61);
+  --color-charcoal-200: oklch(80% 0.0045 219.61);
+  --color-charcoal-300: oklch(70% 0.0045 219.61);
+  --color-charcoal-400: oklch(60% 0.0045 219.61);
+  --color-charcoal-500: oklch(50% 0.0045 219.61); /* base color */
+  --color-charcoal-600: oklch(40% 0.0045 219.61);
+  --color-charcoal-700: oklch(30% 0.0045 219.61);
+  --color-charcoal-800: oklch(20%0.0045 219.61);
+  --color-charcoal-900: oklch(10% 0.0045 219.61);
+  --color-charcoal-950: oklch(5% 0.0045 219.61);
+}
+
+[title] {
+  font-family: serif;
 }
