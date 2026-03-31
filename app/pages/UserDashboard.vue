@@ -71,7 +71,7 @@ const value = ref(50)
         <UPageGrid class="mt-8 mb-12 pb-0">
 
           <div class="bg-bread-200 rounded-lg"> <!-- kapag ayaw sa "soft", use ring ring-default sa class -->
-            <NuxtImg src="https://t3.ftcdn.net/jpg/02/18/06/54/360_F_218065499_qIqGChM5CRvpnHjRwPulMJtWZee6LzR2.jpg"
+            <NuxtImg src="../assets/images/wedding-1.jpg"
               class="w-full rounded-t-lg" width="600" height="400" fit="cover" loading="lazy" />
             <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
               <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
@@ -90,7 +90,7 @@ const value = ref(50)
 
 
           <div class="bg-bread-200 rounded-lg">
-            <NuxtImg src="https://t3.ftcdn.net/jpg/02/18/06/54/360_F_218065499_qIqGChM5CRvpnHjRwPulMJtWZee6LzR2.jpg"
+            <NuxtImg src="../assets/images/wedding-1.jpg"
               class="w-full rounded-t-lg" width="600" height="400" fit="cover" loading="lazy" />
             <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
               <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
@@ -108,7 +108,7 @@ const value = ref(50)
           </div>
 
           <div class="bg-bread-200 rounded-lg">
-            <NuxtImg src="https://t3.ftcdn.net/jpg/02/18/06/54/360_F_218065499_qIqGChM5CRvpnHjRwPulMJtWZee6LzR2.jpg"
+            <NuxtImg src="../assets/images/wedding-1.jpg"
               class="w-full rounded-t-lg" width="600" height="400" fit="cover" loading="lazy" />
             <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
               <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
