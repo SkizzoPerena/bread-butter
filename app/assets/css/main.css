@@ -41,17 +41,32 @@
   --color-bread-900: #322f2b;
   --color-bread-950: #191715;
 
+  --color-charcoal-50: #f5eae5;
+  --color-charcoal-100: #ebd6cc;
+  --color-charcoal-200: #d7ae99;
+  --color-charcoal-300: #c38566;
+  --color-charcoal-400: #af5d32;
+  --color-charcoal-500: #9c3500; /* base color */
+  --color-charcoal-600: #7c2a00;
+  --color-charcoal-700: #5d1f00;
+  --color-charcoal-800: #3e1500;
+  --color-charcoal-900: #1f0a00;
+  --color-charcoalZ-950: #0f0500;
+
+/* ORIGINAL CHARCOAL, REMOVE ABOVE CHARCOAL IF TOAST DOES NOT FIT
   --color-charcoal-50: oklch(95% 0.0045 219.61);
   --color-charcoal-100: oklch(90% 0.0045 219.61);
   --color-charcoal-200: oklch(80% 0.0045 219.61);
   --color-charcoal-300: oklch(70% 0.0045 219.61);
   --color-charcoal-400: oklch(60% 0.0045 219.61);
-  --color-charcoal-500: oklch(50% 0.0045 219.61); /* base color */
+  --color-charcoal-500: oklch(50% 0.0045 219.61);
   --color-charcoal-600: oklch(40% 0.0045 219.61);
   --color-charcoal-700: oklch(30% 0.0045 219.61);
   --color-charcoal-800: oklch(20%0.0045 219.61);
   --color-charcoal-900: oklch(10% 0.0045 219.61);
   --color-charcoal-950: oklch(5% 0.0045 219.61);
+
+  */
 }
 
 [title] {
