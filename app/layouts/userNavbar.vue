@@ -42,6 +42,8 @@ const items = ref<NavigationMenuItem[][]>([
       </UNavigationMenu>
     </UContainer>
   </div>
+<div style="height: 80px"></div>
+  <slot />
 
 
 </template>

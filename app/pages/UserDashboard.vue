@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+
+definePageMeta({
+  layout: 'user-navbar',
+})
+
+
 const cards = ref([
   {
     title: 'Upcoming Events',
@@ -50,7 +56,6 @@ const value = ref(50)
 
 <template>
   <UContainer> <!-- all containers should have mb-12 pb-0 for uniform borders, all containers WITHIN a container should have mb-8 pb-0 for uniform borders -->
-    <div style="height: 80px"></div>
     <UPageHeader title="Welcome back, Jane & John!" :ui="{ title: 'font-serif text-2xl sm:text-3xl' }"
       description="What would you like to do today?" class="border-none mb-12 pb-0"></UPageHeader>
     <UPageGrid class=" mb-12 pb-0">
@@ -150,4 +155,7 @@ const value = ref(50)
 </template>
 
 
-<style></style>
+<style>
+
+
+</style>

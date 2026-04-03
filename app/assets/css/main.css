@@ -3,7 +3,7 @@
 
 @theme static {
   --font-sans: 'Figtree', sans-serif;
-  --font-serif: 'Libre Baskerville', serif;
+  --font-serif: 'Fraunces', serif;
 
   --color-green-50: #EFFDF5;
   --color-green-100: #D9FBE8;
@@ -71,4 +71,15 @@
 
 [title] {
   font-family: serif;
+}
+
+.bread-container {
+  /* backdrop-blur-sm */
+  backdrop-filter: blur(4px);
+  /* rounded-xl */
+  border-radius: 0.75rem; /* 12px */
+  /* px-2 */
+  /* shadow-lg shadow-neutral-950/5 */
+  box-shadow: 0 10px 15px -3px rgba(10, 10, 10, 0.05), 0 4px 6px -4px rgba(10, 10, 10, 0.05); /* Assumed neutral-950 is #0a0a0a */
+
 }
