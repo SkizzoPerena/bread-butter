@@ -43,9 +43,8 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
-async function onSubmit(payload: FormSubmitEvent<Schema>) {
+function onSubmit(payload: FormSubmitEvent<Schema>) {
   console.log('Submitted', payload)
-  await navigateTo('/UserDashboard')
 }
 </script>
 
