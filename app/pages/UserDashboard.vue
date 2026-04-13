@@ -76,8 +76,8 @@ const value = ref(50)
         <UPageGrid class="mt-8 mb-12 pb-0">
 
           <div class="bg-bread-200 rounded-lg"> <!-- kapag ayaw sa "soft", use ring ring-default sa class -->
-            <NuxtImg src="../assets/images/wedding-1.jpg"
-              class="w-full rounded-t-lg" width="600" height="400" fit="cover" loading="lazy" />
+            <img src="../assets/bpb-images/wedding-1.jpg"
+              class="w-full rounded-t-lg" width="600" height="400" fit="cover"  />
             <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
               <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
               <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
@@ -95,8 +95,8 @@ const value = ref(50)
 
 
           <div class="bg-bread-200 rounded-lg">
-            <NuxtImg src="../assets/images/wedding-1.jpg"
-              class="w-full rounded-t-lg" width="600" height="400" fit="cover" loading="lazy" />
+            <img src="../assets/bpb-images/wedding-1.jpg"
+              class="w-full rounded-t-lg" width="600" height="400" fit="cover"  />
             <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
               <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
               <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
@@ -113,8 +113,8 @@ const value = ref(50)
           </div>
 
           <div class="bg-bread-200 rounded-lg">
-            <NuxtImg src="../assets/images/wedding-1.jpg"
-              class="w-full rounded-t-lg" width="600" height="400" fit="cover" loading="lazy" />
+            <img src="../assets/bpb-images/wedding-1.jpg"
+              class="w-full rounded-t-lg" width="600" height="400" fit="cover"  />
             <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
               <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
               <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />

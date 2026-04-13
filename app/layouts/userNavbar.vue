@@ -30,10 +30,10 @@ const items = ref<NavigationMenuItem[][]>([
   <div class="fixed align-center w-full z-50">
     <UContainer>
       <UNavigationMenu :items="items" variant="link"
-        class="mt-5 bg-bread-500/70 backdrop-blur-sm rounded-xl px-2 sm:px-4 shadow-lg shadow-neutral-950/5">
+        class="mt-5 bg-bread-100/70 backdrop-blur-sm rounded-xl px-2 sm:px-4 shadow-lg shadow-neutral-950/5">
         <template #list-leading>
           <NuxtLink to="/" class="flex items-center mr-4">
-            <img src="../assets/bpb-icons/logo.svg" class="h-6 color-primary-500"/>
+            <img src="..\assets\bpb-icons\logo-toast.svg" class="h-6 color-primary-500"/>
           </NuxtLink>
         </template>
         <template #list-trailing>

@@ -37,14 +37,22 @@ const providers = [{
 }]
 
 const schema = z.object({
-  email: z.email('Invalid email'),
-  password: z.string('Password is required').min(8, 'Must be at least 8 characters')
+  email: z.string().email('Invalid email'),
+  password: z.string().min(8, 'Must be at least 8 characters'),
+  remember: z.boolean().optional()
 })
 
 type Schema = z.output<typeof schema>
 
-function onSubmit(payload: FormSubmitEvent<Schema>) {
+const stats = [
+  { value: '500+', description: 'Events planned' },
+  { value: '10,000+', description: 'Invitations sent' },
+  { value: '100%', description: 'Convenience' }
+]
+
+async function onSubmit(payload: FormSubmitEvent<Schema>) {
   console.log('Submitted', payload)
+  await navigateTo('/UserDashboard')
 }
 </script>
 
@@ -59,23 +67,13 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
           beautiful invitations and manage every detail with ease.</div>
 
         <UPageGrid class="gap-0 mt-5">
-          <div class="w-full">
+          <div v-for="(stat, index) in stats" :key="index" class="w-full">
             <div class="text-2xl text-white font-serif">
-              500+
+              {{ stat.value }}
             </div>
-            <div class="text-md text-white">Events planned</div>
-          </div>
-                    <div class="w-full">
-            <div class="text-2xl text-white font-serif">
-              10,000+
+            <div class="text-md text-white">
+              {{ stat.description }}
             </div>
-            <div class="text-md text-white">Invitations sent</div>
-          </div>
-                    <div class="w-full">
-            <div class="text-2xl text-white font-serif">
-              100%
-            </div>
-            <div class="text-md text-white">Convenience</div>
           </div>
         </UPageGrid>
       </UPageCard>
@@ -84,8 +82,8 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 
       <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4">
-        <UAuthForm :schema="schema" :fields="fields" @submit="onSubmit" class="my-0 py-0" :submit="{
-          label: 'Sign-in',
+        <UAuthForm :schema="schema" :fields="fields" :providers="providers" @submit="onSubmit" class="my-0 py-0" :submit="{
+          label: 'Sign in',
         }">
           <template #description>
             <div class="text-left text-sm">
@@ -97,12 +95,8 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
             <ULink to="#" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
           </template>
           <template #footer>
-            <USeparator label="or" class="mb-5" />
-            <UButton icon="i-simple-icons-google" block variant="subtle"> Sign in with Google</UButton>
-            <UButton icon="i-simple-icons-facebook" class="mb-5 mt-2" block variant="subtle"> Sign in with Facebook
-            </UButton>
             <p class="text-sm text-center">
-              By signing in, you agree to our <ULink to="#" class="text-primary font-medium">Terms of Service</ULink>.
+              New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
             </p>
           </template>
         </UAuthForm>
@@ -114,7 +108,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 <style>
 .login-bg {
-  background-image: url('../assets/images/login-aisle.jpg');
+  background-image: url('../assets/bpb-images/login-aisle.jpg');
   background-size: cover;
 }
 </style>

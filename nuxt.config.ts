@@ -40,4 +40,8 @@ export default defineNuxtConfig({
     }
   },
 
+build: {
+    transpile: ['reka-ui']
+  },
+
 })

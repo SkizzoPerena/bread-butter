@@ -81,5 +81,10 @@
   /* px-2 */
   /* shadow-lg shadow-neutral-950/5 */
   box-shadow: 0 10px 15px -3px rgba(10, 10, 10, 0.05), 0 4px 6px -4px rgba(10, 10, 10, 0.05); /* Assumed neutral-950 is #0a0a0a */
+}
 
+.bpb-pattern {
+  background-image: url('../B+B Pattern.png');
+  background-size: cover;
+  background-color: var(--color-toast-500);
 }
