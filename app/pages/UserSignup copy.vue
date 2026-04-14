@@ -71,7 +71,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 <template>
   <div class="flex items-center justify-center p-4 bpb-pattern h-screen">
 
-    <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4 bg-bread-200">
+    <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4">
       <div class="gap-8">
         <UForm :schema="schema" :state="state" class="space-y-5" @submit="onSubmit">
           <div class="flex justify-between mt-1 mb-6 items-center">
@@ -82,8 +82,12 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
             <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
           </div>
-          <UFormField label="Username" name="names" class="" required>
-              <UInput class="w-full" v-model="state.name1" placeholder="Your name" />
+          <UFormField label="Names" name="names" class="" required>
+            <div class="flex justify-between items-center">
+              <UInput class="w-full" v-model="state.name1" placeholder="The Bride" />
+              <div class="mx-1 font-semibold text-toast-400">&</div>
+              <UInput class="w-full" v-model="state.name2" placeholder="The Groom" />
+            </div>
           </UFormField>
           <UFormField label="Email" name="email" class="" required>
             <UInput class="w-full" v-model="state.email" placeholder="Enter your email" />
@@ -106,9 +110,9 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               </template>
             </UInput>
           </UFormField>
-          <UFormField label="Verify password" name="repass" required>
+          <UFormField label="Re-type password" name="repass" required>
             <UInput v-model="state.repass" :type="isPasswordVisible ? 'text' : 'password'" class="w-full"
-              placeholder="Re-enter your password">
+              placeholder="Enter your password">
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
                   :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"

@@ -32,6 +32,7 @@ export default defineNuxtConfig({
         'primary',
         'secondary',
         'bread',
+        'toast',
         'info',
         'success',
         'warning',

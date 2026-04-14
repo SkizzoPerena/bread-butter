@@ -57,23 +57,25 @@ const value = ref(50)
 <template>
   <UContainer> <!-- all containers should have mb-12 pb-0 for uniform borders, all containers WITHIN a container should have mb-8 pb-0 for uniform borders -->
     <UPageHeader title="Welcome back, Jane & John!" :ui="{ title: 'font-serif text-2xl sm:text-3xl' }"
-      description="What would you like to do today?" class="border-none mb-12 pb-0"></UPageHeader>
+      description="What would you like to do today?" class=" mb-12 mt-7 py-7 px-6 bread-container border border-toast-100 bg-bread-50"></UPageHeader>
     <UPageGrid class=" mb-12 pb-0">
-      <UPageCard v-for="(card, index) in cards" :key="index" v-bind="card" variant="soft"
-        class="bg-bread-200 hover:bg-bread-300 " :ui="{
+      <UPageCard v-for="(card, index) in cards" :key="index" v-bind="card"
+        class=" bg-bread-50 border border-toast-100 hover:bg-bread-400 bread-container" :ui="{
           title: 'text-muted text-md'
         }">
 
-        <span class="text-2xl font-semibold text-highlighted font-serif">
+        <span class="text-2xl font-semibold text-highlighted font-serif ">
           {{ card.number }}
         </span>
       </UPageCard>
     </UPageGrid>
-    <UTabs :items="items" class="w-full" variant="link" :ui="{ trigger: 'grow' }">
+    
+    <UContainer class=" bg-bread-50 border border-toast-100  bread-container"> 
+    <UTabs :items="items" class="w-full my-7" variant="link" :ui="{ trigger: 'grow' }">
 
       <!-- Overview Tab Start -->
       <template #overview="{ item }">
-        <UPageGrid class="mt-8 mb-12 pb-0">
+        <UPageGrid class="mt-8 pb-0">
 
           <div class="bg-bread-200 rounded-lg"> <!-- kapag ayaw sa "soft", use ring ring-default sa class -->
             <img src="../assets/bpb-images/wedding-1.jpg"
@@ -148,6 +150,7 @@ const value = ref(50)
       <!-- Websites Tab Ends -->
 
     </UTabs>
+    </UContainer>
 
 
 

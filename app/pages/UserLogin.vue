@@ -59,7 +59,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 <template>
   <div class="flex items-center justify-center p-4 login-bg h-screen">
 
-    <div class="flex justify-center items-center bg-toast-500/70 bread-container w-2/3 ">
+    <div class="flex justify-center items-center bg-toast-500/70 bread-container  w-2/3 ">
       <UPageCard class=" bg-transparent w-full text-center flex flex-col justify-center mx-15" variant="ghost">
         <img src="../assets/bpb-icons/logo-white.svg" class="w-50 mx-auto" />
         <div class="text-3xl font-serif text-white mt-5">Today is the day!</div>
@@ -81,7 +81,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 
 
-      <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4">
+      <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
         <UAuthForm :schema="schema" :fields="fields" :providers="providers" @submit="onSubmit" class="my-0 py-0" :submit="{
           label: 'Sign in',
         }">
@@ -92,7 +92,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             </div>
           </template>
           <template #password-hint>
-            <ULink to="#" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+            <ULink to="/UserForgotPassword" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
           </template>
           <template #footer>
             <p class="text-sm text-center">
