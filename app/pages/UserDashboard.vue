@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { ButtonProps } from '@nuxt/ui'
 
 definePageMeta({
   layout: 'user-navbar',
@@ -28,129 +29,87 @@ const cards = ref([
   }
 ])
 
+
 import type { TabsItem } from '@nuxt/ui'
 
-const items = [
-  {
-    label: 'Overview',
-    description: '',
-    icon: 'i-lucide-table-of-contents',
-    slot: 'overview' as const
-  },
-  {
-    label: 'Events',
-    description: '',
-    icon: 'i-lucide-calendars',
-    slot: 'events' as const
-  },
-  {
-    label: 'Websites',
-    description: '',
-    icon: 'i-lucide-globe',
-    slot: 'websites' as const
-  },
-] satisfies TabsItem[]
 
 const value = ref(50)
 </script>
 
 <template>
-  <UContainer> <!-- all containers should have mb-12 pb-0 for uniform borders, all containers WITHIN a container should have mb-8 pb-0 for uniform borders -->
-    <UPageHeader title="Welcome back, Jane & John!" :ui="{ title: 'font-serif text-2xl sm:text-3xl' }"
-      description="What would you like to do today?" class=" mb-12 mt-7 py-7 px-6 bread-container border border-toast-100 bg-bread-50"></UPageHeader>
-    <UPageGrid class=" mb-12 pb-0">
-      <UPageCard v-for="(card, index) in cards" :key="index" v-bind="card"
-        class=" bg-bread-50 border border-toast-100 hover:bg-bread-400 bread-container" :ui="{
-          title: 'text-muted text-md'
-        }">
+  <UContainer class="space-y-8">
+    <!-- all containers should have mb-12 pb-0 for uniform borders, all containers WITHIN a container should have mb-8 pb-0 for uniform borders -->
 
-        <span class="text-2xl font-semibold text-highlighted font-serif ">
-          {{ card.number }}
-        </span>
-      </UPageCard>
+    <UPageCard title="Welcome back, Jane!" class="bread-container pt-5" :ui="{ title: 'text-3xl text-pretty font-bold text-highlighted font-serif' }">
+
+      <div class="flex justify-between items-center">
+        <div class="text-lg text-pretty text-muted">Let's get this bread!</div>
+        <div>
+          <UButton class="mx-3" icon="i-lucide-search" variant="outline" >Search Events</UButton>
+          <UButton class="" icon="i-lucide-plus">Create Event</UButton>
+        </div>
+      </div>
+    </UPageCard>
+
+    <!-- Overview Tab Start -->
+    <UPageGrid class="">
+
+      <div class="white-bread-container rounded-lg"> <!-- kapag ayaw sa "soft", use ring ring-default sa class -->
+        <img src="../assets/bpb-images/wedding-1.jpg" class="w-full rounded-t-lg" width="600" height="400"
+          fit="cover" />
+        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+          <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
+          <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
+          <UPageFeature icon="i-lucide-calendar-heart" title="May 03, 2026" :ui="{ title: 'font-normal' }" />
+          <UPageFeature icon="i-lucide-piggy-bank" title="Php 5,000,000" :ui="{ title: 'font-normal' }" />
+          <USeparator class="my-3" />
+          <div class="flex justify-between">
+            <div>Tasks Accomplished</div>
+            <div>2/4</div>
+          </div>
+          <UProgress v-model="value" :max="100" class="mt-2" />
+          <UButton block class="mt-6" to="/UserEventDashboard">Open Dashboard</UButton>
+        </div>
+      </div>
+
+
+      <div class=" white-bread-container rounded-lg">
+        <img src="../assets/bpb-images/wedding-1.jpg" class="w-full rounded-t-lg" width="600" height="400"
+          fit="cover" />
+        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+          <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
+          <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
+          <UPageFeature icon="i-lucide-calendar-heart" title="May 03, 2026" :ui="{ title: 'font-normal' }" />
+          <UPageFeature icon="i-lucide-piggy-bank" title="Php 5,000,000" :ui="{ title: 'font-normal' }" />
+          <USeparator class="my-3" />
+          <div class="flex justify-between">
+            <div>Tasks Accomplished</div>
+            <div>2/4</div>
+          </div>
+          <UProgress v-model="value" :max="100" class="mt-2" />
+          <UButton block class="mt-6" to="/UserEventDashboard">Open Dashboard</UButton>
+        </div>
+      </div>
+
+      <div class="white-bread-container rounded-lg">
+        <img src="../assets/bpb-images/wedding-1.jpg" class="w-full rounded-t-lg" width="600" height="400"
+          fit="cover" />
+        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+          <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
+          <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
+          <UPageFeature icon="i-lucide-calendar-heart" title="May 03, 2026" :ui="{ title: 'font-normal' }" />
+          <UPageFeature icon="i-lucide-piggy-bank" title="Php 5,000,000" :ui="{ title: 'font-normal' }" />
+          <USeparator class="my-3 " />
+          <div class="flex justify-between">
+            <div>Tasks Accomplished</div>
+            <div>2/4</div>
+          </div>
+          <UProgress v-model="value" :max="100" class="mt-2" />
+          <UButton block class="mt-6" to="/UserEventDashboard">Open Dashboard</UButton>
+        </div>
+      </div>
     </UPageGrid>
-    
-    <UContainer class=" bg-bread-50 border border-toast-100  bread-container"> 
-    <UTabs :items="items" class="w-full my-7" variant="link" :ui="{ trigger: 'grow' }">
 
-      <!-- Overview Tab Start -->
-      <template #overview="{ item }">
-        <UPageGrid class="mt-8 pb-0">
-
-          <div class="bg-bread-200 rounded-lg"> <!-- kapag ayaw sa "soft", use ring ring-default sa class -->
-            <img src="../assets/bpb-images/wedding-1.jpg"
-              class="w-full rounded-t-lg" width="600" height="400" fit="cover"  />
-            <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-              <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
-              <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
-              <UPageFeature icon="i-lucide-calendar-heart" title="May 03, 2026" :ui="{ title: 'font-normal' }" />
-              <UPageFeature icon="i-lucide-piggy-bank" title="Php 5,000,000" :ui="{ title: 'font-normal' }" />
-              <USeparator class="my-3" />
-              <div class="flex justify-between">
-                <div>Tasks Accomplished</div>
-                <div>2/4</div>
-              </div>
-              <UProgress v-model="value" :max="100" class="mt-2" />
-              <UButton block class="mt-6">More Information</UButton>
-            </div>
-          </div>
-
-
-          <div class="bg-bread-200 rounded-lg">
-            <img src="../assets/bpb-images/wedding-1.jpg"
-              class="w-full rounded-t-lg" width="600" height="400" fit="cover"  />
-            <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-              <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
-              <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
-              <UPageFeature icon="i-lucide-calendar-heart" title="May 03, 2026" :ui="{ title: 'font-normal' }" />
-              <UPageFeature icon="i-lucide-piggy-bank" title="Php 5,000,000" :ui="{ title: 'font-normal' }" />
-              <USeparator class="my-3" />
-              <div class="flex justify-between">
-                <div>Tasks Accomplished</div>
-                <div>2/4</div>
-              </div>
-              <UProgress v-model="value" :max="100" class="mt-2" />
-              <UButton block class="mt-6">More Information</UButton>
-            </div>
-          </div>
-
-          <div class="bg-bread-200 rounded-lg">
-            <img src="../assets/bpb-images/wedding-1.jpg"
-              class="w-full rounded-t-lg" width="600" height="400" fit="cover"  />
-            <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-              <div class="text-lg font-semibold pb-1">Jane & John's Wedding</div>
-              <UPageFeature icon="i-lucide-map-pin" title="Manila Cathedral" :ui="{ title: 'font-normal' }" />
-              <UPageFeature icon="i-lucide-calendar-heart" title="May 03, 2026" :ui="{ title: 'font-normal' }" />
-              <UPageFeature icon="i-lucide-piggy-bank" title="Php 5,000,000" :ui="{ title: 'font-normal' }" />
-              <USeparator class="my-3 " />
-              <div class="flex justify-between">
-                <div>Tasks Accomplished</div>
-                <div>2/4</div>
-              </div>
-              <UProgress v-model="value" :max="100" class="mt-2" />
-              <UButton block class="mt-6">More Information</UButton>
-            </div>
-          </div>
-        </UPageGrid>
-
-      </template>
-
-      <!-- Overview Tab Ends -->
-
-      <!-- Events Tab Start -->
-      <template #events="{ item }">
-        <p>This is the {{ item.label }} tab.</p>
-      </template>
-      <!-- Events Tab Ends -->
-
-      <!-- Websites Tab Start -->
-      <template #websites="{ item }">
-        <p>This is the {{ item.label }} tab.</p>
-      </template>
-      <!-- Websites Tab Ends -->
-
-    </UTabs>
-    </UContainer>
 
 
 
@@ -158,7 +117,4 @@ const value = ref(50)
 </template>
 
 
-<style>
-
-
-</style>
+<style></style>

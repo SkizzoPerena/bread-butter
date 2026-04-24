@@ -45,7 +45,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <div class="bg-bread-200">
+  <div class="bg-bread-50 mb-7">
     <div class="fixed align-center w-full z-50">
       <UContainer>
         <UNavigationMenu :items="items" variant="link" class="mt-5 px-2 sm:px-4 bg-toast-500/70 bread-container"
@@ -56,8 +56,8 @@ const dropitems: DropdownMenuItem[][] = [
             </NuxtLink>
           </template>
           <template #list-trailing>
-            <div class="flex item-center">
-              <UColorModeButton class="text-white mr-3" variant="link" />
+            <div class="flex item-center gap-3">
+              <UColorModeButton class="text-white" variant="link" />
               <UDropdownMenu :items="dropitems" :modal="false" :content="{
                 align: 'end',
                 side: 'bottom',
@@ -70,7 +70,7 @@ const dropitems: DropdownMenuItem[][] = [
                 <UAvatar :alt="'B P'" />
                 <template #account>
                   <div class="flex items-center gap-2 text-white">
-                    <UAvatar :alt="'B P'" size="sm" />
+                    <UAvatar src="../assets/Mirana.jpg":alt="'B P'" size="sm" />
                     <span class="font-semibold">Blink Punch</span>
                   </div>
                 </template>
@@ -80,7 +80,7 @@ const dropitems: DropdownMenuItem[][] = [
         </UNavigationMenu>
       </UContainer>
     </div>
-    <div style="height: 80px"></div>
+    <div style="height: 70px" class="mb-8"></div>
     <slot />
   </div>
 </template>

@@ -74,14 +74,36 @@
 }
 
 .bread-container {
+  border: none;
+
   /* backdrop-blur-sm */
   backdrop-filter: blur(4px);
   /* rounded-xl */
   border-radius: 0.75rem; /* 12px */
   /* px-2 */
   /* shadow-lg shadow-neutral-950/5 */
-  box-shadow: 0 10px 15px -3px rgba(10, 10, 10, 0.05), 0 4px 6px -4px rgba(10, 10, 10, 0.05); /* Assumed neutral-950 is #0a0a0a */
+
+
+  box-shadow: 0 3px 15px -3px rgba(10, 10, 10, 0.1), 0 0px 6px -4px rgba(10, 10, 10, 0.1);
+  
 }
+
+.white-bread-container {
+  border: none;
+  background-color: white;
+
+  /* backdrop-blur-sm */
+  backdrop-filter: blur(4px);
+  /* rounded-xl */
+  border-radius: 0.75rem; /* 12px */
+  /* px-2 */
+  /* shadow-lg shadow-neutral-950/5 */
+
+
+  box-shadow: 0 3px 15px -3px rgba(10, 10, 10, 0.1), 0 0px 10px -4px rgba(10, 10, 10, 0.1);
+  /* box-shadow: offset-x | offset-y | blur-radius | spread-radius | color; */
+}
+
 
 .bpb-pattern {
   background-image: url('../B+B Pattern.png');
