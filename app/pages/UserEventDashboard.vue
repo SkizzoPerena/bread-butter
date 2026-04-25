@@ -58,7 +58,7 @@ type Person = {
   guests: number
   rsvpStatus: typeof rsvpOptions[number]
   invitationSent: boolean
-  phone: string
+  phone: number
 }
 
 const people = ref<Person[]>([
@@ -68,7 +68,7 @@ const people = ref<Person[]>([
     guests: 2,
     rsvpStatus: 'Attending',
     invitationSent: true,
-    phone: '123-456-7890',
+    phone: 1234567890,
   },
   {
     name: 'Emily White',
@@ -76,7 +76,7 @@ const people = ref<Person[]>([
     guests: 1,
     rsvpStatus: 'Pending',
     invitationSent: true,
-    phone: '234-567-8901',
+    phone: 2345678901,
   },
   {
     name: 'Michael Brown',
@@ -84,24 +84,15 @@ const people = ref<Person[]>([
     guests: 4,
     rsvpStatus: 'Not Attending',
     invitationSent: false,
-    phone: '345-678-9012',
+    phone: 345-678-9012,
   }
 ])
 
 const deleteUser = (userName: string) => alert(`This would delete ${userName}`)
 
-async function addGuest(event: FormSubmitEvent<GuestSchema>) {
-  people.value.push({
-    ...event.data,
-    guests: 1,
-    rsvpStatus: 'Pending',
-    invitationSent: false,
-  })
-  isModalOpen.value = false
-  newGuestState.name = ''
-  newGuestState.email = ''
-  newGuestState.phone = ''
-}
+
+const prefix = ref(['Mr.', 'Mrs.', 'Ms.', 'Mx.'])
+const prefixValue = ref('Mr.')
 
 </script>
 
@@ -155,25 +146,25 @@ async function addGuest(event: FormSubmitEvent<GuestSchema>) {
           content: 'border-none ring-transparent w-1/4',
           overlay: 'bg-toast-900/30'
         }" :close="{
-        variant: 'link',
-        class: 'rounded-full text-white'
-      }"
-      
-      :dismissible="false">
+          variant: 'link',
+          class: 'rounded-full text-white'
+        }" :dismissible="false">
           <UButton icon="i-lucide-user-plus" @click="isModalOpen = true">Add Guest</UButton>
           <template #body>
 
 
 
-            <UForm :schema="guestSchema" :state="newGuestState" class="space-y-4" @submit="addGuest">
-              <UFormField label="Name" name="name" required>
-                <UInput v-model="newGuestState.name"  class="w-full"/>
-              </UFormField>
+            <UForm :schema="guestSchema" :state="newGuestState" class="space-y-4">
+              <div class="mb-1 text-sm font-medium">Name <span class="text-error">*</span></div>
+              <UFieldGroup label="Name" name="name" required class="w-full">
+                <USelect v-model="prefixValue" :items="prefix" />
+                <UInput v-model="newGuestState.name" placeholder="Juan Dela Cruz" class="w-full" />
+              </UFieldGroup>
               <UFormField label="Email" name="email" required>
-                <UInput v-model="newGuestState.email" type="email" class="w-full"/>
+                <UInput v-model="newGuestState.email" type="email" class="w-full" placeholder="jdelacruz@example.com" />
               </UFormField>
               <UFormField label="Phone Number" name="phone" required>
-                <UInput v-model="newGuestState.phone" type="tel"  class="w-full"/>
+                <UInputNumber type="tel" class="w-full" placeholder="09123456789" :increment="false" :decrement="false"/>
               </UFormField>
 
               <UButton type="submit" block class="mt-4">

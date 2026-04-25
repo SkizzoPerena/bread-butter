@@ -6,6 +6,8 @@ definePageMeta({
 })
 
 
+const isModalOpen = ref(false)
+
 const cards = ref([
   {
     title: 'Upcoming Events',
@@ -29,9 +31,18 @@ const cards = ref([
   }
 ])
 
+const eventTypes = ref(['Wedding', 'Engagement', 'Baptism', 'Birthday Party', 'Family Reunion', 'Gender Reveal Party'])
+const selectValue = ref('Wedding')
 
 import type { TabsItem } from '@nuxt/ui'
 
+import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
+
+const df = new DateFormatter('en-US', {
+  dateStyle: 'medium'
+})
+
+const modelValue = shallowRef(new CalendarDate(2015, 7, 23))
 
 const value = ref(50)
 </script>
@@ -40,13 +51,60 @@ const value = ref(50)
   <UContainer class="space-y-8">
     <!-- all containers should have mb-12 pb-0 for uniform borders, all containers WITHIN a container should have mb-8 pb-0 for uniform borders -->
 
-    <UPageCard title="Welcome back, Jane!" class="bread-container pt-5" :ui="{ title: 'text-3xl text-pretty font-bold text-highlighted font-serif' }">
+    <UPageCard title="Welcome back, Jane!" class="bread-container pt-5"
+      :ui="{ title: 'text-3xl text-pretty font-bold text-highlighted font-serif' }">
 
       <div class="flex justify-between items-center">
         <div class="text-lg text-pretty text-muted">Let's get this bread!</div>
         <div>
-          <UButton class="mx-3" icon="i-lucide-search" variant="outline" >Search Events</UButton>
-          <UButton class="" icon="i-lucide-plus">Create Event</UButton>
+          <UButton class="mx-3" icon="i-lucide-search" variant="outline">Search Events</UButton>
+          <UModal v-model="isModalOpen" title="Create New Event" :ui="{
+            header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
+            content: 'border-none ring-transparent w-1/4',
+            overlay: 'bg-toast-900/30'
+          }" :close="{
+            variant: 'link',
+            class: 'rounded-full text-white'
+          }" :dismissible="false">
+            <UButton icon="i-lucide-user-plus" @click="isModalOpen = true">Create New Event</UButton>
+            <template #body>
+
+
+
+              <UForm class="space-y-4" @submit="">
+                <UFormField label="Event Name" name="name" required>
+                  <UInput class="w-full" placeholder="Jane & John's Wedding" />
+                </UFormField>
+                <UFormField label="Event Type" name="type" required>
+                  <USelect v-model="selectValue" :items="eventTypes" class="w-full" />
+                </UFormField>
+                <UFormField label="Event Date" name="date" required>
+                  <UPopover>
+                    <UButton color="neutral" variant="outline" class="w-full">
+                      {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
+                    </UButton>
+
+                    <template #content="{ close }">
+                      <UCalendar v-model="modelValue" class="p-2" @update:model-value="close" />
+                    </template>
+                  </UPopover>
+                </UFormField>
+
+                <UFormField label="Budget" name="budget" required>
+                  <UInputNumber v-model="value" :increment="false" :decrement="false" class="w-full" />
+                </UFormField>
+
+                <UFormField label="Description" name="description" required>
+                  <UTextarea class="w-full" placeholder="Tell us more about your special day"/>
+                </UFormField>
+
+                <UButton to="/UserEventDashboard" block class="mt-4">
+                  Create New Event
+                </UButton>
+              </UForm>
+
+            </template>
+          </UModal>
         </div>
       </div>
     </UPageCard>
@@ -112,7 +170,7 @@ const value = ref(50)
 
 
 
-<div class="h-1000"></div>
+    <div class="h-1000"></div>
   </UContainer>
 </template>
 
