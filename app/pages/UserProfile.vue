@@ -30,7 +30,7 @@ const links = ref<PageAnchor[]>([
     to: '#billing'
 
   },
-    {
+  {
     label: 'Preferences',
     icon: 'i-lucide-settings',
     to: '#preferences'
@@ -51,31 +51,36 @@ const state = reactive({
     <UPageGrid class="items-start">
       <UPageCard class="white-bread-container">
         <div class="text-lg text-pretty font-semibold text-muted">Account Settings</div>
-        <UPageAnchors :links="links" class="items-start" :ui="{ linkLeading: 'ring-transparent'}"/>
+        <UPageAnchors :links="links" class="items-start" :ui="{ linkLeading: 'ring-transparent' }" />
       </UPageCard>
       <UPageCard id="profile" class="col-span-2 white-bread-container">
-        <div class="text-lg text-pretty font-semibold text-muted mb-6">Profile</div>
-        <div class="flex items-center gap-4 mb-6">
-          <img src="../assets/Mirana.jpg" class="rounded-full"  alt="Jane Doe" width="200" />
-          <div class="text-center">
-            <UButton icon="i-lucide-upload" label="Upload new picture" variant="outline" />
-            <div class="text-sm text-muted mt-1">PNG or JPG (Max 2MB)</div>
+        <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
+        <div class="flex w-full gap-4">
+          <div class=" w-1/3">
+            <div class="flex justify-center gap-4 mb-6 w-full">
+              <img src="../assets/Mirana.jpg" class="rounded-full" alt="Jane Doe" width="150" />
+
+            </div>
+            <div class="text-center">
+              <UButton icon="i-lucide-upload" label="Upload new picture" variant="outline" />
+              <div class="text-sm text-muted mt-1">PNG or JPG (Max 2MB)</div>
+            </div>
           </div>
-        </div>
-        <UForm :state="state" class="space-y-4">
-          <UFormField label="Name" name="name">
-            <UInput v-model="state.name" />
-          </UFormField>
-          <UFormField label="Email" name="email">
-            <UInput v-model="state.email" type="email" />
-          </UFormField>
-          <UFormField label="Contact Number" name="contact">
-            <UInput v-model="state.contact" />
-          </UFormField>
-          <div class="flex justify-end pt-2">
+          <UForm :state="state" class="space-y-4 w-2/3">
+            <UFormField label="Name" name="name">
+              <UInput v-model="state.name" class="w-full" />
+            </UFormField>
+            <UFormField label="Email" name="email">
+              <UInput v-model="state.email" type="email" class="w-full" />
+            </UFormField>
+            <UFormField label="Contact Number" name="contact">
+              <UInput v-model="state.contact" class="w-full" />
+            </UFormField>
+            <div class="flex justify-end pt-2">
               <UButton>Save Changes</UButton>
-          </div>
-        </UForm>
+            </div>
+          </UForm>
+        </div>
       </UPageCard>
     </UPageGrid>
   </UContainer>
