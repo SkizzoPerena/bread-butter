@@ -105,6 +105,18 @@
 }
 
 
+.event-navbar {
+  border: none;
+  /* backdrop-blur-sm */
+  backdrop-filter: blur(4px);
+
+
+
+  box-shadow: 0 3px 15px -3px rgba(10, 10, 10, 0.1), 0 0px 10px -4px rgba(10, 10, 10, 0.1);
+  /* box-shadow: offset-x | offset-y | blur-radius | spread-radius | color; */
+}
+
+
 .bpb-pattern {
   background-image: url('../B+B Pattern.png');
   background-size: cover;

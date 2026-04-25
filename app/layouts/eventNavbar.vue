@@ -45,7 +45,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar :items="items" variant="link" class="bg-toast-500/70 fixed w-full">
+  <UDashboardNavbar :items="items" variant="link" class="bg-toast-500/70 w-full sticky top-0">
     <template #leading>
 
       <!-- Slideover Start -->
