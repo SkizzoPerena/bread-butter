@@ -78,7 +78,8 @@ const value = ref(50)
                 <UFormField label="Event Type" name="type" required>
                   <USelect v-model="selectValue" :items="eventTypes" class="w-full" />
                 </UFormField>
-                <UFormField label="Event Date" name="date" required>
+                <UFieldGroup class="w-full space-x-3">
+                <UFormField label="Event Date" name="date" required class="w-1/2">
                   <UPopover>
                     <UButton color="neutral" variant="outline" class="w-full">
                       {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
@@ -90,10 +91,10 @@ const value = ref(50)
                   </UPopover>
                 </UFormField>
 
-                <UFormField label="Budget" name="budget" required>
+                <UFormField label="Budget" name="budget" required class="w-1/2"> 
                   <UInputNumber v-model="value" :increment="false" :decrement="false" class="w-full" />
                 </UFormField>
-
+</UFieldGroup>
                 <UFormField label="Description" name="description" required>
                   <UTextarea class="w-full" placeholder="Tell us more about your special day"/>
                 </UFormField>

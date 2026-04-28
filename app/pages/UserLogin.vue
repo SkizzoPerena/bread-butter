@@ -44,6 +44,12 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
+const state = reactive({
+  email: 'user@example.com',
+  password: 'password',
+  remember: false
+})
+
 const stats = [
   { value: '500+', description: 'Events planned' },
   { value: '10,000+', description: 'Invitations sent' },
@@ -82,7 +88,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 
       <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
-        <UAuthForm :schema="schema" :fields="fields" :providers="providers" @submit="onSubmit" class="my-0 py-0" :submit="{
+        <UAuthForm :schema="schema" :state="state" :fields="fields" :providers="providers" @submit="onSubmit" class="my-0 py-0" :submit="{
           label: 'Sign in',
         }">
           <template #description>
