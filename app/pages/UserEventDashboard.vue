@@ -192,42 +192,44 @@ const tabItems = [
       <div class="flex justify-between">
         <div class="text-xl text-pretty font-semibold text-muted uppercase">Guest List</div>
 
+        <div class="space-x-2">
+          <UButton to="/RSVPMakerCopy"  icon="i-lucide-calendar">RSVP Maker</UButton>
 
         <!-- Add Guest Modal Start -->
 
-        <UModal title="Add Guest" :ui="{
-          header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
-          content: 'border-none ring-transparent w-1/4',
-          overlay: 'bg-toast-900/30'
-        }" :close="{
+          <UModal title="Add Guest" :ui="{
+            header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
+            content: 'border-none ring-transparent w-1/4',
+            overlay: 'bg-toast-900/30'
+          }" :close="{
           variant: 'link',
           class: 'rounded-full text-white'
         }" :dismissible="false">
-          <UButton icon="i-lucide-user-plus">Add Guest</UButton>
-          <template #body>
-            <UForm class="space-y-4">
-              <div class="mb-1 text-sm font-medium">Name <span class="text-error">*</span></div>
-              <UFieldGroup label="Name" name="name" required class="w-full">
-                <USelect :items="prefix" />
-                <UInput placeholder="Juan Dela Cruz" class="w-full" />
-              </UFieldGroup>
-              <UFormField label="Email" name="email" required>
-                <UInput type="email" class="w-full" placeholder="jdelacruz@example.com" />
-              </UFormField>
-              <UFormField label="Phone Number" name="phone" required>
-                <UInputNumber type="tel" class="w-full" placeholder="09123456789" :increment="false"
-                  :decrement="false" />
-              </UFormField>
+            <UButton icon="i-lucide-user-plus">Add Guest</UButton>
+            <template #body>
+              <UForm class="space-y-4">
+                <div class="mb-1 text-sm font-medium">Name <span class="text-error">*</span></div>
+                <UFieldGroup label="Name" name="name" required class="w-full">
+                  <USelect :items="prefix" />
+                  <UInput placeholder="Juan Dela Cruz" class="w-full" />
+                </UFieldGroup>
+                <UFormField label="Email" name="email" required>
+                  <UInput type="email" class="w-full" placeholder="jdelacruz@example.com" />
+                </UFormField>
+                <UFormField label="Phone Number" name="phone" required>
+                  <UInputNumber type="tel" class="w-full" placeholder="09123456789" :increment="false"
+                    :decrement="false" />
+                </UFormField>
 
-              <UButton type="submit" block class="mt-4">
-                Add Guest
-              </UButton>
-            </UForm>
-          </template>
-        </UModal>
+                <UButton type="submit" block class="mt-4">
+                  Add Guest
+                </UButton>
+              </UForm>
+            </template>
+          </UModal>
 
-        <!-- Add Guest Modal End -->
-
+          <!-- Add Guest Modal End -->
+        </div>
       </div>
       <UPageGrid>
         <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="100" description="Total Invitations Sent"
@@ -266,9 +268,9 @@ const tabItems = [
           content: 'border-none ring-transparent w-1/3',
           overlay: 'bg-toast-900/30'
         }" :close="{
-            variant: 'link',
-            class: 'rounded-full text-white'
-          }" :dismissible="false">
+          variant: 'link',
+          class: 'rounded-full text-white'
+        }" :dismissible="false">
           <UButton icon="i-lucide-list-plus">Add New Task</UButton>
           <template #body>
             <UForm class="space-y-4">
@@ -374,7 +376,7 @@ const tabItems = [
                   </div>
                 </div>
 
-                  <UButton block>Mark as Ongoing</UButton>
+                <UButton block>Mark as Ongoing</UButton>
 
               </UPageCard>
               <UPageCard class="white-bread-container">
@@ -398,7 +400,7 @@ const tabItems = [
                   </div>
                 </div>
 
-                  <UButton block>Mark as Ongoing</UButton>
+                <UButton block>Mark as Ongoing</UButton>
 
               </UPageCard>
               <UPageCard class="white-bread-container">
@@ -422,7 +424,7 @@ const tabItems = [
                   </div>
                 </div>
 
-                  <UButton block>Mark as Ongoing</UButton>
+                <UButton block>Mark as Ongoing</UButton>
 
               </UPageCard>
             </UPageColumns>

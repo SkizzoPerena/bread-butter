@@ -88,6 +88,20 @@
   
 }
 
+.bread-container-bordered {
+
+  /* backdrop-blur-sm */
+  backdrop-filter: blur(4px);
+  /* rounded-xl */
+  border-radius: 0.75rem; /* 12px */
+  /* px-2 */
+  /* shadow-lg shadow-neutral-950/5 */
+
+
+  box-shadow: 0 3px 15px -3px rgba(10, 10, 10, 0.1), 0 0px 6px -4px rgba(10, 10, 10, 0.1);
+  
+}
+
 .white-bread-container {
   border: none;
   background-color: white;

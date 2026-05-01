@@ -1,144 +1,283 @@
-<template>
-  <div class="container mx-auto p-4 md:p-8">
-    
-    <!-- Controls to add new blocks -->
-    <div class="mb-8 flex gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
-      <UButton 
-        icon="i-heroicons-h1" 
-        color="neutral" 
-        variant="solid" 
-        @click="addBlock('heading')"
-      >
-        Add Heading
-      </UButton>
-      <UButton 
-        icon="i-heroicons-document-text" 
-        color="neutral" 
-        variant="solid" 
-        @click="addBlock('text')"
-      >
-        Add Rich Text
-      </UButton>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      
-      <!-- LEFT SIDE: Dynamic Form Fields -->
-      <div class="flex flex-col gap-6">
-        <h2 class="text-2xl font-semibold">Content Blocks</h2>
-        
-        <div v-if="blocks.length === 0" class="text-gray-500 italic">
-          No blocks added yet. Click a button above to start building.
-        </div>
-        
-        <!-- Loop through our blocks array -->
-        <UCard 
-          v-for="(block, index) in blocks" 
-          :key="block.id" 
-          class="relative"
-        >
-          <template #header>
-            <div class="flex justify-between items-center">
-              <span class="font-medium text-sm text-gray-500 uppercase tracking-wider">
-                {{ block.type === 'heading' ? 'Heading Block' : 'Rich Text Block' }}
-              </span>
-              
-              <!-- Trash Button -->
-              <UButton 
-                icon="i-heroicons-trash" 
-                color="error" 
-                variant="ghost" 
-                size="sm"
-                @click="removeBlock(block.id)" 
-                aria-label="Delete block"
-              />
-            </div>
-          </template>
-
-          <!-- Conditionally render the right input based on block.type -->
-          <div v-if="block.type === 'heading'">
-            <UInput 
-              v-model="block.content" 
-              placeholder="Type your heading..." 
-              size="lg" 
-            />
-          </div>
-          
-          <div v-if="block.type === 'text'">
-            <UEditor 
-              v-model="block.content" 
-              :starter-kit="{ heading: { levels: [1, 2, 3] } }"
-              class="min-h-200px border border-gray-200 dark:border-gray-800 rounded-md"
-            />
-          </div>
-        </UCard>
-      </div>
-
-      <!-- RIGHT SIDE: Dynamic Live Preview -->
-      <div class="flex flex-col gap-6">
-        <h2 class="text-2xl font-semibold">Live Preview</h2>
-        
-        <UCard class="h-full min-h-500px">
-          
-          <div v-if="blocks.length === 0" class="text-gray-400 dark:text-gray-500 italic">
-            Your preview will appear here...
-          </div>
-
-          <div class="flex flex-col gap-6">
-            <!-- Loop through the exact same array to generate the preview -->
-            <div v-for="block in blocks" :key="`preview-${block.id}`">
-              
-              <!-- Render Heading Preview -->
-              <h2 
-                v-if="block.type === 'heading'" 
-                class="text-3xl font-bold"
-              >
-                {{ block.content || 'Empty Heading' }}
-              </h2>
-              
-              <!-- Render Rich Text Preview -->
-              <div 
-                v-if="block.type === 'text'"
-                class="prose dark:prose-invert max-w-none" 
-                v-html="block.content || '<p class=\'text-gray-400 italic\'>Empty text block...</p>'"
-              ></div>
-              
-            </div>
-          </div>
-        </UCard>
-      </div>
-
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, computed } from 'vue'
 
-// Define the shape of our block objects
+// 1. Required RSVP Data
+const rsvpData = reactive({
+  requestLine: 'Together with their families',
+  eventLabel: 'Alex & Jordan are getting married!',
+  eventDate: '',
+  eventTime: '',
+  eventVenue: '',
+  deadlineText: 'Please let us know if you can make it so we can accomodate you.',
+  deadlineDate: '' 
+})
+
+// 2. Dynamic Blocks Data
 interface Block {
-  id: string | number;
+  id: number;
   type: 'heading' | 'text';
   content: string;
 }
 
-// State is now an array of blocks instead of a single object
 const blocks = ref<Block[]>([
-  { id: 1, type: 'heading', content: 'Welcome to the Page Builder' }
+  { id: Date.now(), type: 'heading', content: 'Schedule of Events' },
+  { id: Date.now() + 1, type: 'text', content: 'Ceremony begins at 4:00 PM, with dinner and dancing to follow.' }
 ])
 
-// Function to add a new block
-const addBlock = (type: 'heading' | 'text') => {
-  blocks.value.push({
-    // Use Date.now() for a quick unique ID so Vue can track DOM elements properly
-    id: Date.now(), 
-    type,
-    content: ''
+const isPublished = ref(false)
+
+const addScheduleBlock = () => {
+  // Add both blocks if they don't exist.
+  if (!headingBlock.value) {
+    blocks.value.push({ id: Date.now(), type: 'heading', content: 'Schedule of Events' })
+  }
+  if (!textBlock.value) {
+    blocks.value.push({ id: Date.now() + 1, type: 'text', content: 'Ceremony begins at 4:00 PM, with dinner and dancing to follow.' })
+  }
+}
+
+const removeScheduleBlock = () => {
+  // Remove both heading and text blocks
+  blocks.value = blocks.value.filter(block => block.type !== 'heading' && block.type !== 'text')
+}
+
+const togglePublish = () => {
+  isPublished.value = !isPublished.value
+}
+
+// 3. Computed properties to grab specific blocks to lock their layout positions
+const headingBlock = computed(() => blocks.value.find(b => b.type === 'heading'))
+const textBlock = computed(() => blocks.value.find(b => b.type === 'text'))
+
+const formatDateWithWeekday = (dateString: string) => {
+  if (!dateString) return ''
+  // The input type="date" provides a string in 'YYYY-MM-DD' format.
+  // new Date('YYYY-MM-DD') can be interpreted as UTC time, which might lead to off-by-one day errors in some timezones.
+  // To treat it as a local date, we replace hyphens with slashes.
+  const date = new Date(dateString.replace(/-/g, '/'))
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   })
 }
 
-// Function to remove a block by its unique ID
-const removeBlock = (id: string | number) => {
-  blocks.value = blocks.value.filter(block => block.id !== id)
+const formatTime = (timeString: string) => {
+  if (!timeString) return ''
+  // Create a dummy date object to use toLocaleTimeString.
+  // The date part is arbitrary; only the time matters.
+  const date = new Date(`1970-01-01T${timeString}`)
+  return date.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
 }
+
 </script>
+
+<template>
+  <div class="relative w-full min-h-screen">
+    
+    <!-- Top Toolbar: Custom UDashboardNavbar -->
+    <UDashboardNavbar class="bg-bread-50/70 w-full sticky top-0 z-50 event-navbar">
+      
+      <!-- LEFT SIDE: Back Button & Image Slot -->
+      <template #left>
+        <div class="flex items-center gap-3">
+          <UButton 
+            icon="i-lucide-arrow-left" 
+            color="neutral" 
+            variant="ghost"
+            class="rounded-lg" 
+            aria-label="Go back" to="/UserEventDashboard"
+          />
+          
+          <!-- Image Slot Wrapper -->
+          <img src="..\assets\bpb-icons\logo-toast.svg" class="h-7" />
+          <div class="font-serif text-xl font-bold">RSVP Maker</div>
+        </div>
+      </template>
+
+      <!-- RIGHT SIDE: Status & Actions -->
+      <template #right>
+        <div class="flex items-center gap-4">
+          <div v-if="isPublished" class="text-sm md:text-base font-medium text-success-600 dark:text-success-400">
+            ✨ Your invitation is live!
+          </div>
+          
+          <UButton 
+            :icon="isPublished ? 'i-lucide-pencil' : 'i-lucide-check-circle'" 
+            :color="isPublished ? 'neutral' : 'primary'" 
+            @click="togglePublish"
+          >
+            {{ isPublished ? 'Edit Invitation' : 'Create Invitation' }}
+          </UButton>
+        </div>
+      </template>
+
+    </UDashboardNavbar>
+
+    <!-- Main Content Container -->
+    <UContainer>
+      <div  class="mb-8"></div>
+      <UPageGrid class="items-start" :class="{ 'max-w-3xl mx-auto': isPublished }" :grid="{ cols: isPublished ? 1 : '1 md:3' }">
+        
+        
+        <!-- LEFT SIDE: Content Blocks Form -->
+
+          <UPageCard  v-if="!isPublished" class="bread-container">
+            <div class="text-2xl font-semibold">Editor</div>
+
+          <!-- REQUIRED FIELD: Core Event Details -->
+          <UAccordion :ui="{label: 'text-lg font-semibold'}" :items="[{ label: '1. Core Event Details', slot: 'core-details', defaultOpen: true }]">
+            <template #core-details>
+              <div class="flex flex-col gap-4 p-4">
+                <UFormField label="Introductory Line">
+                  <UInput v-model="rsvpData.requestLine" placeholder="e.g., You are invited to..." class="w-full" />
+                </UFormField>
+                
+                <UFormField label="Event Headline">
+                  <UInput v-model="rsvpData.eventLabel" placeholder="e.g., The Wedding of..." size="lg" class="w-full" />
+                </UFormField>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <UFormField label="Event Date">
+                    <UInput type="date" v-model="rsvpData.eventDate" icon="i-lucide-calendar" class="w-full" />
+                  </UFormField>
+                  
+                  <UFormField label="Event Time">
+                    <UInput type="time" v-model="rsvpData.eventTime" icon="i-lucide-clock" class="w-full" />
+                  </UFormField>
+                </div>
+
+                <UFormField label="Venue">
+                  <UInput v-model="rsvpData.eventVenue" placeholder="e.g., The Grand Hotel, Cityville" icon="i-lucide-map-pin" class="w-full" />
+                </UFormField>
+              </div>
+            </template>
+          </UAccordion>
+
+          <!-- FIXED SLOT: Schedule & Details Block -->
+          <div>
+
+              <div class="flex justify-between items-center">
+                <div class="text-lg font-semibold">
+                  2. Schedule & Details
+                </div>
+                <UButton
+                  v-if="headingBlock"
+                  icon="i-lucide-trash"
+                  color="error"
+                  variant="ghost"
+                  class="rounded-lg" 
+                  @click="removeScheduleBlock()"
+                />
+                <UButton
+                  v-else
+                  icon="i-lucide-plus"
+                  color="primary"
+                  variant="solid"
+                  class="rounded-lg" 
+                  @click="addScheduleBlock()"
+                />
+              </div>
+
+            <div v-if="headingBlock || textBlock" class="flex flex-col p-4 gap-4">
+              <UFormField v-if="headingBlock" label="Schedule Heading">
+                <UInput v-model="headingBlock.content" placeholder="e.g., Schedule of Events" size="lg" class="w-full" />
+              </UFormField>
+              
+              <UFormField v-if="textBlock" label="Details">
+                <UTextarea v-model="textBlock.content" class="w-full" placeholder="Add more details like ceremony times, dinner information, etc." />
+              </UFormField>
+            </div>
+          </div>
+
+
+          <!-- REQUIRED FIELD: RSVP Deadline -->
+          <UAccordion :ui="{label: 'text-lg font-semibold'}" :items="[{ label: '3. Set RSVP Deadline (Required)', slot: 'rsvp-deadline', defaultOpen: true }]">
+            <template #rsvp-deadline>
+              <div class="flex flex-col gap-6 p-4">
+                <UFormField label="Deadline Message">
+                  <UTextarea v-model="rsvpData.deadlineText" class="w-full" />
+                </UFormField>
+                
+                <UFormField label="Deadline Date">
+                  <UInput 
+                    type="date" 
+                    v-model="rsvpData.deadlineDate" 
+                    icon="i-lucide-calendar" 
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+            </template>
+          </UAccordion>
+
+        </UPageCard>
+
+        <!-- RIGHT SIDE: Live Preview / Final Invitation -->
+        <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-6">          
+          <UPageCard class="bread-container-bordered border border-toast-400" :class="isPublished ? 'shadow-2xl max-w-3xl mx-auto' : ' '">
+            <div class="flex flex-col gap-8 text-center py-8 px-4">
+              
+              <!-- 1. Header Area (Fixed Fields) -->
+              <div class="space-y-4">
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">
+                  {{ rsvpData.requestLine || 'Your request line...' }}
+                </p>
+                <h1 class="text-4xl md:text-5xl font-bold font-serif text-neutral-900 dark:text-white leading-tight">
+                  {{ rsvpData.eventLabel || 'Your Event Label...' }}
+                </h1>
+                
+                <!-- Date, Time, and Venue -->
+                <div class="mt-6 flex flex-col items-center text-neutral-700 dark:text-neutral-300">
+                  <div class="text-lg font-semibold uppercase">
+                      {{ formatDateWithWeekday(rsvpData.eventDate) || 'Event Date' }}
+                  </div>
+                  <div>{{ formatTime(rsvpData.eventTime) || 'Event Time' }}</div>
+                  <div class="flex items-center font-semibold font-serif pt-2">
+                    {{ rsvpData.eventVenue || 'Event Venue Placeholder' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Dynamic Body Area (Locked Positions) -->
+              <div class="flex flex-col">
+                <h2 v-if="headingBlock" class="text-2xl font-bold">
+                  {{ headingBlock.content }}
+                </h2>
+                
+                <div 
+                  v-if="textBlock"
+                  class="prose dark:prose-invert max-w-none mx-auto text-center" 
+                  v-html="textBlock.content"
+                ></div>
+              </div>
+
+              <!-- 3. Footer Area (RSVP Deadline) -->
+              <div class="mt-8 pt-8 border-t border-neutral-200 dark:border-neutral-800">
+                <div 
+                  class="prose dark:prose-invert mx-auto text-center text-sm" 
+                  v-html="rsvpData.deadlineText"
+                ></div>
+                
+                <div 
+                  v-if="rsvpData.deadlineDate" 
+                  class="mt-6 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-400 rounded-lg font-semibold text-sm"
+                >
+                  <UIcon name="i-lucide-calendar" class="w-5 h-5" />
+                  RSVP by {{ formatDateWithWeekday(rsvpData.deadlineDate) }}
+                </div>
+              </div>
+
+            </div>
+          </UPageCard>
+        </div>
+
+      </UPageGrid>
+    </UContainer>
+  </div>
+</template>
