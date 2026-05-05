@@ -68,7 +68,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 </script>
 
-<template>
+<template> 
   <div class="flex items-center justify-center p-4 bpb-pattern h-screen">
 
     <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4 bg-bread-200">

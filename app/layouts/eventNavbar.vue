@@ -52,7 +52,7 @@ const dropitems: DropdownMenuItem[][] = [
       <USlideover side="left" :ui="{
         header: ' border-none', title: 'text-white',
         content: 'bg-toast-400 border-none ring-transparent w-1/5',
-        overlay: 'bg-toast-900/30'
+        overlay: 'bg-toast-900/70'
       }">
         <UButton icon="i-lucide-menu" variant="link" class="text-white" />
 

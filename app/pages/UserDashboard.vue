@@ -100,7 +100,7 @@ const value = ref(50)
                 </UFormField>
 
                 <UButton to="/UserEventDashboard" block class="mt-4">
-                  Create New Event
+                  Create Event
                 </UButton>
               </UForm>
 

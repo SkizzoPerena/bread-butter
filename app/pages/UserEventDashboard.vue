@@ -146,7 +146,7 @@ const tabItems = [
                 </UFormField>
 
                 <UButton to="/UserEventDashboard" block class="mt-4">
-                  Create New Event
+                  Save Changes
                 </UButton>
               </UForm>
             </template>
