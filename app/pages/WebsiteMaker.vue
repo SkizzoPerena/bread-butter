@@ -3,14 +3,16 @@ import { ref, reactive, computed } from 'vue'
 
 // 1. Website Data
 const websiteData = reactive({
-    siteTitle: 'My Awesome Website',
-    siteDescription: 'A brief description of my awesome website.',
+    siteTitle: 'Jane & John ties the knot',
+    siteDescription: 'A story of love, life, and commitment',
     domainName: '',
     contactEmail: '', // Default motif
     motif: 'Classic Romance',
     colorPalette: 'Blush & Gold', // Default color palette
     typography: 'Elegant Serif', // Default font pairing
-    headerImage: '' // New: Header background image URL
+    headerImage: '', // New: Header background image URL
+    endingTitle: 'Hope to see you there!',
+    endingMessage: 'We cannot wait to celebrate this special day with all of our favorite people.'
 })
 
 // Motif Data
@@ -39,27 +41,27 @@ interface ColorPalette {
 const colorPalettes: ColorPalette[] = [
     {
         name: 'Blush & Gold',
-        colors: { background: '#FFF9F9', surface: '#F9E0E0', primary: '#D4AF37', text: '#6B5B5B', heading: '#C8A2A2' }
+        colors: { background: '#FFF9F9', surface: '#F2E2E2', primary: '#8A6327', text: '#3E3232', heading: '#5B2A2A' }
     },
     {
         name: 'Navy & White',
-        colors: { background: '#001F3F', surface: '#95a5a6', primary: '#FFFFFF', text: '#bdc3c7', heading: '#FFFFFF' }
+        colors: { background: '#0A192F', surface: '#172A45', primary: '#215E9E', text: '#E6F1FF', heading: '#FFFFFF' }
     },
     {
         name: 'Dusty Blue & Sage',
-        colors: { background: '#F5F6F5', surface: '#EAF0F3', primary: '#8EAFBF', text: '#546E7A', heading: '#829582' }
+        colors: { background: '#F5F7F8', surface: '#E1E7EC', primary: '#365A42', text: '#2C3E50', heading: '#1A252F' }
     },
     {
         name: 'Burgundy & Cream',
-        colors: { background: '#800020', surface: '#D8C3A5', primary: '#F5E6D3', text: '#FDFBF6', heading: '#FFFFFF' }
+        colors: { background: '#38040E', surface: '#5C101A', primary: '#8A1C24', text: '#FDFBF6', heading: '#FFFFFF' }
     },
     {
         name: 'Emerald & Ivory',
-        colors: { background: '#00583E', surface: '#DCD3C4', primary: '#F3EFE0', text: '#FFFFF7', heading: '#FFFFFF' }
+        colors: { background: '#022B18', surface: '#054D2E', primary: '#0A7A44', text: '#F0FDF4', heading: '#FFFFFF' }
     },
     {
         name: 'Terracotta & Pampas',
-        colors: { background: '#FDFBF9', surface: '#F4F0E8', primary: '#E2725B', text: '#8B5E34', heading: '#BF5A42' }
+        colors: { background: '#FCF6F0', surface: '#F0E1D3', primary: '#9C4122', text: '#4A3225', heading: '#6B2A15' }
     }
 ]
 
@@ -89,9 +91,12 @@ interface WebsiteSection {
 }
 
 const sections = ref<WebsiteSection[]>([
-    { id: Date.now(), type: 'heading', content: 'Welcome to My Website!' },
-    { id: Date.now() + 1, type: 'paragraph', content: 'This is a paragraph about your website. You can add more content here.' }
+    { id: Date.now(), type: 'heading', content: '"Love is composed of a single soul inhabiting two bodies"' },
+    { id: Date.now() + 1, type: 'paragraph', content: 'This is a section about your story together. Add more here!' }
 ])
+
+const headingSection = computed(() => sections.value.find(s => s.type === 'heading'))
+const paragraphSection = computed(() => sections.value.find(s => s.type === 'paragraph'))
 
 const isLive = ref(false)
 const currentStep = ref(0) // 0-indexed for steps
@@ -108,20 +113,23 @@ const selectedHeaderFile = ref<File | undefined>();
 
 const websiteSteps = [
     { label: '1. Choose a Motif', icon: 'i-lucide-palette', slot: 'choose-motif', description: "Select a design template that matches your wedding style." },
-    { label: '2. Color Palette', icon: 'i-lucide-swatch-book', slot: 'color-palette', description: "Choose a color scheme that will be used across your website." },
-    { label: '3. Typography', icon: 'i-lucide-type', slot: 'typography', description: "Select a font pairing for your website\'s headings and text." },
-    { label: '4. Header Image', icon: 'i-lucide-image', slot: 'header-image', description: "Upload a captivating image for your website's header." }, // New Step
+    { label: '2. Header Image', icon: 'i-lucide-image', slot: 'header-image', description: "Upload a captivating image for your website's header." }, // New Step
+    { label: '3. Color Palette', icon: 'i-lucide-swatch-book', slot: 'color-palette', description: "Choose a color scheme that will be used across your website." },
+    { label: '4. Typography', icon: 'i-lucide-type', slot: 'typography', description: "Select a font pairing for your website\'s headings and text." },
     { label: '5. Basic Information', icon: 'i-lucide-info', slot: 'basic-info', description: "Provide the essential details for your website, like the title, description, and contact information." },
     { label: '6. Content Sections', icon: 'i-lucide-layout-template', slot: 'content-sections', description: "Add and arrange content sections like headings and paragraphs to build your page." },
-    { label: '7. Review & Publish', icon: 'i-lucide-check-circle', slot: 'review-publish', description: "Review all your website details and publish it to go live." }
+    { label: '7. Tidbits', icon: 'i-lucide-list', slot: 'tidbits', description: "Add unlimited sections with a heading and a paragraph to share more stories." },
+    { label: '8. Schedule', icon: 'i-lucide-calendar', slot: 'schedule', description: "List the events of your special day, complete with times and locations." },
+    { label: '9. Thank You Message', icon: 'i-lucide-heart-handshake', slot: 'thank-you', description: "Add a closing message or thank you note to your guests." },
+    { label: '10. Review & Publish', icon: 'i-lucide-check-circle', slot: 'review-publish', description: "Review all your website details and publish it to go live." }
 ]
 
 const addContentSection = (type: 'heading' | 'paragraph') => {
     const newId = Date.now() + sections.value.length; // Ensure unique ID
-    if (type === 'heading') {
-        sections.value.push({ id: newId, type: 'heading', content: 'New Heading' });
-    } else {
-        sections.value.push({ id: newId, type: 'paragraph', content: 'New paragraph content.' });
+    if (type === 'heading' && !headingSection.value) {
+        sections.value.push({ id: newId, type: 'heading', content: 'Love is composed of a single soul inhabiting two bodies' });
+    } else if (type === 'paragraph' && !paragraphSection.value) {
+        sections.value.push({ id: newId, type: 'paragraph', content: 'This is a section about your story together. Add more here!' });
     }
 }
 
@@ -129,16 +137,52 @@ const removeContentSection = (id: number) => {
     sections.value = sections.value.filter(section => section.id !== id);
 }
 
+// 3. Tidbits Section
+interface Tidbit {
+    id: number;
+    heading: string;
+    paragraph: string;
+}
+
+const tidbits = ref<Tidbit[]>([
+    ])
+
+const addTidbit = () => {
+    tidbits.value.push({ id: Date.now() + tidbits.value.length, heading: 'New Tidbit', paragraph: 'Add some details here.' })
+}
+
+const removeTidbit = (id: number) => {
+    tidbits.value = tidbits.value.filter(t => t.id !== id)
+}
+
+// 4. Schedule Section
+interface ScheduleItem {
+    id: number;
+    title: string;
+    description: string;
+    location: string;
+}
+
+const scheduleItems = ref<ScheduleItem[]>([])
+
+const addScheduleItem = () => {
+    scheduleItems.value.push({ id: Date.now() + scheduleItems.value.length, title: 'New Event', description: 'Event details here.', location: '' })
+}
+
+const removeScheduleItem = (id: number) => {
+    scheduleItems.value = scheduleItems.value.filter(s => s.id !== id)
+}
+
 watch(selectedHeaderFile, (newFile) => {
-  if (newFile) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      websiteData.headerImage = e.target?.result as string;
-    };
-    reader.readAsDataURL(newFile);
-  } else {
-    websiteData.headerImage = ''; // Clear image if no file selected
-  }
+    if (newFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            websiteData.headerImage = e.target?.result as string;
+        };
+        reader.readAsDataURL(newFile);
+    } else {
+        websiteData.headerImage = ''; // Clear image if no file selected
+    }
 }, { immediate: true }); // Watch immediately to handle initial state if any
 
 
@@ -152,10 +196,10 @@ const toggleLive = () => {
 </script>
 
 <template>
-    <div class="relative w-full min-h-screen">
+    <div class="relative w-full min-h-screen bpb-pattern">
 
         <!-- Top Toolbar: Custom UDashboardNavbar -->
-        <UDashboardNavbar class="bg-bread-50/70 w-full sticky top-0 z-50 event-navbar">
+        <UDashboardNavbar class="bg-white w-full sticky top-0 z-50 event-navbar">
 
             <!-- LEFT SIDE: Back Button & Image Slot -->
             <template #left>
@@ -191,283 +235,435 @@ const toggleLive = () => {
             <UPageGrid class="items-start" :grid="{ cols: isLive ? '1' : '1 md:4' }">
 
                 <!-- LEFT SIDE: Step Navigation (Editor Mode) -->
-                <UScrollArea v-if="!isLive" class="bread-container col-span-1 h-full max-h-[calc(100vh-100px)]">
-                    <UPageCard class="bread-container">
-                    <UVerticalNavigation :links="websiteSteps.map((step, index) => ({
-                        label: step.label,
-                        icon: step.icon,
-                        click: () => currentStep = index,
-                        active: currentStep === index
-                    }))" />
+                <UPageCard class="bread-container col-span-1 p-0 sm:p-0  overflow-hidden"
+                :ui="{ container: 'p-0 sm:p-0 lg:p-0' }">
+                    <UScrollArea v-if="!isLive" class=" h-full max-h-[calc(100vh-125px)]">
+                        <UPageCard class="border-transparent ring-transparent bg-none"
+                        >
 
 
-                    <!-- MIDDLE SECTION: Step Content (Editor Mode) -->
-                    <div v-if="!isLive" class="">
-                        <div class="relative flex justify-center items-center text-xl font-semibold mb-1">
-                            <UButton v-if="currentStep > 0" icon="i-lucide-arrow-left" color="neutral" variant="ghost"
-                                class="absolute left-0 p-2" aria-label="Previous Step" @click="currentStep--" />
-                            <span>{{ websiteSteps[currentStep]!.label }}</span>
-                        </div>
-                        <p class="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            {{ websiteSteps[currentStep]!.description }}
-                        </p>
 
-
-                        <!-- Step 1: Choose a Motif -->
-                        <div v-if="currentStep === 0" class="">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div v-for="motif in motifs" :key="motif.name"
-                                    class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300"
-                                    :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.motif === motif.name }"
-                                    @click="websiteData.motif = motif.name" style="height: 120px;">
-                                    <img :src="motif.image" :alt="motif.name"
-                                        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
-                                    <div
-                                        class="absolute inset-0 bg-toast-900/10 group-hover:bg-opacity-40 transition-all duration-300">
-                                    </div>
-                                    <div v-if="websiteData.motif === motif.name"
-                                        class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
-                                        <UIcon name="i-lucide-check" class="h-4 w-4" />
-                                    </div>
-                                    <div class="absolute bottom-0 left-0 p-2">
-                                        <h4 class="font-semibold text-white text-sm drop-shadow-md">{{ motif.name }}
-                                        </h4>
-                                    </div>
+                            <!-- MIDDLE SECTION: Step Content (Editor Mode) -->
+                            <div v-if="!isLive" class="">
+                                <div class="relative flex justify-center items-center text-xl font-semibold mb-1">
+                                    <UButton v-if="currentStep > 0" icon="i-lucide-arrow-left" color="neutral"
+                                        variant="ghost" class="absolute left-0 p-2" aria-label="Previous Step"
+                                        @click="currentStep--" />
+                                    <span>{{ websiteSteps[currentStep]!.label }}</span>
                                 </div>
-                            </div>
-                        </div>
+                                <p class="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                    {{ websiteSteps[currentStep]!.description }}
+                                </p>
 
-                        <!-- Step 2: Choose a Color Palette -->
-                        <div v-if="currentStep === 1" class="">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div v-for="palette in colorPalettes" :key="palette.name"
-                                    class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300 border"
-                                    :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.colorPalette === palette.name, 'border-gray-200 dark:border-gray-700': websiteData.colorPalette !== palette.name }"
-                                    @click="websiteData.colorPalette = palette.name">
 
-                                    <div class="h-20 flex">
-                                        <div v-for="(color, key) in palette.colors" :key="key" class="w-full h-full"
-                                            :style="{ backgroundColor: color }"></div>
-                                    </div>
-
-                                    <div
-                                        class="absolute inset-0 group-hover:bg-opacity-20 transition-all duration-300">
-                                    </div>
-                                    <div v-if="websiteData.colorPalette === palette.name"
-                                        class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
-                                        <UIcon name="i-lucide-check" class="h-4 w-4" />
-                                    </div>
-                                    <div class="absolute bottom-0 left-0 p-2 bg-black/20 w-full">
-                                        <h4 class="font-semibold text-white text-sm drop-shadow-md text-left">{{
-                                            palette.name }}
-                                        </h4>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                            <!-- Step 3: Choose Typography -->
-                            <div v-if="currentStep === 2" class="">
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div v-for="pairing in fontPairings" :key="pairing.name" 
-                                        class="rounded-lg cursor-pointer group transition-all duration-300 border p-3 flex flex-col justify-between"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.typography === pairing.name, 'border-gray-200 dark:border-gray-700': websiteData.typography !== pairing.name }"
-                                        @click="websiteData.typography = pairing.name">
-                                        
-                                        <div>
-                                            <h3 class="text-xl" :style="{ fontFamily: `'${pairing.headingFont}'` }">Aa - {{ pairing.headingFont }}</h3>
-                                            <p class="text-base mt-2" :style="{ fontFamily: `'${pairing.bodyFont}'` }">The quick brown fox jumps over the lazy dog.</p>
-                                        </div>
-
-                                        <div class="mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                            <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{ pairing.name }}</h4>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ pairing.description }}</p>
+                                <!-- Step 1: Choose a Motif -->
+                                <div v-if="currentStep === 0" class="">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div v-for="motif in motifs" :key="motif.name"
+                                            class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300"
+                                            :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.motif === motif.name }"
+                                            @click="websiteData.motif = motif.name" style="height: 120px;">
+                                            <img :src="motif.image" :alt="motif.name"
+                                                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                                            <div
+                                                class="absolute inset-0 bg-toast-900/10 group-hover:bg-opacity-40 transition-all duration-300">
+                                            </div>
+                                            <div v-if="websiteData.motif === motif.name"
+                                                class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                                <UIcon name="i-lucide-check" class="h-4 w-4" />
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 p-2">
+                                                <h4 class="font-semibold text-white text-sm drop-shadow-md">{{
+                                                    motif.name }}
+                                                </h4>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+
+                                <!-- Step 2: Choose a Color Palette -->
+                                <div v-if="currentStep === 2" class="">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div v-for="palette in colorPalettes" :key="palette.name"
+                                            class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300 border"
+                                            :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.colorPalette === palette.name, 'border-gray-200 dark:border-gray-700': websiteData.colorPalette !== palette.name }"
+                                            @click="websiteData.colorPalette = palette.name">
+
+                                            <div class="h-20 flex">
+                                                <div v-for="(color, key) in palette.colors" :key="key"
+                                                    class="w-full h-full" :style="{ backgroundColor: color }"></div>
+                                            </div>
+
+                                            <div
+                                                class="absolute inset-0 group-hover:bg-opacity-20 transition-all duration-300">
+                                            </div>
+                                            <div v-if="websiteData.colorPalette === palette.name"
+                                                class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                                <UIcon name="i-lucide-check" class="h-4 w-4" />
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 p-2 bg-black/20 w-full">
+                                                <h4 class="font-semibold text-white text-sm drop-shadow-md text-left">{{
+                                                    palette.name }}
+                                                </h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 2: Upload Header Image -->
+                                <div v-if="currentStep === 1" class="flex flex-col gap-4">
+                                    <UFormField label="Header Background Image">
+                                        <UFileUpload v-model="selectedHeaderFile" :multiple="false" accept="image/*"
+                                            size="xl" variant="area" label="Drop your image here"
+                                            description="PNG, JPG, GIF (max. 5MB)" />
+                                        <UButton v-if="websiteData.headerImage" icon="i-lucide-x" color="error"
+                                            variant="ghost" class="mt-2" block
+                                            @click="selectedHeaderFile = undefined; websiteData.headerImage = ''">
+                                            Clear Image
+                                        </UButton>
+                                    </UFormField>
+                                </div>
+
+                                <!-- Step 3: Choose Typography -->
+                                <div v-if="currentStep === 3" class="">
+                                    <div class="grid grid-cols-1 gap-4">
+                                        <div v-for="pairing in fontPairings" :key="pairing.name"
+                                            class="rounded-lg cursor-pointer group transition-all duration-300 border p-3 flex flex-col justify-between"
+                                            :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.typography === pairing.name, 'border-gray-200 dark:border-gray-700': websiteData.typography !== pairing.name }"
+                                            @click="websiteData.typography = pairing.name">
+
+                                            <div>
+                                                <h3 class="text-xl" :style="{ fontFamily: `'${pairing.headingFont}'` }">
+                                                    Aa -
+                                                    {{
+                                                        pairing.headingFont }}</h3>
+                                                <p class="text-base mt-2"
+                                                    :style="{ fontFamily: `'${pairing.bodyFont}'` }">
+                                                    The quick
+                                                    brown fox jumps over the lazy dog.</p>
+                                            </div>
+
+                                            <div class="mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{
+                                                    pairing.name
+                                                }}</h4>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{
+                                                    pairing.description
+                                                }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
 
-                            <!-- Step 4: Upload Header Image -->
-                            <div v-if="currentStep === 3" class="flex flex-col gap-4">
-                                <UFormField label="Header Background Image">
-                                    <UFileUpload
-                                        v-model="selectedHeaderFile"
-                                        :multiple="false"
-                                        accept="image/*"
-                                        size="xl"
-                                        variant="area"
-                                        label="Drop your image here"
-                                        description="PNG, JPG, GIF (max. 5MB)"
-                                    />
-                                    <UButton v-if="websiteData.headerImage" icon="i-lucide-x" color="error" variant="ghost" class="mt-2" @click="selectedHeaderFile = undefined; websiteData.headerImage = ''">
-                                        Clear Image
-                                    </UButton>
-                                </UFormField>
-                            </div>                            
+                                <!-- Step 5: Basic Information -->
+                                <div v-if="currentStep === 4" class="flex flex-col gap-4 ">
+                                    <UFormField label="Site Title">
+                                        <UInput v-model="websiteData.siteTitle" placeholder="e.g., My Portfolio"
+                                            class="w-full" />
+                                    </UFormField>
+
+                                    <UFormField label="Site Description">
+                                        <UTextarea v-model="websiteData.siteDescription"
+                                            placeholder="A short description of your website." class="w-full" />
+                                    </UFormField>
+
+                                    <UFormField label="Domain Name">
+                                        <UInput v-model="websiteData.domainName" placeholder="e.g., mywebsite.com"
+                                            icon="i-lucide-globe" class="w-full" />
+                                    </UFormField>
+
+                                    <UFormField label="Contact Email">
+                                        <UInput type="email" v-model="websiteData.contactEmail"
+                                            placeholder="e.g., info@mywebsite.com" icon="i-lucide-mail"
+                                            class="w-full" />
+                                    </UFormField>
+                                </div>
+
+                                <!-- Step 6: Content Sections -->
+                                <div v-if="currentStep === 5" class="flex flex-col gap-6 ">
+                                    <div class="items-center space-y-4">
+
+                                        <div v-if="!headingSection && !paragraphSection"
+                                            class="text-center text-gray-500 italic">No
+                                            sections
+                                            added
+                                            yet.
+                                        </div>
+
+                                        <UButton v-if="!headingSection" icon="i-lucide-plus" color="primary"
+                                            variant="solid" block @click="addContentSection('heading')">
+                                            Add Heading
+                                        </UButton>
+
+                                        <div v-if="headingSection" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                            <div class="flex justify-between items-center">
+                                                <span class="font-medium capitalize">Heading</span>
+                                                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
+                                                    @click="removeContentSection(headingSection.id)" />
+                                            </div>
+                                            <UFormField>
+                                                <UInput v-model="headingSection.content"
+                                                    placeholder="Enter heading text" class="w-full" />
+                                            </UFormField>
+                                        </div>
+
+                                        <UButton v-if="!paragraphSection" icon="i-lucide-plus" color="primary"
+                                            variant="solid" block @click="addContentSection('paragraph')">
+                                            Add Paragraph
+                                        </UButton>
 
 
-                            <!-- Step 5: Basic Information -->
-                            <div v-if="currentStep === 4" class="flex flex-col gap-4 ">
-                            <UFormField label="Site Title">
-                                <UInput v-model="websiteData.siteTitle" placeholder="e.g., My Portfolio"
-                                    class="w-full" />
-                            </UFormField>
+                                        <div v-if="paragraphSection" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                            <div class="flex justify-between items-center">
+                                                <span class="font-medium capitalize">Paragraph</span>
+                                                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
+                                                    @click="removeContentSection(paragraphSection.id)" />
+                                            </div>
+                                            <UFormField>
+                                                <UTextarea v-model="paragraphSection.content"
+                                                    placeholder="Enter paragraph content" class="w-full" />
+                                            </UFormField>
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <UFormField label="Site Description">
-                                <UTextarea v-model="websiteData.siteDescription"
-                                    placeholder="A short description of your website." class="w-full" />
-                            </UFormField>
+                                <!-- Step 7: Tidbits -->
+                                <div v-if="currentStep === 6" class="flex flex-col gap-6 ">
+                                    <div class="items-center space-y-4">
 
-                            <UFormField label="Domain Name">
-                                <UInput v-model="websiteData.domainName" placeholder="e.g., mywebsite.com"
-                                    icon="i-lucide-globe" class="w-full" />
-                            </UFormField>
+                                        <div v-if="tidbits.length === 0"
+                                            class="text-center text-gray-500 italic">No
+                                            tidbits
+                                            added
+                                            yet.
+                                        </div>
 
-                            <UFormField label="Contact Email">
-                                <UInput type="email" v-model="websiteData.contactEmail"
-                                    placeholder="e.g., info@mywebsite.com" icon="i-lucide-mail" class="w-full" />
-                            </UFormField>
-                        </div>
+                                        <UButton icon="i-lucide-plus" color="primary"
+                                            variant="solid" block @click="addTidbit()">
+                                            Add Tidbit
+                                        </UButton>
 
-                            <!-- Step 6: Content Sections -->
-                            <div v-if="currentStep === 5" class="flex flex-col gap-6 ">
-                            <div class="flex justify-between items-center">
-                                <div class="text-lg font-semibold">Manage Sections</div>
-                                <div class="flex gap-2">
-                                    <UButton icon="i-lucide-plus" color="primary" variant="solid"
-                                        @click="addContentSection('heading')">
-                                        Add Heading
-                                    </UButton>
-                                    <UButton icon="i-lucide-plus" color="primary" variant="solid"
-                                        @click="addContentSection('paragraph')">
-                                        Add Paragraph
+                                        <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                            <div class="flex justify-between items-center">
+                                                <span class="font-medium capitalize">Tidbit</span>
+                                                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
+                                                    @click="removeTidbit(tidbit.id)" />
+                                            </div>
+                                            <UFormField label="Question">
+                                                <UInput v-model="tidbit.heading"
+                                                    placeholder="Enter tidbit heading" class="w-full" />
+                                            </UFormField>
+                                            <UFormField label="Answer">
+                                                <UTextarea v-model="tidbit.paragraph"
+                                                    placeholder="Enter tidbit paragraph" class="w-full" />
+                                            </UFormField>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 8: Schedule -->
+                                <div v-if="currentStep === 7" class="flex flex-col gap-6 ">
+                                    <div class="items-center space-y-4">
+
+                                        <div v-if="scheduleItems.length === 0"
+                                            class="text-center text-gray-500 italic">No
+                                            events
+                                            added
+                                            yet.
+                                        </div>
+
+                                        <UButton icon="i-lucide-plus" color="primary"
+                                            variant="solid" block @click="addScheduleItem()">
+                                            Add Event
+                                        </UButton>
+
+                                        <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                            <div class="flex justify-between items-center">
+                                                <span class="font-medium capitalize">Event</span>
+                                                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
+                                                    @click="removeScheduleItem(item.id)" />
+                                            </div>
+                                            <UFormField label="Title">
+                                                <UInput v-model="item.title"
+                                                    placeholder="Enter event title" class="w-full" />
+                                            </UFormField>
+                                            <UFormField label="Description">
+                                                <UTextarea v-model="item.description"
+                                                    placeholder="Enter event description" class="w-full" />
+                                            </UFormField>
+                                            <UFormField label="Location (Optional)">
+                                                <UInput v-model="item.location"
+                                                    placeholder="Enter location" class="w-full" />
+                                            </UFormField>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 9: Thank You Message -->
+                                <div v-if="currentStep === 8" class="flex flex-col gap-4 ">
+                                    <UFormField label="Closing Title">
+                                        <UInput v-model="websiteData.endingTitle" placeholder="e.g., We can't wait!"
+                                            class="w-full" />
+                                    </UFormField>
+
+                                    <UFormField label="Closing Message">
+                                        <UTextarea v-model="websiteData.endingMessage"
+                                            placeholder="Write a sweet thank you note or final invitation line." class="w-full" />
+                                    </UFormField>
+                                </div>
+
+                                <!-- Step 10: Review & Publish -->
+                                <div v-if="currentStep === 9" class="flex flex-col gap-4 ">
+                                    <div class="space-y-2">
+                                        <p><strong>Domain:</strong> {{ websiteData.domainName || 'N/A' }}</p>
+                                        <p><strong>Title:</strong> {{ websiteData.siteTitle || 'N/A' }}</p>
+                                        <p><strong>Motif:</strong> {{ websiteData.motif || 'N/A' }}</p>
+                                        <p><strong>Color Palette:</strong> {{ websiteData.colorPalette || 'N/A' }}</p>
+                                        <p><strong>Typography:</strong> {{ websiteData.typography || 'N/A' }}</p>
+                                    </div>
+                                    <UButton color="primary" block @click="toggleLive">
+                                        Publish Website
                                     </UButton>
                                 </div>
-                            </div>
 
-                            <div v-if="sections.length === 0" class="text-center text-gray-500 italic">No sections
-                                added
-                                yet.
-                            </div>
-
-                            <div v-for="section in sections" :key="section.id"
-                                class="flex flex-col gap-2 border p-3 rounded-lg">
-                                <div class="flex justify-between items-center">
-                                    <span class="font-medium capitalize">{{ section.type }}</span>
-                                    <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
-                                        @click="removeContentSection(section.id)" />
+                                <div class="flex justify-end mt-6 ">
+                                    <UButton v-if="currentStep < websiteSteps.length - 1" icon="i-lucide-arrow-right"
+                                        color="primary" @click="currentStep++" block class="items-center">
+                                        Next Step
+                                    </UButton>
                                 </div>
-                                <UFormField :label="section.type === 'heading' ? 'Heading Text' : 'Paragraph Content'">
-                                    <UInput v-if="section.type === 'heading'" v-model="section.content"
-                                        :placeholder="`Enter ${section.type} text`" />
-                                    <UTextarea v-else v-model="section.content"
-                                        :placeholder="`Enter ${section.type} content`" />
-                                </UFormField>
+
                             </div>
-                        </div>
-
-                            <!-- Step 7: Review & Publish -->
-                            <div v-if="currentStep === 6" class="flex flex-col gap-4 ">
-                            <h3 class="text-lg font-semibold">Review Your Website Details</h3>
-                            <div class="space-y-2">
-                                <p><strong>Title:</strong> {{ websiteData.siteTitle || 'N/A' }}</p>
-                                <p><strong>Description:</strong> {{ websiteData.siteDescription || 'N/A' }}</p>
-                                <p><strong>Motif:</strong> {{ websiteData.motif || 'N/A' }}</p>
-                                <p><strong>Header Image:</strong> {{ websiteData.headerImage ? 'Set' : 'N/A' }}</p>
-                                <p><strong>Color Palette:</strong> {{ websiteData.colorPalette || 'N/A' }}</p>
-                                    <p><strong>Typography:</strong> {{ websiteData.typography || 'N/A' }}</p>
-                                <p><strong>Domain:</strong> {{ websiteData.domainName || 'N/A' }}</p>
-                                <p><strong>Contact:</strong> {{ websiteData.contactEmail || 'N/A' }}</p>
-                            </div>
-                            <h3 class="text-lg font-semibold mt-4">Content Overview</h3>
-                            <ul class="list-disc list-inside">
-                                <li v-for="section in sections" :key="section.id">
-                                    <span class="capitalize font-medium">{{ section.type }}:</span> {{
-                                        section.content.substring(0, 50) }}...
-                                </li>
-                            </ul>
-                            <UButton color="primary" block @click="toggleLive">
-                                Publish Website
-                            </UButton>
-                        </div>
-
-                        <div class="flex justify-end mt-6 ">
-                            <UButton v-if="currentStep < websiteSteps.length - 1" icon="i-lucide-arrow-right"
-                                color="primary" @click="currentStep++" block class="items-center">
-                                Next Step
-                            </UButton>
-                        </div>
-
-                    </div>
-                    </UPageCard>
-                </UScrollArea>
+                        </UPageCard>
+                    </UScrollArea>
+                </UPageCard>
 
                 <!-- RIGHT SIDE: Live Preview / Final Website -->
-                <div :class="isLive ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-6">
-                    <div class="bread-container-bordered border transition-colors duration-500"
-                        :style="{ 
-                            backgroundColor: selectedPalette.colors.background, 
-                            borderColor: selectedPalette.colors.surface,
-                            fontFamily: `'${selectedFontPairing.bodyFont}'`,
-                        }"
-                        :class="isLive ? 'shadow-2xl max-w-4xl mx-auto w-full' : 'w-full'">
-                        <div class="flex flex-col gap-8 text-center py-12 px-6 relative"
-                            :style="{
+                <UPageCard :class="isLive ? 'col-span-full shadow-2xl max-w-4xl mx-auto w-full' : 'col-span-2 w-full'"
+                    class="flex flex-col gap-6 transition-colors duration-500 rounded-xl overflow-hidden ring-transparent bread-container"
+                    :ui="{ container: 'p-0 sm:p-0 lg:p-0'}">
+                    <div class="h-full w-full flex-1 flex flex-col transition-colors duration-500" :style="{
+                        backgroundColor: selectedPalette.colors.background,
+                        fontFamily: `'${selectedFontPairing.bodyFont}'`,
+                    }">
+                        <UScrollArea class="h-full max-h-[calc(100vh-125px)] z-20">
+
+
+
+                        <div class="flex flex-col gap-8 text-center py-10 px-6 relative justify-end min-h-[35vh]"
+                            :class="{ 'h-[50vh]': websiteData.headerImage }" :style="{
                                 backgroundImage: websiteData.headerImage ? `url(${websiteData.headerImage})` : 'none',
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center',
                                 backgroundRepeat: 'no-repeat',
-                                minHeight: websiteData.headerImage ? '250px' : 'auto', // Ensure image is visible
+                                minHeight: websiteData.headerImage ? '50vh' : 'auto', // Ensure image is visible
                             }">
                             <!-- Overlay for readability -->
-                            <div v-if="websiteData.headerImage"
-                                class="absolute inset-0 bg-black opacity-30 z-0 rounded-lg"></div>
+                            <div v-if="websiteData.headerImage" class="absolute inset-0 z-0"
+                                :style="{ backgroundImage: `linear-gradient(to bottom, transparent 50%, ${selectedPalette.colors.primary}80)` }">
+                            </div>
                             <div class="relative z-10 space-y-4">
 
-                            <div class="space-y-4">
-                                <h1 class="text-4xl md:text-5xl font-bold leading-tight"
-                                    :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                    {{ websiteData.siteTitle || 'Your Site Title' }}
-                                </h1>
-                                <p class="text-lg" :style="{ color: selectedPalette.colors.text }">
-                                    {{ websiteData.siteDescription || 'Your site description goes here.' }}
-                                </p>
-                                <div v-if="websiteData.domainName" class="text-sm"
-                                    :style="{ color: selectedPalette.colors.primary }">
-                                    {{ websiteData.domainName }}
-                                </div>
-                            </div>
-                            </div>
-
-                            <!-- Dynamic Content Sections Preview -->
-                            <div class="flex flex-col gap-6 mt-8">
-                                <div v-for="section in sections" :key="section.id">
-                                    <h2 v-if="section.type === 'heading'" class="text-3xl font-bold"
-                                        :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                        {{ section.content }}
-                                    </h2>
-                                    <p v-else-if="section.type === 'paragraph'"
-                                        class="prose max-w-none mx-auto text-center"
-                                        :style="{ color: selectedPalette.colors.text }">
-                                        {{ section.content }}
+                                <div class="space-y-4">
+                                    <h1 class="text-4xl md:text-5xl font-bold leading-tight"
+                                        :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                                        {{ websiteData.siteTitle || 'Your Site Title' }}
+                                    </h1>
+                                    <p class="text-lg"
+                                        :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.text }">
+                                        {{ websiteData.siteDescription || 'Your site description goes here.' }}
                                     </p>
+                            <p class="text-xs" :style="{ color: selectedPalette.colors.primary }">
+                                Motif: {{ websiteData.motif }}
+                            </p>
                                 </div>
                             </div>
-
-                            <!-- Footer Area -->
-                            <div class="mt-8 pt-8 border-t" :style="{ borderColor: selectedPalette.colors.primary }">
-                                <p class="text-sm" :style="{ color: selectedPalette.colors.text }">
-                                    Contact: {{ websiteData.contactEmail || 'N/A' }}
-                                </p>
-                                <p class="text-xs mt-2" :style="{ color: selectedPalette.colors.text, opacity: 0.7 }">
-                                    Motif: {{ websiteData.motif }}
-                                </p>
-                            </div>
-
                         </div>
+
+                        <!-- Dynamic Content Sections Preview -->
+                        <div class="flex flex-col justify-center mx-10 py-20 text-center">
+                            <UContainer v-if="headingSection" class="text-3xl font-bold italic "
+                                :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                                {{ headingSection.content }}
+                            </UContainer>
+                            <div v-if="paragraphSection" class="prose max-w-none mx-auto text-center"
+                                :style="{ color: selectedPalette.colors.text }">
+                                {{ paragraphSection.content }}
+                            </div>
+                        </div>
+
+
+
+                        <!-- Tidbits Preview -->
+                        <div v-if="tidbits.length > 0" class="flex flex-col gap-10 px-6 text-center py-20"
+                            :style="{
+                        backgroundColor: selectedPalette.colors.text,
+                    }"
+                            >
+                            <div class="text-3xl font-bold"
+                            :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                            Tidbits</div>
+
+
+                            <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
+                                <h3 class="text-2xl font-bold" :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                                    {{ tidbit.heading }}
+                                </h3>
+                                <div class="prose max-w-none mx-auto text-center" :style="{ color: selectedPalette.colors.background }">
+                                    {{ tidbit.paragraph }}
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                        <!-- Schedule Preview -->
+                        <div v-if="scheduleItems.length > 0" class="flex flex-col gap-10 px-6 py-20 text-center">
+                            <div class="text-3xl font-bold"
+                            :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                            Schedule</div>
+
+                            <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-3">
+                                <h3 class="text-2xl font-bold" :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                                    {{ item.title }}
+                                </h3>
+                                <div class="prose max-w-none mx-auto text-center" :style="{ color: selectedPalette.colors.text }">
+                                    {{ item.description }}
+                                </div>
+                                <div v-if="item.location" class="text-sm font-semibold italic mt-2"
+                                    :style="{ color: selectedPalette.colors.heading }">
+                                    <UIcon name="i-lucide-map-pin" class="mr-1 inline-block align-middle"/>{{ item.location }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Thank You / Ending Preview -->
+                        <div class="flex flex-col gap-6 px-6 py-20 text-center" :style="{ backgroundColor: selectedPalette.colors.surface }">
+                            <h2 class="text-3xl font-bold"
+                                :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
+                                {{ websiteData.endingTitle }}
+                            </h2>
+                            <p class="prose max-w-none mx-auto text-lg text-center"
+                                :style="{ color: selectedPalette.colors.text }">
+                                {{ websiteData.endingMessage }}
+                            </p>
+                        </div>
+                                                <!-- Bread + Butter Branding Footer -->
+                        <div class="py-10 flex flex-col items-center justify-center gap-3 border-t"
+                            :style="{ backgroundColor: selectedPalette.colors.heading, borderColor: selectedPalette.colors.surface }">
+                            <p class="text-xs font-semibold uppercase tracking-widest opacity-60" :style="{ color: selectedPalette.colors.background }">This website was made with</p>
+                            <div class="h-6 w-full opacity-80 mask-logo" 
+                                :style="{ backgroundColor: selectedPalette.colors.background}" 
+                                role="img" aria-label="Bread + Butter"></div>
+                        </div>
+
+
+
+
+                        </UScrollArea>
                     </div>
-                </div>
+                </UPageCard>
 
             </UPageGrid>
         </UContainer>
@@ -476,4 +672,8 @@ const toggleLive = () => {
 
 <style scoped>
 /* Add any specific styles for WebsiteMaker here if needed */
+.mask-logo {
+    -webkit-mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
+    mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
+}
 </style>
