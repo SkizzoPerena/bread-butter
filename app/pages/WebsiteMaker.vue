@@ -17,14 +17,14 @@ const websiteData = reactive({
 
 // Motif Data
 const motifs = [
-    { name: 'Classic Romance', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Timeless elegance with soft pastels and delicate details.', palette: 'Magenta & Blush', typography: 'Romantic Script' },
-    { name: 'Boho Desert', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Free-spirited and earthy with natural textures and warm tones.', palette: 'Terracotta & Sand', typography: 'Whimsical Script' },
-    { name: 'Modern Minimalist', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Clean lines, simple color palettes, and a focus on architecture.', palette: 'Slate & Steel', typography: 'Modern Sans' },
-    { name: 'Enchanted Forest', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Lush greenery, deep emeralds, and a magical woodland atmosphere.', palette: 'Emerald & Ivory', typography: 'Casual Script' },
-    { name: 'Vintage Glamour', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Old Hollywood opulence with rich burgundy and bold contrasts.', palette: 'Burgundy & Cream', typography: 'Bold & Expressive' },
-    { name: 'Coastal Serenity', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Breezy and calm with soft blues, sage greens, and ocean vibes.', palette: 'Teal & Coral', typography: 'Casual Script' },
-    { name: 'Royal Elegance', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Regal and sophisticated with deep purples and luxurious accents.', palette: 'Lilac & Amethyst', typography: 'Romantic Script' },
-    { name: 'Starry Night', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'A dreamy evening under the stars with deep blues and golden hues.', palette: 'Navy & Gold', typography: 'Elegant Serif' }
+    { name: 'Classic Romance', image: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop', description: 'Timeless elegance with soft pastels and delicate details.', palette: 'Magenta & Blush', typography: 'Romantic Script' },
+    { name: 'Boho Desert', image: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?q=80&w=2070&auto=format&fit=crop', description: 'Free-spirited and earthy with natural textures and warm tones.', palette: 'Terracotta & Sand', typography: 'Whimsical Script' },
+    { name: 'Modern Minimalist', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop', description: 'Clean lines, simple color palettes, and a focus on architecture.', palette: 'Slate & Steel', typography: 'Modern Sans' },
+    { name: 'Enchanted Forest', image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=2070&auto=format&fit=crop', description: 'Lush greenery, deep emeralds, and a magical woodland atmosphere.', palette: 'Emerald & Ivory', typography: 'Casual Script' },
+    { name: 'Vintage Glamour', image: 'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?q=80&w=2070&auto=format&fit=crop', description: 'Old Hollywood opulence with rich burgundy and bold contrasts.', palette: 'Burgundy & Cream', typography: 'Bold & Expressive' },
+    { name: 'Coastal Serenity', image: 'https://images.unsplash.com/photo-1499810631641-541e76d678a2?q=80&w=2070&auto=format&fit=crop', description: 'Breezy and calm with soft blues, sage greens, and ocean vibes.', palette: 'Teal & Coral', typography: 'Casual Script' },
+    { name: 'Royal Elegance', image: 'https://images.unsplash.com/photo-1518049362265-d5b2a6467637?q=80&w=2070&auto=format&fit=crop', description: 'Regal and sophisticated with deep purples and luxurious accents.', palette: 'Lilac & Amethyst', typography: 'Romantic Script' },
+    { name: 'Starry Night', image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=2070&auto=format&fit=crop', description: 'A dreamy evening under the stars with deep blues and golden hues.', palette: 'Navy & Gold', typography: 'Elegant Serif' }
 ]
 
 const selectMotif = (motif: typeof motifs[0]) => {
@@ -213,7 +213,7 @@ const toggleLive = () => {
 </script>
 
 <template>
-    <div class="relative w-full min-h-screen bpb-pattern">
+    <div class="relative w-full min-h-screen bg-toast-50">
 
         <!-- Top Toolbar: Custom UDashboardNavbar -->
         <UDashboardNavbar class="bg-white w-full sticky top-0 z-50 event-navbar">
@@ -247,14 +247,14 @@ const toggleLive = () => {
         </UDashboardNavbar>
 
         <!-- Main Content Container -->
-        <UContainer>
-            <div class="mb-8"></div>
+        <UContainer :class="{ 'max-w-full px-0!': isLive }">
+            <div class="transition-all" :class="isLive ? 'mb-0' : 'mb-8'"></div>
             <UPageGrid class="items-start" :grid="{ cols: isLive ? '1' : '1 md:4' }">
 
                 <!-- LEFT SIDE: Step Navigation (Editor Mode) -->
-                <UPageCard class="bread-container col-span-1 p-0 sm:p-0  overflow-hidden"
+                <UPageCard v-if="!isLive" class="bread-container col-span-1 p-0 sm:p-0  overflow-hidden"
                     :ui="{ container: 'p-0 sm:p-0 lg:p-0' }">
-                    <UScrollArea v-if="!isLive" class=" h-full max-h-[calc(100vh-125px)]">
+                    <UScrollArea class=" h-full max-h-[calc(100vh-125px)]">
                         <UPageCard class="border-transparent ring-transparent bg-none">
 
 
@@ -569,24 +569,24 @@ const toggleLive = () => {
                 </UPageCard>
 
                 <!-- RIGHT SIDE: Live Preview / Final Website -->
-                <UPageCard :class="isLive ? 'col-span-full shadow-2xl max-w-4xl mx-auto w-full' : 'col-span-2 w-full'"
-                    class="flex flex-col gap-6 transition-colors duration-500 rounded-xl overflow-hidden ring-transparent bread-container"
+            <UPageCard :class="isLive ? 'col-span-full w-full rounded-none border-0' : 'col-span-2 w-full rounded-xl'"
+                class="flex flex-col gap-6 transition-colors duration-500 overflow-hidden ring-transparent bread-container"
                     :ui="{ container: 'p-0 sm:p-0 lg:p-0' }">
                     <div class="h-full w-full flex-1 flex flex-col transition-colors duration-500" :style="{
                         backgroundColor: selectedPalette.colors.background,
                         fontFamily: `'${selectedTypography.bodyFont}'`,
                     }">
-                        <UScrollArea class="h-full max-h-[calc(100vh-125px)] z-20">
+                        <UScrollArea class="h-full z-20" :class="{ 'max-h-[calc(100vh-125px)]': !isLive }">
 
 
 
-                            <div class="flex flex-col gap-8 text-center py-10 px-6 relative justify-end min-h-[35vh]"
+                            <div class="flex flex-col gap-8 text-center py-10 px-6 relative justify-end h-[40vh]"
                                 :class="{ 'h-[50vh]': websiteData.headerImage }" :style="{
                                     backgroundImage: websiteData.headerImage ? `url(${websiteData.headerImage})` : 'none',
                                     backgroundSize: 'cover',
                                     backgroundPosition: 'center',
                                     backgroundRepeat: 'no-repeat',
-                                    minHeight: websiteData.headerImage ? '50vh' : 'auto', // Ensure image is visible
+                                    minHeight: isLive ? '80vh' : (websiteData.headerImage ? '50vh' : 'auto'), // Ensure image is visible
                                 }">
                                 <!-- Overlay for readability -->
                                 <div v-if="websiteData.headerImage" class="absolute inset-0 z-0"
@@ -595,11 +595,11 @@ const toggleLive = () => {
                                 <div class="relative z-10">
 
                                     <div class="space-y-3">
-                                        <h1 class="text-4xl md:text-5xl font-medium"
+                                        <h1 class="font-medium transition-all duration-300" :class="isLive ? 'text-6xl md:text-7xl' : 'text-4xl md:text-5xl'"
                                             :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                             {{ websiteData.siteTitle || 'Your Site Title' }}
                                         </h1>
-                                        <p class="text-lg"
+                                        <p class="transition-all duration-300" :class="isLive ? 'text-2xl' : 'text-lg'"
                                             :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.text }">
                                             {{ websiteData.siteDescription || 'Your site description goes here.' }}
                                         </p>
@@ -609,12 +609,12 @@ const toggleLive = () => {
                             </div>
 
                             <!-- Dynamic Content Sections Preview -->
-                            <div class="flex flex-col justify-center mx-10 py-20 text-center">
-                                <UContainer v-if="headingSection" class="text-3xl font-bold italic "
+                            <div class="flex flex-col justify-center mx-10 py-20 text-center" :class="{ 'min-h-[80vh]': isLive }">
+                                <UContainer v-if="headingSection" class="font-bold italic transition-all duration-300" :class="isLive ? 'text-5xl' : 'text-3xl'"
                                     :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                     {{ headingSection.content }}
                                 </UContainer>
-                                <div v-if="paragraphSection" class="prose max-w-none mx-auto text-center"
+                                <div v-if="paragraphSection" class="prose max-w-none mx-auto text-center transition-all duration-300" :class="isLive ? 'text-xl' : 'text-base'"
                                     :style="{ color: selectedPalette.colors.text }">
                                     {{ paragraphSection.content }}
                                 </div>
@@ -623,20 +623,22 @@ const toggleLive = () => {
 
 
                             <!-- Tidbits Preview -->
-                            <div v-if="tidbits.length > 0" class="flex flex-col gap-10 px-6 text-center py-20" :style="{
-                                backgroundColor: selectedPalette.colors.text,
-                            }">
-                                <div class="text-3xl font-bold"
+                            <div v-if="tidbits.length > 0" class="flex flex-col justify-center gap-10 px-6 text-center py-20"
+                                :class="{ 'min-h-[80vh]': isLive }"
+                                :style="{
+                                    backgroundColor: selectedPalette.colors.text,
+                                }">
+                                <div class="font-bold transition-all duration-300" :class="isLive ? 'text-5xl' : 'text-3xl'"
                                     :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedTypography.headerFont}'` }">
                                     Tidbits</div>
 
 
                                 <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
-                                    <h3 class="text-2xl font-bold"
+                                    <h3 class="font-bold transition-all duration-300" :class="isLive ? 'text-4xl' : 'text-2xl'"
                                         :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                         {{ tidbit.heading }}
                                     </h3>
-                                    <div class="prose max-w-none mx-auto text-center"
+                                    <div class="prose max-w-none mx-auto text-center transition-all duration-300" :class="isLive ? 'text-xl' : 'text-base'"
                                         :style="{ color: selectedPalette.colors.background }">
                                         {{ tidbit.paragraph }}
                                     </div>
@@ -646,21 +648,21 @@ const toggleLive = () => {
 
 
                             <!-- Schedule Preview -->
-                            <div v-if="scheduleItems.length > 0" class="flex flex-col gap-10 px-6 py-20 text-center">
-                                <div class="text-3xl font-bold"
+                            <div v-if="scheduleItems.length > 0" class="flex flex-col justify-center gap-10 px-6 py-20 text-center" :class="{ 'min-h-[80vh]': isLive }">
+                                <div class="font-bold transition-all duration-300" :class="isLive ? 'text-5xl' : 'text-3xl'"
                                     :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                     Schedule</div>
 
                                 <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-3">
-                                    <h3 class="text-2xl font-bold"
+                                    <h3 class="font-bold transition-all duration-300" :class="isLive ? 'text-4xl' : 'text-2xl'"
                                         :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                         {{ item.title }}
                                     </h3>
-                                    <div class="prose max-w-none mx-auto text-center"
+                                    <div class="prose max-w-none mx-auto text-center transition-all duration-300" :class="isLive ? 'text-xl' : 'text-base'"
                                         :style="{ color: selectedPalette.colors.text }">
                                         {{ item.description }}
                                     </div>
-                                    <div v-if="item.location" class="text-sm font-semibold italic mt-2"
+                                    <div v-if="item.location" class="font-semibold italic mt-2 transition-all duration-300" :class="isLive ? 'text-lg' : 'text-sm'"
                                         :style="{ color: selectedPalette.colors.heading }">
                                         <UIcon name="i-lucide-map-pin" class="mr-1 inline-block align-middle" />{{
                                         item.location
@@ -670,13 +672,14 @@ const toggleLive = () => {
                             </div>
 
                             <!-- Thank You / Ending Preview -->
-                            <div class="flex flex-col gap-6 px-6 py-20 text-center"
+                            <div class="flex flex-col justify-center gap-6 px-6 py-20 text-center"
+                                :class="{ 'min-h-[80vh]': isLive }"
                                 :style="{ backgroundColor: selectedPalette.colors.surface }">
-                                <h2 class="text-3xl font-bold"
+                                <h2 class="font-bold transition-all duration-300" :class="isLive ? 'text-5xl' : 'text-3xl'"
                                     :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                     {{ websiteData.endingTitle }}
                                 </h2>
-                                <p class="prose max-w-none mx-auto text-lg text-center"
+                                <p class="prose max-w-none mx-auto text-center transition-all duration-300" :class="isLive ? 'text-2xl' : 'text-lg'"
                                     :style="{ color: selectedPalette.colors.text }">
                                     {{ websiteData.endingMessage }}
                                 </p>
