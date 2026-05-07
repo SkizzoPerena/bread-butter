@@ -8,8 +8,8 @@ const websiteData = reactive({
     domainName: '',
     contactEmail: '', // Default motif
     motif: 'Classic Romance',
-    colorPalette: 'Blush & Gold', // Default color palette
-    typography: 'Elegant Serif', // Default font pairing
+    colorPalette: 'Magenta & Blush', // Default color palette
+    typography: 'Romantic Script', // Default typography set
     headerImage: '', // New: Header background image URL
     endingTitle: 'Hope to see you there!',
     endingMessage: 'We cannot wait to celebrate this special day with all of our favorite people.'
@@ -17,13 +17,21 @@ const websiteData = reactive({
 
 // Motif Data
 const motifs = [
-    { name: 'Classic Romance', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Timeless elegance with soft pastels and delicate details.' },
-    { name: 'Bohemian Chic', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Free-spirited and earthy with natural textures and wildflowers.' },
-    { name: 'Modern Minimalist', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Clean lines, simple color palettes, and a focus on architecture.' },
-    { name: 'Rustic Charm', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Cozy and warm with wooden elements, burlap, and countryside vibes.' },
-    { name: 'Glamorous Gatsby', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Art Deco opulence with gold, black, and geometric patterns.' },
-    { name: 'Tropical Paradise', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Vibrant and lush with bold florals, palm leaves, and bright colors.' }
+    { name: 'Classic Romance', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Timeless elegance with soft pastels and delicate details.', palette: 'Magenta & Blush', typography: 'Romantic Script' },
+    { name: 'Boho Desert', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Free-spirited and earthy with natural textures and warm tones.', palette: 'Terracotta & Sand', typography: 'Whimsical Script' },
+    { name: 'Modern Minimalist', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Clean lines, simple color palettes, and a focus on architecture.', palette: 'Slate & Steel', typography: 'Modern Sans' },
+    { name: 'Enchanted Forest', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Lush greenery, deep emeralds, and a magical woodland atmosphere.', palette: 'Emerald & Ivory', typography: 'Casual Script' },
+    { name: 'Vintage Glamour', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Old Hollywood opulence with rich burgundy and bold contrasts.', palette: 'Burgundy & Cream', typography: 'Bold & Expressive' },
+    { name: 'Coastal Serenity', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Breezy and calm with soft blues, sage greens, and ocean vibes.', palette: 'Teal & Coral', typography: 'Casual Script' },
+    { name: 'Royal Elegance', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'Regal and sophisticated with deep purples and luxurious accents.', palette: 'Lilac & Amethyst', typography: 'Romantic Script' },
+    { name: 'Starry Night', image: 'https://images.unsplash.com/photo-1655712001226-37df6c2733ce?q=80&w=2070&auto=format&fit=crop', description: 'A dreamy evening under the stars with deep blues and golden hues.', palette: 'Navy & Gold', typography: 'Elegant Serif' }
 ]
+
+const selectMotif = (motif: typeof motifs[0]) => {
+    websiteData.motif = motif.name
+    websiteData.colorPalette = motif.palette
+    websiteData.typography = motif.typography
+}
 
 // Interface for Color Palette
 interface ColorPalette {
@@ -40,47 +48,56 @@ interface ColorPalette {
 // Color Palette Data
 const colorPalettes: ColorPalette[] = [
     {
-        name: 'Blush & Gold',
-        colors: { background: '#FFF9F9', surface: '#F2E2E2', primary: '#8A6327', text: '#3E3232', heading: '#5B2A2A' }
+        name: 'Magenta & Blush',
+        colors: { background: '#FFF5F8', surface: '#FCE0EB', primary: '#B83269', text: '#4A152D', heading: '#2D0A1A' }
     },
     {
-        name: 'Navy & White',
-        colors: { background: '#0A192F', surface: '#172A45', primary: '#215E9E', text: '#E6F1FF', heading: '#FFFFFF' }
+        name: 'Terracotta & Sand',
+        colors: { background: '#FCF8F5', surface: '#F2E8E1', primary: '#A85A3A', text: '#4A2616', heading: '#2B140B' }
     },
     {
-        name: 'Dusty Blue & Sage',
-        colors: { background: '#F5F7F8', surface: '#E1E7EC', primary: '#365A42', text: '#2C3E50', heading: '#1A252F' }
-    },
-    {
-        name: 'Burgundy & Cream',
-        colors: { background: '#38040E', surface: '#5C101A', primary: '#8A1C24', text: '#FDFBF6', heading: '#FFFFFF' }
+        name: 'Slate & Steel',
+        colors: { background: '#111111', surface: '#222222', primary: '#888888', text: '#EEEEEE', heading: '#FAFAFA' }
     },
     {
         name: 'Emerald & Ivory',
-        colors: { background: '#022B18', surface: '#054D2E', primary: '#0A7A44', text: '#F0FDF4', heading: '#FFFFFF' }
+        colors: { background: '#071A10', surface: '#123320', primary: '#459B6A', text: '#E3F0E6', heading: '#F5FAF6' }
     },
     {
-        name: 'Terracotta & Pampas',
-        colors: { background: '#FCF6F0', surface: '#F0E1D3', primary: '#9C4122', text: '#4A3225', heading: '#6B2A15' }
+        name: 'Burgundy & Cream',
+        colors: { background: '#FDF7F7', surface: '#F5E6E8', primary: '#8B2635', text: '#3A0E15', heading: '#20050A' }
+    },
+    {
+        name: 'Teal & Coral',
+        colors: { background: '#F2FAFA', surface: '#DDF0F0', primary: '#207A7A', text: '#0C3333', heading: '#051A1A' }
+    },
+    {
+        name: 'Lilac & Amethyst',
+        colors: { background: '#F8F4FF', surface: '#EBE0F8', primary: '#9D7BCE', text: '#4B3869', heading: '#2A1744' }
+    },
+    {
+        name: 'Navy & Gold',
+        colors: { background: '#0B1320', surface: '#1A2A40', primary: '#C59A45', text: '#E2E8F0', heading: '#F4F7FA' }
     }
 ]
 
-// Interface for Font Pairing
-interface FontPairing {
+// Interface for Typography Set
+interface TypographySet {
     name: string;
-    headingFont: string;
+    headerFont: string;
+    subheaderFont: string;
     bodyFont: string;
     description: string;
 }
 
 // Typography Data
-const fontPairings: FontPairing[] = [
-    { name: 'Elegant Serif', headingFont: 'Gambetta', bodyFont: 'Satoshi', description: 'A classic and readable combination.' },
-    { name: 'Modern Sans', headingFont: 'Satoshi', bodyFont: 'Switzer', description: 'Clean, contemporary, and versatile.' },
-    { name: 'Romantic Script', headingFont: 'Pencerio', bodyFont: 'Satoshi', description: 'A beautiful script for headings with a clean body font.' },
-    { name: 'Bold & Expressive', headingFont: 'Melodrama', bodyFont: 'Satoshi', description: 'High-contrast and fashionable for a statement look.' },
-    { name: 'Classic Read', headingFont: 'Lora', bodyFont: 'Satoshi', description: 'A well-balanced serif and sans-serif for readability.' },
-    { name: 'Refined & Sturdy', headingFont: 'Erode', bodyFont: 'Switzer', description: 'A serif with character paired with a reliable sans-serif.' }
+const typographySets: TypographySet[] = [
+    { name: 'Romantic Script', headerFont: 'Parisienne', subheaderFont: 'Gambetta', bodyFont: 'Satoshi', description: 'A formal script paired with an elegant serif and clean sans.' },
+    { name: 'Casual Script', headerFont: 'Engagement', subheaderFont: 'Sentient', bodyFont: 'Switzer', description: 'A lively, bouncing script matched with a robust serif and crisp sans.' },
+    { name: 'Whimsical Script', headerFont: 'Great Vibes', subheaderFont: 'Quicksand', bodyFont: 'Outfit', description: 'An informal script with a soft, rounded sans-serif combination.' },
+    { name: 'Elegant Serif', headerFont: 'Boska', subheaderFont: 'Rowan', bodyFont: 'General Sans', description: 'A sophisticated high-contrast serif for headings with a readable serif and sans.' },
+    { name: 'Bold & Expressive', headerFont: 'Melodrama', subheaderFont: 'Satoshi', bodyFont: 'Amulya', description: 'Fashionable, high-contrast headings combined with humanistic body fonts.' },
+    { name: 'Modern Sans', headerFont: 'Clash Display', subheaderFont: 'Bespoke Sans', bodyFont: 'Switzer', description: 'Clean, contemporary, and versatile sans-serifs throughout.' }
 ]
 
 // 2. Dynamic Content Sections
@@ -105,8 +122,8 @@ const selectedPalette = computed<ColorPalette>(() => {
     return colorPalettes.find(p => p.name === websiteData.colorPalette) || colorPalettes[0]!
 })
 
-const selectedFontPairing = computed<FontPairing>(() => {
-    return fontPairings.find(p => p.name === websiteData.typography) || fontPairings[0]!
+const selectedTypography = computed<TypographySet>(() => {
+    return typographySets.find(p => p.name === websiteData.typography) || typographySets[0]!
 })
 
 const selectedHeaderFile = ref<File | undefined>();
@@ -145,7 +162,7 @@ interface Tidbit {
 }
 
 const tidbits = ref<Tidbit[]>([
-    ])
+])
 
 const addTidbit = () => {
     tidbits.value.push({ id: Date.now() + tidbits.value.length, heading: 'New Tidbit', paragraph: 'Add some details here.' })
@@ -236,10 +253,9 @@ const toggleLive = () => {
 
                 <!-- LEFT SIDE: Step Navigation (Editor Mode) -->
                 <UPageCard class="bread-container col-span-1 p-0 sm:p-0  overflow-hidden"
-                :ui="{ container: 'p-0 sm:p-0 lg:p-0' }">
+                    :ui="{ container: 'p-0 sm:p-0 lg:p-0' }">
                     <UScrollArea v-if="!isLive" class=" h-full max-h-[calc(100vh-125px)]">
-                        <UPageCard class="border-transparent ring-transparent bg-none"
-                        >
+                        <UPageCard class="border-transparent ring-transparent bg-none">
 
 
 
@@ -262,7 +278,7 @@ const toggleLive = () => {
                                         <div v-for="motif in motifs" :key="motif.name"
                                             class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300"
                                             :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.motif === motif.name }"
-                                            @click="websiteData.motif = motif.name" style="height: 120px;">
+                                            @click="selectMotif(motif)" style="height: 100px;">
                                             <img :src="motif.image" :alt="motif.name"
                                                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                                             <div
@@ -310,7 +326,7 @@ const toggleLive = () => {
                                     </div>
                                 </div>
 
-                                <!-- Step 2: Upload Header Image -->
+                                <!-- Step 3: Upload Header Image -->
                                 <div v-if="currentStep === 1" class="flex flex-col gap-4">
                                     <UFormField label="Header Background Image">
                                         <UFileUpload v-model="selectedHeaderFile" :multiple="false" accept="image/*"
@@ -324,32 +340,33 @@ const toggleLive = () => {
                                     </UFormField>
                                 </div>
 
-                                <!-- Step 3: Choose Typography -->
+                                <!-- Step 4: Choose Typography -->
                                 <div v-if="currentStep === 3" class="">
                                     <div class="grid grid-cols-1 gap-4">
-                                        <div v-for="pairing in fontPairings" :key="pairing.name"
+                                        <div v-for="set in typographySets" :key="set.name"
                                             class="rounded-lg cursor-pointer group transition-all duration-300 border p-3 flex flex-col justify-between"
-                                            :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.typography === pairing.name, 'border-gray-200 dark:border-gray-700': websiteData.typography !== pairing.name }"
-                                            @click="websiteData.typography = pairing.name">
+                                            :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.typography === set.name, 'border-gray-200 dark:border-gray-700': websiteData.typography !== set.name }"
+                                            @click="websiteData.typography = set.name">
 
                                             <div>
-                                                <h3 class="text-xl" :style="{ fontFamily: `'${pairing.headingFont}'` }">
+                                                <h3 class="text-2xl" :style="{ fontFamily: `'${set.headerFont}'` }">
                                                     Aa -
-                                                    {{
-                                                        pairing.headingFont }}</h3>
-                                                <p class="text-base mt-2"
-                                                    :style="{ fontFamily: `'${pairing.bodyFont}'` }">
+                                                    {{ set.headerFont }}</h3>
+                                                <h4 class="text-lg mt-1"
+                                                    :style="{ fontFamily: `'${set.subheaderFont}'` }">
+                                                    Aa -
+                                                    {{ set.subheaderFont }}</h4>
+                                                <p class="text-base mt-3" :style="{ fontFamily: `'${set.bodyFont}'` }">
                                                     The quick
                                                     brown fox jumps over the lazy dog.</p>
                                             </div>
 
                                             <div class="mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
                                                 <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{
-                                                    pairing.name
-                                                }}</h4>
-                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{
-                                                    pairing.description
-                                                }}</p>
+                                                    set.name
+                                                    }}</h4>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ set.description
+                                                    }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -369,8 +386,18 @@ const toggleLive = () => {
                                     </UFormField>
 
                                     <UFormField label="Domain Name">
-                                        <UInput v-model="websiteData.domainName" placeholder="e.g., mywebsite.com"
-                                            icon="i-lucide-globe" class="w-full" />
+                                        <UInput v-model="websiteData.domainName" placeholder="jane-loves-john"
+                                            icon="i-lucide-globe" class="w-full" :ui="{
+                                                base: 'pl-32',
+                                                leading: 'pointer-events-none'
+                                            }">
+                                            <template #leading>
+                                                <p class="text-sm text-muted">
+                                                    bread-butter.com/
+                                                </p>
+                                            </template>
+
+                                        </UInput>
                                     </UFormField>
 
                                     <UFormField label="Contact Email">
@@ -396,7 +423,7 @@ const toggleLive = () => {
                                             Add Heading
                                         </UButton>
 
-                                        <div v-if="headingSection" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                        <div v-if="headingSection" class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
                                             <div class="flex justify-between items-center">
                                                 <span class="font-medium capitalize">Heading</span>
                                                 <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
@@ -414,7 +441,7 @@ const toggleLive = () => {
                                         </UButton>
 
 
-                                        <div v-if="paragraphSection" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                        <div v-if="paragraphSection" class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
                                             <div class="flex justify-between items-center">
                                                 <span class="font-medium capitalize">Paragraph</span>
                                                 <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
@@ -432,27 +459,27 @@ const toggleLive = () => {
                                 <div v-if="currentStep === 6" class="flex flex-col gap-6 ">
                                     <div class="items-center space-y-4">
 
-                                        <div v-if="tidbits.length === 0"
-                                            class="text-center text-gray-500 italic">No
+                                        <div v-if="tidbits.length === 0" class="text-center text-gray-500 italic">No
                                             tidbits
                                             added
                                             yet.
                                         </div>
 
-                                        <UButton icon="i-lucide-plus" color="primary"
-                                            variant="solid" block @click="addTidbit()">
+                                        <UButton icon="i-lucide-plus" color="primary" variant="solid" block
+                                            @click="addTidbit()">
                                             Add Tidbit
                                         </UButton>
 
-                                        <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                        <div v-for="tidbit in tidbits" :key="tidbit.id"
+                                            class="flex flex-col gap-2  border border-toast-100 p-3 rounded-lg">
                                             <div class="flex justify-between items-center">
                                                 <span class="font-medium capitalize">Tidbit</span>
                                                 <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
                                                     @click="removeTidbit(tidbit.id)" />
                                             </div>
                                             <UFormField label="Question">
-                                                <UInput v-model="tidbit.heading"
-                                                    placeholder="Enter tidbit heading" class="w-full" />
+                                                <UInput v-model="tidbit.heading" placeholder="Enter tidbit heading"
+                                                    class="w-full" />
                                             </UFormField>
                                             <UFormField label="Answer">
                                                 <UTextarea v-model="tidbit.paragraph"
@@ -466,35 +493,36 @@ const toggleLive = () => {
                                 <div v-if="currentStep === 7" class="flex flex-col gap-6 ">
                                     <div class="items-center space-y-4">
 
-                                        <div v-if="scheduleItems.length === 0"
-                                            class="text-center text-gray-500 italic">No
+                                        <div v-if="scheduleItems.length === 0" class="text-center text-gray-500 italic">
+                                            No
                                             events
                                             added
                                             yet.
                                         </div>
 
-                                        <UButton icon="i-lucide-plus" color="primary"
-                                            variant="solid" block @click="addScheduleItem()">
+                                        <UButton icon="i-lucide-plus" color="primary" variant="solid" block
+                                            @click="addScheduleItem()">
                                             Add Event
                                         </UButton>
 
-                                        <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-2 border p-3 rounded-lg">
+                                        <div v-for="item in scheduleItems" :key="item.id"
+                                            class="flex flex-col gap-2  border border-toast-100 p-3 rounded-lg">
                                             <div class="flex justify-between items-center">
                                                 <span class="font-medium capitalize">Event</span>
                                                 <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
                                                     @click="removeScheduleItem(item.id)" />
                                             </div>
                                             <UFormField label="Title">
-                                                <UInput v-model="item.title"
-                                                    placeholder="Enter event title" class="w-full" />
+                                                <UInput v-model="item.title" placeholder="Enter event title"
+                                                    class="w-full" />
                                             </UFormField>
                                             <UFormField label="Description">
                                                 <UTextarea v-model="item.description"
                                                     placeholder="Enter event description" class="w-full" />
                                             </UFormField>
                                             <UFormField label="Location (Optional)">
-                                                <UInput v-model="item.location"
-                                                    placeholder="Enter location" class="w-full" />
+                                                <UInput v-model="item.location" placeholder="Enter location"
+                                                    class="w-full" />
                                             </UFormField>
                                         </div>
                                     </div>
@@ -509,7 +537,8 @@ const toggleLive = () => {
 
                                     <UFormField label="Closing Message">
                                         <UTextarea v-model="websiteData.endingMessage"
-                                            placeholder="Write a sweet thank you note or final invitation line." class="w-full" />
+                                            placeholder="Write a sweet thank you note or final invitation line."
+                                            class="w-full" />
                                     </UFormField>
                                 </div>
 
@@ -542,121 +571,125 @@ const toggleLive = () => {
                 <!-- RIGHT SIDE: Live Preview / Final Website -->
                 <UPageCard :class="isLive ? 'col-span-full shadow-2xl max-w-4xl mx-auto w-full' : 'col-span-2 w-full'"
                     class="flex flex-col gap-6 transition-colors duration-500 rounded-xl overflow-hidden ring-transparent bread-container"
-                    :ui="{ container: 'p-0 sm:p-0 lg:p-0'}">
+                    :ui="{ container: 'p-0 sm:p-0 lg:p-0' }">
                     <div class="h-full w-full flex-1 flex flex-col transition-colors duration-500" :style="{
                         backgroundColor: selectedPalette.colors.background,
-                        fontFamily: `'${selectedFontPairing.bodyFont}'`,
+                        fontFamily: `'${selectedTypography.bodyFont}'`,
                     }">
                         <UScrollArea class="h-full max-h-[calc(100vh-125px)] z-20">
 
 
 
-                        <div class="flex flex-col gap-8 text-center py-10 px-6 relative justify-end min-h-[35vh]"
-                            :class="{ 'h-[50vh]': websiteData.headerImage }" :style="{
-                                backgroundImage: websiteData.headerImage ? `url(${websiteData.headerImage})` : 'none',
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
-                                backgroundRepeat: 'no-repeat',
-                                minHeight: websiteData.headerImage ? '50vh' : 'auto', // Ensure image is visible
+                            <div class="flex flex-col gap-8 text-center py-10 px-6 relative justify-end min-h-[35vh]"
+                                :class="{ 'h-[50vh]': websiteData.headerImage }" :style="{
+                                    backgroundImage: websiteData.headerImage ? `url(${websiteData.headerImage})` : 'none',
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                    backgroundRepeat: 'no-repeat',
+                                    minHeight: websiteData.headerImage ? '50vh' : 'auto', // Ensure image is visible
+                                }">
+                                <!-- Overlay for readability -->
+                                <div v-if="websiteData.headerImage" class="absolute inset-0 z-0"
+                                    :style="{ backgroundImage: `linear-gradient(to bottom, transparent 40%, ${selectedPalette.colors.primary}80)` }">
+                                </div>
+                                <div class="relative z-10">
+
+                                    <div class="space-y-3">
+                                        <h1 class="text-4xl md:text-5xl font-medium"
+                                            :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                            {{ websiteData.siteTitle || 'Your Site Title' }}
+                                        </h1>
+                                        <p class="text-lg"
+                                            :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.text }">
+                                            {{ websiteData.siteDescription || 'Your site description goes here.' }}
+                                        </p>
+
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Content Sections Preview -->
+                            <div class="flex flex-col justify-center mx-10 py-20 text-center">
+                                <UContainer v-if="headingSection" class="text-3xl font-bold italic "
+                                    :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                    {{ headingSection.content }}
+                                </UContainer>
+                                <div v-if="paragraphSection" class="prose max-w-none mx-auto text-center"
+                                    :style="{ color: selectedPalette.colors.text }">
+                                    {{ paragraphSection.content }}
+                                </div>
+                            </div>
+
+
+
+                            <!-- Tidbits Preview -->
+                            <div v-if="tidbits.length > 0" class="flex flex-col gap-10 px-6 text-center py-20" :style="{
+                                backgroundColor: selectedPalette.colors.text,
                             }">
-                            <!-- Overlay for readability -->
-                            <div v-if="websiteData.headerImage" class="absolute inset-0 z-0"
-                                :style="{ backgroundImage: `linear-gradient(to bottom, transparent 50%, ${selectedPalette.colors.primary}80)` }">
-                            </div>
-                            <div class="relative z-10 space-y-4">
+                                <div class="text-3xl font-bold"
+                                    :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                    Tidbits</div>
 
-                                <div class="space-y-4">
-                                    <h1 class="text-4xl md:text-5xl font-bold leading-tight"
-                                        :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                        {{ websiteData.siteTitle || 'Your Site Title' }}
-                                    </h1>
-                                    <p class="text-lg"
-                                        :style="{ color: websiteData.headerImage ? 'white' : selectedPalette.colors.text }">
-                                        {{ websiteData.siteDescription || 'Your site description goes here.' }}
-                                    </p>
-                            <p class="text-xs" :style="{ color: selectedPalette.colors.primary }">
-                                Motif: {{ websiteData.motif }}
-                            </p>
+
+                                <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
+                                    <h3 class="text-2xl font-bold"
+                                        :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                        {{ tidbit.heading }}
+                                    </h3>
+                                    <div class="prose max-w-none mx-auto text-center"
+                                        :style="{ color: selectedPalette.colors.background }">
+                                        {{ tidbit.paragraph }}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Dynamic Content Sections Preview -->
-                        <div class="flex flex-col justify-center mx-10 py-20 text-center">
-                            <UContainer v-if="headingSection" class="text-3xl font-bold italic "
-                                :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                {{ headingSection.content }}
-                            </UContainer>
-                            <div v-if="paragraphSection" class="prose max-w-none mx-auto text-center"
-                                :style="{ color: selectedPalette.colors.text }">
-                                {{ paragraphSection.content }}
-                            </div>
-                        </div>
 
 
 
-                        <!-- Tidbits Preview -->
-                        <div v-if="tidbits.length > 0" class="flex flex-col gap-10 px-6 text-center py-20"
-                            :style="{
-                        backgroundColor: selectedPalette.colors.text,
-                    }"
-                            >
-                            <div class="text-3xl font-bold"
-                            :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                            Tidbits</div>
+                            <!-- Schedule Preview -->
+                            <div v-if="scheduleItems.length > 0" class="flex flex-col gap-10 px-6 py-20 text-center">
+                                <div class="text-3xl font-bold"
+                                    :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                    Schedule</div>
 
-
-                            <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
-                                <h3 class="text-2xl font-bold" :style="{ color: selectedPalette.colors.background, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                    {{ tidbit.heading }}
-                                </h3>
-                                <div class="prose max-w-none mx-auto text-center" :style="{ color: selectedPalette.colors.background }">
-                                    {{ tidbit.paragraph }}
+                                <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-3">
+                                    <h3 class="text-2xl font-bold"
+                                        :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                        {{ item.title }}
+                                    </h3>
+                                    <div class="prose max-w-none mx-auto text-center"
+                                        :style="{ color: selectedPalette.colors.text }">
+                                        {{ item.description }}
+                                    </div>
+                                    <div v-if="item.location" class="text-sm font-semibold italic mt-2"
+                                        :style="{ color: selectedPalette.colors.heading }">
+                                        <UIcon name="i-lucide-map-pin" class="mr-1 inline-block align-middle" />{{
+                                        item.location
+                                        }}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-
-
-                        <!-- Schedule Preview -->
-                        <div v-if="scheduleItems.length > 0" class="flex flex-col gap-10 px-6 py-20 text-center">
-                            <div class="text-3xl font-bold"
-                            :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                            Schedule</div>
-
-                            <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-3">
-                                <h3 class="text-2xl font-bold" :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                    {{ item.title }}
-                                </h3>
-                                <div class="prose max-w-none mx-auto text-center" :style="{ color: selectedPalette.colors.text }">
-                                    {{ item.description }}
-                                </div>
-                                <div v-if="item.location" class="text-sm font-semibold italic mt-2"
-                                    :style="{ color: selectedPalette.colors.heading }">
-                                    <UIcon name="i-lucide-map-pin" class="mr-1 inline-block align-middle"/>{{ item.location }}
-                                </div>
+                            <!-- Thank You / Ending Preview -->
+                            <div class="flex flex-col gap-6 px-6 py-20 text-center"
+                                :style="{ backgroundColor: selectedPalette.colors.surface }">
+                                <h2 class="text-3xl font-bold"
+                                    :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                    {{ websiteData.endingTitle }}
+                                </h2>
+                                <p class="prose max-w-none mx-auto text-lg text-center"
+                                    :style="{ color: selectedPalette.colors.text }">
+                                    {{ websiteData.endingMessage }}
+                                </p>
                             </div>
-                        </div>
-
-                        <!-- Thank You / Ending Preview -->
-                        <div class="flex flex-col gap-6 px-6 py-20 text-center" :style="{ backgroundColor: selectedPalette.colors.surface }">
-                            <h2 class="text-3xl font-bold"
-                                :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedFontPairing.headingFont}'` }">
-                                {{ websiteData.endingTitle }}
-                            </h2>
-                            <p class="prose max-w-none mx-auto text-lg text-center"
-                                :style="{ color: selectedPalette.colors.text }">
-                                {{ websiteData.endingMessage }}
-                            </p>
-                        </div>
-                                                <!-- Bread + Butter Branding Footer -->
-                        <div class="py-10 flex flex-col items-center justify-center gap-3 border-t"
-                            :style="{ backgroundColor: selectedPalette.colors.heading, borderColor: selectedPalette.colors.surface }">
-                            <p class="text-xs font-semibold uppercase tracking-widest opacity-60" :style="{ color: selectedPalette.colors.background }">This website was made with</p>
-                            <div class="h-6 w-full opacity-80 mask-logo" 
-                                :style="{ backgroundColor: selectedPalette.colors.background}" 
-                                role="img" aria-label="Bread + Butter"></div>
-                        </div>
+                            <!-- Bread + Butter Branding Footer -->
+                            <div class="py-10 flex flex-col items-center justify-center gap-3 border-t"
+                                :style="{ backgroundColor: selectedPalette.colors.heading, borderColor: selectedPalette.colors.surface }">
+                                <p class="text-xs font-semibold uppercase tracking-widest opacity-60"
+                                    :style="{ color: selectedPalette.colors.background }">This website was made with</p>
+                                <div class="h-6 w-full opacity-80 mask-logo"
+                                    :style="{ backgroundColor: selectedPalette.colors.background }" role="img"
+                                    aria-label="Bread + Butter"></div>
+                            </div>
 
 
 
@@ -675,5 +708,70 @@ const toggleLive = () => {
 .mask-logo {
     -webkit-mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
     mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
+}
+
+/* Force font preloading for dynamically bound fonts */
+.font-preload-parisienne {
+    font-family: 'Parisienne', cursive;
+}
+
+.font-preload-engagement {
+    font-family: 'Engagement', cursive;
+}
+
+.font-preload-greatvibes {
+    font-family: 'Great Vibes', cursive;
+}
+
+.font-preload-boska {
+    font-family: 'Boska', serif;
+}
+
+.font-preload-melodrama {
+    font-family: 'Melodrama', sans-serif;
+}
+
+.font-preload-clash {
+    font-family: 'Clash Display', sans-serif;
+}
+
+.font-preload-gambetta {
+    font-family: 'Gambetta', serif;
+}
+
+.font-preload-sentient {
+    font-family: 'Sentient', serif;
+}
+
+.font-preload-quicksand {
+    font-family: 'Quicksand', sans-serif;
+}
+
+.font-preload-rowan {
+    font-family: 'Rowan', serif;
+}
+
+.font-preload-satoshi {
+    font-family: 'Satoshi', sans-serif;
+}
+
+.font-preload-bespoke {
+    font-family: 'Bespoke Sans', sans-serif;
+}
+
+.font-preload-switzer {
+    font-family: 'Switzer', sans-serif;
+}
+
+.font-preload-outfit {
+    font-family: 'Outfit', sans-serif;
+}
+
+.font-preload-general {
+    font-family: 'General Sans', sans-serif;
+}
+
+.font-preload-amulya {
+    font-family: 'Amulya', sans-serif;
 }
 </style>
