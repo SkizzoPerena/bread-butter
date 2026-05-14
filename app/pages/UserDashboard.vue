@@ -5,6 +5,19 @@ definePageMeta({
   layout: 'user-navbar',
 })
 
+const { data: userAccount, error } = await useAsyncData<any>('userAccount', () => 
+  useApi()('/api/user/account', { method: 'GET' })
+)
+
+const userName = computed(() => userAccount.value?.name || userAccount.value?.user?.name || 'Guest')
+
+if (error.value) {
+  console.error('Failed to fetch user account details:', error.value)
+  // If the user isn't authenticated or the token expired, redirect to login
+  if ((error.value as any).statusCode === 401 || (error.value as any).response?.status === 401) {
+    await navigateTo('/UserLogin')
+  }
+}
 
 const isModalOpen = ref(false)
 
@@ -51,7 +64,7 @@ const value = ref(50)
   <UContainer class="space-y-8">
     <!-- all containers should have mb-12 pb-0 for uniform borders, all containers WITHIN a container should have mb-8 pb-0 for uniform borders -->
 
-    <UPageCard title="Welcome back, Jane!" class="bread-container pt-5"
+    <UPageCard :title="`Welcome back, ${userName}!`" class="bread-container pt-5"
       :ui="{ title: 'text-3xl text-pretty font-bold text-highlighted font-serif' }">
 
       <div class="flex justify-between items-center">

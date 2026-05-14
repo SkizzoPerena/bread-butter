@@ -45,10 +45,12 @@ const schema = z.object({
 type Schema = z.output<typeof schema>
 
 const state = reactive({
-  email: 'user@example.com',
-  password: 'password',
+  email: '',
+  password: '',
   remember: false
 })
+
+const isLoading = ref(false)
 
 const stats = [
   { value: '500+', description: 'Events planned' },
@@ -57,8 +59,31 @@ const stats = [
 ]
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
-  await navigateTo('/UserDashboard')
+  isLoading.value = true
+  try {
+    const response: any = await $fetch('https://bread-butter-backend.onrender.com/api/user/login', {
+      method: 'POST',
+      body: {
+        email: payload.data.email,
+        password: payload.data.password
+      }
+    })
+
+    // Capture the token from the response. Adjust 'response.token' depending on your backend's exact JSON shape
+    const tokenCookie = useCookie('auth_token', { 
+      maxAge: payload.data.remember ? 60 * 60 * 24 * 7 : undefined, // 1 week if "remember me" is checked, else session-based
+      sameSite: 'lax'
+    })
+    tokenCookie.value = response.token
+
+    toast.add({ title: 'Success', description: 'Logged in successfully!' })
+    await navigateTo('/UserDashboard')
+  } catch (error: any) {
+    const errorMsg = error.data?.message || 'Invalid email or password'
+    toast.add({ title: 'Login Failed', description: errorMsg, color: 'error' })
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -90,6 +115,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
         <UAuthForm :schema="schema" :state="state" :fields="fields" :providers="providers" @submit="onSubmit" class="my-0 py-0" :submit="{
           label: 'Sign in',
+          loading: isLoading
         }">
           <template #description>
             <div class="text-left text-sm">

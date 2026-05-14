@@ -28,8 +28,7 @@ const fields: AuthFormField[] = [{
   type: 'checkbox'
 }]
 const schema = z.object({
-  name1: z.string().min(4, 'Enter a name'),
-  name2: z.string().min(4, 'Enter a name'),
+  name: z.string().min(4, 'Enter a name'),
   email: z.string().email('Invalid email'),
   phone: z.string().min(11, 'Invalid phone number'),
   password: z.string().min(8, 'Must be at least 8 characters'),
@@ -49,8 +48,7 @@ const schema = z.object({
 type Schema = z.output<typeof schema>
 
 const state = reactive<Schema>({
-  name1: '',
-  name2: '',
+  name: '',
   email: '',
   phone: '',
   password: '',
@@ -60,10 +58,29 @@ const state = reactive<Schema>({
 })
 
 const isPasswordVisible = ref(false)
+const isLoading = ref(false)
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
-  await navigateTo('/UserDashboard')
+  isLoading.value = true
+  try {
+    const response: any = await useApi()('/api/user/register', {
+      method: 'POST',
+      body: {
+        name: payload.data.name,
+        email: payload.data.email,
+        phone: payload.data.phone,
+        password: payload.data.password
+      }
+    })
+
+    toast.add({ title: 'Success', description: 'Account created successfully! Please log in.' })
+    await navigateTo('/UserLogin')
+  } catch (error: any) {
+    const errorMsg = error.data?.message || 'Registration failed. Please try again.'
+    toast.add({ title: 'Signup Failed', description: errorMsg, color: 'error' })
+  } finally {
+    isLoading.value = false
+  }
 }
 
 </script>
@@ -82,8 +99,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
             <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
           </div>
-          <UFormField label="Username" name="names" class="" required>
-              <UInput class="w-full" v-model="state.name1" placeholder="Your name" />
+          <UFormField label="Username" name="name" class="" required>
+              <UInput class="w-full" v-model="state.name" placeholder="Your name" />
           </UFormField>
           <UFormField label="Email" name="email" class="" required>
             <UInput class="w-full" v-model="state.email" placeholder="Enter your email" />
@@ -130,7 +147,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <UCheckbox v-model="state.updates" name="updates" label="I want to receive updates from Bread+Butter." />
             </UFormField>
           </div>
-          <UButton type="submit" block>Sign up</UButton>
+          <UButton type="submit" block :loading="isLoading">Sign up</UButton>
           <div class="text-sm text-center mt-1">
             Already have an account? <ULink to="/UserLogin" class="text-primary font-medium">Sign in</ULink> instead.
           </div>

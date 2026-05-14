@@ -24,6 +24,19 @@ const items: NavigationMenuItem[][] = [
   ],
 ]
 
+const { data: userAccount } = await useAsyncData<any>('userAccount', () => 
+  useApi()('/api/user/account', { method: 'GET' })
+)
+
+const userName = computed(() => userAccount.value?.name || userAccount.value?.user?.name || 'Guest')
+
+const { data: profilePicData } = await useAsyncData<any>('userProfilePic', () => 
+  useApi()('/api/user/account/profile-picture', { method: 'GET' })
+)
+
+// Adjust to match your backend's JSON structure (e.g. { url: '...' } or { profilePicture: '...' } or a plain string)
+const userAvatar = computed(() => profilePicData.value?.url || profilePicData.value?.profilePicture || (typeof profilePicData.value === 'string' ? profilePicData.value : undefined))
+
 const dropitems: DropdownMenuItem[][] = [
   [{
     slot: 'account',
@@ -67,11 +80,11 @@ const dropitems: DropdownMenuItem[][] = [
       itemLeadingIcon: 'text-white',
       item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
     }">
-                <UAvatar :alt="'B P'" />
+                <UAvatar :src="userAvatar" :alt="userName.slice(0, 2).toUpperCase()" />
                 <template #account>
                   <div class="flex items-center gap-2 text-white">
-                    <UAvatar src="../assets/Mirana.jpg":alt="'B P'" size="sm" />
-                    <span class="font-semibold">Blink Punch</span>
+                    <UAvatar :src="userAvatar" :alt="userName.slice(0, 2).toUpperCase()" size="sm" />
+                    <span class="font-semibold">{{ userName }}</span>
                   </div>
                 </template>
               </UDropdownMenu>
