@@ -22,7 +22,7 @@ definePageMeta({
 
 const toast = useToast()
 const route = useRoute()
-const { fetchEvent } = useEvents()
+const { fetchEvent, updateEvent } = useEvents()
 const { submitEventPaymentProof } = usePayments()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 
@@ -37,6 +37,16 @@ const rsvpSummary = ref<RsvpSummary | null>(null)
 const tasksSummary = ref<TasksSummary | null>(null)
 const isLoadingEvent = ref(false)
 const isSubmittingPayment = ref(false)
+const isEditModalOpen = ref(false)
+const isSubmittingEventUpdate = ref(false)
+
+const editForm = reactive({
+  eventName: '',
+  description: '',
+  venue: '',
+})
+const editCoverImageFile = ref<File | null>(null)
+const editCoverImageInput = ref<HTMLInputElement | null>(null)
 
 const paymentForm = reactive({
   transactionId: '',
@@ -211,6 +221,107 @@ function getApiTasksByStatus(status: string): TaskPreview[] {
 function onCoverImageError(event: Event) {
   const img = event.target as HTMLImageElement
   img.src = defaultCover
+}
+
+function resetEditForm() {
+  if (!eventRecord.value) {
+    return
+  }
+  editForm.eventName = eventRecord.value.eventName
+  editForm.description = eventRecord.value.description
+  editForm.venue = eventRecord.value.venue
+  editCoverImageFile.value = null
+  if (editCoverImageInput.value) {
+    editCoverImageInput.value.value = ''
+  }
+}
+
+function openEditModal() {
+  resetEditForm()
+  isEditModalOpen.value = true
+}
+
+function onEditCoverImageChange(changeEvent: Event) {
+  const input = changeEvent.target as HTMLInputElement
+  editCoverImageFile.value = input.files?.[0] ?? null
+}
+
+async function handleUpdateEvent() {
+  if (!eventRecord.value) {
+    return
+  }
+
+  if (!editForm.eventName.trim()) {
+    toast.add({ title: 'Missing event name', color: 'error' })
+    return
+  }
+  if (!editForm.venue.trim()) {
+    toast.add({ title: 'Missing venue', color: 'error' })
+    return
+  }
+  if (!editForm.description.trim()) {
+    toast.add({ title: 'Missing description', color: 'error' })
+    return
+  }
+
+  const existingCoverUrl = eventRecord.value.coverImageURL?.trim()
+  if (!editCoverImageFile.value && !existingCoverUrl) {
+    toast.add({
+      title: 'Cover image required',
+      description: 'Please upload a cover image for your event.',
+      color: 'error',
+    })
+    return
+  }
+
+  isSubmittingEventUpdate.value = true
+  try {
+    const targetEventId = eventId.value || 'mock-event-id'
+
+    if (!isUiOnlyMode.value) {
+      await updateEvent(targetEventId, {
+        eventType: eventRecord.value.eventType,
+        eventName: editForm.eventName.trim(),
+        description: editForm.description.trim(),
+        venue: editForm.venue.trim(),
+        coverImage: editCoverImageFile.value ?? undefined,
+        coverImageURL: editCoverImageFile.value ? undefined : existingCoverUrl,
+      })
+
+      if (editCoverImageFile.value && eventId.value) {
+        const detail = await fetchEvent(eventId.value)
+        eventRecord.value = detail.event
+      } else {
+        eventRecord.value = {
+          ...eventRecord.value,
+          eventName: editForm.eventName.trim(),
+          description: editForm.description.trim(),
+          venue: editForm.venue.trim(),
+        }
+      }
+    } else {
+      eventRecord.value = {
+        ...eventRecord.value,
+        eventName: editForm.eventName.trim(),
+        description: editForm.description.trim(),
+        venue: editForm.venue.trim(),
+      }
+    }
+
+    toast.add({
+      title: 'Event updated',
+      description: 'Your event details have been saved.',
+    })
+    isEditModalOpen.value = false
+  } catch (error) {
+    toast.add({
+      title: 'Could not update event',
+      description: getApiErrorMessage(error),
+      color: 'error',
+    })
+  } finally {
+    isSubmittingEventUpdate.value = false
+  }
 }
 
 async function loadEventData() {
@@ -476,6 +587,7 @@ const tabItems = [
         </div>
 
         <UModal
+          v-model="isEditModalOpen"
           title="Edit Event"
           :ui="{
             header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
@@ -493,35 +605,69 @@ const tabItems = [
             variant="solid"
             color="neutral"
             class="shrink-0 bg-white/90 text-highlighted hover:bg-white"
+            @click="openEditModal"
           />
           <template #body>
-            <UForm class="space-y-4">
+            <UForm
+              class="space-y-4"
+              @submit.prevent="handleUpdateEvent"
+            >
               <UFormField label="Event Name" name="name" required>
-                <UInput class="w-full" placeholder="Jane & John's Wedding" />
+                <UInput
+                  v-model="editForm.eventName"
+                  class="w-full"
+                  placeholder="Jane & John's Wedding"
+                />
               </UFormField>
 
-              <UFieldGroup class="w-full space-x-3">
-                <UFormField label="Event Date" name="date" required class="w-1/2">
-                  <UPopover>
-                    <UButton color="neutral" variant="outline" class="w-full">
-                      Select a date
-                    </UButton>
+              <UFormField label="Event Date" name="date">
+                <UInput
+                  :model-value="eventDateLabel"
+                  class="w-full"
+                  disabled
+                />
+              </UFormField>
 
-                    <template #content="{ close }">
-                      <UCalendar class="p-2" @update:model-value="close" />
-                    </template>
-                  </UPopover>
-                </UFormField>
+              <UFormField label="Venue" name="venue" required>
+                <UInput
+                  v-model="editForm.venue"
+                  class="w-full"
+                  placeholder="Manila Cathedral"
+                />
+              </UFormField>
 
-                <UFormField label="Budget" name="budget" required class="w-1/2">
-                  <UInputNumber :increment="false" :decrement="false" class="w-full" />
-                </UFormField>
-              </UFieldGroup>
               <UFormField label="Description" name="description" required>
-                <UTextarea class="w-full" placeholder="Tell us more about your special day" />
+                <UTextarea
+                  v-model="editForm.description"
+                  class="w-full"
+                  placeholder="Tell us more about your special day"
+                />
               </UFormField>
 
-              <UButton to="/UserEventDashboard" block class="mt-4">
+              <UFormField label="Cover Image" name="coverImage" required>
+                <div class="flex items-center gap-3">
+                  <UButton variant="solid" @click="editCoverImageInput?.click()">
+                    Choose file
+                  </UButton>
+                  <span class="text-sm text-muted truncate">
+                    {{ editCoverImageFile?.name || 'No file chosen' }}
+                  </span>
+                  <input
+                    ref="editCoverImageInput"
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    class="hidden"
+                    @change="onEditCoverImageChange"
+                  >
+                </div>
+              </UFormField>
+
+              <UButton
+                type="submit"
+                block
+                class="mt-4"
+                :loading="isSubmittingEventUpdate"
+              >
                 Save Changes
               </UButton>
             </UForm>

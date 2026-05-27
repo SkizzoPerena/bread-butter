@@ -40,12 +40,16 @@ export function useApiMode() {
     })
   }
 
-  async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  async function apiUpload<T>(
+    path: string,
+    formData: FormData,
+    options?: { method?: 'POST' | 'PATCH' }
+  ): Promise<T> {
     if (!useRealApi.value) {
       throw new Error('apiUpload was called while NUXT_PUBLIC_USE_REAL_API is disabled')
     }
     return $fetch<T>(joinApiUrl(apiBase.value, path), {
-      method: 'POST',
+      method: options?.method ?? 'POST',
       body: formData,
       headers: authHeaders()
     })

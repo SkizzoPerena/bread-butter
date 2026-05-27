@@ -4,7 +4,9 @@ import type {
   EventResponse,
   EventsListResponse,
   SelectedEventDetail,
-  SelectedEventResponse
+  SelectedEventResponse,
+  UpdateEventPayload,
+  UpdateEventResponse
 } from '~/types/event'
 
 export function useEvents() {
@@ -81,9 +83,32 @@ export function useEvents() {
     return response.event
   }
 
+  async function updateEvent(eventId: string, payload: UpdateEventPayload): Promise<void> {
+    if (isUiOnlyMode.value) {
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('eventType', payload.eventType)
+    formData.append('eventName', payload.eventName)
+    formData.append('description', payload.description)
+    formData.append('venue', payload.venue)
+
+    if (payload.coverImage) {
+      formData.append('coverImage', payload.coverImage)
+    } else if (payload.coverImageURL) {
+      formData.append('coverImageURL', payload.coverImageURL)
+    }
+
+    await apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
+      method: 'PATCH'
+    })
+  }
+
   return {
     fetchUserEvents,
     fetchEvent,
-    createEvent
+    createEvent,
+    updateEvent
   }
 }

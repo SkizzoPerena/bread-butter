@@ -103,6 +103,21 @@ export interface CreateEventPayload {
   payLater?: boolean
 }
 
+export interface UpdateEventPayload {
+  eventType: string
+  eventName: string
+  description: string
+  venue: string
+  coverImage?: File
+  coverImageURL?: string
+}
+
+export interface UpdateEventResponse {
+  success: boolean
+  status: number
+  message: string
+}
+
 export function mapEventTypeToApi(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, '_')
 }
