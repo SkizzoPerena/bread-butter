@@ -1,37 +1,24 @@
 <script lang="ts" setup>
 import * as z from 'zod'
-import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { useAuth } from '~/composables/useAuth'
+import { getApiErrorMessage } from '~/types/auth'
 
 const toast = useToast()
+const { register } = useAuth()
 
-const fields: AuthFormField[] = [{
-  name: 'email',
-  type: 'email',
-  label: 'Email',
-  placeholder: 'Enter your email',
-  required: true
-},
-{
-  name: 'password',
-  label: 'Password',
-  type: 'password',
-  placeholder: 'Enter your password',
-  required: true
-},
-{
-  name: 'tnc',
-  type: 'checkbox'
-},
-{
-  name: 'updates',
-  label: "I want to receive newsletter updates.",
-  type: 'checkbox'
-}]
+const isSubmitting = ref(false)
+
+const genderOptions = [
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' }
+]
+
 const schema = z.object({
-  name1: z.string().min(4, 'Enter a name'),
-  name2: z.string().min(4, 'Enter a name'),
+  firstName: z.string().min(1, 'Enter your first name'),
+  lastName: z.string().min(1, 'Enter your last name'),
   email: z.string().email('Invalid email'),
-  phone: z.string().min(11, 'Invalid phone number'),
+  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' }),
   password: z.string().min(8, 'Must be at least 8 characters'),
   repass: z.string().min(8, 'Must be at least 8 characters'),
   tnc: z.boolean().refine(val => val === true, 'You must agree to the terms and conditions.'),
@@ -49,10 +36,10 @@ const schema = z.object({
 type Schema = z.output<typeof schema>
 
 const state = reactive<Schema>({
-  name1: '',
-  name2: '',
+  firstName: '',
+  lastName: '',
   email: '',
-  phone: '',
+  gender: undefined as unknown as Schema['gender'],
   password: '',
   repass: '',
   tnc: false,
@@ -62,13 +49,31 @@ const state = reactive<Schema>({
 const isPasswordVisible = ref(false)
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
-  await navigateTo('/UserDashboard')
+  if (isSubmitting.value) {
+    return
+  }
+
+  const { email, password, firstName, lastName, gender } = payload.data
+
+  isSubmitting.value = true
+  try {
+    await register({ email, password, firstName, lastName, gender })
+    toast.add({ title: 'Account created', description: 'Welcome to Bread+Butter!' })
+    await navigateTo('/UserDashboard')
+  } catch (error) {
+    toast.add({
+      title: 'Sign up failed',
+      description: getApiErrorMessage(error, 'Unable to create your account.'),
+      color: 'error'
+    })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 </script>
 
-<template> 
+<template>
   <div class="flex items-center justify-center p-4 bpb-pattern h-screen">
 
     <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4 bg-bread-200">
@@ -82,19 +87,17 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
             <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
           </div>
-          <UFormField label="Username" name="names" class="" required>
-              <UInput class="w-full" v-model="state.name1" placeholder="Your name" />
+          <UFormField label="First name" name="firstName" required>
+            <UInput v-model="state.firstName" class="w-full" placeholder="First name" />
           </UFormField>
-          <UFormField label="Email" name="email" class="" required>
-            <UInput class="w-full" v-model="state.email" placeholder="Enter your email" />
+          <UFormField label="Last name" name="lastName" required>
+            <UInput v-model="state.lastName" class="w-full" placeholder="Last name" />
           </UFormField>
-          <UFormField label="Phone number" name="phone" class="" required>
-            <UInput class="w-full" v-model="state.phone">
-              <template #leading>
-                <div id="country-code" class=" text-muted" aria-live="polite" role="status">+63
-                </div>
-              </template>
-            </UInput>
+          <UFormField label="Email" name="email" required>
+            <UInput v-model="state.email" class="w-full" placeholder="Enter your email" />
+          </UFormField>
+          <UFormField label="Gender" name="gender" required>
+            <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
           </UFormField>
           <UFormField label="Password" name="password" required>
             <UInput v-model="state.password" :type="isPasswordVisible ? 'text' : 'password'" class="w-full"
@@ -130,7 +133,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <UCheckbox v-model="state.updates" name="updates" label="I want to receive updates from Bread+Butter." />
             </UFormField>
           </div>
-          <UButton type="submit" block>Sign up</UButton>
+          <UButton type="submit" block :loading="isSubmitting">Sign up</UButton>
           <div class="text-sm text-center mt-1">
             Already have an account? <ULink to="/UserLogin" class="text-primary font-medium">Sign in</ULink> instead.
           </div>

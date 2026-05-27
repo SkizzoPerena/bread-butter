@@ -1,52 +1,25 @@
 <script setup lang="ts">
 import * as z from 'zod'
-import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { useAuth } from '~/composables/useAuth'
+import { getApiErrorMessage } from '~/types/auth'
 
 const toast = useToast()
+const { login } = useAuth()
 
-const fields: AuthFormField[] = [{
-  name: 'email',
-  type: 'email',
-  label: 'Email',
-  placeholder: 'Enter your email',
-  required: true
-}, {
-  name: 'password',
-  label: 'Password',
-  type: 'password',
-  placeholder: 'Enter your password',
-  required: true
-}, {
-  name: 'remember',
-  label: 'Remember me',
-  type: 'checkbox'
-}]
-
-const providers = [{
-  label: 'Sign in with Google',
-  icon: 'i-simple-icons-google',
-  onClick: () => {
-    toast.add({ title: 'Google', description: 'Sign in with Google' })
-  }
-}, {
-  label: 'Sign in with Facebook',
-  icon: 'i-simple-icons-facebook',
-  onClick: () => {
-    toast.add({ title: 'Facebook', description: 'Sign in with Facebook' })
-  }
-}]
+const isSubmitting = ref(false)
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
-  password: z.string().min(8, 'Must be at least 8 characters'),
+  password: z.string().min(6, 'Must be at least 6 characters'),
   remember: z.boolean().optional()
 })
 
 type Schema = z.output<typeof schema>
 
-const state = reactive({
-  email: 'user@example.com',
-  password: 'password',
+const state = reactive<Schema>({
+  email: '',
+  password: '',
   remember: false
 })
 
@@ -57,17 +30,36 @@ const stats = [
 ]
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
-  await navigateTo('/UserDashboard')
+  if (isSubmitting.value) {
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    await login({
+      email: payload.data.email.trim(),
+      password: payload.data.password,
+      remember: payload.data.remember
+    })
+    toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
+    await navigateTo('/UserDashboard')
+  } catch (error) {
+    toast.add({
+      title: 'Sign in failed',
+      description: getApiErrorMessage(error, 'Unable to sign in. Check your email and password.'),
+      color: 'error'
+    })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
 <template>
   <div class="flex items-center justify-center p-4 login-bg h-screen">
-
     <div class="flex justify-center items-center bg-toast-500/70 bread-container  w-2/3 ">
       <UPageCard class=" bg-transparent w-full text-center flex flex-col justify-center mx-15" variant="ghost">
-        <img src="../assets/bpb-icons/logo-white.svg" class="w-50 mx-auto" />
+        <img src="../assets/bpb-icons/logo-white.svg" class="w-50 mx-auto">
         <div class="text-3xl font-serif text-white mt-5">Today is the day!</div>
         <div class="text-white">Plan your perfect wedding with elegant tools designed for your special day. Create
           beautiful invitations and manage every detail with ease.</div>
@@ -84,33 +76,38 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         </UPageGrid>
       </UPageCard>
 
-
-
-
       <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
-        <UAuthForm :schema="schema" :state="state" :fields="fields" :providers="providers" @submit="onSubmit" class="my-0 py-0" :submit="{
-          label: 'Sign in',
-        }">
-          <template #description>
-            <div class="text-left text-sm">
-              <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
-              Sign in to continue planning your perfect day
-            </div>
-          </template>
-          <template #password-hint>
-            <ULink to="/UserForgotPassword" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
-          </template>
-          <template #footer>
-            <p class="text-sm text-center">
-              New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
-            </p>
-          </template>
-        </UAuthForm>
+        <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+          <div class="text-left text-sm">
+            <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
+            Sign in to continue planning your perfect day
+          </div>
+
+          <UFormField label="Email" name="email" required>
+            <UInput v-model="state.email" type="email" class="w-full" placeholder="Enter your email" />
+          </UFormField>
+
+          <UFormField label="Password" name="password" required>
+            <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
+            <template #hint>
+              <ULink to="/UserForgotPassword" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+            </template>
+          </UFormField>
+
+          <UFormField name="remember">
+            <UCheckbox v-model="state.remember" label="Remember me" />
+          </UFormField>
+
+          <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
+
+          <p class="text-sm text-center">
+            New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
+          </p>
+        </UForm>
       </UPageCard>
     </div>
   </div>
 </template>
-
 
 <style>
 .login-bg {

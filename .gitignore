@@ -18,7 +18,7 @@ logs
 .fleet
 .idea
 
-# Local env files
+# Local env overrides (project .env is committed with safe defaults)
+.env.local
+.env.*.local
 .env
-.env.*
-!.env.example

@@ -1,6 +1,24 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { resolveProfileImageUrl } from '~/utils/profileImage'
+
+const { user, logout } = useAuth()
+
+const displayName = computed(() => {
+  if (user.value?.firstName) {
+    return `${user.value.firstName} ${user.value.lastName}`.trim()
+  }
+  return 'Guest'
+})
+
+const avatarSrc = computed(() => resolveProfileImageUrl(user.value?.profileImageURL))
+
+const avatarLabel = computed(() => {
+  const first = user.value?.firstName?.[0] ?? 'G'
+  const last = user.value?.lastName?.[0] ?? ''
+  return `${first}${last}`.toUpperCase()
+})
 
 const items: NavigationMenuItem[][] = [
   [
@@ -39,7 +57,7 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
-    to: '/UserLogin'
+    onSelect: () => logout()
   }]
 ]
 </script>
@@ -67,11 +85,11 @@ const dropitems: DropdownMenuItem[][] = [
       itemLeadingIcon: 'text-white',
       item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
     }">
-                <UAvatar :alt="'B P'" />
+                <UAvatar :src="avatarSrc" :alt="avatarLabel" />
                 <template #account>
                   <div class="flex items-center gap-2 text-white">
-                    <UAvatar src="../assets/Mirana.jpg":alt="'B P'" size="sm" />
-                    <span class="font-semibold">Blink Punch</span>
+                    <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
+                    <span class="font-semibold">{{ displayName }}</span>
                   </div>
                 </template>
               </UDropdownMenu>

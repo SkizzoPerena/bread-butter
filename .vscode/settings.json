@@ -1,0 +1,16 @@
+{
+  "eslint.rules.customizations": [
+    { "rule": "@stylistic/*", "severity": "off" },
+    { "rule": "style/*", "severity": "off" },
+    { "rule": "format/*", "severity": "off" },
+    { "rule": "*-indent", "severity": "off" },
+    { "rule": "*-spacing", "severity": "off" },
+    { "rule": "*-spaces", "severity": "off" },
+    { "rule": "*-newline", "severity": "off" },
+    { "rule": "*-quotes", "severity": "off" },
+    { "rule": "*-semi", "severity": "off" },
+    { "rule": "*comma-dangle*", "severity": "off" },
+    { "rule": "comma-dangle", "severity": "off" },
+    { "rule": "nuxt/nuxt-config-keys-order", "severity": "off" }
+  ]
+}

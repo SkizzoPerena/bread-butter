@@ -1,30 +1,18 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: [['@nuxt/eslint', {
-    config: {
-      stylistic: {
-        commaDangle: 'never',
-        braceStyle: '1tbs'
-      }
-    }
+    stylistic: false
   }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image'],
-
 
   devtools: {
     enabled: true
   },
 
+  css: ['~/assets/css/main.css'],
+
   colorMode: {
     preference: 'light' // Sets the default to light mode
   },
-
-  css: ['~/assets/css/main.css'],
-
-  routeRules: {
-    '/': { prerender: true }
-  },
-
-  compatibilityDate: '2025-01-15',
 
   ui: {
     theme: {
@@ -41,8 +29,31 @@ export default defineNuxtConfig({
     }
   },
 
-build: {
+  runtimeConfig: {
+    public: {
+      // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
+      useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',
+      // Override locally with NUXT_PUBLIC_API_BASE_URL in .env if needed
+      apiBase: 'https://bread-butter-backend.onrender.com/api'
+    }
+  },
+
+  build: {
     transpile: ['reka-ui']
+  },
+
+  routeRules: {
+    '/': { prerender: true }
+  },
+
+  compatibilityDate: '2025-01-15',
+
+  typescript: {
+    nodeTsConfig: {
+      compilerOptions: {
+        types: ['node']
+      }
+    }
   },
 
   vite: {
@@ -55,6 +66,5 @@ build: {
         '@nuxt/ui > prosemirror-gapcursor'
       ]
     }
-  },
-
+  }
 })

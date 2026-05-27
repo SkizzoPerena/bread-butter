@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { useApiMode } from '~/composables/useApiMode'
 
 const toast = useToast()
+const { executeAction, apiRequest } = useApiMode()
 
 const schema = z.object({
     email: z.string().email('Invalid email'),
@@ -15,9 +17,20 @@ const state = reactive({
 })
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-    console.log('Submitted', event.data)
-    toast.add({ title: 'Password reset email sent', description: 'Check your inbox for a link to reset your password.' })
-    await navigateTo('/UserLogin')
+    await executeAction({
+        uiOnly: async () => {
+            toast.add({ title: 'Password reset email sent', description: 'Check your inbox for a link to reset your password.' })
+            await navigateTo('/UserLogin')
+        },
+        api: () => apiRequest('/user/reset-password', {
+            method: 'POST',
+            body: event.data
+        }),
+        onApiSuccess: async () => {
+            toast.add({ title: 'Password reset email sent', description: 'Check your inbox for a link to reset your password.' })
+            await navigateTo('/UserLogin')
+        }
+    })
 }
 
 </script>

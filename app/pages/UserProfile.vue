@@ -1,11 +1,22 @@
 <script lang="ts" setup>
-import { reactive } from 'vue'
+import * as z from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { getApiErrorMessage } from '~/types/auth'
+import { resolveProfileImageUrl } from '~/utils/profileImage'
 
 definePageMeta({
   layout: 'user-navbar',
 })
 
 import type { PageAnchor } from '@nuxt/ui'
+
+const toast = useToast()
+const { fetchAccount, saveAccount, uploadProfilePicture, isAuthenticated, isUiOnlyMode } = useAccount()
+
+const genderOptions = [
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' }
+]
 
 const links = ref<PageAnchor[]>([
   {
@@ -22,28 +33,139 @@ const links = ref<PageAnchor[]>([
     label: 'Membership',
     icon: 'i-lucide-circle-star',
     to: '#membership'
-
   },
   {
     label: 'Payments and Billing',
     icon: 'i-lucide-credit-card',
     to: '#billing'
-
   },
   {
     label: 'Preferences',
     icon: 'i-lucide-settings',
     to: '#preferences'
-
   },
 ])
 
-const state = reactive({
-  name: 'Jane Doe',
-  email: 'jane.doe@example.com',
-  contact: '0912 345 6789',
+const schema = z.object({
+  firstName: z.string().min(1, 'Enter your first name'),
+  lastName: z.string().min(1, 'Enter your last name'),
+  email: z.string().email('Invalid email'),
+  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' })
 })
 
+type Schema = z.output<typeof schema>
+
+const state = reactive<Schema>({
+  firstName: '',
+  lastName: '',
+  email: '',
+  gender: 'FEMALE'
+})
+
+const profileImageURL = ref('')
+const isLoading = ref(true)
+const isSaving = ref(false)
+const isUploading = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const displayName = computed(() => `${state.firstName} ${state.lastName}`.trim())
+const profileImageSrc = computed(() => resolveProfileImageUrl(profileImageURL.value))
+
+function applyAccountToForm(account: {
+  email: string
+  firstName: string
+  lastName: string
+  gender: string
+  profileImageURL?: string
+}) {
+  state.firstName = account.firstName
+  state.lastName = account.lastName
+  state.email = account.email
+  state.gender = account.gender === 'MALE' || account.gender === 'FEMALE'
+    ? account.gender
+    : 'FEMALE'
+  profileImageURL.value = account.profileImageURL ?? ''
+}
+
+async function loadProfile() {
+  isLoading.value = true
+  try {
+    const account = await fetchAccount()
+    applyAccountToForm(account)
+  } catch (error) {
+    toast.add({
+      title: 'Unable to load profile',
+      description: getApiErrorMessage(error),
+      color: 'error'
+    })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function onSubmit(payload: FormSubmitEvent<Schema>) {
+  if (isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const response = await saveAccount({
+      firstName: payload.data.firstName,
+      lastName: payload.data.lastName,
+      gender: payload.data.gender
+    })
+    toast.add({ title: 'Profile updated', description: response.message })
+  } catch (error) {
+    toast.add({
+      title: 'Save failed',
+      description: getApiErrorMessage(error),
+      color: 'error'
+    })
+  } finally {
+    isSaving.value = false
+  }
+}
+
+function openFilePicker() {
+  fileInputRef.value?.click()
+}
+
+async function onProfileImageSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file) {
+    return
+  }
+
+  isUploading.value = true
+  try {
+    const response = await uploadProfilePicture(file)
+    const { user } = useAuth()
+    if (user.value) {
+      applyAccountToForm(user.value)
+    }
+    toast.add({ title: 'Profile picture updated', description: response.message })
+  } catch (error) {
+    toast.add({
+      title: 'Upload failed',
+      description: getApiErrorMessage(error),
+      color: 'error'
+    })
+  } finally {
+    isUploading.value = false
+  }
+}
+
+onMounted(async () => {
+  if (!isUiOnlyMode.value && !isAuthenticated.value) {
+    await navigateTo('/UserLogin')
+    return
+  }
+  await loadProfile()
+})
 </script>
 
 <template>
@@ -55,29 +177,47 @@ const state = reactive({
       </UPageCard>
       <UPageCard id="profile" class="col-span-2 white-bread-container">
         <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
-        <div class="flex w-full gap-4">
+        <div v-if="isLoading" class="py-12 text-center text-muted">
+          Loading profile...
+        </div>
+        <div v-else class="flex w-full gap-4">
           <div class=" w-1/3">
             <div class="flex justify-center gap-4 mb-6 w-full">
-              <img src="../assets/Mirana.jpg" class="rounded-full" alt="Jane Doe" width="150" />
-
+              <img :src="profileImageSrc" class="rounded-full object-cover size-[150px]" :alt="displayName" width="150" height="150" />
             </div>
             <div class="text-center">
-              <UButton icon="i-lucide-upload" label="Upload new picture" variant="outline" />
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                class="hidden"
+                @change="onProfileImageSelected"
+              >
+              <UButton
+                icon="i-lucide-upload"
+                label="Upload new picture"
+                variant="outline"
+                :loading="isUploading"
+                @click="openFilePicker"
+              />
               <div class="text-sm text-muted mt-1">PNG or JPG (Max 2MB)</div>
             </div>
           </div>
-          <UForm :state="state" class="space-y-4 w-2/3">
-            <UFormField label="Name" name="name">
-              <UInput v-model="state.name" class="w-full" />
+          <UForm :schema="schema" :state="state" class="space-y-4 w-2/3" @submit="onSubmit">
+            <UFormField label="First name" name="firstName" required>
+              <UInput v-model="state.firstName" class="w-full" />
+            </UFormField>
+            <UFormField label="Last name" name="lastName" required>
+              <UInput v-model="state.lastName" class="w-full" />
             </UFormField>
             <UFormField label="Email" name="email">
-              <UInput v-model="state.email" type="email" class="w-full" />
+              <UInput v-model="state.email" type="email" class="w-full" disabled />
             </UFormField>
-            <UFormField label="Contact Number" name="contact">
-              <UInput v-model="state.contact" class="w-full" />
+            <UFormField label="Gender" name="gender" required>
+              <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
             </UFormField>
             <div class="flex justify-end pt-2">
-              <UButton>Save Changes</UButton>
+              <UButton type="submit" :loading="isSaving">Save Changes</UButton>
             </div>
           </UForm>
         </div>
