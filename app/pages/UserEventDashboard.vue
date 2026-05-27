@@ -53,15 +53,46 @@ const paymentDenialReason = computed(() =>
     : ''
 )
 
-const eventTitle = computed(() => eventRecord.value?.eventName ?? "Jane & John's Wedding")
-const eventVenue = computed(() => eventRecord.value?.venue ?? 'Manila Cathedral')
+const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
+
+const eventTitle = computed(() => {
+  if (eventRecord.value?.eventName) {
+    return eventRecord.value.eventName
+  }
+  if (eventId.value && isLoadingEvent.value) {
+    return ''
+  }
+  if (useDemoFallbacks.value) {
+    return "Jane & John's Wedding"
+  }
+  return ''
+})
+
+const eventVenue = computed(() => {
+  if (eventRecord.value?.venue) {
+    return eventRecord.value.venue
+  }
+  if (eventId.value && isLoadingEvent.value) {
+    return ''
+  }
+  if (useDemoFallbacks.value) {
+    return 'Manila Cathedral'
+  }
+  return ''
+})
 
 const eventDateLabel = computed(() => {
   const dateValue = eventRecord.value?.eventDate
-  if (!dateValue) {
+  if (dateValue) {
+    return df.format(new Date(dateValue))
+  }
+  if (eventId.value && isLoadingEvent.value) {
+    return ''
+  }
+  if (useDemoFallbacks.value) {
     return 'May 18, 2026'
   }
-  return df.format(new Date(dateValue))
+  return ''
 })
 
 async function loadEventData() {
@@ -70,6 +101,7 @@ async function loadEventData() {
   }
 
   isLoadingEvent.value = true
+  eventRecord.value = null
   try {
     eventRecord.value = await loadPageData({
       mock: () => ({
@@ -240,7 +272,14 @@ const tabItems = [
     <UPageHeader class="border-none font-serif my-0">
       <template #title>
         <div class="flex justify-between items-center">
-          <h1 class="text-3xl sm:text-4xl font-bold">
+          <USkeleton
+            v-if="isLoadingEvent && eventId"
+            class="h-10 w-64"
+          />
+          <h1
+            v-else
+            class="text-3xl sm:text-4xl font-bold"
+          >
             {{ eventTitle }}
           </h1>
           <UModal title="Edit Event" :ui="{

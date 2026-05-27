@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
-import type { TabsItem } from '@nuxt/ui'
+import type { EventRecord } from '~/types/event'
 import { mapEventTypeToApi } from '~/types/event'
 import { EVENT_CREATION_FEE_PHP } from '~/types/payment'
 import { getApiErrorMessage } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
+import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 
 definePageMeta({
   layout: 'user-navbar',
@@ -13,7 +15,8 @@ definePageMeta({
 const toast = useToast()
 const router = useRouter()
 const { user } = useAuth()
-const { createEvent } = useEvents()
+const { createEvent, fetchUserEvents } = useEvents()
+const { loadPageData } = useApiMode()
 
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
@@ -43,6 +46,58 @@ const df = new DateFormatter('en-US', {
 
 const welcomeName = computed(() => user.value?.firstName ?? 'Jane')
 
+const userEvents = ref<EventRecord[]>([])
+const isLoadingEvents = ref(false)
+
+async function loadUserEvents() {
+  isLoadingEvents.value = true
+  try {
+    userEvents.value = await loadPageData({
+      mock: () => [],
+      fetch: () => fetchUserEvents(),
+    })
+  } catch (error) {
+    userEvents.value = []
+    toast.add({
+      title: 'Could not load events',
+      description: getApiErrorMessage(error),
+      color: 'error',
+    })
+  } finally {
+    isLoadingEvents.value = false
+  }
+}
+
+function formatEventDateLabel(iso: string): string {
+  return df.format(new Date(iso))
+}
+
+function getPaymentStatusLabel(event: EventRecord): string {
+  const status = event.latestPayment?.status
+  if (!status) {
+    return 'Payment required'
+  }
+  if (status === 'PENDING') {
+    return 'Pending review'
+  }
+  if (status === 'APPROVED') {
+    return 'Approved'
+  }
+  if (status === 'DENIED') {
+    return 'Denied'
+  }
+  return status
+}
+
+function onCoverImageError(event: Event) {
+  const img = event.target as HTMLImageElement
+  img.src = defaultCover
+}
+
+onMounted(() => {
+  loadUserEvents()
+})
+
 const cards = ref([
   {
     title: 'Upcoming Events',
@@ -63,8 +118,6 @@ const cards = ref([
     number: 'Php 500,000',
   }
 ])
-
-const value = ref(50)
 
 function onCoverImageChange(event: Event) {
   const input = event.target as HTMLInputElement
@@ -346,16 +399,17 @@ async function handleCreateEvent() {
     </UPageCard>
 
     <UPageGrid class="">
+      <!-- Demo card (hardcoded visualization) -->
       <div class="white-bread-container rounded-lg">
-        <img
-          src="../assets/bpb-images/wedding-1.jpg"
-          class="w-full rounded-t-lg"
-          width="600"
-          height="400"
-          fit="cover"
-        >
+        <div class="aspect-[3/2] w-full overflow-hidden rounded-t-lg">
+          <img
+            :src="demoCoverImage"
+            alt="Jane & John's Wedding"
+            class="h-full w-full object-cover"
+          >
+        </div>
         <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-          <div class="text-lg font-semibold pb-1">
+          <div class="text-lg font-semibold pb-1 truncate">
             Jane & John's Wedding
           </div>
           <UPageFeature
@@ -367,21 +421,6 @@ async function handleCreateEvent() {
             icon="i-lucide-calendar-heart"
             title="May 03, 2026"
             :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-piggy-bank"
-            title="Php 5,000,000"
-            :ui="{ title: 'font-normal' }"
-          />
-          <USeparator class="my-3" />
-          <div class="flex justify-between">
-            <div>Tasks Accomplished</div>
-            <div>2/4</div>
-          </div>
-          <UProgress
-            v-model="value"
-            :max="100"
-            class="mt-2"
           />
           <UButton
             block
@@ -393,100 +432,76 @@ async function handleCreateEvent() {
         </div>
       </div>
 
-      <div class=" white-bread-container rounded-lg">
-        <img
-          src="../assets/bpb-images/wedding-1.jpg"
-          class="w-full rounded-t-lg"
-          width="600"
-          height="400"
-          fit="cover"
+      <template v-if="isLoadingEvents">
+        <div
+          v-for="n in 2"
+          :key="`skeleton-${n}`"
+          class="white-bread-container rounded-lg overflow-hidden"
         >
-        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-          <div class="text-lg font-semibold pb-1">
-            Jane & John's Wedding
+          <USkeleton class="aspect-[3/2] w-full rounded-none" />
+          <div class="space-y-3 p-4">
+            <USkeleton class="h-6 w-3/4" />
+            <USkeleton class="h-4 w-1/2" />
+            <USkeleton class="h-4 w-1/2" />
+            <USkeleton class="h-10 w-full mt-4" />
           </div>
-          <UPageFeature
-            icon="i-lucide-map-pin"
-            title="Manila Cathedral"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-calendar-heart"
-            title="May 03, 2026"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-piggy-bank"
-            title="Php 5,000,000"
-            :ui="{ title: 'font-normal' }"
-          />
-          <USeparator class="my-3" />
-          <div class="flex justify-between">
-            <div>Tasks Accomplished</div>
-            <div>2/4</div>
-          </div>
-          <UProgress
-            v-model="value"
-            :max="100"
-            class="mt-2"
-          />
-          <UButton
-            block
-            class="mt-6"
-            to="/UserEventDashboard"
-          >
-            Open Dashboard
-          </UButton>
         </div>
-      </div>
+      </template>
 
-      <div class="white-bread-container rounded-lg">
-        <img
-          src="../assets/bpb-images/wedding-1.jpg"
-          class="w-full rounded-t-lg"
-          width="600"
-          height="400"
-          fit="cover"
-        >
+      <div
+        v-for="event in userEvents"
+        v-else
+        :key="event._id"
+        class="white-bread-container rounded-lg"
+      >
+        <div class="aspect-[3/2] w-full overflow-hidden rounded-t-lg">
+          <img
+            :src="resolveEventCoverImageUrl(event.coverImageURL)"
+            :alt="event.eventName"
+            class="h-full w-full object-cover"
+            @error="onCoverImageError"
+          >
+        </div>
         <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-          <div class="text-lg font-semibold pb-1">
-            Jane & John's Wedding
+          <div class="flex items-start justify-between gap-2 pb-1 min-w-0">
+            <div class="min-w-0 flex-1 text-lg font-semibold truncate">
+              {{ event.eventName }}
+            </div>
+            <UBadge
+              variant="subtle"
+              size="sm"
+              class="shrink-0"
+            >
+              {{ getPaymentStatusLabel(event) }}
+            </UBadge>
           </div>
           <UPageFeature
             icon="i-lucide-map-pin"
-            title="Manila Cathedral"
+            :title="event.venue"
             :ui="{ title: 'font-normal' }"
           />
           <UPageFeature
             icon="i-lucide-calendar-heart"
-            title="May 03, 2026"
+            :title="formatEventDateLabel(event.eventDate)"
             :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-piggy-bank"
-            title="Php 5,000,000"
-            :ui="{ title: 'font-normal' }"
-          />
-          <USeparator class="my-3 " />
-          <div class="flex justify-between">
-            <div>Tasks Accomplished</div>
-            <div>2/4</div>
-          </div>
-          <UProgress
-            v-model="value"
-            :max="100"
-            class="mt-2"
           />
           <UButton
             block
             class="mt-6"
-            to="/UserEventDashboard"
+            :to="{ path: '/UserEventDashboard', query: { eventId: event._id } }"
           >
             Open Dashboard
           </UButton>
         </div>
       </div>
     </UPageGrid>
+
+    <p
+      v-if="!isLoadingEvents && userEvents.length === 0"
+      class="text-center text-sm text-muted"
+    >
+      No events yet — create one above.
+    </p>
 
     <div class="h-1000" />
   </UContainer>
