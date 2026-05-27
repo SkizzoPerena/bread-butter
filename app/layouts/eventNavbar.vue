@@ -79,7 +79,7 @@ const dropitems: DropdownMenuItem[][] = [
 
       <!-- Slideover End -->
 
-      <NuxtLink to="/" class="flex items-center">
+      <NuxtLink to="/UserDashboard" class="flex items-center">
         <img src="..\assets\bpb-icons\logo-white.svg" class="h-7 color-primary-500" />
       </NuxtLink>
     </template>

@@ -1,8 +1,149 @@
 <script lang="ts" setup>
 import type { TableColumn } from '@nuxt/ui'
+import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
+import type { EventRecord } from '~/types/event'
+import {
+  isPaymentPendingReview,
+  needsPaymentSubmission
+} from '~/types/payment'
+import { getApiErrorMessage } from '~/types/auth'
+import { useEvents } from '~/composables/useEvents'
+import { usePayments } from '~/composables/usePayments'
+
+const df = new DateFormatter('en-US', {
+  dateStyle: 'medium'
+})
 
 definePageMeta({
   layout: 'event-navbar',
+})
+
+const toast = useToast()
+const route = useRoute()
+const { fetchEvent } = useEvents()
+const { submitEventPaymentProof } = usePayments()
+const { isUiOnlyMode, loadPageData } = useApiMode()
+
+const eventId = computed(() => {
+  const value = route.query.eventId
+  return typeof value === 'string' ? value : ''
+})
+
+const eventRecord = ref<EventRecord | null>(null)
+const isLoadingEvent = ref(false)
+const isSubmittingPayment = ref(false)
+
+const paymentForm = reactive({
+  transactionId: '',
+})
+const proofOfPaymentFile = ref<File | null>(null)
+const proofOfPaymentInput = ref<HTMLInputElement | null>(null)
+
+const showPaymentProofForm = computed(() =>
+  eventRecord.value ? needsPaymentSubmission(eventRecord.value.latestPayment) : false
+)
+
+const paymentPendingReview = computed(() =>
+  eventRecord.value ? isPaymentPendingReview(eventRecord.value.latestPayment) : false
+)
+
+const paymentDenialReason = computed(() =>
+  eventRecord.value?.latestPayment?.status === 'DENIED'
+    ? eventRecord.value.latestPayment.denialReason
+    : ''
+)
+
+const eventTitle = computed(() => eventRecord.value?.eventName ?? "Jane & John's Wedding")
+const eventVenue = computed(() => eventRecord.value?.venue ?? 'Manila Cathedral')
+
+const eventDateLabel = computed(() => {
+  const dateValue = eventRecord.value?.eventDate
+  if (!dateValue) {
+    return 'May 18, 2026'
+  }
+  return df.format(new Date(dateValue))
+})
+
+async function loadEventData() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    return
+  }
+
+  isLoadingEvent.value = true
+  try {
+    eventRecord.value = await loadPageData({
+      mock: () => ({
+        _id: 'mock-event-id',
+        eventType: 'WEDDING',
+        eventName: "Jane & John's Wedding",
+        description: 'Mock event',
+        venue: 'Manila Cathedral',
+        eventDate: '2026-05-18T00:00:00.000Z',
+        status: 'ONGOING',
+        latestPayment: null,
+      }),
+      fetch: async () => fetchEvent(eventId.value),
+    })
+  } catch (error) {
+    toast.add({
+      title: 'Could not load event',
+      description: getApiErrorMessage(error),
+      color: 'error',
+    })
+  } finally {
+    isLoadingEvent.value = false
+  }
+}
+
+function onProofOfPaymentChange(changeEvent: Event) {
+  const input = changeEvent.target as HTMLInputElement
+  proofOfPaymentFile.value = input.files?.[0] ?? null
+}
+
+async function handleSubmitPaymentProof() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  if (!paymentForm.transactionId.trim()) {
+    toast.add({ title: 'Transaction ID required', color: 'error' })
+    return
+  }
+  if (!proofOfPaymentFile.value) {
+    toast.add({ title: 'Proof of payment required', color: 'error' })
+    return
+  }
+
+  isSubmittingPayment.value = true
+  try {
+    const updatedEvent = await submitEventPaymentProof(eventId.value || 'mock-event-id', {
+      transactionId: paymentForm.transactionId.trim(),
+      proofOfPayment: proofOfPaymentFile.value,
+    })
+    eventRecord.value = updatedEvent
+    paymentForm.transactionId = ''
+    proofOfPaymentFile.value = null
+    toast.add({
+      title: 'Payment proof submitted',
+      description: 'An admin will review your payment shortly.',
+    })
+  } catch (error) {
+    toast.add({
+      title: 'Could not submit payment proof',
+      description: getApiErrorMessage(error),
+      color: 'error',
+    })
+  } finally {
+    isSubmittingPayment.value = false
+  }
+}
+
+onMounted(() => {
+  loadEventData()
+})
+
+watch(eventId, () => {
+  loadEventData()
 })
 
 const UBadge = resolveComponent('UBadge')
@@ -75,13 +216,6 @@ const prefix = ref(['Mr.', 'Mrs.', 'Ms.', 'Mx.'])
 
 const taskPriorities = ['Urgent', 'Medium', 'Low']
 
-
-import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
-
-const df = new DateFormatter('en-US', {
-  dateStyle: 'medium'
-})
-
 const modelValue = shallowRef(new CalendarDate(2015, 7, 23))
 
 const tabItems = [
@@ -107,7 +241,7 @@ const tabItems = [
       <template #title>
         <div class="flex justify-between items-center">
           <h1 class="text-3xl sm:text-4xl font-bold">
-            Jane & John's Wedding
+            {{ eventTitle }}
           </h1>
           <UModal title="Edit Event" :ui="{
             header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
@@ -155,11 +289,78 @@ const tabItems = [
       </template>
       <div class="flex gap-2 font-sans mt-2">
         <UButton icon="i-lucide-calendar" class="rounded-full px-4" variant="subtle" disabled
-          :ui="{ base: 'disabled:cursor-default' }">May 18, 2026</UButton>
+          :ui="{ base: 'disabled:cursor-default' }">{{ eventDateLabel }}</UButton>
         <UButton icon="i-lucide-map-pin" class="rounded-full px-4" variant="subtle" disabled
-          :ui="{ base: 'disabled:cursor-default' }">Manila Cathedral</UButton>
+          :ui="{ base: 'disabled:cursor-default' }">{{ eventVenue }}</UButton>
       </div>
     </UPageHeader>
+
+    <UPageCard
+      v-if="showPaymentProofForm"
+      class="white-bread-container border border-warning/30"
+      title="Payment proof required"
+      description="Submit your event creation fee payment to unlock all event features."
+    >
+      <UAlert
+        v-if="paymentDenialReason"
+        color="error"
+        variant="subtle"
+        title="Previous payment was denied"
+        :description="paymentDenialReason"
+        class="mb-4"
+      />
+      <UForm
+        class="space-y-4 max-w-lg"
+        @submit.prevent="handleSubmitPaymentProof"
+      >
+        <UFormField
+          label="Payment Transaction ID"
+          name="transactionId"
+          required
+        >
+          <UInput
+            v-model="paymentForm.transactionId"
+            class="w-full"
+            placeholder="GCash / bank reference number"
+          />
+        </UFormField>
+        <UFormField
+          label="Proof of Payment"
+          name="proofOfPayment"
+          required
+        >
+          <div class="flex items-center gap-3">
+            <UButton variant="solid" @click="proofOfPaymentInput?.click()">
+              Choose file
+            </UButton>
+            <span class="text-sm text-muted truncate">
+              {{ proofOfPaymentFile?.name || 'No file chosen' }}
+            </span>
+            <input
+              ref="proofOfPaymentInput"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              class="hidden"
+              @change="onProofOfPaymentChange"
+            >
+          </div>
+        </UFormField>
+        <UButton
+          type="submit"
+          :loading="isSubmittingPayment"
+        >
+          Submit payment proof
+        </UButton>
+      </UForm>
+    </UPageCard>
+
+    <UPageCard
+      v-else-if="paymentPendingReview"
+      class="white-bread-container border border-info/30"
+      title="Payment pending review"
+      description="Your payment proof has been submitted and is awaiting admin approval."
+    />
+
     <UPageGrid>
       <UPageCard class="white-bread-container items-start">
         <UAvatar icon="i-lucide-clipboard-check" size="xl" class="ring ring-inset ring-primary/25 bg-toast-50" />

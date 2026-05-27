@@ -51,9 +51,9 @@ const dropitems: DropdownMenuItem[][] = [
     icon: 'i-lucide-user-cog',
     to: '/UserProfile'
   }, {
-    label: 'Settings',
-    icon: 'i-lucide-settings',
-    to: '/UserSettings' // Assuming a settings page
+    label: 'Transactions',
+    icon: 'i-lucide-receipt',
+    to: '/UserTransactions'
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
@@ -69,7 +69,7 @@ const dropitems: DropdownMenuItem[][] = [
         <UNavigationMenu :items="items" variant="link" class="mt-5 px-2 sm:px-4 bg-toast-500/70 bread-container"
           :ui="{ link: 'text-white' }">
           <template #list-leading>
-            <NuxtLink to="/" class="flex items-center mr-4">
+            <NuxtLink to="/UserDashboard" class="flex items-center mr-4">
               <img src="..\assets\bpb-icons\logo-white.svg" class="h-6 color-primary-500" />
             </NuxtLink>
           </template>
