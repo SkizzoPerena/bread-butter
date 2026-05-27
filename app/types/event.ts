@@ -25,9 +25,69 @@ export interface EventResponse {
   event: EventRecord
 }
 
+export interface GuestRsvpSnapshot {
+  _id: string
+  status: string
+  respondedAt?: string | null
+  invitedAt?: string | null
+}
+
+export interface GuestRecord {
+  _id: string
+  name: string
+  email: string
+  rsvp?: GuestRsvpSnapshot | null
+}
+
+export interface RsvpSummary {
+  totalSent: number
+  going: number
+  notGoing: number
+  pending: number
+  preview?: {
+    page: number
+    limit: number
+    rsvps: unknown[]
+  }
+}
+
+export interface TaskPreview {
+  _id: string
+  title: string
+  details: string
+  budget: number
+  status: string
+  priority: number
+  deadline?: string | null
+  subtasks?: TaskPreview[]
+}
+
+export interface TasksSummary {
+  totalTasks: number
+  totalAllocatedBudget: number
+  byStatus: Record<string, number>
+  preview: {
+    page: number
+    limit: number
+    subtasksLimit: number
+    tasks: TaskPreview[]
+  }
+}
+
+export interface SelectedEventDetail {
+  event: EventRecord
+  guestList: GuestRecord[]
+  rsvpSummary: RsvpSummary | null
+  tasks: TasksSummary | null
+}
+
 export interface SelectedEventResponse {
   success: boolean
   event: EventRecord
+  guestList: GuestRecord[]
+  rsvpSummary: RsvpSummary | null
+  tasks: TasksSummary | null
+  subEvents?: unknown[]
 }
 
 export interface CreateEventPayload {

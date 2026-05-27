@@ -3,6 +3,7 @@ import type {
   EventRecord,
   EventResponse,
   EventsListResponse,
+  SelectedEventDetail,
   SelectedEventResponse
 } from '~/types/event'
 
@@ -17,12 +18,17 @@ export function useEvents() {
     return response.events
   }
 
-  async function fetchEvent(eventId: string): Promise<EventRecord> {
+  async function fetchEvent(eventId: string): Promise<SelectedEventDetail> {
     if (isUiOnlyMode.value) {
       throw new Error('fetchEvent requires real API mode')
     }
     const response = await apiRequest<SelectedEventResponse>(`/user/events/${eventId}`)
-    return response.event
+    return {
+      event: response.event,
+      guestList: response.guestList ?? [],
+      rsvpSummary: response.rsvpSummary ?? null,
+      tasks: response.tasks ?? null,
+    }
   }
 
   async function createEvent(payload: CreateEventPayload): Promise<EventRecord> {

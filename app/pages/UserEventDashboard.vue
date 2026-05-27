@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { TableColumn } from '@nuxt/ui'
 import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
-import type { EventRecord } from '~/types/event'
+import type { EventRecord, GuestRecord, RsvpSummary, TaskPreview, TasksSummary } from '~/types/event'
 import {
   isPaymentPendingReview,
   needsPaymentSubmission
@@ -9,6 +9,8 @@ import {
 import { getApiErrorMessage } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { usePayments } from '~/composables/usePayments'
+import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
+import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -30,6 +32,9 @@ const eventId = computed(() => {
 })
 
 const eventRecord = ref<EventRecord | null>(null)
+const guestList = ref<GuestRecord[]>([])
+const rsvpSummary = ref<RsvpSummary | null>(null)
+const tasksSummary = ref<TasksSummary | null>(null)
 const isLoadingEvent = ref(false)
 const isSubmittingPayment = ref(false)
 
@@ -95,6 +100,119 @@ const eventDateLabel = computed(() => {
   return ''
 })
 
+const eventCoverUrl = computed(() => {
+  if (eventRecord.value?.coverImageURL) {
+    return resolveEventCoverImageUrl(eventRecord.value.coverImageURL)
+  }
+  if (useDemoFallbacks.value) {
+    return demoCoverImage
+  }
+  return null
+})
+
+const taskTracker = computed(() => {
+  if (tasksSummary.value) {
+    const completed = tasksSummary.value.byStatus.COMPLETED ?? 0
+    const total = tasksSummary.value.totalTasks
+    if (total === 0) {
+      return { label: 'No Tasks Yet', percent: 0, isEmpty: true }
+    }
+    return {
+      label: `${completed} / ${total}`,
+      percent: Math.round((completed / total) * 100),
+      isEmpty: false,
+    }
+  }
+  if (useDemoFallbacks.value) {
+    return { label: '2 / 4', percent: 50, isEmpty: false }
+  }
+  return { label: 'No Tasks Yet', percent: 0, isEmpty: true }
+})
+
+const DEMO_TASK_BUDGET_TOTAL = 20000 + 15000 + 10000 + 5000 + 30000 + 8000 + 100000 + 200000 + 0 + 12000
+
+function formatPesoAmount(amount: number): string {
+  return `${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pesos`
+}
+
+const currentBudgetLabel = computed(() => {
+  if (tasksSummary.value) {
+    if (tasksSummary.value.totalTasks === 0 || tasksSummary.value.totalAllocatedBudget === 0) {
+      return 'No Budget Yet'
+    }
+    return formatPesoAmount(tasksSummary.value.totalAllocatedBudget)
+  }
+  if (useDemoFallbacks.value) {
+    return formatPesoAmount(DEMO_TASK_BUDGET_TOTAL)
+  }
+  return 'No Budget Yet'
+})
+
+const rsvpStats = computed(() => {
+  if (rsvpSummary.value) {
+    return {
+      invitationsSent: rsvpSummary.value.totalSent,
+      responses: rsvpSummary.value.going + rsvpSummary.value.notGoing,
+      attendees: rsvpSummary.value.going,
+    }
+  }
+  if (useDemoFallbacks.value) {
+    return { invitationsSent: 100, responses: 75, attendees: 60 }
+  }
+  return { invitationsSent: 0, responses: 0, attendees: 0 }
+})
+
+function mapRsvpStatusToLabel(status?: string | null): 'Attending' | 'Pending' | 'Not Attending' {
+  if (status === 'GOING') {
+    return 'Attending'
+  }
+  if (status === 'NOT_GOING') {
+    return 'Not Attending'
+  }
+  return 'Pending'
+}
+
+function mapGuestToPerson(guest: GuestRecord): Person {
+  return {
+    name: guest.name,
+    email: guest.email,
+    guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
+    rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
+    invitationSent: Boolean(guest.rsvp?.invitedAt),
+    phone: 0,
+  }
+}
+
+function mapTaskPriority(priority: number) {
+  if (priority <= 2) {
+    return { label: 'Urgent', color: 'error' as const }
+  }
+  if (priority === 3) {
+    return { label: 'Medium', color: 'secondary' as const }
+  }
+  return { label: 'Low', color: 'success' as const }
+}
+
+function formatTaskDate(iso?: string | null): string | null {
+  if (!iso) {
+    return null
+  }
+  return df.format(new Date(iso))
+}
+
+function formatTaskBudget(budget: number): string {
+  return `Php ${budget.toLocaleString()}`
+}
+
+function getApiTasksByStatus(status: string): TaskPreview[] {
+  return tasksSummary.value?.preview.tasks.filter((task) => task.status === status) ?? []
+}
+
+function onCoverImageError(event: Event) {
+  const img = event.target as HTMLImageElement
+  img.src = defaultCover
+}
+
 async function loadEventData() {
   if (!eventId.value && !isUiOnlyMode.value) {
     return
@@ -102,20 +220,33 @@ async function loadEventData() {
 
   isLoadingEvent.value = true
   eventRecord.value = null
+  guestList.value = []
+  rsvpSummary.value = null
+  tasksSummary.value = null
   try {
-    eventRecord.value = await loadPageData({
+    const detail = await loadPageData({
       mock: () => ({
-        _id: 'mock-event-id',
-        eventType: 'WEDDING',
-        eventName: "Jane & John's Wedding",
-        description: 'Mock event',
-        venue: 'Manila Cathedral',
-        eventDate: '2026-05-18T00:00:00.000Z',
-        status: 'ONGOING',
-        latestPayment: null,
+        event: {
+          _id: 'mock-event-id',
+          eventType: 'WEDDING',
+          eventName: "Jane & John's Wedding",
+          description: 'Mock event',
+          venue: 'Manila Cathedral',
+          eventDate: '2026-05-18T00:00:00.000Z',
+          status: 'ONGOING',
+          coverImageURL: null,
+          latestPayment: null,
+        },
+        guestList: [],
+        rsvpSummary: null,
+        tasks: null,
       }),
       fetch: async () => fetchEvent(eventId.value),
     })
+    eventRecord.value = detail.event
+    guestList.value = detail.guestList
+    rsvpSummary.value = detail.rsvpSummary
+    tasksSummary.value = detail.tasks
   } catch (error) {
     toast.add({
       title: 'Could not load event',
@@ -152,7 +283,14 @@ async function handleSubmitPaymentProof() {
       transactionId: paymentForm.transactionId.trim(),
       proofOfPayment: proofOfPaymentFile.value,
     })
-    eventRecord.value = updatedEvent
+    if (eventRecord.value) {
+      eventRecord.value = {
+        ...eventRecord.value,
+        latestPayment: updatedEvent.latestPayment ?? null,
+      }
+    } else {
+      eventRecord.value = updatedEvent
+    }
     paymentForm.transactionId = ''
     proofOfPaymentFile.value = null
     toast.add({
@@ -237,9 +375,16 @@ const people = ref<Person[]>([
     guests: 4,
     rsvpStatus: 'Not Attending',
     invitationSent: false,
-    phone: 345 - 678 - 9012,
+    phone: 3456789012,
   }
 ])
+
+const tableData = computed(() => {
+  if (eventId.value && !isUiOnlyMode.value) {
+    return guestList.value.map(mapGuestToPerson)
+  }
+  return people.value
+})
 
 const deleteUser = (userName: string) => alert(`This would delete ${userName}`)
 
@@ -269,70 +414,121 @@ const tabItems = [
 
 <template>
   <UContainer class="space-y-8 pb-8">
-    <UPageHeader class="border-none font-serif my-0">
-      <template #title>
-        <div class="flex justify-between items-center">
+    <div
+      class="relative w-full overflow-hidden rounded-lg h-48 sm:h-56 md:h-64 max-h-72"
+    >
+      <USkeleton
+        v-if="isLoadingEvent && eventId"
+        class="absolute inset-0 h-full w-full"
+      />
+      <img
+        v-else-if="eventCoverUrl"
+        :src="eventCoverUrl"
+        :alt="eventTitle || 'Event cover'"
+        class="absolute inset-0 h-full w-full object-cover object-center"
+        @error="onCoverImageError"
+      >
+      <div
+        v-else
+        class="absolute inset-0 bg-gradient-to-br from-toast-400 to-toast-600"
+      />
+
+      <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
+
+      <div class="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 sm:p-6">
+        <div class="min-w-0 flex-1 text-white">
           <USkeleton
             v-if="isLoadingEvent && eventId"
-            class="h-10 w-64"
+            class="mb-2 h-8 w-3/4 max-w-sm bg-white/20"
           />
           <h1
             v-else
-            class="text-3xl sm:text-4xl font-bold"
+            class="truncate text-2xl font-bold sm:text-3xl md:text-4xl font-serif"
           >
             {{ eventTitle }}
           </h1>
-          <UModal title="Edit Event" :ui="{
+          <div
+            v-if="isLoadingEvent && eventId"
+            class="mt-3 flex flex-wrap gap-2"
+          >
+            <USkeleton class="h-6 w-32 bg-white/20" />
+            <USkeleton class="h-6 w-40 bg-white/20" />
+          </div>
+          <div
+            v-else
+            class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/90 sm:text-base"
+          >
+            <span
+              v-if="eventDateLabel"
+              class="inline-flex items-center gap-1.5 min-w-0"
+            >
+              <UIcon name="i-lucide-calendar" class="shrink-0 size-4" />
+              <span>{{ eventDateLabel }}</span>
+            </span>
+            <span
+              v-if="eventVenue"
+              class="inline-flex items-center gap-1.5 min-w-0 max-w-full"
+            >
+              <UIcon name="i-lucide-map-pin" class="shrink-0 size-4" />
+              <span class="truncate">{{ eventVenue }}</span>
+            </span>
+          </div>
+        </div>
+
+        <UModal
+          title="Edit Event"
+          :ui="{
             header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
             content: 'border-none ring-transparent w-1/4',
             overlay: 'bg-toast-900/30'
-          }" :close="{
+          }"
+          :close="{
             variant: 'link',
             class: 'rounded-full text-white'
-          }" :dismissible="false">
-            <UButton icon="i-lucide-pen" variant="ghost" class=" mx-2"></UButton>
-            <template #body>
-              <UForm class="space-y-4">
-                <UFormField label="Event Name" name="name" required>
-                  <UInput class="w-full" placeholder="Jane & John's Wedding" />
+          }"
+          :dismissible="false"
+        >
+          <UButton
+            icon="i-lucide-pen"
+            variant="solid"
+            color="neutral"
+            class="shrink-0 bg-white/90 text-highlighted hover:bg-white"
+          />
+          <template #body>
+            <UForm class="space-y-4">
+              <UFormField label="Event Name" name="name" required>
+                <UInput class="w-full" placeholder="Jane & John's Wedding" />
+              </UFormField>
+
+              <UFieldGroup class="w-full space-x-3">
+                <UFormField label="Event Date" name="date" required class="w-1/2">
+                  <UPopover>
+                    <UButton color="neutral" variant="outline" class="w-full">
+                      Select a date
+                    </UButton>
+
+                    <template #content="{ close }">
+                      <UCalendar class="p-2" @update:model-value="close" />
+                    </template>
+                  </UPopover>
                 </UFormField>
 
-                <UFieldGroup class="w-full space-x-3">
-                  <UFormField label="Event Date" name="date" required class="w-1/2">
-                    <UPopover>
-                      <UButton color="neutral" variant="outline" class="w-full">
-                        Select a date
-                      </UButton>
-
-                      <template #content="{ close }">
-                        <UCalendar class="p-2" @update:model-value="close" />
-                      </template>
-                    </UPopover>
-                  </UFormField>
-
-                  <UFormField label="Budget" name="budget" required class="w-1/2">
-                    <UInputNumber :increment="false" :decrement="false" class="w-full" />
-                  </UFormField>
-                </UFieldGroup>
-                <UFormField label="Description" name="description" required>
-                  <UTextarea class="w-full" placeholder="Tell us more about your special day" />
+                <UFormField label="Budget" name="budget" required class="w-1/2">
+                  <UInputNumber :increment="false" :decrement="false" class="w-full" />
                 </UFormField>
+              </UFieldGroup>
+              <UFormField label="Description" name="description" required>
+                <UTextarea class="w-full" placeholder="Tell us more about your special day" />
+              </UFormField>
 
-                <UButton to="/UserEventDashboard" block class="mt-4">
-                  Save Changes
-                </UButton>
-              </UForm>
-            </template>
-          </UModal>
-        </div>
-      </template>
-      <div class="flex gap-2 font-sans mt-2">
-        <UButton icon="i-lucide-calendar" class="rounded-full px-4" variant="subtle" disabled
-          :ui="{ base: 'disabled:cursor-default' }">{{ eventDateLabel }}</UButton>
-        <UButton icon="i-lucide-map-pin" class="rounded-full px-4" variant="subtle" disabled
-          :ui="{ base: 'disabled:cursor-default' }">{{ eventVenue }}</UButton>
+              <UButton to="/UserEventDashboard" block class="mt-4">
+                Save Changes
+              </UButton>
+            </UForm>
+          </template>
+        </UModal>
       </div>
-    </UPageHeader>
+    </div>
 
     <UPageCard
       v-if="showPaymentProofForm"
@@ -405,17 +601,29 @@ const tabItems = [
         <UAvatar icon="i-lucide-clipboard-check" size="xl" class="ring ring-inset ring-primary/25 bg-toast-50" />
         <div class="text-md font-semibold -mb-2 uppercase text-muted">Task Tracker</div>
         <div class="flex items-center gap-2">
-          <div class="font-bold text-2xl">2 / 4</div>
-          <UBadge variant="subtle">50%</UBadge>
+          <div
+            class="font-bold"
+            :class="taskTracker.isEmpty ? 'text-lg' : 'text-2xl'"
+          >
+            {{ taskTracker.label }}
+          </div>
+          <UBadge
+            v-if="!taskTracker.isEmpty"
+            variant="subtle"
+          >
+            {{ taskTracker.percent }}%
+          </UBadge>
         </div>
       </UPageCard>
 
       <UPageCard class="white-bread-container items-start">
         <UAvatar icon="i-lucide-wallet" size="xl" class="ring ring-inset ring-primary/25 bg-toast-50" />
-        <div class="text-md font-semibold -mb-2 uppercase text-muted">Budget Remaining</div>
-        <div class="flex items-center gap-2">
-          <div class="font-bold text-2xl">100,000</div>
-          <UBadge variant="subtle">50%</UBadge>
+        <div class="text-md font-semibold -mb-2 uppercase text-muted">Current Budget</div>
+        <div
+          class="font-bold"
+          :class="currentBudgetLabel === 'No Budget Yet' ? 'text-lg' : 'text-2xl'"
+        >
+          {{ currentBudgetLabel }}
         </div>
       </UPageCard>
 
@@ -475,23 +683,23 @@ const tabItems = [
         <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="100" description="Total Invitations Sent"
           :ui="{ title: 'text-primary', description: 'text-toast-400' }">
           <template #title>
-            <div class="text-2xl font-bold">100</div>
+            <div class="text-2xl font-bold">{{ rsvpStats.invitationsSent }}</div>
           </template>
         </UPageCard>
         <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="75" description="Total Responses"
           :ui="{ title: 'text-primary', description: 'text-toast-400' }">
           <template #title>
-            <div class="text-2xl font-bold">75</div>
+            <div class="text-2xl font-bold">{{ rsvpStats.responses }}</div>
           </template>
         </UPageCard>
         <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="60" description="Total Attendees"
           :ui="{ title: 'text-primary', description: 'text-toast-400' }">
           <template #title>
-            <div class="text-2xl font-bold">60</div>
+            <div class="text-2xl font-bold">{{ rsvpStats.attendees }}</div>
           </template>
         </UPageCard>
       </UPageGrid>
-      <UTable :data="people" :columns="columns">
+      <UTable :data="tableData" :columns="columns">
 
       </UTable>
     </UPageCard>
@@ -673,6 +881,44 @@ const tabItems = [
         <template #ongoing="{ item }">
           <div class="mt-4">
             <UPageColumns>
+              <UPageCard
+                v-for="task in getApiTasksByStatus('ONGOING')"
+                :key="task._id"
+                class="white-bread-container ring-1 ring-inset ring-primary/20"
+              >
+                <div class="flex justify-between items-start">
+                  <div class="font-semibold">{{ task.title }}</div>
+                  <UBadge
+                    :color="mapTaskPriority(task.priority).color"
+                    variant="subtle"
+                  >
+                    {{ mapTaskPriority(task.priority).label }}
+                  </UBadge>
+                </div>
+                <p class="text-sm text-muted mt-1">
+                  {{ task.details }}
+                </p>
+                <div
+                  v-if="formatTaskDate(task.deadline) || task.budget"
+                  class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4"
+                >
+                  <div
+                    v-if="formatTaskDate(task.deadline)"
+                    class="flex items-center gap-1.5"
+                  >
+                    <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                    <span>Due: {{ formatTaskDate(task.deadline) }}</span>
+                  </div>
+                  <div
+                    v-if="task.budget"
+                    class="flex items-center gap-1.5"
+                  >
+                    <UIcon name="i-lucide-wallet" class="text-muted" />
+                    <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
+                  </div>
+                </div>
+                <UButton block class="mt-4">Mark as Complete</UButton>
+              </UPageCard>
               <UPageCard class="white-bread-container">
                 <div class="flex justify-between items-start">
                   <div class="font-semibold">Coordinate with florist</div>
@@ -739,6 +985,43 @@ const tabItems = [
         <template #completed="{ item }">
           <div class="mt-4">
             <UPageColumns>
+              <UPageCard
+                v-for="task in getApiTasksByStatus('COMPLETED')"
+                :key="task._id"
+                class="white-bread-container ring-1 ring-inset ring-primary/20"
+              >
+                <div class="flex justify-between items-start">
+                  <div class="font-semibold">{{ task.title }}</div>
+                  <UBadge
+                    :color="mapTaskPriority(task.priority).color"
+                    variant="subtle"
+                  >
+                    {{ mapTaskPriority(task.priority).label }}
+                  </UBadge>
+                </div>
+                <p class="text-sm text-muted mt-1">
+                  {{ task.details }}
+                </p>
+                <div
+                  v-if="formatTaskDate(task.deadline) || task.budget"
+                  class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4"
+                >
+                  <div
+                    v-if="formatTaskDate(task.deadline)"
+                    class="flex items-center gap-1.5"
+                  >
+                    <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                    <span>Completed: {{ formatTaskDate(task.deadline) }}</span>
+                  </div>
+                  <div
+                    v-if="task.budget"
+                    class="flex items-center gap-1.5"
+                  >
+                    <UIcon name="i-lucide-wallet" class="text-muted" />
+                    <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
+                  </div>
+                </div>
+              </UPageCard>
               <UPageCard class="white-bread-container">
                 <div class="flex justify-between items-start">
                   <div class="font-semibold">Book wedding venue</div>
