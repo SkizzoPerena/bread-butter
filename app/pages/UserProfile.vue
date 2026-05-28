@@ -8,8 +8,6 @@ definePageMeta({
   layout: 'user-navbar',
 })
 
-import type { PageAnchor } from '@nuxt/ui'
-
 const toast = useToast()
 const { fetchAccount, saveAccount, uploadProfilePicture, changePassword, isAuthenticated, isUiOnlyMode } = useAccount()
 
@@ -18,33 +16,17 @@ const genderOptions = [
   { label: 'Female', value: 'FEMALE' }
 ]
 
-const links = ref<PageAnchor[]>([
-  {
-    label: 'Profile',
-    icon: 'i-lucide-user-cog',
-    to: '#profile'
-  },
-  {
-    label: 'Password',
-    icon: 'i-lucide-lock',
-    to: '#password'
-  },
-  {
-    label: 'Membership',
-    icon: 'i-lucide-circle-star',
-    to: '#membership'
-  },
-  {
-    label: 'Payments and Billing',
-    icon: 'i-lucide-credit-card',
-    to: '#billing'
-  },
-  {
-    label: 'Preferences',
-    icon: 'i-lucide-settings',
-    to: '#preferences'
-  },
-])
+type SettingsTabId = 'profile' | 'password' | 'membership' | 'billing' | 'preferences'
+
+const settingsTabs: { id: SettingsTabId; label: string; icon: string }[] = [
+  { id: 'profile', label: 'Profile', icon: 'i-lucide-user-cog' },
+  { id: 'password', label: 'Password', icon: 'i-lucide-lock' },
+  { id: 'membership', label: 'Membership', icon: 'i-lucide-circle-star' },
+  { id: 'billing', label: 'Payments and Billing', icon: 'i-lucide-credit-card' },
+  { id: 'preferences', label: 'Preferences', icon: 'i-lucide-settings' },
+]
+
+const activeTab = ref<SettingsTabId>('profile')
 
 const schema = z.object({
   firstName: z.string().min(1, 'Enter your first name'),
@@ -200,77 +182,125 @@ onMounted(async () => {
     <UPageGrid class="items-start">
       <UPageCard class="white-bread-container">
         <div class="text-lg text-pretty font-semibold text-muted">Account Settings</div>
-        <UPageAnchors :links="links" class="items-start" :ui="{ linkLeading: 'ring-transparent' }" />
-      </UPageCard>
-      <UPageCard id="profile" class="col-span-2 white-bread-container">
-        <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
-        <div v-if="isLoading" class="py-12 text-center text-muted">
-          Loading profile...
-        </div>
-        <div v-else class="flex w-full gap-4">
-          <div class=" w-1/3">
-            <div class="flex justify-center gap-4 mb-6 w-full">
-              <img :src="profileImageSrc" class="rounded-full object-cover size-[150px]" :alt="displayName" width="150" height="150" />
-            </div>
-            <div class="text-center">
-              <input
-                ref="fileInputRef"
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                class="hidden"
-                @change="onProfileImageSelected"
-              >
-              <UButton
-                icon="i-lucide-upload"
-                label="Upload new picture"
-                variant="outline"
-                :loading="isUploading"
-                @click="openFilePicker"
-              />
-              <div class="text-sm text-muted mt-1">PNG or JPG (Max 2MB)</div>
-            </div>
-          </div>
-          <UForm :schema="schema" :state="state" class="space-y-4 w-2/3" @submit="onSubmit">
-            <UFormField label="First name" name="firstName" required>
-              <UInput v-model="state.firstName" class="w-full" />
-            </UFormField>
-            <UFormField label="Last name" name="lastName" required>
-              <UInput v-model="state.lastName" class="w-full" />
-            </UFormField>
-            <UFormField label="Email" name="email">
-              <UInput v-model="state.email" type="email" class="w-full" disabled />
-            </UFormField>
-            <UFormField label="Gender" name="gender" required>
-              <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
-            </UFormField>
-            <div class="flex justify-end pt-2">
-              <UButton type="submit" :loading="isSaving">Save Changes</UButton>
-            </div>
-          </UForm>
-        </div>
+        <nav class="mt-3 flex flex-col gap-1" aria-label="Account settings sections">
+          <button
+            v-for="tab in settingsTabs"
+            :key="tab.id"
+            type="button"
+            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition"
+            :class="
+              activeTab === tab.id
+                ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/25'
+                : 'text-muted hover:bg-muted/50 hover:text-default'
+            "
+            :aria-current="activeTab === tab.id ? 'page' : undefined"
+            @click="activeTab = tab.id"
+          >
+            <UIcon :name="tab.icon" class="size-4 shrink-0" />
+            {{ tab.label }}
+          </button>
+        </nav>
       </UPageCard>
 
-      <UPageCard id="password" class="col-span-2 white-bread-container">
-        <div class="text-lg text-pretty font-semibold text-muted">Password</div>
-        <div v-if="isLoading" class="py-12 text-center text-muted">
-          Loading profile...
-        </div>
-        <div v-else class="max-w-xl space-y-4">
-          <UForm class="space-y-4" @submit.prevent="submitPasswordChange">
-            <UFormField label="Current password" name="currentPassword" required>
-              <UInput v-model="passwordState.currentPassword" type="password" class="w-full" autocomplete="current-password" />
-            </UFormField>
-            <UFormField label="New password" name="newPassword" required>
-              <UInput v-model="passwordState.newPassword" type="password" class="w-full" autocomplete="new-password" />
-            </UFormField>
-            <UFormField label="Confirm new password" name="confirmNewPassword" required>
-              <UInput v-model="passwordState.confirmNewPassword" type="password" class="w-full" autocomplete="new-password" />
-            </UFormField>
-            <div class="flex justify-end pt-2">
-              <UButton type="submit" :loading="isChangingPassword">Update password</UButton>
+      <UPageCard class="col-span-2 white-bread-container">
+        <template v-if="activeTab === 'profile'">
+          <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading profile...
+          </div>
+          <div v-else class="mt-4 flex w-full gap-4">
+            <div class="w-1/3">
+              <div class="mb-6 flex w-full justify-center gap-4">
+                <img
+                  :src="profileImageSrc"
+                  class="size-[150px] rounded-full object-cover"
+                  :alt="displayName"
+                  width="150"
+                  height="150"
+                >
+              </div>
+              <div class="text-center">
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  class="hidden"
+                  @change="onProfileImageSelected"
+                >
+                <UButton
+                  icon="i-lucide-upload"
+                  label="Upload new picture"
+                  variant="outline"
+                  :loading="isUploading"
+                  @click="openFilePicker"
+                />
+                <div class="mt-1 text-sm text-muted">PNG or JPG (Max 2MB)</div>
+              </div>
             </div>
-          </UForm>
-        </div>
+            <UForm :schema="schema" :state="state" class="w-2/3 space-y-4" @submit="onSubmit">
+              <UFormField label="First name" name="firstName" required>
+                <UInput v-model="state.firstName" class="w-full" />
+              </UFormField>
+              <UFormField label="Last name" name="lastName" required>
+                <UInput v-model="state.lastName" class="w-full" />
+              </UFormField>
+              <UFormField label="Email" name="email">
+                <UInput v-model="state.email" type="email" class="w-full" disabled />
+              </UFormField>
+              <UFormField label="Gender" name="gender" required>
+                <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
+              </UFormField>
+              <div class="flex justify-end pt-2">
+                <UButton type="submit" :loading="isSaving">Save Changes</UButton>
+              </div>
+            </UForm>
+          </div>
+        </template>
+
+        <template v-else-if="activeTab === 'password'">
+          <div class="text-lg text-pretty font-semibold text-muted">Password</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading profile...
+          </div>
+          <div v-else class="mt-4 max-w-xl space-y-4">
+            <UForm class="space-y-4" @submit.prevent="submitPasswordChange">
+              <UFormField label="Current password" name="currentPassword" required>
+                <UInput
+                  v-model="passwordState.currentPassword"
+                  type="password"
+                  class="w-full"
+                  autocomplete="current-password"
+                />
+              </UFormField>
+              <UFormField label="New password" name="newPassword" required>
+                <UInput
+                  v-model="passwordState.newPassword"
+                  type="password"
+                  class="w-full"
+                  autocomplete="new-password"
+                />
+              </UFormField>
+              <UFormField label="Confirm new password" name="confirmNewPassword" required>
+                <UInput
+                  v-model="passwordState.confirmNewPassword"
+                  type="password"
+                  class="w-full"
+                  autocomplete="new-password"
+                />
+              </UFormField>
+              <div class="flex justify-end pt-2">
+                <UButton type="submit" :loading="isChangingPassword">Update password</UButton>
+              </div>
+            </UForm>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="text-lg text-pretty font-semibold text-muted">
+            {{ settingsTabs.find((tab) => tab.id === activeTab)?.label }}
+          </div>
+          <p class="mt-4 text-sm text-muted">This section is coming soon.</p>
+        </template>
       </UPageCard>
     </UPageGrid>
   </UContainer>
