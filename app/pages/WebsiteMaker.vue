@@ -14,7 +14,11 @@ const websiteData = reactive({
     typography: 'Romantic Script', // Default typography set
     headerImage: '', // New: Header background image URL
     endingTitle: 'Hope to see you there!',
-    endingMessage: 'We cannot wait to celebrate this special day with all of our favorite people.'
+    endingMessage: 'We cannot wait to celebrate this special day with all of our favorite people.',
+    isPasswordProtected: false,
+    sitePassword: '',
+    rsvpDeadlineDate: '2024-12-31', // Mocked from account data
+    whereToStayLocation: 'Central Park, New York'
 })
 
 // Motif Data
@@ -167,6 +171,7 @@ const paragraphSection = computed(() => sections.value.find(s => s.type === 'par
 
 const isLive = ref(false)
 const currentStep = ref(0) // 0-indexed for steps
+const showPassword = ref(false) // Toggle for password field
 
 const selectedPalette = computed<ColorPalette>(() => {
     return colorPalettes.find(p => p.name === websiteData.colorPalette) || colorPalettes[0]!
@@ -235,10 +240,12 @@ const websiteSteps = computed(() => {
         { id: 'components', icon: 'i-lucide-blocks', description: "Select the extra components you want to include on your website." }
     ];
 
-    const dynamicSteps: StepDef[] = selectedComponents.value.map(compId => {
-        const compDef = availableComponents.find(c => c.id === compId)!;
-        return { id: compId, icon: compDef.icon, description: `Configure your ${compDef.name} component.`, name: compDef.name };
-    });
+    const dynamicSteps: StepDef[] = selectedComponents.value
+        .filter(compId => compId !== 'rsvp') // Skip RSVP since it uses account data
+        .map(compId => {
+            const compDef = availableComponents.find(c => c.id === compId)!;
+            return { id: compId, icon: compDef.icon, description: `Configure your ${compDef.name} component.`, name: compDef.name };
+        });
 
     const endSteps: StepDef[] = [
         { id: 'thank-you', icon: 'i-lucide-heart-handshake', description: "Add a closing message or thank you note to your guests." },
@@ -301,7 +308,9 @@ interface ScheduleItem {
     location: string;
 }
 
-const scheduleItems = ref<ScheduleItem[]>([])
+const scheduleItems = ref<ScheduleItem[]>([
+    { id: Date.now(), title: 'Wedding Ceremony', description: 'The exchange of vows and rings.', location: 'Main Garden' }
+])
 
 const addScheduleItem = () => {
     scheduleItems.value.push({ id: Date.now() + scheduleItems.value.length, title: 'New Event', description: 'Event details here.', location: '' })
@@ -339,6 +348,22 @@ const getDynamicStyle = (index: number) => {
     } else {
         return { bg: 'transparent', heading: colors.heading, text: colors.text };
     }
+}
+
+const formatDateWithWeekday = (dateString: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString.replace(/-/g, '/'))
+    return date.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    })
+}
+
+const getGoogleMapsUrl = (location: string) => {
+    if (!location) return '';
+    return `https://maps.google.com/maps?q=hotels+near+${encodeURIComponent(location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
 }
 
 // Computed properties to grab specific sections if needed, similar to RSVPMaker
@@ -417,24 +442,28 @@ const getDynamicStyle = (index: number) => {
                                     <div class="relative rounded-lg cursor-pointer group transition-all duration-300 border p-4 flex flex-col items-center gap-3 bg-white dark:bg-gray-900"
                                         :class="{ 'ring-4 ring-primary-500 shadow-lg border-transparent': websiteData.format === 'format1', 'border-gray-200 dark:border-gray-700 hover:border-primary-300': websiteData.format !== 'format1' }"
                                         @click="websiteData.format = 'format1'">
-                                        <div class="w-full h-24 bg-gray-50 dark:bg-gray-800 flex flex-col gap-1 p-1 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
+                                        <div
+                                            class="w-full h-24 bg-gray-50 dark:bg-gray-800 flex flex-col gap-1 p-1 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
                                             <div class="w-full h-8 bg-gray-200 dark:bg-gray-600 rounded"></div>
                                             <div class="w-full flex-1 bg-gray-100 dark:bg-gray-700 rounded"></div>
                                         </div>
                                         <span class="font-medium text-sm">Classic Stack</span>
-                                        <div v-if="websiteData.format === 'format1'" class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                        <div v-if="websiteData.format === 'format1'"
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                     </div>
                                     <div class="relative rounded-lg cursor-pointer group transition-all duration-300 border p-4 flex flex-col items-center gap-3 bg-white dark:bg-gray-900"
                                         :class="{ 'ring-4 ring-primary-500 shadow-lg border-transparent': websiteData.format === 'format2', 'border-gray-200 dark:border-gray-700 hover:border-primary-300': websiteData.format !== 'format2' }"
                                         @click="websiteData.format = 'format2'">
-                                        <div class="w-full h-24 bg-gray-50 dark:bg-gray-800 flex gap-1 p-1 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
-                                            <div class="w-1/3 h-full bg-gray-200 dark:bg-gray-600 rounded"></div>
-                                            <div class="w-2/3 h-full bg-gray-100 dark:bg-gray-700 rounded"></div>
+                                        <div
+                                            class="w-full h-24 bg-gray-50 dark:bg-gray-800 flex gap-1 p-1 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
+                                            <div class="w-1/2 h-full bg-gray-200 dark:bg-gray-600 rounded"></div>
+                                            <div class="w-1/2 h-full bg-gray-100 dark:bg-gray-700 rounded"></div>
                                         </div>
                                         <span class="font-medium text-sm">Side-by-Side</span>
-                                        <div v-if="websiteData.format === 'format2'" class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                        <div v-if="websiteData.format === 'format2'"
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                     </div>
@@ -532,9 +561,9 @@ const getDynamicStyle = (index: number) => {
                                         <div class="mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
                                             <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{
                                                 set.name
-                                            }}</h4>
+                                                }}</h4>
                                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ set.description
-                                            }}</p>
+                                                }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -572,6 +601,29 @@ const getDynamicStyle = (index: number) => {
                                     <UInput type="email" v-model="websiteData.contactEmail"
                                         placeholder="juan@breadandbutter.com" icon="i-lucide-mail" class="w-full" />
                                 </UFormField>
+
+                                <div class="flex items-center justify-between">
+                                    <div class="text-left">
+                                        <h4 class="font-medium text-sm">Password Protection</h4>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Require a password for
+                                            guests to
+                                            view your website.</p>
+                                    </div>
+                                    <USwitch v-model="websiteData.isPasswordProtected" />
+                                </div>
+                                <UFormField v-if="websiteData.isPasswordProtected" label="Website Password">
+                                    <UInput :type="showPassword ? 'text' : 'password'"
+                                        v-model="websiteData.sitePassword" placeholder="Enter a secure password"
+                                        icon="i-lucide-lock" class="w-full" :ui="{ trailing: 'pointer-events-auto' }">
+                                        <template #trailing>
+                                            <UButton color="neutral" variant="ghost" size="sm" class="p-0"
+                                                :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                                                @click="showPassword = !showPassword"
+                                                aria-label="Toggle password visibility" />
+                                        </template>
+                                    </UInput>
+                                </UFormField>
+
                             </div>
 
                             <!-- Step 7: Content Sections -->
@@ -709,19 +761,12 @@ const getDynamicStyle = (index: number) => {
                                 </div>
                             </div>
 
-                            <!-- Dynamic Step: RSVP -->
-                            <div v-if="currentStepData?.id === 'rsvp'" class="flex flex-col gap-6">
-                                <div class="items-center space-y-4">
-                                    <div class="text-center text-gray-500 italic">RSVP configuration goes here.</div>
-                                    <!-- TODO: Add RSVP form fields -->
-                                </div>
-                            </div>
-
                             <!-- Dynamic Step: Where to Stay -->
                             <div v-if="currentStepData?.id === 'where-to-stay'" class="flex flex-col gap-6">
                                 <div class="items-center space-y-4">
-                                    <div class="text-center text-gray-500 italic">Where to Stay configuration goes here.</div>
-                                    <!-- TODO: Add Where to Stay form fields -->
+                                    <UFormField label="Venue Location" description="Enter your venue's address or city to show nearby accommodations.">
+                                        <UInput v-model="websiteData.whereToStayLocation" placeholder="e.g. Central Park, NY" class="w-full" icon="i-lucide-map-pin" />
+                                    </UFormField>
                                 </div>
                             </div>
 
@@ -736,7 +781,8 @@ const getDynamicStyle = (index: number) => {
                             <!-- Dynamic Step: Wedding Party -->
                             <div v-if="currentStepData?.id === 'wedding-party'" class="flex flex-col gap-6">
                                 <div class="items-center space-y-4">
-                                    <div class="text-center text-gray-500 italic">Wedding Party configuration goes here.</div>
+                                    <div class="text-center text-gray-500 italic">Wedding Party configuration goes here.
+                                    </div>
                                     <!-- TODO: Add Wedding Party form fields -->
                                 </div>
                             </div>
@@ -788,41 +834,42 @@ const getDynamicStyle = (index: number) => {
                     :class="isLive ? 'col-span-full w-full h-[calc(100vh-64px)] rounded-none border-0' : 'col-span-2 w-full rounded-xl'"
                     class="flex flex-col gap-6 transition-colors duration-500 overflow-hidden ring-transparent bread-container"
                     :ui="{ container: 'p-0 sm:p-0 lg:p-0 h-full flex flex-col' }">
-                    <div class="h-full w-full flex-1 flex flex-col md:flex-row transition-colors duration-500 relative" :style="{
-                        backgroundColor: selectedPalette.colors.background,
-                        fontFamily: `'${selectedTypography.bodyFont}'`,
-                    }">
+                    <div class="h-full w-full flex-1 flex flex-col md:flex-row transition-colors duration-500 relative"
+                        :style="{
+                            backgroundColor: selectedPalette.colors.background,
+                            fontFamily: `'${selectedTypography.bodyFont}'`,
+                        }">
 
                         <!-- LEFT SIDE (FIXED in Format 2 Desktop) -->
-                        <div v-if="websiteData.format === 'format2'" 
-                             class="hidden md:flex flex-col gap-8 text-center py-10 px-6 relative justify-end w-1/2 shrink-0"
-                             :class="isLive ? 'h-[calc(100vh-64px)]' : 'h-[calc(100vh-125px)]'"
-                             :style="{
-                                 backgroundImage: `url(${currentHeaderImage})`,
-                                 backgroundSize: 'cover',
-                                 backgroundPosition: 'center',
-                                 backgroundRepeat: 'no-repeat',
-                             }">
-                             <!-- Overlay for readability -->
-                             <div class="absolute inset-0 z-0"
-                                 :style="{ backgroundImage: `linear-gradient(to bottom, transparent 40%, ${selectedPalette.colors.primary}80)` }">
-                             </div>
-                             <div class="relative z-10">
-                                 <div class="space-y-3">
-                                     <h1 class="font-medium transition-all duration-300"
-                                         :class="isLive ? 'text-6xl md:text-7xl' : 'text-4xl md:text-5xl'"
-                                         :style="{ color: 'white', fontFamily: `'${selectedTypography.headerFont}'` }">
-                                         {{ websiteData.siteTitle || 'Your Site Title' }}
-                                     </h1>
-                                     <p class="transition-all duration-300" :class="isLive ? 'text-2xl' : 'text-lg'"
-                                         :style="{ color: 'white' }">
-                                         {{ websiteData.siteDescription || 'Your site description goes here.' }}
-                                     </p>
-                                 </div>
-                             </div>
+                        <div v-if="websiteData.format === 'format2'"
+                            class="hidden md:flex flex-col gap-8 text-center py-10 px-6 relative justify-end w-1/2 shrink-0"
+                            :class="isLive ? 'h-[calc(100vh-64px)]' : 'h-[calc(100vh-125px)]'" :style="{
+                                backgroundImage: `url(${currentHeaderImage})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat',
+                            }">
+                            <!-- Overlay for readability -->
+                            <div class="absolute inset-0 z-0"
+                                :style="{ backgroundImage: `linear-gradient(to bottom, transparent 40%, ${selectedPalette.colors.primary}80)` }">
+                            </div>
+                            <div class="relative z-10">
+                                <div class="space-y-3">
+                                    <h1 class="font-medium transition-all duration-300"
+                                        :class="isLive ? 'text-6xl md:text-7xl' : 'text-4xl md:text-5xl'"
+                                        :style="{ color: 'white', fontFamily: `'${selectedTypography.headerFont}'` }">
+                                        {{ websiteData.siteTitle || 'Your Site Title' }}
+                                    </h1>
+                                    <p class="transition-all duration-300" :class="isLive ? 'text-2xl' : 'text-lg'"
+                                        :style="{ color: 'white' }">
+                                        {{ websiteData.siteDescription || 'Your site description goes here.' }}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        <UScrollArea class="flex-1 w-full h-full z-20 min-h-0" :class="isLive ? 'max-h-[calc(100vh-64px)]' : 'max-h-[calc(100vh-125px)]'">
+                        <UScrollArea class="flex-1 w-full h-full z-20 min-h-0"
+                            :class="isLive ? 'max-h-[calc(100vh-64px)]' : 'max-h-[calc(100vh-125px)]'">
 
                             <div class="flex flex-col min-h-full w-full">
                                 <!-- LEFT SIDE (Scrollable in Format 1, or Format 2 Mobile) -->
@@ -848,8 +895,8 @@ const getDynamicStyle = (index: number) => {
                                                 :style="{ color: 'white', fontFamily: `'${selectedTypography.headerFont}'` }">
                                                 {{ websiteData.siteTitle || 'Your Site Title' }}
                                             </h1>
-                                            <p class="transition-all duration-300" :class="isLive ? 'text-2xl' : 'text-lg'"
-                                                :style="{ color: 'white' }">
+                                            <p class="transition-all duration-300"
+                                                :class="isLive ? 'text-2xl' : 'text-lg'" :style="{ color: 'white' }">
                                                 {{ websiteData.siteDescription || 'Your site description goes here.' }}
                                             </p>
 
@@ -859,167 +906,203 @@ const getDynamicStyle = (index: number) => {
 
                                 <div class="w-full flex flex-col">
                                     <!-- Dynamic Content Sections Preview -->
-                                <div class="flex flex-col justify-center mx-10 py-20 text-center"
-                                    :class="{ 'min-h-[80vh]': isLive }">
-                                    <UContainer v-if="headingSection" class="font-bold italic transition-all duration-300"
-                                        :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                        :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                        {{ headingSection.content }}
-                                    </UContainer>
-                                    <div v-if="paragraphSection"
-                                        class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                        :class="isLive ? 'text-xl' : 'text-base'"
-                                        :style="{ color: selectedPalette.colors.text }">
-                                        {{ paragraphSection.content }}
-                                    </div>
-                                </div>
-
-
-
-                                <template v-for="(compId, index) in selectedComponents" :key="compId">
-                                    <!-- Q&A Preview -->
-                                    <div v-if="compId === 'q-and-a' && tidbits.length > 0"
-                                        class="flex flex-col justify-center gap-10 px-6 text-center py-20"
-                                        :class="{ 'min-h-[80vh]': isLive }" :style="{
-                                            backgroundColor: getDynamicStyle(index).bg,
-                                        }">
-                                        <div class="font-bold transition-all duration-300"
+                                    <div class="flex flex-col justify-center mx-10 py-20 text-center"
+                                        :class="{ 'min-h-[80vh]': isLive }">
+                                        <UContainer v-if="headingSection"
+                                            class="font-bold italic transition-all duration-300"
                                             :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            Q&A</div>
+                                            :style="{ color: selectedPalette.colors.heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                            {{ headingSection.content }}
+                                        </UContainer>
+                                        <div v-if="paragraphSection"
+                                            class="prose max-w-none mx-auto text-center transition-all duration-300"
+                                            :class="isLive ? 'text-xl' : 'text-base'"
+                                            :style="{ color: selectedPalette.colors.text }">
+                                            {{ paragraphSection.content }}
+                                        </div>
+                                    </div>
 
 
-                                        <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
-                                            <h3 class="font-bold transition-all duration-300"
-                                                :class="isLive ? 'text-4xl' : 'text-2xl'"
+
+                                    <template v-for="(compId, index) in selectedComponents" :key="compId">
+                                        <!-- Q&A Preview -->
+                                        <div v-if="compId === 'q-and-a' && tidbits.length > 0"
+                                            class="flex flex-col justify-center gap-10 px-6 text-center py-20"
+                                            :class="{ 'min-h-[80vh]': isLive }" :style="{
+                                                backgroundColor: getDynamicStyle(index).bg,
+                                            }">
+                                            <div class="font-bold transition-all duration-300"
+                                                :class="isLive ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                {{ tidbit.heading }}
-                                            </h3>
-                                            <div class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                                :class="isLive ? 'text-xl' : 'text-base'"
-                                                :style="{ color: getDynamicStyle(index).text }">
-                                                {{ tidbit.paragraph }}
+                                                Q&A</div>
+
+
+                                            <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
+                                                <h3 class="font-bold transition-all duration-300"
+                                                    :class="isLive ? 'text-4xl' : 'text-2xl'"
+                                                    :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    {{ tidbit.heading }}
+                                                </h3>
+                                                <div class="prose max-w-none mx-auto text-center transition-all duration-300"
+                                                    :class="isLive ? 'text-xl' : 'text-base'"
+                                                    :style="{ color: getDynamicStyle(index).text }">
+                                                    {{ tidbit.paragraph }}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
 
 
-                                    <!-- Schedule Preview -->
-                                    <div v-if="compId === 'schedule' && scheduleItems.length > 0"
-                                        class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
-                                        :class="{ 'min-h-[80vh]': isLive }"
-                                        :style="{ backgroundColor: getDynamicStyle(index).bg }">
-                                        <div class="font-bold transition-all duration-300"
-                                            :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            Schedule</div>
-
-                                        <div v-for="item in scheduleItems" :key="item.id" class="flex flex-col gap-3">
-                                            <h3 class="font-bold transition-all duration-300"
-                                                :class="isLive ? 'text-4xl' : 'text-2xl'"
+                                        <!-- Schedule Preview -->
+                                        <div v-if="compId === 'schedule' && scheduleItems.length > 0"
+                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
+                                            :class="{ 'min-h-[80vh]': isLive }"
+                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            <div class="font-bold transition-all duration-300"
+                                                :class="isLive ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                {{ item.title }}
-                                            </h3>
-                                            <div class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                                :class="isLive ? 'text-xl' : 'text-base'"
+                                                Schedule</div>
+
+                                            <div v-for="item in scheduleItems" :key="item.id"
+                                                class="flex flex-col gap-3">
+                                                <h3 class="font-bold transition-all duration-300"
+                                                    :class="isLive ? 'text-4xl' : 'text-2xl'"
+                                                    :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    {{ item.title }}
+                                                </h3>
+                                                <div class="prose max-w-none mx-auto text-center transition-all duration-300"
+                                                    :class="isLive ? 'text-xl' : 'text-base'"
+                                                    :style="{ color: getDynamicStyle(index).text }">
+                                                    {{ item.description }}
+                                                </div>
+                                                <div v-if="item.location"
+                                                    class="font-semibold italic mt-2 transition-all duration-300"
+                                                    :class="isLive ? 'text-lg' : 'text-sm'"
+                                                    :style="{ color: getDynamicStyle(index).heading }">
+                                                    <UIcon name="i-lucide-map-pin"
+                                                        class="mr-1 inline-block align-middle" />{{
+                                                            item.location
+                                                    }}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- RSVP Preview Placeholder -->
+                                        <div v-if="compId === 'rsvp'"
+                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
+                                            :class="{ 'min-h-[80vh]': isLive }"
+                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            <div class="font-bold transition-all duration-300"
+                                                :class="isLive ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                RSVP</div>
+                                            <div class="flex flex-col items-center gap-5 text-sm"
                                                 :style="{ color: getDynamicStyle(index).text }">
-                                                {{ item.description }}
+                                                <div v-if="websiteData.rsvpDeadlineDate" class="font-semibold uppercase tracking-widest text-xs opacity-80">
+                                                    <UIcon name="i-lucide-calendar" class="w-4 h-4 inline-block align-text-bottom mr-1" />
+                                                    RSVP by {{ formatDateWithWeekday(websiteData.rsvpDeadlineDate) }}
+                                                </div>
+                                                <UButton size="lg" 
+                                                    class="transition-all duration-300 hover:opacity-80 shadow-md border" 
+                                                    :style="{ 
+                                                        backgroundColor: getDynamicStyle(index ).text, 
+                                                        color: getDynamicStyle(index ).bg, 
+                                                        borderColor: getDynamicStyle(index ).bg === 'transparent' ? getDynamicStyle(index - 1).text : getDynamicStyle(index - 1).bg 
+                                                    }"
+                                                >
+                                                    RSVP Here
+                                                </UButton>
                                             </div>
-                                            <div v-if="item.location"
-                                                class="font-semibold italic mt-2 transition-all duration-300"
-                                                :class="isLive ? 'text-lg' : 'text-sm'"
-                                                :style="{ color: getDynamicStyle(index).heading }">
-                                                <UIcon name="i-lucide-map-pin" class="mr-1 inline-block align-middle" />{{
-                                                    item.location
-                                                }}
+                                        </div>
+
+                                        <!-- Where to Stay Preview Placeholder -->
+                                        <div v-if="compId === 'where-to-stay'"
+                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
+                                            :class="{ 'min-h-[80vh]': isLive }"
+                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            <div class="font-bold transition-all duration-300"
+                                                :class="isLive ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                Where to Stay</div>
+                                            
+                                            <div v-if="websiteData.whereToStayLocation" class="relative w-full h-[400px] max-w-4xl mx-auto rounded-lg overflow-hidden shadow-lg border" :style="{ borderColor: getDynamicStyle(index).text }">
+                                                <iframe 
+                                                    width="100%" 
+                                                    height="100%" 
+                                                    frameborder="0" 
+                                                    scrolling="no" 
+                                                    marginheight="0" 
+                                                    marginwidth="0" 
+                                                    :src="getGoogleMapsUrl(websiteData.whereToStayLocation)"
+                                                    style="filter: grayscale(1) contrast(1);">
+                                                </iframe>
+                                                <!-- Seamless Map Tint Overlay -->
+                                                <div class="absolute inset-0 pointer-events-none opacity-60"
+                                                     :style="{ backgroundColor: getDynamicStyle(index).text, mixBlendMode: 'color' }">
+                                                </div>
+                                            </div>
+                                            <div v-else class="text-sm italic opacity-70"
+                                                :style="{ color: getDynamicStyle(index).text }">
+                                                [ Enter a location to view the map ]
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <!-- RSVP Preview Placeholder -->
-                                    <div v-if="compId === 'rsvp'"
-                                        class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
-                                        :class="{ 'min-h-[80vh]': isLive }"
-                                        :style="{ backgroundColor: getDynamicStyle(index).bg }">
-                                        <div class="font-bold transition-all duration-300"
-                                            :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            RSVP</div>
-                                        <div class="text-sm italic opacity-70" :style="{ color: getDynamicStyle(index).text }">
-                                            <UButton size="lg">
-                                                RSVP Here
-                                            </UButton>
+                                        <!-- Travel Preview Placeholder -->
+                                        <div v-if="compId === 'travel'"
+                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
+                                            :class="{ 'min-h-[80vh]': isLive }"
+                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            <div class="font-bold transition-all duration-300"
+                                                :class="isLive ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                Travel</div>
+                                            <div class="text-sm italic opacity-70"
+                                                :style="{ color: getDynamicStyle(index).text }">
+                                                [ Travel Component Preview goes here ]
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <!-- Where to Stay Preview Placeholder -->
-                                    <div v-if="compId === 'where-to-stay'"
-                                        class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
-                                        :class="{ 'min-h-[80vh]': isLive }"
-                                        :style="{ backgroundColor: getDynamicStyle(index).bg }">
-                                        <div class="font-bold transition-all duration-300"
-                                            :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            Where to Stay</div>
-                                        <div class="text-sm italic opacity-70" :style="{ color: getDynamicStyle(index).text }">
-                                            [ Where to Stay Component Preview goes here ]
+                                        <!-- Wedding Party Preview Placeholder -->
+                                        <div v-if="compId === 'wedding-party'"
+                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
+                                            :class="{ 'min-h-[80vh]': isLive }"
+                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            <div class="font-bold transition-all duration-300"
+                                                :class="isLive ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                Wedding Party</div>
+                                            <div class="text-sm italic opacity-70"
+                                                :style="{ color: getDynamicStyle(index).text }">
+                                                [ Wedding Party Component Preview goes here ]
+                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
 
-                                    <!-- Travel Preview Placeholder -->
-                                    <div v-if="compId === 'travel'"
-                                        class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
+                                    <!-- Thank You / Ending Preview -->
+                                    <div class="flex flex-col justify-center gap-6 px-6 py-20 text-center"
                                         :class="{ 'min-h-[80vh]': isLive }"
-                                        :style="{ backgroundColor: getDynamicStyle(index).bg }">
-                                        <div class="font-bold transition-all duration-300"
+                                        :style="{ backgroundColor: getDynamicStyle(selectedComponents.length).bg }">
+                                        <h2 class="font-bold transition-all duration-300"
                                             :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            Travel</div>
-                                        <div class="text-sm italic opacity-70" :style="{ color: getDynamicStyle(index).text }">
-                                            [ Travel Component Preview goes here ]
-                                        </div>
+                                            :style="{ color: getDynamicStyle(selectedComponents.length).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                            {{ websiteData.endingTitle }}
+                                        </h2>
+                                        <p class="prose max-w-none mx-auto text-center transition-all duration-300"
+                                            :class="isLive ? 'text-2xl' : 'text-lg'"
+                                            :style="{ color: getDynamicStyle(selectedComponents.length).text }">
+                                            {{ websiteData.endingMessage }}
+                                        </p>
                                     </div>
-
-                                    <!-- Wedding Party Preview Placeholder -->
-                                    <div v-if="compId === 'wedding-party'"
-                                        class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
-                                        :class="{ 'min-h-[80vh]': isLive }"
-                                        :style="{ backgroundColor: getDynamicStyle(index).bg }">
-                                        <div class="font-bold transition-all duration-300"
-                                            :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            Wedding Party</div>
-                                        <div class="text-sm italic opacity-70" :style="{ color: getDynamicStyle(index).text }">
-                                            [ Wedding Party Component Preview goes here ]
-                                        </div>
+                                    <!-- Bread + Butter Branding Footer -->
+                                    <div class="py-10 flex flex-col items-center justify-center gap-3"
+                                        :style="{ backgroundColor: selectedPalette.colors.heading, borderColor: selectedPalette.colors.surface }">
+                                        <p class="text-xs font-semibold uppercase tracking-widest opacity-60"
+                                            :style="{ color: selectedPalette.colors.background }">This website was made
+                                            with</p>
+                                        <div class="h-6 w-full opacity-80 mask-logo"
+                                            :style="{ backgroundColor: selectedPalette.colors.background }" role="img"
+                                            aria-label="Bread + Butter"></div>
                                     </div>
-                                </template>
-
-                                <!-- Thank You / Ending Preview -->
-                                <div class="flex flex-col justify-center gap-6 px-6 py-20 text-center"
-                                    :class="{ 'min-h-[80vh]': isLive }"
-                                    :style="{ backgroundColor: getDynamicStyle(selectedComponents.length).bg }">
-                                    <h2 class="font-bold transition-all duration-300"
-                                        :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                        :style="{ color: getDynamicStyle(selectedComponents.length).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                        {{ websiteData.endingTitle }}
-                                    </h2>
-                                    <p class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                        :class="isLive ? 'text-2xl' : 'text-lg'"
-                                        :style="{ color: getDynamicStyle(selectedComponents.length).text }">
-                                        {{ websiteData.endingMessage }}
-                                    </p>
-                                </div>
-                                <!-- Bread + Butter Branding Footer -->
-                                <div class="py-10 flex flex-col items-center justify-center gap-3"
-                                    :style="{ backgroundColor: selectedPalette.colors.heading, borderColor: selectedPalette.colors.surface }">
-                                    <p class="text-xs font-semibold uppercase tracking-widest opacity-60"
-                                        :style="{ color: selectedPalette.colors.background }">This website was made with</p>
-                                    <div class="h-6 w-full opacity-80 mask-logo"
-                                        :style="{ backgroundColor: selectedPalette.colors.background }" role="img"
-                                        aria-label="Bread + Butter"></div>
-                                </div>
                                 </div>
                             </div>
                         </UScrollArea>
