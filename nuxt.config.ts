@@ -1,5 +1,16 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  components: [
+    {
+      path: '~/components',
+      ignore: ['tasks'],
+    },
+    {
+      path: '~/components/tasks',
+      pathPrefix: false,
+    },
+  ],
+
   modules: [['@nuxt/eslint', {
     stylistic: false
   }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image'],
