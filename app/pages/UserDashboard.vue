@@ -3,7 +3,7 @@ import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internati
 import type { EventRecord } from '~/types/event'
 import { mapEventTypeToApi } from '~/types/event'
 import { EVENT_CREATION_FEE_PHP } from '~/types/payment'
-import { getApiErrorMessage } from '~/types/auth'
+import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
@@ -58,11 +58,7 @@ async function loadUserEvents() {
     })
   } catch (error) {
     userEvents.value = []
-    toast.add({
-      title: 'Could not load events',
-      description: getApiErrorMessage(error),
-      color: 'error',
-    })
+    reportApiError(toast, { title: 'Could not load events', error })
   } finally {
     isLoadingEvents.value = false
   }
@@ -190,11 +186,7 @@ async function handleCreateEvent() {
       query: { eventId: event._id },
     })
   } catch (error) {
-    toast.add({
-      title: 'Could not create event',
-      description: getApiErrorMessage(error),
-      color: 'error',
-    })
+    reportApiError(toast, { title: 'Could not create event', error })
   } finally {
     isSubmitting.value = false
   }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PaymentRecord } from '~/types/payment'
-import { getApiErrorMessage } from '~/types/auth'
+import { reportApiError } from '~/types/auth'
 import { usePayments } from '~/composables/usePayments'
 
 definePageMeta({
@@ -21,7 +21,7 @@ onMounted(async () => {
     })
     payments.value = response.payments
   } catch (error) {
-    toast.add({ title: 'Could not load transactions', description: getApiErrorMessage(error), color: 'error' })
+    reportApiError(toast, { title: 'Could not load transactions', error })
   }
 })
 </script>

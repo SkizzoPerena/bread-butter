@@ -1,4 +1,10 @@
+import {
+  handleRestrictedAccount,
+  isRestrictedAccountError
+} from '~/utils/restrictedAccount'
+
 type FetchOptions = Parameters<typeof $fetch>[1]
+type ApiRequestOptions = FetchOptions & { authenticated?: boolean }
 type MaybePromise<T> = T | Promise<T>
 
 const AUTH_TOKEN_COOKIE = 'bpb_auth_token'
@@ -27,17 +33,27 @@ export function useApiMode() {
   const isUiOnlyMode = computed(() => !config.public.useRealApi)
   const apiBase = computed(() => config.public.apiBase as string)
 
-  async function apiRequest<T>(path: string, options?: FetchOptions): Promise<T> {
+  async function apiRequest<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     if (!useRealApi.value) {
       throw new Error('apiRequest was called while NUXT_PUBLIC_USE_REAL_API is disabled')
     }
-    return $fetch<T>(joinApiUrl(apiBase.value, path), {
-      ...options,
-      headers: {
-        ...authHeaders(),
-        ...(options?.headers as Record<string, string> | undefined)
+
+    const { authenticated = true, ...fetchOptions } = options ?? {}
+
+    try {
+      return await $fetch<T>(joinApiUrl(apiBase.value, path), {
+        ...fetchOptions,
+        headers: {
+          ...(authenticated ? authHeaders() : {}),
+          ...(fetchOptions.headers as Record<string, string> | undefined)
+        }
+      })
+    } catch (error) {
+      if (isRestrictedAccountError(error) && authHeaders().Authorization) {
+        return handleRestrictedAccount()
       }
-    })
+      throw error
+    }
   }
 
   async function apiUpload<T>(
@@ -48,11 +64,18 @@ export function useApiMode() {
     if (!useRealApi.value) {
       throw new Error('apiUpload was called while NUXT_PUBLIC_USE_REAL_API is disabled')
     }
-    return $fetch<T>(joinApiUrl(apiBase.value, path), {
-      method: options?.method ?? 'POST',
-      body: formData,
-      headers: authHeaders()
-    })
+    try {
+      return await $fetch<T>(joinApiUrl(apiBase.value, path), {
+        method: options?.method ?? 'POST',
+        body: formData,
+        headers: authHeaders()
+      })
+    } catch (error) {
+      if (isRestrictedAccountError(error) && authHeaders().Authorization) {
+        return handleRestrictedAccount()
+      }
+      throw error
+    }
   }
 
   /** Button / form handlers: API when enabled, otherwise UI-only fallback. */

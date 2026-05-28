@@ -5,6 +5,7 @@ import type {
   LoginCredentials,
   RegisterCredentials
 } from '~/types/auth'
+import { RestrictedAccountError } from '~/utils/restrictedAccount'
 
 const AUTH_TOKEN_COOKIE = 'bpb_auth_token'
 const AUTH_USER_STATE_KEY = 'auth-user'
@@ -52,13 +53,21 @@ export function useAuth() {
       return null
     }
 
+    clearSession()
+
     const response = await apiRequest<AuthLoginResponse>('/user/login', {
       method: 'POST',
+      authenticated: false,
       body: {
         email: credentials.email.trim(),
         password: credentials.password
       }
     })
+
+    if (response.user?.isRestricted === true) {
+      clearSession()
+      throw new RestrictedAccountError()
+    }
 
     setSession(String(response.token), response.user ?? null)
     return response

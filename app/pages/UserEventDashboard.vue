@@ -6,7 +6,7 @@ import {
   isPaymentPendingReview,
   needsPaymentSubmission
 } from '~/types/payment'
-import { getApiErrorMessage } from '~/types/auth'
+import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { usePayments } from '~/composables/usePayments'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
@@ -314,11 +314,7 @@ async function handleUpdateEvent() {
     })
     isEditModalOpen.value = false
   } catch (error) {
-    toast.add({
-      title: 'Could not update event',
-      description: getApiErrorMessage(error),
-      color: 'error',
-    })
+    reportApiError(toast, { title: 'Could not update event', error })
   } finally {
     isSubmittingEventUpdate.value = false
   }
@@ -359,11 +355,7 @@ async function loadEventData() {
     rsvpSummary.value = detail.rsvpSummary
     tasksSummary.value = detail.tasks
   } catch (error) {
-    toast.add({
-      title: 'Could not load event',
-      description: getApiErrorMessage(error),
-      color: 'error',
-    })
+    reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
   }
@@ -409,11 +401,7 @@ async function handleSubmitPaymentProof() {
       description: 'An admin will review your payment shortly.',
     })
   } catch (error) {
-    toast.add({
-      title: 'Could not submit payment proof',
-      description: getApiErrorMessage(error),
-      color: 'error',
-    })
+    reportApiError(toast, { title: 'Could not submit payment proof', error })
   } finally {
     isSubmittingPayment.value = false
   }

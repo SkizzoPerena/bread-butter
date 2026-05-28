@@ -3,6 +3,7 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useAuth } from '~/composables/useAuth'
 import { getApiErrorMessage } from '~/types/auth'
+import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
 
 const toast = useToast()
 const { login } = useAuth()
@@ -36,17 +37,25 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   isSubmitting.value = true
   try {
-    await login({
+    const result = await login({
       email: payload.data.email.trim(),
       password: payload.data.password,
       remember: payload.data.remember
     })
+
+    if (!result) {
+      return
+    }
+
     toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
     await navigateTo('/UserDashboard')
   } catch (error) {
+    const isRestricted = isRestrictedAccountError(error)
     toast.add({
-      title: 'Sign in failed',
-      description: getApiErrorMessage(error, 'Unable to sign in. Check your email and password.'),
+      title: isRestricted ? 'Account restricted' : 'Sign in failed',
+      description: isRestricted
+        ? RESTRICTED_ACCOUNT_MESSAGE
+        : getApiErrorMessage(error, 'Unable to sign in. Check your email and password.'),
       color: 'error'
     })
   } finally {

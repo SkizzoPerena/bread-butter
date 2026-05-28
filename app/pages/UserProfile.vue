@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { getApiErrorMessage } from '~/types/auth'
+import { reportApiError } from '~/types/auth'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
 
 definePageMeta({
@@ -100,11 +100,7 @@ async function loadProfile() {
     const account = await fetchAccount()
     applyAccountToForm(account)
   } catch (error) {
-    toast.add({
-      title: 'Unable to load profile',
-      description: getApiErrorMessage(error),
-      color: 'error'
-    })
+    reportApiError(toast, { title: 'Unable to load profile', error })
   } finally {
     isLoading.value = false
   }
@@ -124,11 +120,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     })
     toast.add({ title: 'Profile updated', description: response.message })
   } catch (error) {
-    toast.add({
-      title: 'Save failed',
-      description: getApiErrorMessage(error),
-      color: 'error'
-    })
+    reportApiError(toast, { title: 'Save failed', error })
   } finally {
     isSaving.value = false
   }
@@ -156,11 +148,7 @@ async function onProfileImageSelected(event: Event) {
     }
     toast.add({ title: 'Profile picture updated', description: response.message })
   } catch (error) {
-    toast.add({
-      title: 'Upload failed',
-      description: getApiErrorMessage(error),
-      color: 'error'
-    })
+    reportApiError(toast, { title: 'Upload failed', error })
   } finally {
     isUploading.value = false
   }
@@ -192,11 +180,7 @@ async function submitPasswordChange() {
     passwordState.newPassword = ''
     passwordState.confirmNewPassword = ''
   } catch (error) {
-    toast.add({
-      title: 'Password update failed',
-      description: getApiErrorMessage(error),
-      color: 'error'
-    })
+    reportApiError(toast, { title: 'Password update failed', error })
   } finally {
     isChangingPassword.value = false
   }

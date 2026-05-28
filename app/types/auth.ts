@@ -1,9 +1,12 @@
+import { RestrictedAccountError } from '~/utils/restrictedAccount'
+
 export interface AuthUser {
   email: string
   firstName: string
   lastName: string
   gender: string
   profileImageURL?: string
+  isRestricted?: boolean
 }
 
 export interface UserAccount {
@@ -62,7 +65,35 @@ export interface RegisterCredentials {
   gender: 'MALE' | 'FEMALE'
 }
 
+export function isSuppressedApiError(error: unknown): boolean {
+  return error instanceof RestrictedAccountError
+}
+
+export function reportApiError(
+  toast: ReturnType<typeof useToast>,
+  options: {
+    title: string
+    error: unknown
+    fallback?: string
+    color?: 'error' | 'warning'
+  }
+) {
+  if (isSuppressedApiError(options.error)) {
+    return
+  }
+
+  toast.add({
+    title: options.title,
+    description: getApiErrorMessage(options.error, options.fallback),
+    color: options.color ?? 'error'
+  })
+}
+
 export function getApiErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  if (isSuppressedApiError(error)) {
+    return fallback
+  }
+
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as { data?: { message?: string } }).data
     if (data?.message) {
