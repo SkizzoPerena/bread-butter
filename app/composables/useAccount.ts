@@ -80,11 +80,23 @@ export function useAccount() {
     return response
   }
 
+  async function changePassword(currentPassword: string, newPassword: string): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      return { success: true, message: 'Password changed successfully.' }
+    }
+
+    return apiRequest<AccountMessageResponse>('/user/account/change-password', {
+      method: 'PATCH',
+      body: { currentPassword, newPassword }
+    })
+  }
+
   return {
     isAuthenticated,
     isUiOnlyMode,
     fetchAccount,
     saveAccount,
-    uploadProfilePicture
+    uploadProfilePicture,
+    changePassword
   }
 }

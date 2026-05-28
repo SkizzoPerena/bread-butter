@@ -11,7 +11,7 @@ definePageMeta({
 import type { PageAnchor } from '@nuxt/ui'
 
 const toast = useToast()
-const { fetchAccount, saveAccount, uploadProfilePicture, isAuthenticated, isUiOnlyMode } = useAccount()
+const { fetchAccount, saveAccount, uploadProfilePicture, changePassword, isAuthenticated, isUiOnlyMode } = useAccount()
 
 const genderOptions = [
   { label: 'Male', value: 'MALE' },
@@ -67,6 +67,13 @@ const isLoading = ref(true)
 const isSaving = ref(false)
 const isUploading = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const passwordState = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmNewPassword: '',
+})
+const isChangingPassword = ref(false)
 
 const displayName = computed(() => `${state.firstName} ${state.lastName}`.trim())
 const profileImageSrc = computed(() => resolveProfileImageUrl(profileImageURL.value))
@@ -159,6 +166,42 @@ async function onProfileImageSelected(event: Event) {
   }
 }
 
+async function submitPasswordChange() {
+  if (isChangingPassword.value) {
+    return
+  }
+
+  if (!passwordState.currentPassword.trim()) {
+    toast.add({ title: 'Current password required', color: 'error' })
+    return
+  }
+  if (passwordState.newPassword.trim().length < 6) {
+    toast.add({ title: 'New password too short', description: 'Password must be at least 6 characters.', color: 'error' })
+    return
+  }
+  if (passwordState.newPassword !== passwordState.confirmNewPassword) {
+    toast.add({ title: 'Passwords do not match', description: 'Confirm your new password.', color: 'error' })
+    return
+  }
+
+  isChangingPassword.value = true
+  try {
+    const response = await changePassword(passwordState.currentPassword, passwordState.newPassword)
+    toast.add({ title: 'Password updated', description: response.message })
+    passwordState.currentPassword = ''
+    passwordState.newPassword = ''
+    passwordState.confirmNewPassword = ''
+  } catch (error) {
+    toast.add({
+      title: 'Password update failed',
+      description: getApiErrorMessage(error),
+      color: 'error'
+    })
+  } finally {
+    isChangingPassword.value = false
+  }
+}
+
 onMounted(async () => {
   if (!isUiOnlyMode.value && !isAuthenticated.value) {
     await navigateTo('/UserLogin')
@@ -218,6 +261,29 @@ onMounted(async () => {
             </UFormField>
             <div class="flex justify-end pt-2">
               <UButton type="submit" :loading="isSaving">Save Changes</UButton>
+            </div>
+          </UForm>
+        </div>
+      </UPageCard>
+
+      <UPageCard id="password" class="col-span-2 white-bread-container">
+        <div class="text-lg text-pretty font-semibold text-muted">Password</div>
+        <div v-if="isLoading" class="py-12 text-center text-muted">
+          Loading profile...
+        </div>
+        <div v-else class="max-w-xl space-y-4">
+          <UForm class="space-y-4" @submit.prevent="submitPasswordChange">
+            <UFormField label="Current password" name="currentPassword" required>
+              <UInput v-model="passwordState.currentPassword" type="password" class="w-full" autocomplete="current-password" />
+            </UFormField>
+            <UFormField label="New password" name="newPassword" required>
+              <UInput v-model="passwordState.newPassword" type="password" class="w-full" autocomplete="new-password" />
+            </UFormField>
+            <UFormField label="Confirm new password" name="confirmNewPassword" required>
+              <UInput v-model="passwordState.confirmNewPassword" type="password" class="w-full" autocomplete="new-password" />
+            </UFormField>
+            <div class="flex justify-end pt-2">
+              <UButton type="submit" :loading="isChangingPassword">Update password</UButton>
             </div>
           </UForm>
         </div>
