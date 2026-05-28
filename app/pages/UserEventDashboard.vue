@@ -57,6 +57,9 @@ const isInvitingAll = ref(false)
 const deletingGuestId = ref<string | null>(null)
 const isRemoveGuestModalOpen = ref(false)
 const guestToRemove = ref<Person | null>(null)
+const isQuestionsModalOpen = ref(false)
+const isNoQuestionsWarningOpen = ref(false)
+const pendingInviteAction = ref<'all' | string | null>(null)
 
 const editForm = reactive({
   eventName: '',
@@ -89,6 +92,8 @@ const paymentDenialReason = computed(() =>
 const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
 
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
+
+const hasNoRsvpQuestions = computed(() => !(eventRecord.value?.questions?.length))
 
 const addGuestSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -576,29 +581,7 @@ async function handleRemoveGuest() {
   }
 }
 
-async function handleInviteAll() {
-  if (isInvitingAll.value || !canInviteAll.value) {
-    return
-  }
-
-  if (!eventId.value && !isUiOnlyMode.value) {
-    toast.add({
-      title: 'Missing event',
-      description: 'Open an event from your dashboard first.',
-      color: 'error',
-    })
-    return
-  }
-
-  if (isEventCancelled.value) {
-    toast.add({
-      title: 'Event cancelled',
-      description: 'Cannot send invitations for a cancelled event.',
-      color: 'error',
-    })
-    return
-  }
-
+async function _doInviteAll() {
   isInvitingAll.value = true
   try {
     const targetEventId = eventId.value || 'mock-event-id'
@@ -630,10 +613,7 @@ async function handleInviteAll() {
       description += '.'
     }
 
-    toast.add({
-      title: 'Invitations sent',
-      description,
-    })
+    toast.add({ title: 'Invitations sent', description })
   } catch (error) {
     reportApiError(toast, { title: 'Could not send invitations', error })
   } finally {
@@ -641,20 +621,7 @@ async function handleInviteAll() {
   }
 }
 
-async function handleSendGuestInvite(guestId: string) {
-  if (!guestId || sendingGuestId.value || isInvitingAll.value) {
-    return
-  }
-
-  if (isEventCancelled.value) {
-    toast.add({
-      title: 'Event cancelled',
-      description: 'Cannot send invitations for a cancelled event.',
-      color: 'error',
-    })
-    return
-  }
-
+async function _doSendGuestInvite(guestId: string) {
   sendingGuestId.value = guestId
   try {
     const response = await sendGuestInvite(guestId)
@@ -675,14 +642,78 @@ async function handleSendGuestInvite(guestId: string) {
       }
     }
 
-    toast.add({
-      title: 'Invitation sent',
-      description: response.message,
-    })
+    toast.add({ title: 'Invitation sent', description: response.message })
   } catch (error) {
     reportApiError(toast, { title: 'Could not send invitation', error })
   } finally {
     sendingGuestId.value = null
+  }
+}
+
+async function handleInviteAll() {
+  if (isInvitingAll.value || !canInviteAll.value) {
+    return
+  }
+
+  if (!eventId.value && !isUiOnlyMode.value) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+
+  if (isEventCancelled.value) {
+    toast.add({
+      title: 'Event cancelled',
+      description: 'Cannot send invitations for a cancelled event.',
+      color: 'error',
+    })
+    return
+  }
+
+  if (hasNoRsvpQuestions.value) {
+    pendingInviteAction.value = 'all'
+    isNoQuestionsWarningOpen.value = true
+    return
+  }
+
+  await _doInviteAll()
+}
+
+async function handleSendGuestInvite(guestId: string) {
+  if (!guestId || sendingGuestId.value || isInvitingAll.value) {
+    return
+  }
+
+  if (isEventCancelled.value) {
+    toast.add({
+      title: 'Event cancelled',
+      description: 'Cannot send invitations for a cancelled event.',
+      color: 'error',
+    })
+    return
+  }
+
+  if (hasNoRsvpQuestions.value) {
+    pendingInviteAction.value = guestId
+    isNoQuestionsWarningOpen.value = true
+    return
+  }
+
+  await _doSendGuestInvite(guestId)
+}
+
+async function confirmInviteWithoutQuestions() {
+  isNoQuestionsWarningOpen.value = false
+  const action = pendingInviteAction.value
+  pendingInviteAction.value = null
+  if (!action) return
+  if (action === 'all') {
+    await _doInviteAll()
+  } else {
+    await _doSendGuestInvite(action)
   }
 }
 
@@ -1043,6 +1074,15 @@ const tableData = computed(() => {
           </UButton>
 
           <UButton
+            icon="i-lucide-list-checks"
+            variant="soft"
+            :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
+            @click="isQuestionsModalOpen = true"
+          >
+            RSVP Questions
+          </UButton>
+
+          <UButton
             icon="i-lucide-mail"
             variant="soft"
             :loading="isInvitingAll"
@@ -1225,6 +1265,50 @@ const tableData = computed(() => {
       :is-event-cancelled="isEventCancelled"
       @update:tasks-summary="tasksSummary = $event"
     />
+
+    <EventQuestionsModal
+      v-model:open="isQuestionsModalOpen"
+      :event-id="eventId || 'mock-event-id'"
+      :initial-questions="eventRecord?.questions ?? []"
+      @saved="loadEventData"
+    />
+
+    <UModal
+      v-model:open="isNoQuestionsWarningOpen"
+      title="No RSVP questions set"
+      :ui="{
+        header: 'bg-toast-400 border-none',
+        title: 'text-white font-serif text-xl',
+        content: 'border-none ring-transparent w-full max-w-md',
+        overlay: 'bg-toast-900/30',
+      }"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }"
+    >
+      <template #body>
+        <p class="text-sm text-muted">
+          This event has no RSVP questions. Guests will receive an invitation but
+          won't be asked anything when they respond.
+        </p>
+        <p class="text-sm text-muted mt-2">
+          You can add questions anytime via the <strong>RSVP Questions</strong> button.
+          Do you want to send the invitation anyway?
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            variant="outline"
+            color="neutral"
+            @click="isNoQuestionsWarningOpen = false; pendingInviteAction = null"
+          >
+            Cancel
+          </UButton>
+          <UButton @click="confirmInviteWithoutQuestions">
+            Send anyway
+          </UButton>
+        </div>
+      </template>
+    </UModal>
 
   </UContainer>
 

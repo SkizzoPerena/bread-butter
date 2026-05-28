@@ -1,5 +1,11 @@
 import type { PaymentRecord } from '~/types/payment'
 
+export interface EventQuestion {
+  question: string
+  type: string
+  options?: string[]
+}
+
 export interface EventRecord {
   _id: string
   eventType: string
@@ -10,6 +16,7 @@ export interface EventRecord {
   status: string
   coverImageURL?: string | null
   latestPayment?: PaymentRecord | null
+  questions?: EventQuestion[]
 }
 
 export interface EventsListResponse {
