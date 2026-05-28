@@ -1,14 +1,23 @@
 <script lang="ts" setup>
-import type { TableColumn } from '@nuxt/ui'
+import * as z from 'zod'
+import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
 import type { EventRecord, GuestRecord, RsvpSummary, TaskPreview, TasksSummary } from '~/types/event'
 import {
   isPaymentPendingReview,
   needsPaymentSubmission
 } from '~/types/payment'
-import { reportApiError } from '~/types/auth'
+import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { useGuests } from '~/composables/useGuests'
 import { usePayments } from '~/composables/usePayments'
+import {
+  appendGuestToList,
+  applySendAllInvitesToGuestList,
+  applySendInviteToGuestList,
+  formatGuestValidationErrors,
+  removeGuestFromList
+} from '~/utils/guestListUpdates'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 
@@ -23,6 +32,7 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent, updateEvent } = useEvents()
+const { createGuest, fetchGuestsByEvent, sendGuestInvite, sendAllGuestInvites, deleteGuest } = useGuests()
 const { submitEventPaymentProof } = usePayments()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 
@@ -39,6 +49,13 @@ const isLoadingEvent = ref(false)
 const isSubmittingPayment = ref(false)
 const isEditModalOpen = ref(false)
 const isSubmittingEventUpdate = ref(false)
+const isAddGuestModalOpen = ref(false)
+const isSubmittingGuest = ref(false)
+const sendingGuestId = ref<string | null>(null)
+const isInvitingAll = ref(false)
+const deletingGuestId = ref<string | null>(null)
+const isRemoveGuestModalOpen = ref(false)
+const guestToRemove = ref<Person | null>(null)
 
 const editForm = reactive({
   eventName: '',
@@ -69,6 +86,58 @@ const paymentDenialReason = computed(() =>
 )
 
 const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
+
+const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
+
+const addGuestSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email'),
+})
+
+type AddGuestSchema = z.output<typeof addGuestSchema>
+
+const addGuestState = reactive<AddGuestSchema>({
+  name: '',
+  email: '',
+})
+
+const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
+
+type Person = {
+  guestId: string
+  name: string
+  email: string
+  guests: number
+  rsvpStatus: typeof rsvpOptions[number]
+  invitationSent: boolean
+}
+
+const people = ref<Person[]>([
+  {
+    guestId: 'demo-guest-1',
+    name: 'John Smith',
+    email: 'john.smith@example.com',
+    guests: 2,
+    rsvpStatus: 'Attending',
+    invitationSent: true,
+  },
+  {
+    guestId: 'demo-guest-2',
+    name: 'Emily White',
+    email: 'emily.white@example.com',
+    guests: 1,
+    rsvpStatus: 'Pending',
+    invitationSent: true,
+  },
+  {
+    guestId: 'demo-guest-3',
+    name: 'Michael Brown',
+    email: 'michael.brown@example.com',
+    guests: 4,
+    rsvpStatus: 'Not Attending',
+    invitationSent: false,
+  },
+])
 
 const eventTitle = computed(() => {
   if (eventRecord.value?.eventName) {
@@ -158,18 +227,52 @@ const currentBudgetLabel = computed(() => {
   return 'No Budget Yet'
 })
 
+const guestListSize = computed(() => {
+  if (eventId.value && !isUiOnlyMode.value) {
+    return guestList.value.length
+  }
+  return people.value.length
+})
+
+const invitationsSentCount = computed(() => {
+  if (eventId.value && !isUiOnlyMode.value) {
+    if (rsvpSummary.value) {
+      return rsvpSummary.value.totalSent
+    }
+    return guestList.value.filter(guest => Boolean(guest.rsvp?.invitedAt)).length
+  }
+  return people.value.filter(person => person.invitationSent).length
+})
+
+const invitationsSentFraction = computed(
+  () => `${invitationsSentCount.value} / ${guestListSize.value}`
+)
+
+const uninvitedGuestsCount = computed(() => {
+  if (eventId.value && !isUiOnlyMode.value) {
+    return guestList.value.filter(guest => !guest.rsvp?.invitedAt).length
+  }
+  return people.value.filter(person => !person.invitationSent).length
+})
+
+const canInviteAll = computed(() =>
+  uninvitedGuestsCount.value > 0
+  && !isEventCancelled.value
+  && Boolean(eventId.value || isUiOnlyMode.value)
+  && guestListSize.value > 0
+)
+
 const rsvpStats = computed(() => {
   if (rsvpSummary.value) {
     return {
-      invitationsSent: rsvpSummary.value.totalSent,
       responses: rsvpSummary.value.going + rsvpSummary.value.notGoing,
       attendees: rsvpSummary.value.going,
     }
   }
   if (useDemoFallbacks.value) {
-    return { invitationsSent: 100, responses: 75, attendees: 60 }
+    return { responses: 75, attendees: 60 }
   }
-  return { invitationsSent: 0, responses: 0, attendees: 0 }
+  return { responses: 0, attendees: 0 }
 })
 
 function mapRsvpStatusToLabel(status?: string | null): 'Attending' | 'Pending' | 'Not Attending' {
@@ -184,12 +287,12 @@ function mapRsvpStatusToLabel(status?: string | null): 'Attending' | 'Pending' |
 
 function mapGuestToPerson(guest: GuestRecord): Person {
   return {
+    guestId: guest._id,
     name: guest.name,
     email: guest.email,
     guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
     rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
     invitationSent: Boolean(guest.rsvp?.invitedAt),
-    phone: 0,
   }
 }
 
@@ -354,10 +457,257 @@ async function loadEventData() {
     guestList.value = detail.guestList
     rsvpSummary.value = detail.rsvpSummary
     tasksSummary.value = detail.tasks
+    await refreshGuestList()
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+  }
+}
+
+async function refreshGuestList() {
+  if (!eventId.value || isUiOnlyMode.value) {
+    return
+  }
+
+  try {
+    guestList.value = await fetchGuestsByEvent(eventId.value)
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not load guests', error })
+  }
+}
+
+function resetAddGuestForm() {
+  addGuestState.name = ''
+  addGuestState.email = ''
+}
+
+async function handleAddGuest(payload: FormSubmitEvent<AddGuestSchema>) {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+
+  if (isEventCancelled.value) {
+    toast.add({
+      title: 'Event cancelled',
+      description: 'Cannot modify the guest list for a cancelled event.',
+      color: 'error',
+    })
+    return
+  }
+
+  isSubmittingGuest.value = true
+  try {
+    const targetEventId = eventId.value || 'mock-event-id'
+    const response = await createGuest(targetEventId, {
+      name: payload.data.name,
+      email: payload.data.email,
+    })
+
+    if (eventId.value && !isUiOnlyMode.value) {
+      guestList.value = appendGuestToList(guestList.value, response.guest)
+    } else if (isUiOnlyMode.value) {
+      people.value.push({
+        guestId: response.guest._id,
+        name: response.guest.name,
+        email: response.guest.email,
+        guests: 0,
+        rsvpStatus: 'Pending',
+        invitationSent: false,
+      })
+    }
+
+    toast.add({
+      title: 'Guest added',
+      description: response.message,
+    })
+    isAddGuestModalOpen.value = false
+    resetAddGuestForm()
+  } catch (error) {
+    const validationMessage = formatGuestValidationErrors(error)
+    if (validationMessage) {
+      toast.add({
+        title: 'Validation failed',
+        description: validationMessage,
+        color: 'error',
+      })
+      return
+    }
+    reportApiError(toast, {
+      title: 'Could not add guest',
+      error,
+      fallback: getApiErrorMessage(error),
+    })
+  } finally {
+    isSubmittingGuest.value = false
+  }
+}
+
+function openRemoveGuestModal(person: Person) {
+  guestToRemove.value = person
+  isRemoveGuestModalOpen.value = true
+}
+
+function closeRemoveGuestModal() {
+  isRemoveGuestModalOpen.value = false
+  guestToRemove.value = null
+}
+
+async function handleRemoveGuest() {
+  const person = guestToRemove.value
+  if (!person?.guestId || deletingGuestId.value) {
+    return
+  }
+
+  if (isEventCancelled.value) {
+    toast.add({
+      title: 'Event cancelled',
+      description: 'Cannot modify the guest list for a cancelled event.',
+      color: 'error',
+    })
+    return
+  }
+
+  deletingGuestId.value = person.guestId
+  try {
+    const response = await deleteGuest(person.guestId)
+
+    if (eventId.value && !isUiOnlyMode.value) {
+      const updated = removeGuestFromList(
+        guestList.value,
+        rsvpSummary.value,
+        person.guestId
+      )
+      guestList.value = updated.guestList
+      rsvpSummary.value = updated.rsvpSummary
+    } else {
+      people.value = people.value.filter(entry => entry.guestId !== person.guestId)
+    }
+
+    toast.add({
+      title: 'Guest removed',
+      description: response.message,
+    })
+    closeRemoveGuestModal()
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not remove guest', error })
+  } finally {
+    deletingGuestId.value = null
+  }
+}
+
+async function handleInviteAll() {
+  if (isInvitingAll.value || !canInviteAll.value) {
+    return
+  }
+
+  if (!eventId.value && !isUiOnlyMode.value) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+
+  if (isEventCancelled.value) {
+    toast.add({
+      title: 'Event cancelled',
+      description: 'Cannot send invitations for a cancelled event.',
+      color: 'error',
+    })
+    return
+  }
+
+  isInvitingAll.value = true
+  try {
+    const targetEventId = eventId.value || 'mock-event-id'
+    const response = await sendAllGuestInvites(targetEventId)
+
+    if (eventId.value && !isUiOnlyMode.value) {
+      const updated = applySendAllInvitesToGuestList(
+        guestList.value,
+        rsvpSummary.value,
+        response
+      )
+      guestList.value = updated.guestList
+      rsvpSummary.value = updated.rsvpSummary
+    } else {
+      for (const person of people.value) {
+        if (!person.invitationSent) {
+          person.invitationSent = true
+        }
+      }
+    }
+
+    const skipped = response.skippedAlreadyInvited ?? 0
+    let description = response.message
+    if (response.created > 0 || skipped > 0) {
+      description = `${response.created} invitation(s) sent`
+      if (skipped > 0) {
+        description += `, ${skipped} already invited`
+      }
+      description += '.'
+    }
+
+    toast.add({
+      title: 'Invitations sent',
+      description,
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not send invitations', error })
+  } finally {
+    isInvitingAll.value = false
+  }
+}
+
+async function handleSendGuestInvite(guestId: string) {
+  if (!guestId || sendingGuestId.value || isInvitingAll.value) {
+    return
+  }
+
+  if (isEventCancelled.value) {
+    toast.add({
+      title: 'Event cancelled',
+      description: 'Cannot send invitations for a cancelled event.',
+      color: 'error',
+    })
+    return
+  }
+
+  sendingGuestId.value = guestId
+  try {
+    const response = await sendGuestInvite(guestId)
+
+    if (eventId.value && !isUiOnlyMode.value) {
+      const updated = applySendInviteToGuestList(
+        guestList.value,
+        rsvpSummary.value,
+        guestId,
+        response
+      )
+      guestList.value = updated.guestList
+      rsvpSummary.value = updated.rsvpSummary
+    } else {
+      const person = people.value.find((entry) => entry.guestId === guestId)
+      if (person) {
+        person.invitationSent = true
+      }
+    }
+
+    toast.add({
+      title: 'Invitation sent',
+      description: response.message,
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not send invitation', error })
+  } finally {
+    sendingGuestId.value = null
   }
 }
 
@@ -440,55 +790,12 @@ const columns: TableColumn<Person>[] = [
   { accessorKey: 'actions', header: '' }
 ]
 
-const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
-
-type Person = {
-  name: string
-  email: string
-  guests: number
-  rsvpStatus: typeof rsvpOptions[number]
-  invitationSent: boolean
-  phone: number
-}
-
-const people = ref<Person[]>([
-  {
-    name: 'John Smith',
-    email: 'john.smith@example.com',
-    guests: 2,
-    rsvpStatus: 'Attending',
-    invitationSent: true,
-    phone: 1234567890,
-  },
-  {
-    name: 'Emily White',
-    email: 'emily.white@example.com',
-    guests: 1,
-    rsvpStatus: 'Pending',
-    invitationSent: true,
-    phone: 2345678901,
-  },
-  {
-    name: 'Michael Brown',
-    email: 'michael.brown@example.com',
-    guests: 4,
-    rsvpStatus: 'Not Attending',
-    invitationSent: false,
-    phone: 3456789012,
-  }
-])
-
 const tableData = computed(() => {
   if (eventId.value && !isUiOnlyMode.value) {
     return guestList.value.map(mapGuestToPerson)
   }
   return people.value
 })
-
-const deleteUser = (userName: string) => alert(`This would delete ${userName}`)
-
-
-const prefix = ref(['Mr.', 'Mrs.', 'Ms.', 'Mx.'])
 
 const taskPriorities = ['Urgent', 'Medium', 'Low']
 
@@ -774,50 +1081,99 @@ const tabItems = [
       <div class="flex justify-between">
         <div class="text-xl text-pretty font-semibold text-muted uppercase">Guest List</div>
 
-        <div class="space-x-2">
-          <UButton to="/RSVPMakerCopy"  icon="i-lucide-calendar">RSVP Maker</UButton>
+        <div class="flex flex-wrap gap-2 justify-end">
+          <UButton to="/RSVPMakerCopy" icon="i-lucide-calendar">
+            RSVP Maker
+          </UButton>
 
-        <!-- Add Guest Modal Start -->
+          <UButton
+            icon="i-lucide-mail"
+            variant="soft"
+            :loading="isInvitingAll"
+            :disabled="!canInviteAll || Boolean(sendingGuestId)"
+            @click="handleInviteAll"
+          >
+            Invite all
+          </UButton>
 
-          <UModal title="Add Guest" :ui="{
-            header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
-            content: 'border-none ring-transparent w-1/4',
-            overlay: 'bg-toast-900/30'
-          }" :close="{
-          variant: 'link',
-          class: 'rounded-full text-white'
-        }" :dismissible="false">
-            <UButton icon="i-lucide-user-plus">Add Guest</UButton>
+          <UButton
+            variant="outline"
+            icon="i-lucide-users"
+            :disabled="!eventId && !isUiOnlyMode"
+            :to="eventId || isUiOnlyMode
+              ? { path: '/AddGuestsBulk', query: { eventId: eventId || 'mock-event-id' } }
+              : undefined"
+          >
+            Add multiple guests
+          </UButton>
+
+          <UModal
+            v-model:open="isAddGuestModalOpen"
+            title="Add Guest"
+            :ui="{
+              header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
+              content: 'border-none ring-transparent w-1/4',
+              overlay: 'bg-toast-900/30'
+            }"
+            :close="{
+              variant: 'link',
+              class: 'rounded-full text-white'
+            }"
+            :dismissible="false"
+          >
+            <UButton
+              icon="i-lucide-user-plus"
+              :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
+            >
+              Add Guest
+            </UButton>
             <template #body>
-              <UForm class="space-y-4">
-                <div class="mb-1 text-sm font-medium">Name <span class="text-error">*</span></div>
-                <UFieldGroup label="Name" name="name" required class="w-full">
-                  <USelect :items="prefix" />
-                  <UInput placeholder="Juan Dela Cruz" class="w-full" />
-                </UFieldGroup>
-                <UFormField label="Email" name="email" required>
-                  <UInput type="email" class="w-full" placeholder="jdelacruz@example.com" />
+              <UForm
+                :schema="addGuestSchema"
+                :state="addGuestState"
+                class="space-y-4"
+                @submit="handleAddGuest"
+              >
+                <UFormField label="Name" name="name" required>
+                  <UInput
+                    v-model="addGuestState.name"
+                    class="w-full"
+                    placeholder="Juan Dela Cruz"
+                  />
                 </UFormField>
-                <UFormField label="Phone Number" name="phone" required>
-                  <UInputNumber type="tel" class="w-full" placeholder="09123456789" :increment="false"
-                    :decrement="false" />
+                <UFormField label="Email" name="email" required>
+                  <UInput
+                    v-model="addGuestState.email"
+                    type="email"
+                    class="w-full"
+                    placeholder="jdelacruz@example.com"
+                  />
                 </UFormField>
 
-                <UButton type="submit" block class="mt-4">
+                <UButton
+                  type="submit"
+                  block
+                  class="mt-4"
+                  :loading="isSubmittingGuest"
+                  :disabled="isEventCancelled"
+                >
                   Add Guest
                 </UButton>
               </UForm>
             </template>
           </UModal>
-
-          <!-- Add Guest Modal End -->
         </div>
       </div>
       <UPageGrid>
-        <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="100" description="Total Invitations Sent"
-          :ui="{ title: 'text-primary', description: 'text-toast-400' }">
+        <UPageCard
+          class="bg-toast-50 ring ring-inset ring-primary/25"
+          description="Invitations sent / guest list"
+          :ui="{ title: 'text-primary', description: 'text-toast-400' }"
+        >
           <template #title>
-            <div class="text-2xl font-bold">{{ rsvpStats.invitationsSent }}</div>
+            <div class="text-2xl font-bold">
+              {{ invitationsSentFraction }}
+            </div>
           </template>
         </UPageCard>
         <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="75" description="Total Responses"
@@ -834,8 +1190,76 @@ const tabItems = [
         </UPageCard>
       </UPageGrid>
       <UTable :data="tableData" :columns="columns">
-
+        <template #invitationSent-cell="{ row }">
+          <UBadge
+            :color="row.original.invitationSent ? 'success' : 'neutral'"
+            variant="subtle"
+          >
+            {{ row.original.invitationSent ? 'Sent' : 'Not sent' }}
+          </UBadge>
+        </template>
+        <template #actions-cell="{ row }">
+          <div class="flex flex-wrap items-center justify-end gap-1">
+            <UButton
+              v-if="!row.original.invitationSent"
+              size="xs"
+              variant="soft"
+              :loading="sendingGuestId === row.original.guestId"
+              :disabled="isEventCancelled || !row.original.guestId || isInvitingAll"
+              @click="handleSendGuestInvite(row.original.guestId)"
+            >
+              Send Invitation
+            </UButton>
+            <span
+              v-else
+              class="text-xs text-muted px-1"
+            >
+              Sent
+            </span>
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="error"
+              icon="i-lucide-trash-2"
+              :disabled="isEventCancelled || !row.original.guestId"
+              @click="openRemoveGuestModal(row.original)"
+            />
+          </div>
+        </template>
       </UTable>
+
+      <UModal
+        v-model:open="isRemoveGuestModalOpen"
+        title="Remove guest"
+        :dismissible="!deletingGuestId"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+      >
+        <template #body>
+          <p class="text-sm text-muted mb-4">
+            Remove
+            <span class="font-medium text-highlighted">{{ guestToRemove?.name }}</span>
+            ({{ guestToRemove?.email }}) from the guest list?
+            <template v-if="guestToRemove?.invitationSent">
+              Their RSVP invitation will also be removed.
+            </template>
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="Boolean(deletingGuestId)"
+              @click="closeRemoveGuestModal"
+            />
+            <UButton
+              label="Remove guest"
+              color="error"
+              :loading="Boolean(deletingGuestId)"
+              @click="handleRemoveGuest"
+            />
+          </div>
+        </template>
+      </UModal>
     </UPageCard>
 
     <!-- Tasks Container -->
