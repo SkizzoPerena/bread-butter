@@ -45,6 +45,7 @@ const dropitems: DropdownMenuItem[][] = [
       <NuxtLink to="/UserDashboard" class="flex items-center">
         <img src="..\assets\bpb-icons\logo-white.svg" class="h-7" />
       </NuxtLink>
+      <div class="font-semibold font-serif text-2xl text-white mx-3">Jane & John's Wedding</div>
     </template>
     <template #right>
       <div class="flex items-center gap-3">
@@ -71,9 +72,9 @@ const dropitems: DropdownMenuItem[][] = [
       </div>
     </template>
   </UDashboardNavbar>
-  <UDashboardPanel>
+
     <slot />
-  </UDashboardPanel>
+
 </template>
 
 <style></style>

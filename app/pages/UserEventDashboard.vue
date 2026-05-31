@@ -796,521 +796,350 @@ const columns: TableColumn<Person>[] = [
   { accessorKey: 'actions', header: '' }
 ]
 
-const tableData = computed(() => {
-  if (eventId.value && !isUiOnlyMode.value) {
-    return guestList.value.map(mapGuestToPerson)
-  }
-  return people.value
-})
+const dashboardItems = [
+  { label: 'Website', icon: 'i-lucide-globe' },
+  { label: 'RSVP', icon: 'i-lucide-mail' },
+  { label: 'Invitations', icon: 'i-lucide-send' },
+  { label: 'Guest List', icon: 'i-lucide-users' },
+  { label: 'Schedules', icon: 'i-lucide-calendar' },
+  { label: 'Photos', icon: 'i-lucide-camera' },
+  { label: 'Stationery', icon: 'i-lucide-pen-tool' },
+  { label: 'Settings', icon: 'i-lucide-settings' },
+  { label: 'Tasks', icon: 'i-lucide-list-todo' }
+]
 
 </script>
 
 <template>
-  <UContainer class="space-y-8 pb-8">
-    <div
-      class="relative w-full overflow-hidden rounded-lg h-48 sm:h-56 md:h-64 max-h-72"
-    >
-      <USkeleton
-        v-if="isLoadingEvent && eventId"
-        class="absolute inset-0 h-full w-full"
-      />
-      <img
-        v-else-if="eventCoverUrl"
-        :src="eventCoverUrl"
-        :alt="eventTitle || 'Event cover'"
-        class="absolute inset-0 h-full w-full object-cover object-center"
-        @error="onCoverImageError"
-      >
-      <div
-        v-else
-        class="absolute inset-0 bg-gradient-to-br from-toast-400 to-toast-600"
-      />
-
-      <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
-
-      <div class="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 sm:p-6">
-        <div class="min-w-0 flex-1 text-white">
-          <USkeleton
-            v-if="isLoadingEvent && eventId"
-            class="mb-2 h-8 w-3/4 max-w-sm bg-white/20"
-          />
-          <h1
-            v-else
-            class="truncate text-2xl font-bold sm:text-3xl md:text-4xl font-serif"
-          >
-            {{ eventTitle }}
-          </h1>
-          <div
-            v-if="isLoadingEvent && eventId"
-            class="mt-3 flex flex-wrap gap-2"
-          >
-            <USkeleton class="h-6 w-32 bg-white/20" />
-            <USkeleton class="h-6 w-40 bg-white/20" />
-          </div>
-          <div
-            v-else
-            class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/90 sm:text-base"
-          >
-            <span
-              v-if="eventDateLabel"
-              class="inline-flex items-center gap-1.5 min-w-0"
-            >
-              <UIcon name="i-lucide-calendar" class="shrink-0 size-4" />
-              <span>{{ eventDateLabel }}</span>
-            </span>
-            <span
-              v-if="eventVenue"
-              class="inline-flex items-center gap-1.5 min-w-0 max-w-full"
-            >
-              <UIcon name="i-lucide-map-pin" class="shrink-0 size-4" />
-              <span class="truncate">{{ eventVenue }}</span>
-            </span>
-          </div>
-        </div>
-
-        <UModal
-          v-model="isEditModalOpen"
-          title="Edit Event"
-          :ui="{
-            header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
-            content: 'border-none ring-transparent w-1/4',
-            overlay: 'bg-toast-900/30'
-          }"
-          :close="{
-            variant: 'link',
-            class: 'rounded-full text-white'
-          }"
-          :dismissible="false"
-        >
-          <UButton
-            icon="i-lucide-pen"
-            variant="solid"
-            color="neutral"
-            class="shrink-0 bg-white/90 text-highlighted hover:bg-white"
-            @click="openEditModal"
-          />
-          <template #body>
-            <UForm
-              class="space-y-4"
-              @submit.prevent="handleUpdateEvent"
-            >
-              <UFormField label="Event Name" name="name" required>
-                <UInput
-                  v-model="editForm.eventName"
-                  class="w-full"
-                  placeholder="Jane & John's Wedding"
-                />
-              </UFormField>
-
-              <UFormField label="Event Date" name="date">
-                <UInput
-                  :model-value="eventDateLabel"
-                  class="w-full"
-                  disabled
-                />
-              </UFormField>
-
-              <UFormField label="Venue" name="venue" required>
-                <UInput
-                  v-model="editForm.venue"
-                  class="w-full"
-                  placeholder="Manila Cathedral"
-                />
-              </UFormField>
-
-              <UFormField label="Description" name="description" required>
-                <UTextarea
-                  v-model="editForm.description"
-                  class="w-full"
-                  placeholder="Tell us more about your special day"
-                />
-              </UFormField>
-
-              <UFormField label="Cover Image" name="coverImage" required>
-                <div class="flex items-center gap-3">
-                  <UButton variant="solid" @click="editCoverImageInput?.click()">
-                    Choose file
-                  </UButton>
-                  <span class="text-sm text-muted truncate">
-                    {{ editCoverImageFile?.name || 'No file chosen' }}
-                  </span>
-                  <input
-                    ref="editCoverImageInput"
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    class="hidden"
-                    @change="onEditCoverImageChange"
-                  >
-                </div>
-              </UFormField>
-
-              <UButton
-                type="submit"
-                block
-                class="mt-4"
-                :loading="isSubmittingEventUpdate"
-              >
-                Save Changes
-              </UButton>
-            </UForm>
-          </template>
-        </UModal>
-      </div>
-    </div>
-
-    <UPageCard
-      v-if="showPaymentProofForm"
-      class="white-bread-container border border-warning/30"
-      title="Payment proof required"
-      description="Submit your event creation fee payment to unlock all event features."
-    >
-      <UAlert
-        v-if="paymentDenialReason"
-        color="error"
-        variant="subtle"
-        title="Previous payment was denied"
-        :description="paymentDenialReason"
-        class="mb-4"
-      />
-      <UForm
-        class="space-y-4 max-w-lg"
-        @submit.prevent="handleSubmitPaymentProof"
-      >
-        <UFormField
-          label="Payment Transaction ID"
-          name="transactionId"
-          required
-        >
-          <UInput
-            v-model="paymentForm.transactionId"
-            class="w-full"
-            placeholder="GCash / bank reference number"
-          />
-        </UFormField>
-        <UFormField
-          label="Proof of Payment"
-          name="proofOfPayment"
-          required
-        >
-          <div class="flex items-center gap-3">
-            <UButton variant="solid" @click="proofOfPaymentInput?.click()">
-              Choose file
-            </UButton>
-            <span class="text-sm text-muted truncate">
-              {{ proofOfPaymentFile?.name || 'No file chosen' }}
-            </span>
-            <input
-              ref="proofOfPaymentInput"
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              class="hidden"
-              @change="onProofOfPaymentChange"
-            >
-          </div>
-        </UFormField>
-        <UButton
-          type="submit"
-          :loading="isSubmittingPayment"
-        >
-          Submit payment proof
-        </UButton>
-      </UForm>
-    </UPageCard>
-
-    <UPageCard
-      v-else-if="paymentPendingReview"
-      class="white-bread-container border border-info/30"
-      title="Payment pending review"
-      description="Your payment proof has been submitted and is awaiting admin approval."
-    />
+  <UMain class="">
 
     <UPageGrid>
-      <UPageCard class="white-bread-container items-start">
-        <UAvatar icon="i-lucide-clipboard-check" size="xl" class="ring ring-inset ring-primary/25 bg-toast-50" />
-        <div class="text-md font-semibold -mb-2 uppercase text-muted">Task Tracker</div>
-        <div class="flex items-center gap-2">
-          <div
-            class="font-bold"
-            :class="taskTracker.isEmpty ? 'text-lg' : 'text-2xl'"
-          >
-            {{ taskTracker.label }}
-          </div>
-          <UBadge
-            v-if="!taskTracker.isEmpty"
-            variant="subtle"
-          >
-            {{ taskTracker.percent }}%
-          </UBadge>
-        </div>
-      </UPageCard>
-
-      <UPageCard class="white-bread-container items-start">
-        <UAvatar icon="i-lucide-wallet" size="xl" class="ring ring-inset ring-primary/25 bg-toast-50" />
-        <div class="text-md font-semibold -mb-2 uppercase text-muted">Current Budget</div>
-        <div
-          class="font-bold"
-          :class="currentBudgetLabel === 'No Budget Yet' ? 'text-lg' : 'text-2xl'"
-        >
-          {{ currentBudgetLabel }}
-        </div>
-      </UPageCard>
-
-      <UPageCard class="white-bread-container items-start">
-        <UAvatar icon="i-lucide-globe" size="xl" class="ring ring-inset ring-primary/25 bg-toast-50" />
-        <div class="text-md font-semibold -mb-2 uppercase text-muted">Website Manager</div>
-        <div class="flex items-center gap-2">
-          <div class="font-bold text-2xl">LIVE</div>
-        </div>
-      </UPageCard>
-    </UPageGrid>
-
-    <UPageCard class="white-bread-container space-y-4">
-      <div class="flex justify-between">
-        <div class="text-xl text-pretty font-semibold text-muted uppercase">Guest List</div>
-
-        <div class="flex flex-wrap gap-2 justify-end">
-          <UButton to="/RSVPMakerCopy" icon="i-lucide-calendar">
-            RSVP Maker
-          </UButton>
-
-          <UButton
-            icon="i-lucide-list-checks"
-            variant="soft"
-            :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
-            @click="isQuestionsModalOpen = true"
-          >
-            RSVP Questions
-          </UButton>
-
-          <UButton
-            icon="i-lucide-mail"
-            variant="soft"
-            :loading="isInvitingAll"
-            :disabled="!canInviteAll || Boolean(sendingGuestId)"
-            @click="handleInviteAll"
-          >
-            Invite all
-          </UButton>
-
-          <UButton
-            variant="outline"
-            icon="i-lucide-users"
-            :disabled="!eventId && !isUiOnlyMode"
-            :to="eventId || isUiOnlyMode
-              ? { path: '/AddGuestsBulk', query: { eventId: eventId || 'mock-event-id' } }
-              : undefined"
-          >
-            Add multiple guests
-          </UButton>
-
-          <UModal
-            v-model:open="isAddGuestModalOpen"
-            title="Add Guest"
-            :ui="{
-              header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
-              content: 'border-none ring-transparent w-1/4',
-              overlay: 'bg-toast-900/30'
-            }"
-            :close="{
-              variant: 'link',
-              class: 'rounded-full text-white'
-            }"
-            :dismissible="false"
-          >
-            <UButton
-              icon="i-lucide-user-plus"
-              :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
-            >
-              Add Guest
-            </UButton>
-            <template #body>
-              <UForm
-                :schema="addGuestSchema"
-                :state="addGuestState"
-                class="space-y-4"
-                @submit="handleAddGuest"
-              >
-                <UFormField label="Name" name="name" required>
-                  <UInput
-                    v-model="addGuestState.name"
-                    class="w-full"
-                    placeholder="Juan Dela Cruz"
-                  />
-                </UFormField>
-                <UFormField label="Email" name="email" required>
-                  <UInput
-                    v-model="addGuestState.email"
-                    type="email"
-                    class="w-full"
-                    placeholder="jdelacruz@example.com"
-                  />
-                </UFormField>
-
-                <UButton
-                  type="submit"
-                  block
-                  class="mt-4"
-                  :loading="isSubmittingGuest"
-                  :disabled="isEventCancelled"
-                >
-                  Add Guest
-                </UButton>
-              </UForm>
-            </template>
-          </UModal>
-        </div>
-      </div>
-      <UPageGrid>
-        <UPageCard
-          class="bg-toast-50 ring ring-inset ring-primary/25"
-          description="Invitations sent / guest list"
-          :ui="{ title: 'text-primary', description: 'text-toast-400' }"
-        >
-          <template #title>
-            <div class="text-2xl font-bold">
-              {{ invitationsSentFraction }}
+      <UContainer class="col-span-2">
+<div class="flex items-center justify-center h-full">
+        <UPageColumns :ui="{base: 'gap-25 space-y-3'}">
+          
+          <div v-for="item in dashboardItems" :key="item.label" role="button" tabindex="0"
+            class="group flex flex-col items-center justify-center aspect-square w-fit h-fit p-4 cursor-pointer rounded-xl focus-visible:outline-none">
+            <div
+              class=" p-2 aspect-square flex flex-col  items-center justify-center rounded-full bg-primary transition-all duration-200 group-hover:bg-primary/80 group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-primary">
+              <UIcon :name="item.icon" class="size-9 m-2 text-white" />
             </div>
-          </template>
-        </UPageCard>
-        <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="75" description="Total Responses"
-          :ui="{ title: 'text-primary', description: 'text-toast-400' }">
-          <template #title>
-            <div class="text-2xl font-bold">{{ rsvpStats.responses }}</div>
-          </template>
-        </UPageCard>
-        <UPageCard class="bg-toast-50 ring ring-inset ring-primary/25" title="60" description="Total Attendees"
-          :ui="{ title: 'text-primary', description: 'text-toast-400' }">
-          <template #title>
-            <div class="text-2xl font-bold">{{ rsvpStats.attendees }}</div>
-          </template>
-        </UPageCard>
-      </UPageGrid>
-      <UTable :data="tableData" :columns="columns">
-        <template #invitationSent-cell="{ row }">
-          <UBadge
-            :color="row.original.invitationSent ? 'success' : 'neutral'"
-            variant="subtle"
-          >
-            {{ row.original.invitationSent ? 'Sent' : 'Not sent' }}
-          </UBadge>
-        </template>
-        <template #actions-cell="{ row }">
-          <div class="flex flex-wrap items-center justify-end gap-1">
-            <UButton
-              v-if="!row.original.invitationSent"
-              size="xs"
-              variant="soft"
-              :loading="sendingGuestId === row.original.guestId"
-              :disabled="isEventCancelled || !row.original.guestId || isInvitingAll"
-              @click="handleSendGuestInvite(row.original.guestId)"
-            >
-              Send Invitation
-            </UButton>
-            <span
-              v-else
-              class="text-xs text-muted px-1"
-            >
-              Sent
-            </span>
-            <UButton
-              size="xs"
-              variant="ghost"
-              color="error"
-              icon="i-lucide-trash-2"
-              :disabled="isEventCancelled || !row.original.guestId"
-              @click="openRemoveGuestModal(row.original)"
-            />
+            <div class="font-medium mt-3">{{ item.label }}</div>
           </div>
-        </template>
-      </UTable>
+        </UPageColumns>
+</div>
+      </UContainer>
 
-      <UModal
-        v-model:open="isRemoveGuestModalOpen"
-        title="Remove guest"
-        :dismissible="!deletingGuestId"
-        :ui="{ content: 'border-none ring-transparent max-w-md' }"
-      >
-        <template #body>
-          <p class="text-sm text-muted mb-4">
-            Remove
-            <span class="font-medium text-highlighted">{{ guestToRemove?.name }}</span>
-            ({{ guestToRemove?.email }}) from the guest list?
-            <template v-if="guestToRemove?.invitationSent">
-              Their RSVP invitation will also be removed.
+      <!-- Tasks Container -->
+      <UScrollArea class="h-[calc(100vh-64px)] py-6">
+        <UContainer class=" space-y-4">
+          <div class="flex justify-between">
+            <div class="text-xl font-bold text-muted uppercase">Tasks Checklist</div>
+
+            <!-- Add Task Modal Start -->
+
+            <UModal title="Add New Task" :ui="{
+              header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
+              content: 'border-none ring-transparent w-1/3',
+              overlay: 'bg-toast-900/30'
+            }" :close="{
+          variant: 'link',
+          class: 'rounded-full text-white'
+        }" :dismissible="false">
+              <UButton icon="i-lucide-list-plus">Add New Task</UButton>
+              <template #body>
+                <UForm class="space-y-4">
+                  <UFormField label="Task name" name="task-name" required>
+                    <UInput class="w-full" placeholder="Set an appointment" />
+                  </UFormField>
+                  <UFormField label="Description" name="description" required>
+                    <UTextarea class="w-full" placeholder="Drop your notes here" />
+                  </UFormField>
+                  <UFieldGroup class="w-full gap-2">
+                    <UFormField label="Priority" name="priority" required class="w-1/3">
+                      <USelect :items="taskPriorities" placeholder="Select priority" class="w-full" />
+                    </UFormField>
+                    <UFormField label="Budget" name="budget" required class="w-1/3">
+                      <UInputNumber :increment="false" :decrement="false" class="w-full" placeholder="in Php" />
+                    </UFormField>
+                    <UFormField label="Event Date" name="date" required class="w-1/3">
+                      <UPopover>
+                        <UButton color="neutral" variant="outline" class="w-full">
+                          {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
+                        </UButton>
+
+                        <template #content="{ close }">
+                          <UCalendar v-model="modelValue" class="p-2" @update:model-value="close" />
+                        </template>
+                      </UPopover>
+                    </UFormField>
+                  </UFieldGroup>
+
+                  <UFormField class="w-full" label="Supplementary File / Photo">
+                    <UFileUpload size="xl" variant="area" label="Drop your image here"
+                      description="SVG, PNG, JPG or GIF (max. 2MB)" />
+                  </UFormField>
+                  <UButton type="submit" block class="mt-4">
+                    Add Task
+                  </UButton>
+                </UForm>
+              </template>
+            </UModal>
+
+            <!-- Add Task Modal End -->
+
+
+          </div>
+          <UTabs :items="tabItems" variant="link">
+            <template #todo="{ item }">
+              <div class="mt-4">
+
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Book a photo booth</div>
+                    <UBadge color="error" variant="subtle">Urgent</UBadge>
+                  </div>
+
+                  <p class="text-sm text-muted mt-1">
+                    Find and book a photo booth service for the reception. Get quotes from at least 3 vendors.
+                  </p>
+
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Jun 15, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 20,000</span>
+                    </div>
+                  </div>
+
+                  <UButton block>Mark as Ongoing</UButton>
+
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Finalize catering menu</div>
+                    <UBadge color="secondary" variant="subtle">Medium</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Confirm final menu choices with the caterer and provide a final guest count.
+                  </p>
+
+                  <UButton block>Mark as Ongoing</UButton>
+
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Send out wedding invitations</div>
+                    <UBadge color="error" variant="subtle">Urgent</UBadge>
+                  </div>
+
+                  <p class="text-sm text-muted mt-1">
+                    Design, print, and mail the wedding invitations to all guests on the list.
+                  </p>
+
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Jul 1, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 15,000</span>
+                    </div>
+                  </div>
+
+                  <UButton block>Mark as Ongoing</UButton>
+
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Choose wedding cake flavor</div>
+                    <UBadge color="secondary" variant="subtle">Medium</UBadge>
+                  </div>
+
+                  <p class="text-sm text-muted mt-1">
+                    Schedule a tasting with the bakery and decide on the final cake flavor and design.
+                  </p>
+
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Aug 10, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 10,000</span>
+                    </div>
+                  </div>
+
+                  <UButton block>Mark as Ongoing</UButton>
+
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Arrange guest transportation</div>
+                    <UBadge color="success" variant="subtle">Low</UBadge>
+                  </div>
+
+                  <p class="text-sm text-muted mt-1">
+                    Look into shuttle services or carpooling options for out-of-town guests.
+                  </p>
+
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Sep 1, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 5,000</span>
+                    </div>
+                  </div>
+
+                  <UButton block>Mark as Ongoing</UButton>
+
+                </UPageCard>
+
+              </div>
             </template>
-          </p>
-          <div class="flex justify-end gap-2">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              :disabled="Boolean(deletingGuestId)"
-              @click="closeRemoveGuestModal"
-            />
-            <UButton
-              label="Remove guest"
-              color="error"
-              :loading="Boolean(deletingGuestId)"
-              @click="handleRemoveGuest"
-            />
-          </div>
-        </template>
-      </UModal>
-    </UPageCard>
+            <template #ongoing="{ item }">
+              <div class="mt-4">
 
-    <EventTaskSection
-      :event-id="eventId"
-      :event-record="eventRecord"
-      :tasks-summary="tasksSummary"
-      :is-event-cancelled="isEventCancelled"
-      @update:tasks-summary="tasksSummary = $event"
-    />
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Coordinate with florist</div>
+                    <UBadge color="secondary" variant="subtle">Medium</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Confirm flower arrangements, delivery schedule, and final payment with the florist.
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Oct 1, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 30,000</span>
+                    </div>
+                  </div>
+                  <UButton block class="mt-4">Mark as Complete</UButton>
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Trial hair and makeup</div>
+                    <UBadge color="error" variant="subtle">Urgent</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Schedule and attend hair and makeup trials for the bride and bridesmaids.
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Sep 20, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 8,000</span>
+                    </div>
+                  </div>
+                  <UButton block class="mt-4">Mark as Complete</UButton>
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Purchase wedding rings</div>
+                    <UBadge color="error" variant="subtle">Urgent</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Select and purchase wedding bands for the couple.
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Due: Aug 1, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 100,000</span>
+                    </div>
+                  </div>
+                  <UButton block class="mt-4">Mark as Complete</UButton>
+                </UPageCard>
 
-    <EventQuestionsModal
-      v-model:open="isQuestionsModalOpen"
-      :event-id="eventId || 'mock-event-id'"
-      :initial-questions="eventRecord?.questions ?? []"
-      @saved="loadEventData"
-    />
+              </div>
+            </template>
+            <template #completed="{ item }">
+              <div class="mt-4">
 
-    <UModal
-      v-model:open="isNoQuestionsWarningOpen"
-      title="No RSVP questions set"
-      :ui="{
-        header: 'bg-toast-400 border-none',
-        title: 'text-white font-serif text-xl',
-        content: 'border-none ring-transparent w-full max-w-md',
-        overlay: 'bg-toast-900/30',
-      }"
-      :close="{ variant: 'link', class: 'rounded-full text-white' }"
-    >
-      <template #body>
-        <p class="text-sm text-muted">
-          This event has no RSVP questions. Guests will receive an invitation but
-          won't be asked anything when they respond.
-        </p>
-        <p class="text-sm text-muted mt-2">
-          You can add questions anytime via the <strong>RSVP Questions</strong> button.
-          Do you want to send the invitation anyway?
-        </p>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            variant="outline"
-            color="neutral"
-            @click="isNoQuestionsWarningOpen = false; pendingInviteAction = null"
-          >
-            Cancel
-          </UButton>
-          <UButton @click="confirmInviteWithoutQuestions">
-            Send anyway
-          </UButton>
-        </div>
-      </template>
-    </UModal>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Book wedding venue</div>
+                    <UBadge color="success" variant="subtle">Low</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Secured the main wedding venue and paid the deposit.
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Completed: Jan 10, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 200,000</span>
+                    </div>
+                  </div>
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Create guest list draft</div>
+                    <UBadge color="success" variant="subtle">Low</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Initial draft of the guest list has been compiled.
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Completed: Feb 1, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 0</span>
+                    </div>
+                  </div>
+                </UPageCard>
+                <UPageCard class="white-bread-container">
+                  <div class="flex justify-between items-start">
+                    <div class="font-semibold">Engagement photoshoot</div>
+                    <UBadge color="success" variant="subtle">Low</UBadge>
+                  </div>
+                  <p class="text-sm text-muted mt-1">
+                    Successfully completed the engagement photoshoot.
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                      <span>Completed: Mar 5, 2025</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <UIcon name="i-lucide-wallet" class="text-muted" />
+                      <span>Budget: Php 12,000</span>
+                    </div>
+                  </div>
+                </UPageCard>
 
-  </UContainer>
+              </div>
+            </template>
+          </UTabs>
+
+        </UContainer>
+      </UScrollArea>
+    </UPageGrid>
+  </UMain>
 
 </template>
 
