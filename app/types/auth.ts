@@ -95,7 +95,11 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   }
 
   if (error && typeof error === 'object' && 'data' in error) {
-    const data = (error as { data?: { message?: string } }).data
+    const data = (error as { data?: { message?: string; errors?: string[] } }).data
+    const firstError = data?.errors?.find((entry) => typeof entry === 'string' && entry.trim())
+    if (firstError) {
+      return firstError
+    }
     if (data?.message) {
       return data.message
     }

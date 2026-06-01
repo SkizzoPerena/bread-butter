@@ -1,12 +1,89 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import aisleImage from '../assets/bpb-images/login-aisle.jpg'
+import { getApiErrorMessage, reportApiError } from '~/types/auth'
+import type { EventRecord } from '~/types/event'
+import { isEventPaymentApproved } from '~/types/payment'
+import {
+  applyCustomSiteToEditor,
+  buildCustomSiteFormData,
+  validateWebsiteEditorForSave,
+} from '~/utils/customSiteForm'
+
+const route = useRoute()
+const toast = useToast()
+const { isUiOnlyMode, loadPageData } = useApiMode()
+const { setActiveEvent } = useActiveEvent()
+const { fetchEvent } = useEvents()
+const {
+  fetchCustomSitesByEvent,
+  createCustomSite,
+  updateCustomSite,
+  publishCustomSite,
+  getSaveWebsiteEndpoint,
+} = useCustomSite()
+
+function displaySaveWebsiteEndpoint(customSiteIdForSave: string | null) {
+  if (isUiOnlyMode.value) {
+    const message = 'UI-only mode — no API request'
+    console.info('[Save Website]', message)
+    toast.add({ title: 'Save Website', description: message, color: 'info' })
+    return
+  }
+  const { method, url } = getSaveWebsiteEndpoint(customSiteIdForSave)
+  console.info(`[Save Website] ${method} ${url}`)
+  toast.add({
+    title: 'Save Website',
+    description: `${method} ${url}`,
+    color: 'info',
+  })
+}
+
+const eventId = computed(() => {
+  const value = route.query.eventId
+  return typeof value === 'string' ? value : ''
+})
+
+const eventDashboardPath = computed(() => ({
+  path: '/UserEventDashboard',
+  query: { eventId: eventId.value || 'mock-event-id' },
+}))
+
+const customSiteId = ref<string | null>(null)
+const eventRecord = ref<EventRecord | null>(null)
+const isLoadingSite = ref(false)
+const isLoadingEvent = ref(false)
+const isSaving = ref(false)
+
+const canPublishWebsite = computed(() => {
+  if (isUiOnlyMode.value) {
+    return true
+  }
+  return isEventPaymentApproved(eventRecord.value?.latestPayment)
+})
+
+const previewSiteTitle = computed(
+  () => websiteData.siteTitle.trim() || eventRecord.value?.eventName?.trim() || 'Your Site Title'
+)
+
+const previewSiteDescription = computed(
+  () =>
+    websiteData.siteDescription.trim() ||
+    eventRecord.value?.description?.trim() ||
+    'Your site description goes here.'
+)
+
+const makerHeaderTitle = computed(
+  () => eventRecord.value?.eventName?.trim() || 'Website Maker'
+)
+
+const loadedCustomSiteFromApi = ref(false)
 
 // 1. Website Data
 const websiteData = reactive({
     format: 'format1', // 'format1' = Classic Stack, 'format2' = Side-by-Side
-    siteTitle: 'Jane & John tie the knot',
-    siteDescription: 'A story of love, life, and commitment',
+    siteTitle: '',
+    siteDescription: '',
     domainName: '',
     contactEmail: '', // Default motif
     motif: 'Classic Romance',
@@ -173,6 +250,15 @@ const isLive = ref(false)
 const currentStep = ref(0) // 0-indexed for steps
 const showPassword = ref(false) // Toggle for password field
 
+watch(
+  () => websiteData.isPasswordProtected,
+  (enabled) => {
+    if (!enabled) {
+      websiteData.sitePassword = ''
+    }
+  }
+)
+
 const selectedPalette = computed<ColorPalette>(() => {
     return colorPalettes.find(p => p.name === websiteData.colorPalette) || colorPalettes[0]!
 })
@@ -333,8 +419,203 @@ watch(selectedHeaderFile, (newFile) => {
 }, { immediate: true }); // Watch immediately to handle initial state if any
 
 
-const toggleLive = () => {
-    isLive.value = !isLive.value
+async function loadEventContext() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    return
+  }
+  isLoadingEvent.value = true
+  try {
+    const detail = await loadPageData({
+      mock: () => ({
+        event: {
+          _id: eventId.value || 'mock-event-id',
+          eventType: 'WEDDING',
+          eventName: 'Mock event',
+          description: '',
+          venue: '',
+          eventDate: '2026-05-18T00:00:00.000Z',
+          status: 'ONGOING',
+          coverImageURL: null,
+          latestPayment: { status: 'APPROVED' },
+        },
+        guestList: [],
+        rsvpSummary: null,
+        tasks: null,
+      }),
+      fetch: async () => fetchEvent(eventId.value),
+    })
+    eventRecord.value = detail.event
+    setActiveEvent(detail.event)
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not load event', error })
+  } finally {
+    isLoadingEvent.value = false
+  }
+}
+
+function seedWebsiteDefaultsFromEvent() {
+  if (loadedCustomSiteFromApi.value) {
+    return
+  }
+  const eventName = eventRecord.value?.eventName?.trim()
+  if (eventName && !websiteData.siteTitle.trim()) {
+    websiteData.siteTitle = eventName
+  }
+  const description = eventRecord.value?.description?.trim()
+  if (description && !websiteData.siteDescription.trim()) {
+    websiteData.siteDescription = description
+  }
+}
+
+async function loadCustomSite() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    return
+  }
+  isLoadingSite.value = true
+  try {
+    await loadPageData({
+      fetch: async () => {
+        const targetEventId = eventId.value
+        const sites = await fetchCustomSitesByEvent(targetEventId)
+        const site = sites[0]
+        if (site) {
+          loadedCustomSiteFromApi.value = true
+          customSiteId.value = site._id
+          applyCustomSiteToEditor(site, {
+            websiteData,
+            sections,
+            tidbits,
+            scheduleItems,
+            selectedComponents,
+            isLive,
+          })
+        }
+      },
+      mock: () => undefined,
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not load website', error })
+  } finally {
+    isLoadingSite.value = false
+  }
+}
+
+onMounted(async () => {
+  await loadEventContext()
+  await loadCustomSite()
+  seedWebsiteDefaultsFromEvent()
+})
+
+async function saveCustomSite(): Promise<boolean> {
+  const validationError = validateWebsiteEditorForSave(
+    websiteData,
+    selectedHeaderFile.value
+  )
+  if (validationError) {
+    toast.add({ title: 'Cannot save', description: validationError, color: 'error' })
+    return false
+  }
+
+  const targetEventId = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!targetEventId) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open Website Maker from an event dashboard.',
+      color: 'error',
+    })
+    return false
+  }
+
+  isSaving.value = true
+  try {
+    const formData = buildCustomSiteFormData({
+      eventId: targetEventId,
+      websiteData,
+      sections: sections.value,
+      tidbits: tidbits.value,
+      scheduleItems: scheduleItems.value,
+      selectedComponents: selectedComponents.value,
+      selectedPalette: selectedPalette.value.colors,
+      selectedTypography: selectedTypography.value,
+      selectedHeaderFile: selectedHeaderFile.value,
+    })
+
+    let savedSite
+    if (customSiteId.value) {
+      displaySaveWebsiteEndpoint(customSiteId.value)
+      savedSite = await updateCustomSite(customSiteId.value, formData)
+      customSiteId.value = savedSite._id
+    } else {
+      try {
+        displaySaveWebsiteEndpoint(null)
+        savedSite = await createCustomSite(formData)
+        customSiteId.value = savedSite._id
+      } catch (error) {
+        const err = error as { status?: number; statusCode?: number; data?: { message?: string } }
+        const status = err.status ?? err.statusCode
+        const message = err.data?.message ?? getApiErrorMessage(error)
+        if (status === 409 || message.toLowerCase().includes('already has a custom site')) {
+          const sites = await fetchCustomSitesByEvent(targetEventId)
+          const existing = sites[0]
+          if (existing) {
+            customSiteId.value = existing._id
+            displaySaveWebsiteEndpoint(existing._id)
+            savedSite = await updateCustomSite(existing._id, formData)
+            customSiteId.value = savedSite._id
+          } else {
+            throw error
+          }
+        } else {
+          throw error
+        }
+      }
+    }
+
+    if (savedSite?.headerImageURL) {
+      websiteData.headerImage = savedSite.headerImageURL
+    }
+
+    toast.add({ title: 'Website saved', color: 'success' })
+    return true
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not save website', error })
+    return false
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function handleGoLive() {
+  if (isLive.value) {
+    isLive.value = false
+    return
+  }
+  if (!canPublishWebsite.value) {
+    toast.add({
+      title: 'Payment required',
+      description: 'Event payment must be approved before you can publish your website.',
+      color: 'warning',
+    })
+    return
+  }
+  const saved = await saveCustomSite()
+  if (!saved || !customSiteId.value) {
+    return
+  }
+  isSaving.value = true
+  try {
+    await publishCustomSite(customSiteId.value)
+    isLive.value = true
+    toast.add({ title: 'Website is live', color: 'success' })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not publish website', error })
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function handleSaveWebsite() {
+  await saveCustomSite()
 }
 
 const getDynamicStyle = (index: number) => {
@@ -380,12 +661,20 @@ const getGoogleMapsUrl = (location: string) => {
             <!-- LEFT SIDE: Back Button & Image Slot -->
             <template #left>
                 <div class="flex items-center gap-3">
-                    <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" class="rounded-lg"
-                        aria-label="Go back" to="/UserDashboard" />
+                    <UButton
+                        icon="i-lucide-arrow-left"
+                        color="neutral"
+                        variant="ghost"
+                        class="rounded-lg"
+                        aria-label="Go back"
+                        :to="eventDashboardPath"
+                    />
 
                     <!-- Image Slot Wrapper -->
                     <img src="..\assets\bpb-icons\logo-toast.svg" class="h-7" />
-                    <div class="font-serif text-xl font-bold">Website Maker</div>
+                    <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)]">
+                        {{ makerHeaderTitle }}
+                    </div>
                 </div>
             </template>
 
@@ -396,8 +685,22 @@ const getGoogleMapsUrl = (location: string) => {
                         ✨ Your website is live!
                     </div>
 
-                    <UButton :icon="isLive ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
-                        :color="isLive ? 'neutral' : 'primary'" @click="toggleLive">
+                    <UButton
+                        variant="outline"
+                        color="neutral"
+                        :loading="isSaving"
+                        :disabled="isLoadingSite || isLoadingEvent || isSaving"
+                        @click="handleSaveWebsite"
+                    >
+                        Save Website
+                    </UButton>
+                    <UButton
+                        :icon="isLive ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
+                        :color="isLive ? 'neutral' : 'primary'"
+                        :loading="isSaving"
+                        :disabled="isLoadingSite || isLoadingEvent || isSaving || (!isLive && !canPublishWebsite)"
+                        @click="handleGoLive"
+                    >
                         {{ isLive ? 'Edit Website' : 'Go Live' }}
                     </UButton>
                 </div>
@@ -810,8 +1113,31 @@ const getGoogleMapsUrl = (location: string) => {
                                     <p><strong>Color Palette:</strong> {{ websiteData.colorPalette || 'N/A' }}</p>
                                     <p><strong>Typography:</strong> {{ websiteData.typography || 'N/A' }}</p>
                                 </div>
-                                <UButton color="primary" block @click="toggleLive">
+                                <p
+                                    v-if="!canPublishWebsite"
+                                    class="text-sm text-gray-500 dark:text-gray-400"
+                                >
+                                    Event payment must be approved before you can publish your website. You can still save your progress.
+                                </p>
+                                <UButton
+                                    v-if="canPublishWebsite"
+                                    color="primary"
+                                    block
+                                    :loading="isSaving"
+                                    :disabled="isLoadingSite || isLoadingEvent || isSaving"
+                                    @click="handleGoLive"
+                                >
                                     Publish Website
+                                </UButton>
+                                <UButton
+                                    v-else
+                                    color="primary"
+                                    block
+                                    :loading="isSaving"
+                                    :disabled="isLoadingSite || isLoadingEvent || isSaving"
+                                    @click="handleSaveWebsite"
+                                >
+                                    Save Website
                                 </UButton>
                             </div>
 
@@ -858,11 +1184,11 @@ const getGoogleMapsUrl = (location: string) => {
                                     <h1 class="font-medium transition-all duration-300"
                                         :class="isLive ? 'text-6xl md:text-7xl' : 'text-4xl md:text-5xl'"
                                         :style="{ color: 'white', fontFamily: `'${selectedTypography.headerFont}'` }">
-                                        {{ websiteData.siteTitle || 'Your Site Title' }}
+                                        {{ previewSiteTitle }}
                                     </h1>
                                     <p class="transition-all duration-300" :class="isLive ? 'text-2xl' : 'text-lg'"
                                         :style="{ color: 'white' }">
-                                        {{ websiteData.siteDescription || 'Your site description goes here.' }}
+                                        {{ previewSiteDescription }}
                                     </p>
                                 </div>
                             </div>
@@ -893,11 +1219,11 @@ const getGoogleMapsUrl = (location: string) => {
                                             <h1 class="font-medium transition-all duration-300"
                                                 :class="isLive ? 'text-6xl md:text-7xl' : 'text-4xl md:text-5xl'"
                                                 :style="{ color: 'white', fontFamily: `'${selectedTypography.headerFont}'` }">
-                                                {{ websiteData.siteTitle || 'Your Site Title' }}
+                                                {{ previewSiteTitle }}
                                             </h1>
                                             <p class="transition-all duration-300"
                                                 :class="isLive ? 'text-2xl' : 'text-lg'" :style="{ color: 'white' }">
-                                                {{ websiteData.siteDescription || 'Your site description goes here.' }}
+                                                {{ previewSiteDescription }}
                                             </p>
 
                                         </div>

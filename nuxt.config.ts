@@ -44,8 +44,9 @@ export default defineNuxtConfig({
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
       useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',
-      // Override locally with NUXT_PUBLIC_API_BASE_URL in .env if needed
-      apiBase: 'https://bread-butter-backend.onrender.com/api'
+      apiBase:
+        process.env.NUXT_PUBLIC_API_BASE_URL ||
+        'https://bread-butter-backend.onrender.com/api',
     }
   },
 

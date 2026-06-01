@@ -73,3 +73,7 @@ export function needsPaymentSubmission(latestPayment?: PaymentRecord | null): bo
 export function isPaymentPendingReview(latestPayment?: PaymentRecord | null): boolean {
   return latestPayment?.status === 'PENDING'
 }
+
+export function isEventPaymentApproved(latestPayment?: PaymentRecord | null): boolean {
+  return latestPayment?.status === 'APPROVED'
+}

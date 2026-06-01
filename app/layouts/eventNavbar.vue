@@ -2,9 +2,24 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
 
+const route = useRoute()
+const { isUiOnlyMode } = useApiMode()
+const { displayName: eventDisplayName } = useActiveEvent()
+
+const headerEventTitle = computed(() => {
+  if (eventDisplayName.value) {
+    return eventDisplayName.value
+  }
+  const id = route.query.eventId
+  if (typeof id === 'string' && id && isUiOnlyMode.value) {
+    return "Jane & John's Wedding"
+  }
+  return 'Your event'
+})
+
 const { user, logout } = useAuth()
 
-const displayName = computed(() => {
+const userDisplayName = computed(() => {
   if (user.value?.firstName) {
     return `${user.value.firstName} ${user.value.lastName}`.trim()
   }
@@ -45,7 +60,9 @@ const dropitems: DropdownMenuItem[][] = [
       <NuxtLink to="/UserDashboard" class="flex items-center">
         <img src="..\assets\bpb-icons\logo-white.svg" class="h-7" />
       </NuxtLink>
-      <div class="font-semibold font-serif text-2xl text-white mx-3">Jane & John's Wedding</div>
+      <div class="font-semibold font-serif text-2xl text-white mx-3 truncate max-w-[min(100%,28rem)]">
+        {{ headerEventTitle }}
+      </div>
     </template>
     <template #right>
       <div class="flex items-center gap-3">
@@ -65,7 +82,7 @@ const dropitems: DropdownMenuItem[][] = [
           <template #account>
             <div class="flex items-center gap-2 text-white">
               <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
-              <span class="font-semibold">{{ displayName }}</span>
+              <span class="font-semibold">{{ userDisplayName }}</span>
             </div>
           </template>
         </UDropdownMenu>
