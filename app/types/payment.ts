@@ -2,6 +2,21 @@ export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
 
 export type PaymentType = 'EVENT_CREATION_FEE'
 
+export type RefundStatus = 'PENDING' | 'COMPLETED' | 'REJECTED'
+
+export interface RefundRecord {
+  _id: string
+  payment?: string
+  event?: string
+  user?: string
+  amount: number
+  status: RefundStatus
+  reason?: string
+  processedAt?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface PaymentRecord {
   _id: string
   user?: string
@@ -13,12 +28,14 @@ export interface PaymentRecord {
   }
   type: PaymentType
   amount: number
+  amountReceived?: number | null
   transactionId: string
   proofOfPaymentURL: string
   status: PaymentStatus
   denialReason?: string
   reviewedAt?: string | null
   reviewedBy?: string | null
+  refund?: RefundRecord | null
   createdAt?: string
   updatedAt?: string
 }

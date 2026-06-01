@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaymentRecord } from '~/types/payment'
+import type { PaymentRecord, PaymentStatus, RefundStatus } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { usePayments } from '~/composables/usePayments'
 
@@ -12,6 +12,80 @@ const { isUiOnlyMode, loadPageData } = useApiMode()
 const { getMyPayments } = usePayments()
 
 const payments = ref<PaymentRecord[]>([])
+
+const refundStatusColor: Record<RefundStatus, 'warning' | 'success' | 'error'> = {
+  PENDING: 'warning',
+  COMPLETED: 'success',
+  REJECTED: 'error'
+}
+
+const refundStatusLabel: Record<RefundStatus, string> = {
+  PENDING: 'Refund pending',
+  COMPLETED: 'Refund completed',
+  REJECTED: 'Refund rejected'
+}
+
+interface PaymentEntry {
+  id: string
+  kind: 'payment'
+  eventName: string
+  status: PaymentStatus
+  amount: number
+  expectedAmount: number
+  isOverpaid: boolean
+  date?: string
+}
+
+interface RefundEntry {
+  id: string
+  kind: 'refund'
+  eventName: string
+  status: RefundStatus
+  amount: number
+  reason?: string
+  date?: string
+}
+
+type TransactionEntry = PaymentEntry | RefundEntry
+
+const transactions = computed<TransactionEntry[]>(() => {
+  const entries: TransactionEntry[] = []
+
+  for (const p of payments.value) {
+    const eventName = typeof p.event === 'object' ? p.event.eventName : 'Event payment'
+    const paidAmount = typeof p.amountReceived === 'number' ? p.amountReceived : p.amount
+    const isOverpaid = typeof p.amountReceived === 'number' && p.amountReceived > p.amount
+
+    entries.push({
+      id: `${p._id}-payment`,
+      kind: 'payment',
+      eventName,
+      status: p.status,
+      amount: paidAmount,
+      expectedAmount: p.amount,
+      isOverpaid,
+      date: p.createdAt
+    })
+
+    if (p.refund) {
+      entries.push({
+        id: `${p._id}-refund`,
+        kind: 'refund',
+        eventName,
+        status: p.refund.status,
+        amount: p.refund.amount,
+        reason: p.refund.reason,
+        date: p.refund.createdAt ?? p.createdAt
+      })
+    }
+  }
+
+  return entries.sort((a, b) => {
+    const aTime = a.date ? new Date(a.date).getTime() : 0
+    const bTime = b.date ? new Date(b.date).getTime() : 0
+    return bTime - aTime
+  })
+})
 
 onMounted(async () => {
   try {
@@ -30,29 +104,70 @@ onMounted(async () => {
   <UContainer class="space-y-6">
     <UPageHeader title="Transactions" description="Your payment history." />
 
-    <UPageCard class="white-bread-container" title="Payments">
-      <div v-if="isUiOnlyMode" class="text-sm text-muted">
-        UI-only mode: no transactions to display.
-      </div>
-      <div v-else-if="payments.length === 0" class="text-sm text-muted">
-        No transactions yet.
-      </div>
-      <div v-else class="space-y-3">
-        <div v-for="p in payments" :key="p._id" class="flex items-start justify-between gap-4 border-b border-default pb-3">
-          <div class="min-w-0">
-            <div class="font-medium truncate">
-              {{ typeof p.event === 'object' ? p.event.eventName : 'Event payment' }}
+    <div v-if="isUiOnlyMode" class="text-sm text-muted">
+      UI-only mode: no transactions to display.
+    </div>
+    <div v-else-if="transactions.length === 0" class="text-sm text-muted">
+      No transactions yet.
+    </div>
+    <div v-else class="space-y-3">
+      <UPageCard
+        v-for="entry in transactions"
+        :key="entry.id"
+        class="white-bread-container"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0 space-y-1">
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="entry.kind === 'refund' ? 'i-lucide-banknote' : 'i-lucide-receipt'"
+                class="size-4 text-muted shrink-0"
+              />
+              <span class="font-medium truncate">
+                {{ entry.kind === 'refund' ? `Refund — ${entry.eventName}` : entry.eventName }}
+              </span>
             </div>
-            <div class="text-sm text-muted">
-              {{ p.status }} • Php {{ p.amount.toLocaleString() }}
-            </div>
+
+            <template v-if="entry.kind === 'payment'">
+              <div class="text-lg font-semibold">
+                Php {{ entry.amount.toLocaleString() }}
+              </div>
+              <div class="text-sm text-muted">
+                {{ entry.status }}
+              </div>
+              <div v-if="entry.isOverpaid" class="text-xs text-muted">
+                Includes Php {{ (entry.amount - entry.expectedAmount).toLocaleString() }}
+                over the Php {{ entry.expectedAmount.toLocaleString() }} fee.
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="text-lg font-semibold">
+                Php {{ entry.amount.toLocaleString() }}
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <UBadge
+                  :color="refundStatusColor[entry.status]"
+                  variant="soft"
+                  size="sm"
+                  :label="refundStatusLabel[entry.status]"
+                />
+                <span
+                  v-if="entry.status === 'REJECTED' && entry.reason"
+                  class="text-xs text-muted"
+                >
+                  — {{ entry.reason }}
+                </span>
+              </div>
+            </template>
           </div>
-          <div class="text-sm text-muted text-right">
-            {{ p.createdAt ? new Date(p.createdAt).toLocaleString() : '' }}
+
+          <div class="text-sm text-muted text-right shrink-0">
+            {{ entry.date ? new Date(entry.date).toLocaleString() : '' }}
           </div>
         </div>
-      </div>
-    </UPageCard>
+      </UPageCard>
+    </div>
   </UContainer>
 </template>
 
