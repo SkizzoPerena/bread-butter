@@ -47,6 +47,10 @@ const dropitems: DropdownMenuItem[][] = [
     icon: 'i-lucide-receipt',
     to: '/UserTransactions'
   }, {
+    label: 'Report Issue',
+    icon: 'i-lucide-message-square-warning',
+    to: '/UserReportIssue'
+  }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
     onSelect: () => logout()
