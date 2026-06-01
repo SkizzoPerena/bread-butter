@@ -6,6 +6,7 @@ export interface AuthUser {
   lastName: string
   gender: string
   profileImageURL?: string
+  emailNotifEnabled?: boolean
   isRestricted?: boolean
 }
 
@@ -15,6 +16,7 @@ export interface UserAccount {
   lastName: string
   gender: string
   profileImageURL?: string
+  emailNotifEnabled?: boolean
   subscriptionLevel?: string
   contactNumber?: string
 }

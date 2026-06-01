@@ -9,7 +9,16 @@ definePageMeta({
 })
 
 const toast = useToast()
-const { fetchAccount, saveAccount, uploadProfilePicture, changePassword, isAuthenticated, isUiOnlyMode } = useAccount()
+const {
+  fetchAccount,
+  saveAccount,
+  uploadProfilePicture,
+  changePassword,
+  enableEmailNotifications,
+  disableEmailNotifications,
+  isAuthenticated,
+  isUiOnlyMode,
+} = useAccount()
 
 const genderOptions = [
   { label: 'Male', value: 'MALE' },
@@ -57,6 +66,9 @@ const passwordState = reactive({
 })
 const isChangingPassword = ref(false)
 
+const emailNotifEnabled = ref(true)
+const isUpdatingEmailNotif = ref(false)
+
 const displayName = computed(() => `${state.firstName} ${state.lastName}`.trim())
 const profileImageSrc = computed(() => resolveProfileImageUrl(profileImageURL.value))
 
@@ -66,6 +78,7 @@ function applyAccountToForm(account: {
   lastName: string
   gender: string
   profileImageURL?: string
+  emailNotifEnabled?: boolean
 }) {
   state.firstName = account.firstName
   state.lastName = account.lastName
@@ -74,6 +87,7 @@ function applyAccountToForm(account: {
     ? account.gender
     : 'FEMALE'
   profileImageURL.value = account.profileImageURL ?? ''
+  emailNotifEnabled.value = account.emailNotifEnabled ?? true
 }
 
 async function loadProfile() {
@@ -165,6 +179,31 @@ async function submitPasswordChange() {
     reportApiError(toast, { title: 'Password update failed', error })
   } finally {
     isChangingPassword.value = false
+  }
+}
+
+async function onEmailNotifToggle(enabled: boolean) {
+  if (isUpdatingEmailNotif.value) {
+    return
+  }
+
+  const previous = emailNotifEnabled.value
+  emailNotifEnabled.value = enabled
+  isUpdatingEmailNotif.value = true
+
+  try {
+    const response = enabled
+      ? await enableEmailNotifications()
+      : await disableEmailNotifications()
+    toast.add({
+      title: enabled ? 'Email notifications on' : 'Email notifications off',
+      description: response.message,
+    })
+  } catch (error) {
+    emailNotifEnabled.value = previous
+    reportApiError(toast, { title: 'Could not update notification preference', error })
+  } finally {
+    isUpdatingEmailNotif.value = false
   }
 }
 
@@ -292,6 +331,35 @@ onMounted(async () => {
                 <UButton type="submit" :loading="isChangingPassword">Update password</UButton>
               </div>
             </UForm>
+          </div>
+        </template>
+
+        <template v-else-if="activeTab === 'preferences'">
+          <div class="text-lg text-pretty font-semibold text-muted">Preferences</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading preferences...
+          </div>
+          <div v-else class="mt-6 max-w-xl space-y-6">
+            <div>
+              <div class="text-base font-semibold text-default">Notifications</div>
+              <p class="mt-1 text-sm text-muted">
+                Manage how we contact you about your events and account.
+              </p>
+            </div>
+            <div class="flex items-start justify-between gap-4 rounded-lg border border-bread-300/60 p-4">
+              <div class="min-w-0">
+                <div class="font-medium">Email notifications</div>
+                <p class="mt-1 text-sm text-muted">
+                  Receive email updates about your events, payments, and account activity.
+                </p>
+              </div>
+              <USwitch
+                :model-value="emailNotifEnabled"
+                :loading="isUpdatingEmailNotif"
+                :disabled="isUpdatingEmailNotif"
+                @update:model-value="onEmailNotifToggle"
+              />
+            </div>
           </div>
         </template>
 

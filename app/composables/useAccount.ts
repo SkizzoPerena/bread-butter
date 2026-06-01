@@ -14,7 +14,8 @@ function mockAccount(storedUser: AuthUser | null): UserAccount {
     firstName: storedUser?.firstName ?? 'Jane',
     lastName: storedUser?.lastName ?? 'Doe',
     gender: storedUser?.gender ?? 'FEMALE',
-    profileImageURL: storedUser?.profileImageURL ?? ''
+    profileImageURL: storedUser?.profileImageURL ?? '',
+    emailNotifEnabled: storedUser?.emailNotifEnabled ?? true,
   }
 }
 
@@ -36,7 +37,8 @@ export function useAccount() {
       firstName: account.firstName,
       lastName: account.lastName,
       gender: account.gender,
-      profileImageURL: account.profileImageURL
+      profileImageURL: account.profileImageURL,
+      emailNotifEnabled: account.emailNotifEnabled ?? true,
     })
 
     return account
@@ -91,12 +93,42 @@ export function useAccount() {
     })
   }
 
+  async function enableEmailNotifications(): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      updateUser({ emailNotifEnabled: true })
+      return { success: true, message: 'Email notifications enabled.' }
+    }
+
+    const response = await apiRequest<AccountMessageResponse>(
+      '/user/account/email-notifications/enable',
+      { method: 'PATCH' }
+    )
+    updateUser({ emailNotifEnabled: true })
+    return response
+  }
+
+  async function disableEmailNotifications(): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      updateUser({ emailNotifEnabled: false })
+      return { success: true, message: 'Email notifications disabled.' }
+    }
+
+    const response = await apiRequest<AccountMessageResponse>(
+      '/user/account/email-notifications/disable',
+      { method: 'PATCH' }
+    )
+    updateUser({ emailNotifEnabled: false })
+    return response
+  }
+
   return {
     isAuthenticated,
     isUiOnlyMode,
     fetchAccount,
     saveAccount,
     uploadProfilePicture,
-    changePassword
+    changePassword,
+    enableEmailNotifications,
+    disableEmailNotifications,
   }
 }
