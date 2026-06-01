@@ -74,17 +74,40 @@ export interface SubmitEventPaymentPayload {
 
 export const EVENT_CREATION_FEE_PHP = 10000
 
-export function needsPaymentSubmission(latestPayment?: PaymentRecord | null): boolean {
-  if (!latestPayment) {
-    return true
+export interface EventPaymentSummary {
+  fee: number
+  totalReceived: number
+  balanceDue: number
+  isFullyPaid: boolean
+}
+
+interface EventPaymentContext {
+  latestPayment?: PaymentRecord | null
+  paymentSummary?: EventPaymentSummary | null
+}
+
+export function isEventFullyPaid(event?: EventPaymentContext | null): boolean {
+  if (event?.paymentSummary) {
+    return event.paymentSummary.isFullyPaid
   }
-  if (latestPayment.status === 'APPROVED') {
+  return event?.latestPayment?.status === 'APPROVED'
+}
+
+export function getEventBalanceDue(event?: EventPaymentContext | null): number {
+  if (event?.paymentSummary) {
+    return event.paymentSummary.balanceDue
+  }
+  return event?.latestPayment?.status === 'APPROVED' ? 0 : EVENT_CREATION_FEE_PHP
+}
+
+export function needsPaymentSubmission(event?: EventPaymentContext | null): boolean {
+  if (isEventFullyPaid(event)) {
     return false
   }
-  if (latestPayment.status === 'PENDING') {
+  if (event?.latestPayment?.status === 'PENDING') {
     return false
   }
-  return latestPayment.status === 'DENIED'
+  return true
 }
 
 export function isPaymentPendingReview(latestPayment?: PaymentRecord | null): boolean {

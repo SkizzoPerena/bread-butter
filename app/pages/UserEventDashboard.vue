@@ -4,6 +4,9 @@ import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import { DateFormatter } from '@internationalized/date'
 import type { EventRecord, GuestRecord, RsvpSummary, TasksSummary } from '~/types/event'
 import {
+  EVENT_CREATION_FEE_PHP,
+  getEventBalanceDue,
+  isEventFullyPaid,
   isPaymentPendingReview,
   needsPaymentSubmission
 } from '~/types/payment'
@@ -77,11 +80,23 @@ const proofOfPaymentFile = ref<File | null>(null)
 const proofOfPaymentInput = ref<HTMLInputElement | null>(null)
 
 const showPaymentProofForm = computed(() =>
-  eventRecord.value ? needsPaymentSubmission(eventRecord.value.latestPayment) : false
+  eventRecord.value ? needsPaymentSubmission(eventRecord.value) : false
 )
 
 const paymentPendingReview = computed(() =>
   eventRecord.value ? isPaymentPendingReview(eventRecord.value.latestPayment) : false
+)
+
+const isEventPaidInFull = computed(() =>
+  eventRecord.value ? isEventFullyPaid(eventRecord.value) : false
+)
+
+const paymentBalanceDue = computed(() =>
+  eventRecord.value ? getEventBalanceDue(eventRecord.value) : EVENT_CREATION_FEE_PHP
+)
+
+const showPaymentSection = computed(() =>
+  Boolean(eventRecord.value) && !isEventPaidInFull.value
 )
 
 const paymentDenialReason = computed(() =>
@@ -786,6 +801,7 @@ async function handleSubmitPaymentProof() {
       eventRecord.value = {
         ...eventRecord.value,
         latestPayment: updatedEvent.latestPayment ?? null,
+        paymentSummary: updatedEvent.paymentSummary ?? eventRecord.value.paymentSummary,
       }
     } else {
       eventRecord.value = updatedEvent
@@ -870,7 +886,78 @@ const dashboardItems = [
   <UMain class="">
 
     <UPageGrid>
-      <UContainer class="col-span-2">
+      <UContainer class="col-span-2 space-y-6">
+
+        <UPageCard
+          v-if="showPaymentSection"
+          class="white-bread-container"
+          title="Settle event payment"
+          :description="`Outstanding balance: Php ${paymentBalanceDue.toLocaleString()}`"
+        >
+          <div v-if="paymentPendingReview" class="space-y-2">
+            <UBadge color="warning" variant="soft" label="Pending review" />
+            <p class="text-sm text-muted">
+              Your payment is awaiting admin review. Once it's approved you can publish
+              your website. If the approved amount is less than the fee, a remaining
+              balance will appear here for you to settle.
+            </p>
+          </div>
+
+          <UForm
+            v-else
+            :state="paymentForm"
+            class="space-y-4"
+            @submit.prevent="handleSubmitPaymentProof"
+          >
+            <UAlert
+              v-if="paymentDenialReason"
+              color="error"
+              variant="soft"
+              icon="i-lucide-circle-alert"
+              title="Previous payment was denied"
+              :description="paymentDenialReason"
+            />
+
+            <p class="text-sm text-muted">
+              Amount to pay now:
+              <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
+              Upload your proof of payment and reference number, then an admin will
+              verify it.
+            </p>
+
+            <UFormField label="Transaction / reference ID" name="transactionId" required>
+              <UInput
+                v-model="paymentForm.transactionId"
+                class="w-full"
+                placeholder="e.g. GCash or bank reference number"
+              />
+            </UFormField>
+
+            <UFormField label="Proof of payment" name="proofOfPayment" required>
+              <input
+                ref="proofOfPaymentInput"
+                type="file"
+                accept="image/*"
+                class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-white"
+                @change="onProofOfPaymentChange"
+              >
+              <p v-if="proofOfPaymentFile" class="mt-1 text-xs text-muted">
+                Selected: {{ proofOfPaymentFile.name }}
+              </p>
+            </UFormField>
+
+            <div class="flex justify-end">
+              <UButton
+                type="submit"
+                label="Submit payment proof"
+                icon="i-lucide-upload"
+                color="primary"
+                :loading="isSubmittingPayment"
+              />
+            </div>
+          </UForm>
+        </UPageCard>
+
 <div class="flex items-center justify-center h-full">
         <UPageColumns :ui="{base: 'gap-25 space-y-3'}">
           

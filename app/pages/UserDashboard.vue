@@ -2,7 +2,7 @@
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
 import { mapEventTypeToApi } from '~/types/event'
-import { EVENT_CREATION_FEE_PHP } from '~/types/payment'
+import { EVENT_CREATION_FEE_PHP, getEventBalanceDue, isEventFullyPaid } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
@@ -69,20 +69,24 @@ function formatEventDateLabel(iso: string): string {
 }
 
 function getPaymentStatusLabel(event: EventRecord): string {
-  const status = event.latestPayment?.status
-  if (!status) {
-    return 'Payment required'
+  if (isEventFullyPaid(event)) {
+    return 'Paid'
   }
+  const status = event.latestPayment?.status
   if (status === 'PENDING') {
     return 'Pending review'
   }
-  if (status === 'APPROVED') {
-    return 'Approved'
+  const balanceDue = getEventBalanceDue(event)
+  if (status === 'APPROVED' && balanceDue > 0) {
+    return `Partially paid — Php ${balanceDue.toLocaleString()} due`
   }
   if (status === 'DENIED') {
     return 'Denied'
   }
-  return status
+  if (!status) {
+    return 'Payment required'
+  }
+  return `Balance due: Php ${balanceDue.toLocaleString()}`
 }
 
 function onCoverImageError(event: Event) {

@@ -1,4 +1,4 @@
-import type { PaymentRecord } from '~/types/payment'
+import type { EventPaymentSummary, PaymentRecord } from '~/types/payment'
 
 export interface EventQuestion {
   question: string
@@ -16,6 +16,7 @@ export interface EventRecord {
   status: string
   coverImageURL?: string | null
   latestPayment?: PaymentRecord | null
+  paymentSummary?: EventPaymentSummary | null
   questions?: EventQuestion[]
 }
 

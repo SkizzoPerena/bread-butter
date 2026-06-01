@@ -33,6 +33,7 @@ interface PaymentEntry {
   amount: number
   expectedAmount: number
   isOverpaid: boolean
+  isUnderpaid: boolean
   date?: string
 }
 
@@ -55,6 +56,10 @@ const transactions = computed<TransactionEntry[]>(() => {
     const eventName = typeof p.event === 'object' ? p.event.eventName : 'Event payment'
     const paidAmount = typeof p.amountReceived === 'number' ? p.amountReceived : p.amount
     const isOverpaid = typeof p.amountReceived === 'number' && p.amountReceived > p.amount
+    const isUnderpaid =
+      p.status === 'APPROVED' &&
+      typeof p.amountReceived === 'number' &&
+      p.amountReceived < p.amount
 
     entries.push({
       id: `${p._id}-payment`,
@@ -64,6 +69,7 @@ const transactions = computed<TransactionEntry[]>(() => {
       amount: paidAmount,
       expectedAmount: p.amount,
       isOverpaid,
+      isUnderpaid,
       date: p.createdAt
     })
 
@@ -138,6 +144,10 @@ onMounted(async () => {
               <div v-if="entry.isOverpaid" class="text-xs text-muted">
                 Includes Php {{ (entry.amount - entry.expectedAmount).toLocaleString() }}
                 over the Php {{ entry.expectedAmount.toLocaleString() }} fee.
+              </div>
+              <div v-else-if="entry.isUnderpaid" class="text-xs text-warning">
+                Partial payment — Php {{ (entry.expectedAmount - entry.amount).toLocaleString() }}
+                remaining. Submit another payment to settle the balance.
               </div>
             </template>
 

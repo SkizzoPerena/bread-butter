@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import aisleImage from '../assets/bpb-images/login-aisle.jpg'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord } from '~/types/event'
-import { isEventPaymentApproved } from '~/types/payment'
+import { isEventFullyPaid } from '~/types/payment'
 import {
   applyCustomSiteToEditor,
   buildCustomSiteFormData,
@@ -59,7 +59,7 @@ const canPublishWebsite = computed(() => {
   if (isUiOnlyMode.value) {
     return true
   }
-  return isEventPaymentApproved(eventRecord.value?.latestPayment)
+  return isEventFullyPaid(eventRecord.value)
 })
 
 const previewSiteTitle = computed(
@@ -436,7 +436,7 @@ async function loadEventContext() {
           eventDate: '2026-05-18T00:00:00.000Z',
           status: 'ONGOING',
           coverImageURL: null,
-          latestPayment: { status: 'APPROVED' },
+          paymentSummary: { fee: 10000, totalReceived: 10000, balanceDue: 0, isFullyPaid: true },
         },
         guestList: [],
         rsvpSummary: null,
