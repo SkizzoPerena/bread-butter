@@ -22,7 +22,6 @@ const toast = useToast()
 const { updateTaskStatus } = useTasks()
 
 const updatingTaskId = ref<string | null>(null)
-const isViewAllOpen = ref(false)
 const isFormOpen = ref(false)
 
 const previewLimit = computed(() => props.tasksSummary?.preview.limit ?? 5)
@@ -92,11 +91,12 @@ function onTaskSaved() {
   emit('refresh')
 }
 
-watch(isViewAllOpen, (isOpen) => {
-  if (!isOpen) {
-    emit('refresh')
-  }
-})
+function goToTasksDashboard() {
+  navigateTo({
+    path: '/EventTasksDashboard',
+    query: { eventId: props.eventId },
+  })
+}
 </script>
 
 <template>
@@ -109,7 +109,7 @@ watch(isViewAllOpen, (isOpen) => {
           variant="link"
           color="primary"
           trailing-icon="i-lucide-arrow-right"
-          @click="isViewAllOpen = true"
+          @click="goToTasksDashboard"
         >
           View All
         </UButton>
@@ -207,7 +207,7 @@ watch(isViewAllOpen, (isOpen) => {
                 variant="link"
                 color="primary"
                 class="p-0 align-baseline"
-                @click="isViewAllOpen = true"
+                @click="goToTasksDashboard"
               >
                 View All
               </UButton>
@@ -225,7 +225,7 @@ watch(isViewAllOpen, (isOpen) => {
               variant="link"
               color="primary"
               class="p-0 align-baseline"
-              @click="isViewAllOpen = true"
+              @click="goToTasksDashboard"
             >
               View All
             </UButton>
@@ -299,7 +299,7 @@ watch(isViewAllOpen, (isOpen) => {
                 variant="link"
                 color="primary"
                 class="p-0 align-baseline"
-                @click="isViewAllOpen = true"
+                @click="goToTasksDashboard"
               >
                 View All
               </UButton>
@@ -317,7 +317,7 @@ watch(isViewAllOpen, (isOpen) => {
               variant="link"
               color="primary"
               class="p-0 align-baseline"
-              @click="isViewAllOpen = true"
+              @click="goToTasksDashboard"
             >
               View All
             </UButton>
@@ -396,7 +396,7 @@ watch(isViewAllOpen, (isOpen) => {
               variant="link"
               color="primary"
               class="p-0 align-baseline"
-              @click="isViewAllOpen = true"
+              @click="goToTasksDashboard"
             >
               View All
             </UButton>
@@ -404,22 +404,6 @@ watch(isViewAllOpen, (isOpen) => {
         </div>
       </template>
     </UTabs>
-
-    <UModal
-      v-model:open="isViewAllOpen"
-      title="All tasks"
-      :ui="{ content: 'border-none ring-transparent max-w-5xl w-full' }"
-    >
-      <template #body>
-        <EventTaskSection
-          :event-id="eventId"
-          :event-record="eventRecord"
-          :tasks-summary="tasksSummary"
-          :is-event-cancelled="isEventCancelled"
-          @update:tasks-summary="emit('update:tasksSummary', $event)"
-        />
-      </template>
-    </UModal>
 
     <TaskFormModal
       v-model:open="isFormOpen"

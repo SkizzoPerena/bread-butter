@@ -1,8 +1,6 @@
 ﻿<script lang="ts" setup>
-import * as z from 'zod'
-import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import { DateFormatter } from '@internationalized/date'
-import type { EventRecord, GuestRecord, RsvpSummary, TasksSummary } from '~/types/event'
+import type { EventRecord, TasksSummary } from '~/types/event'
 import {
   EVENT_CREATION_FEE_PHP,
   getEventBalanceDue,
@@ -10,17 +8,9 @@ import {
   isPaymentPendingReview,
   needsPaymentSubmission
 } from '~/types/payment'
-import { getApiErrorMessage, reportApiError } from '~/types/auth'
+import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
-import { useGuests } from '~/composables/useGuests'
 import { usePayments } from '~/composables/usePayments'
-import {
-  appendGuestToList,
-  applySendAllInvitesToGuestList,
-  applySendInviteToGuestList,
-  formatGuestValidationErrors,
-  removeGuestFromList
-} from '~/utils/guestListUpdates'
 import { getTaskTrackerMetrics } from '~/utils/taskListUpdates'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
@@ -35,8 +25,7 @@ definePageMeta({
 
 const toast = useToast()
 const route = useRoute()
-const { fetchEvent, updateEvent } = useEvents()
-const { createGuest, fetchGuestsByEvent, sendGuestInvite, sendAllGuestInvites, deleteGuest } = useGuests()
+const { fetchEvent } = useEvents()
 const { submitEventPaymentProof } = usePayments()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
@@ -47,31 +36,9 @@ const eventId = computed(() => {
 })
 
 const eventRecord = ref<EventRecord | null>(null)
-const guestList = ref<GuestRecord[]>([])
-const rsvpSummary = ref<RsvpSummary | null>(null)
 const tasksSummary = ref<TasksSummary | null>(null)
 const isLoadingEvent = ref(false)
 const isSubmittingPayment = ref(false)
-const isEditModalOpen = ref(false)
-const isSubmittingEventUpdate = ref(false)
-const isAddGuestModalOpen = ref(false)
-const isSubmittingGuest = ref(false)
-const sendingGuestId = ref<string | null>(null)
-const isInvitingAll = ref(false)
-const deletingGuestId = ref<string | null>(null)
-const isRemoveGuestModalOpen = ref(false)
-const guestToRemove = ref<Person | null>(null)
-const isQuestionsModalOpen = ref(false)
-const isNoQuestionsWarningOpen = ref(false)
-const pendingInviteAction = ref<'all' | string | null>(null)
-
-const editForm = reactive({
-  eventName: '',
-  description: '',
-  venue: '',
-})
-const editCoverImageFile = ref<File | null>(null)
-const editCoverImageInput = ref<HTMLInputElement | null>(null)
 
 const paymentForm = reactive({
   transactionId: '',
@@ -108,58 +75,6 @@ const paymentDenialReason = computed(() =>
 const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
 
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
-
-const hasNoRsvpQuestions = computed(() => !(eventRecord.value?.questions?.length))
-
-const addGuestSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
-})
-
-type AddGuestSchema = z.output<typeof addGuestSchema>
-
-const addGuestState = reactive<AddGuestSchema>({
-  name: '',
-  email: '',
-})
-
-const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
-
-type Person = {
-  guestId: string
-  name: string
-  email: string
-  guests: number
-  rsvpStatus: typeof rsvpOptions[number]
-  invitationSent: boolean
-}
-
-const people = ref<Person[]>([
-  {
-    guestId: 'demo-guest-1',
-    name: 'John Smith',
-    email: 'john.smith@example.com',
-    guests: 2,
-    rsvpStatus: 'Attending',
-    invitationSent: true,
-  },
-  {
-    guestId: 'demo-guest-2',
-    name: 'Emily White',
-    email: 'emily.white@example.com',
-    guests: 1,
-    rsvpStatus: 'Pending',
-    invitationSent: true,
-  },
-  {
-    guestId: 'demo-guest-3',
-    name: 'Michael Brown',
-    email: 'michael.brown@example.com',
-    guests: 4,
-    rsvpStatus: 'Not Attending',
-    invitationSent: false,
-  },
-])
 
 const eventTitle = computed(() => {
   if (eventRecord.value?.eventName) {
@@ -248,175 +163,9 @@ const currentBudgetLabel = computed(() => {
   return 'No Budget Yet'
 })
 
-const guestListSize = computed(() => {
-  if (eventId.value && !isUiOnlyMode.value) {
-    return guestList.value.length
-  }
-  return people.value.length
-})
-
-const invitationsSentCount = computed(() => {
-  if (eventId.value && !isUiOnlyMode.value) {
-    if (rsvpSummary.value) {
-      return rsvpSummary.value.totalSent
-    }
-    return guestList.value.filter(guest => Boolean(guest.rsvp?.invitedAt)).length
-  }
-  return people.value.filter(person => person.invitationSent).length
-})
-
-const invitationsSentFraction = computed(
-  () => `${invitationsSentCount.value} / ${guestListSize.value}`
-)
-
-const uninvitedGuestsCount = computed(() => {
-  if (eventId.value && !isUiOnlyMode.value) {
-    return guestList.value.filter(guest => !guest.rsvp?.invitedAt).length
-  }
-  return people.value.filter(person => !person.invitationSent).length
-})
-
-const canInviteAll = computed(() =>
-  uninvitedGuestsCount.value > 0
-  && !isEventCancelled.value
-  && Boolean(eventId.value || isUiOnlyMode.value)
-  && guestListSize.value > 0
-)
-
-const rsvpStats = computed(() => {
-  if (rsvpSummary.value) {
-    return {
-      responses: rsvpSummary.value.going + rsvpSummary.value.notGoing,
-      attendees: rsvpSummary.value.going,
-    }
-  }
-  if (useDemoFallbacks.value) {
-    return { responses: 75, attendees: 60 }
-  }
-  return { responses: 0, attendees: 0 }
-})
-
-function mapRsvpStatusToLabel(status?: string | null): 'Attending' | 'Pending' | 'Not Attending' {
-  if (status === 'GOING') {
-    return 'Attending'
-  }
-  if (status === 'NOT_GOING') {
-    return 'Not Attending'
-  }
-  return 'Pending'
-}
-
-function mapGuestToPerson(guest: GuestRecord): Person {
-  return {
-    guestId: guest._id,
-    name: guest.name,
-    email: guest.email,
-    guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
-    rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
-    invitationSent: Boolean(guest.rsvp?.invitedAt),
-  }
-}
-
 function onCoverImageError(event: Event) {
   const img = event.target as HTMLImageElement
   img.src = defaultCover
-}
-
-function resetEditForm() {
-  if (!eventRecord.value) {
-    return
-  }
-  editForm.eventName = eventRecord.value.eventName
-  editForm.description = eventRecord.value.description
-  editForm.venue = eventRecord.value.venue
-  editCoverImageFile.value = null
-  if (editCoverImageInput.value) {
-    editCoverImageInput.value.value = ''
-  }
-}
-
-function openEditModal() {
-  resetEditForm()
-  isEditModalOpen.value = true
-}
-
-function onEditCoverImageChange(changeEvent: Event) {
-  const input = changeEvent.target as HTMLInputElement
-  editCoverImageFile.value = input.files?.[0] ?? null
-}
-
-async function handleUpdateEvent() {
-  if (!eventRecord.value) {
-    return
-  }
-
-  if (!editForm.eventName.trim()) {
-    toast.add({ title: 'Missing event name', color: 'error' })
-    return
-  }
-  if (!editForm.venue.trim()) {
-    toast.add({ title: 'Missing venue', color: 'error' })
-    return
-  }
-  if (!editForm.description.trim()) {
-    toast.add({ title: 'Missing description', color: 'error' })
-    return
-  }
-
-  const existingCoverUrl = eventRecord.value.coverImageURL?.trim()
-  if (!editCoverImageFile.value && !existingCoverUrl) {
-    toast.add({
-      title: 'Cover image required',
-      description: 'Please upload a cover image for your event.',
-      color: 'error',
-    })
-    return
-  }
-
-  isSubmittingEventUpdate.value = true
-  try {
-    const targetEventId = eventId.value || 'mock-event-id'
-
-    if (!isUiOnlyMode.value) {
-      await updateEvent(targetEventId, {
-        eventType: eventRecord.value.eventType,
-        eventName: editForm.eventName.trim(),
-        description: editForm.description.trim(),
-        venue: editForm.venue.trim(),
-        coverImage: editCoverImageFile.value ?? undefined,
-        coverImageURL: editCoverImageFile.value ? undefined : existingCoverUrl,
-      })
-
-      if (editCoverImageFile.value && eventId.value) {
-        const detail = await fetchEvent(eventId.value)
-        eventRecord.value = detail.event
-      } else {
-        eventRecord.value = {
-          ...eventRecord.value,
-          eventName: editForm.eventName.trim(),
-          description: editForm.description.trim(),
-          venue: editForm.venue.trim(),
-        }
-      }
-    } else {
-      eventRecord.value = {
-        ...eventRecord.value,
-        eventName: editForm.eventName.trim(),
-        description: editForm.description.trim(),
-        venue: editForm.venue.trim(),
-      }
-    }
-
-    toast.add({
-      title: 'Event updated',
-      description: 'Your event details have been saved.',
-    })
-    isEditModalOpen.value = false
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not update event', error })
-  } finally {
-    isSubmittingEventUpdate.value = false
-  }
 }
 
 async function loadEventData() {
@@ -426,8 +175,6 @@ async function loadEventData() {
 
   isLoadingEvent.value = true
   eventRecord.value = null
-  guestList.value = []
-  rsvpSummary.value = null
   tasksSummary.value = null
   try {
     const detail = await loadPageData({
@@ -489,286 +236,11 @@ async function loadEventData() {
     })
     eventRecord.value = detail.event
     setActiveEvent(detail.event)
-    guestList.value = detail.guestList
-    rsvpSummary.value = detail.rsvpSummary
     tasksSummary.value = detail.tasks
-    await refreshGuestList()
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
-  }
-}
-
-async function refreshGuestList() {
-  if (!eventId.value || isUiOnlyMode.value) {
-    return
-  }
-
-  try {
-    guestList.value = await fetchGuestsByEvent(eventId.value)
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not load guests', error })
-  }
-}
-
-function resetAddGuestForm() {
-  addGuestState.name = ''
-  addGuestState.email = ''
-}
-
-async function handleAddGuest(payload: FormSubmitEvent<AddGuestSchema>) {
-  if (!eventId.value && !isUiOnlyMode.value) {
-    toast.add({
-      title: 'Missing event',
-      description: 'Open an event from your dashboard first.',
-      color: 'error',
-    })
-    return
-  }
-
-  if (isEventCancelled.value) {
-    toast.add({
-      title: 'Event cancelled',
-      description: 'Cannot modify the guest list for a cancelled event.',
-      color: 'error',
-    })
-    return
-  }
-
-  isSubmittingGuest.value = true
-  try {
-    const targetEventId = eventId.value || 'mock-event-id'
-    const response = await createGuest(targetEventId, {
-      name: payload.data.name,
-      email: payload.data.email,
-    })
-
-    if (eventId.value && !isUiOnlyMode.value) {
-      guestList.value = appendGuestToList(guestList.value, response.guest)
-    } else if (isUiOnlyMode.value) {
-      people.value.push({
-        guestId: response.guest._id,
-        name: response.guest.name,
-        email: response.guest.email,
-        guests: 0,
-        rsvpStatus: 'Pending',
-        invitationSent: false,
-      })
-    }
-
-    toast.add({
-      title: 'Guest added',
-      description: response.message,
-    })
-    isAddGuestModalOpen.value = false
-    resetAddGuestForm()
-  } catch (error) {
-    const validationMessage = formatGuestValidationErrors(error)
-    if (validationMessage) {
-      toast.add({
-        title: 'Validation failed',
-        description: validationMessage,
-        color: 'error',
-      })
-      return
-    }
-    reportApiError(toast, {
-      title: 'Could not add guest',
-      error,
-      fallback: getApiErrorMessage(error),
-    })
-  } finally {
-    isSubmittingGuest.value = false
-  }
-}
-
-function openRemoveGuestModal(person: Person) {
-  guestToRemove.value = person
-  isRemoveGuestModalOpen.value = true
-}
-
-function closeRemoveGuestModal() {
-  isRemoveGuestModalOpen.value = false
-  guestToRemove.value = null
-}
-
-async function handleRemoveGuest() {
-  const person = guestToRemove.value
-  if (!person?.guestId || deletingGuestId.value) {
-    return
-  }
-
-  if (isEventCancelled.value) {
-    toast.add({
-      title: 'Event cancelled',
-      description: 'Cannot modify the guest list for a cancelled event.',
-      color: 'error',
-    })
-    return
-  }
-
-  deletingGuestId.value = person.guestId
-  try {
-    const response = await deleteGuest(person.guestId)
-
-    if (eventId.value && !isUiOnlyMode.value) {
-      const updated = removeGuestFromList(
-        guestList.value,
-        rsvpSummary.value,
-        person.guestId
-      )
-      guestList.value = updated.guestList
-      rsvpSummary.value = updated.rsvpSummary
-    } else {
-      people.value = people.value.filter(entry => entry.guestId !== person.guestId)
-    }
-
-    toast.add({
-      title: 'Guest removed',
-      description: response.message,
-    })
-    closeRemoveGuestModal()
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not remove guest', error })
-  } finally {
-    deletingGuestId.value = null
-  }
-}
-
-async function _doInviteAll() {
-  isInvitingAll.value = true
-  try {
-    const targetEventId = eventId.value || 'mock-event-id'
-    const response = await sendAllGuestInvites(targetEventId)
-
-    if (eventId.value && !isUiOnlyMode.value) {
-      const updated = applySendAllInvitesToGuestList(
-        guestList.value,
-        rsvpSummary.value,
-        response
-      )
-      guestList.value = updated.guestList
-      rsvpSummary.value = updated.rsvpSummary
-    } else {
-      for (const person of people.value) {
-        if (!person.invitationSent) {
-          person.invitationSent = true
-        }
-      }
-    }
-
-    const skipped = response.skippedAlreadyInvited ?? 0
-    let description = response.message
-    if (response.created > 0 || skipped > 0) {
-      description = `${response.created} invitation(s) sent`
-      if (skipped > 0) {
-        description += `, ${skipped} already invited`
-      }
-      description += '.'
-    }
-
-    toast.add({ title: 'Invitations sent', description })
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not send invitations', error })
-  } finally {
-    isInvitingAll.value = false
-  }
-}
-
-async function _doSendGuestInvite(guestId: string) {
-  sendingGuestId.value = guestId
-  try {
-    const response = await sendGuestInvite(guestId)
-
-    if (eventId.value && !isUiOnlyMode.value) {
-      const updated = applySendInviteToGuestList(
-        guestList.value,
-        rsvpSummary.value,
-        guestId,
-        response
-      )
-      guestList.value = updated.guestList
-      rsvpSummary.value = updated.rsvpSummary
-    } else {
-      const person = people.value.find((entry) => entry.guestId === guestId)
-      if (person) {
-        person.invitationSent = true
-      }
-    }
-
-    toast.add({ title: 'Invitation sent', description: response.message })
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not send invitation', error })
-  } finally {
-    sendingGuestId.value = null
-  }
-}
-
-async function handleInviteAll() {
-  if (isInvitingAll.value || !canInviteAll.value) {
-    return
-  }
-
-  if (!eventId.value && !isUiOnlyMode.value) {
-    toast.add({
-      title: 'Missing event',
-      description: 'Open an event from your dashboard first.',
-      color: 'error',
-    })
-    return
-  }
-
-  if (isEventCancelled.value) {
-    toast.add({
-      title: 'Event cancelled',
-      description: 'Cannot send invitations for a cancelled event.',
-      color: 'error',
-    })
-    return
-  }
-
-  if (hasNoRsvpQuestions.value) {
-    pendingInviteAction.value = 'all'
-    isNoQuestionsWarningOpen.value = true
-    return
-  }
-
-  await _doInviteAll()
-}
-
-async function handleSendGuestInvite(guestId: string) {
-  if (!guestId || sendingGuestId.value || isInvitingAll.value) {
-    return
-  }
-
-  if (isEventCancelled.value) {
-    toast.add({
-      title: 'Event cancelled',
-      description: 'Cannot send invitations for a cancelled event.',
-      color: 'error',
-    })
-    return
-  }
-
-  if (hasNoRsvpQuestions.value) {
-    pendingInviteAction.value = guestId
-    isNoQuestionsWarningOpen.value = true
-    return
-  }
-
-  await _doSendGuestInvite(guestId)
-}
-
-async function confirmInviteWithoutQuestions() {
-  isNoQuestionsWarningOpen.value = false
-  const action = pendingInviteAction.value
-  pendingInviteAction.value = null
-  if (!action) return
-  if (action === 'all') {
-    await _doInviteAll()
-  } else {
-    await _doSendGuestInvite(action)
   }
 }
 
@@ -827,31 +299,6 @@ watch(eventId, () => {
   loadEventData()
 })
 
-const UBadge = resolveComponent('UBadge')
-
-const columns: TableColumn<Person>[] = [
-  { accessorKey: 'name', header: 'Name' },
-  { accessorKey: 'email', header: 'Email' },
-  { accessorKey: 'guests', header: 'Attendants' },
-  {
-    accessorKey: 'rsvpStatus',
-    header: 'RSVP Status',
-    cell: ({ row }) => {
-      const color = {
-        Attending: 'success' as const,
-        'Not Attending': 'error' as const,
-        Pending: 'secondary' as const
-      }[row.getValue('rsvpStatus') as string]
-
-      return h(UBadge, { class: 'capitalize', variant: 'subtle', color }, () =>
-        row.getValue('rsvpStatus')
-      )
-    }
-  },
-  { accessorKey: 'invitationSent', header: 'Invitation Sent' },
-  { accessorKey: 'actions', header: '' }
-]
-
 function openWebsiteMaker() {
   if (isEventCancelled.value) {
     return
@@ -868,16 +315,79 @@ function openWebsiteMaker() {
   navigateTo({ path: '/WebsiteMaker', query: { eventId: id } })
 }
 
-const dashboardItems = [
-  { label: 'Website', icon: 'i-lucide-globe', action: 'website' as const },
+function openGuestList() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventGuestsDashboard', query: { eventId: id } })
+}
+
+function openTasksDashboard() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventTasksDashboard', query: { eventId: id } })
+}
+
+function openEventSettings() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventSettingsDashboard', query: { eventId: id } })
+}
+
+type DashboardItem = {
+  label: string
+  icon: string
+  action?: 'website' | 'guestList' | 'tasks' | 'settings'
+}
+
+function handleDashboardItemClick(item: DashboardItem) {
+  if (item.action === 'website') {
+    openWebsiteMaker()
+  } else if (item.action === 'guestList') {
+    openGuestList()
+  } else if (item.action === 'tasks') {
+    openTasksDashboard()
+  } else if (item.action === 'settings') {
+    openEventSettings()
+  }
+}
+
+function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
+  if (event.key === 'Enter') {
+    handleDashboardItemClick(item)
+  }
+}
+
+const dashboardItems: DashboardItem[] = [
+  { label: 'Website', icon: 'i-lucide-globe', action: 'website' },
   { label: 'RSVP', icon: 'i-lucide-mail' },
   { label: 'Invitations', icon: 'i-lucide-send' },
-  { label: 'Guest List', icon: 'i-lucide-users' },
+  { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList' },
   { label: 'Schedules', icon: 'i-lucide-calendar' },
   { label: 'Photos', icon: 'i-lucide-camera' },
   { label: 'Stationery', icon: 'i-lucide-pen-tool' },
-  { label: 'Settings', icon: 'i-lucide-settings' },
-  { label: 'Tasks', icon: 'i-lucide-list-todo' }
+  { label: 'Settings', icon: 'i-lucide-settings', action: 'settings' },
+  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks' },
 ]
 
 </script>
@@ -971,8 +481,8 @@ const dashboardItems = [
               'opacity-50 pointer-events-none':
                 item.action === 'website' && (isEventCancelled || (!eventId && !isUiOnlyMode)),
             }"
-            @click="item.action === 'website' ? openWebsiteMaker() : undefined"
-            @keydown.enter="item.action === 'website' ? openWebsiteMaker() : undefined"
+            @click="handleDashboardItemClick(item)"
+            @keydown.enter="handleDashboardItemKeydown($event, item)"
           >
             <div
               class=" p-2 aspect-square flex flex-col  items-center justify-center rounded-full bg-primary transition-all duration-200 group-hover:bg-primary/80 group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-primary">

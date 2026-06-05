@@ -116,6 +116,7 @@ export interface UpdateEventPayload {
   eventName: string
   description: string
   venue: string
+  eventDate?: string
   coverImage?: File
   coverImageURL?: string
 }
@@ -128,4 +129,23 @@ export interface UpdateEventResponse {
 
 export function mapEventTypeToApi(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, '_')
+}
+
+const EVENT_TYPE_LABELS = [
+  'Wedding',
+  'Engagement',
+  'Baptism',
+  'Birthday Party',
+  'Family Reunion',
+  'Gender Reveal Party',
+] as const
+
+export const EVENT_TYPE_OPTIONS = [...EVENT_TYPE_LABELS]
+
+export function mapApiToEventTypeLabel(apiValue: string): string {
+  const normalized = apiValue.trim().toUpperCase().replace(/\s+/g, '_')
+  const match = EVENT_TYPE_LABELS.find(
+    (label) => mapEventTypeToApi(label) === normalized
+  )
+  return match ?? EVENT_TYPE_LABELS[0]
 }

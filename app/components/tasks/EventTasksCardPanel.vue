@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { EventRecord, TasksSummary } from '~/types/event'
+import type { TaskStatus } from '~/types/task'
 
 const props = defineProps<{
   eventId: string
@@ -23,7 +24,6 @@ const {
   searchQuery,
   priorityFilter,
   sortBy,
-  collapsedGroups,
   isFormOpen,
   editingTask,
   isDetailsOpen,
@@ -34,7 +34,8 @@ const {
   isActionSubmitting,
   mutationsDisabled,
   actionModalTitle,
-  filteredTasks,
+  tasksForStatus,
+  statusCount,
   openCreateModal,
   openDetailsModal,
   openEditModal,
@@ -43,21 +44,40 @@ const {
   openRemoveModal,
   closeActionModal,
   handleStatusChange,
-  handlePriorityChange,
   handleFormSaved,
   confirmTaskAction,
-  toggleGroup,
 } = useEventTasksManager({
   eventId: eventIdRef,
   isEventCancelled: isEventCancelledRef,
   tasksSummary: tasksSummaryRef,
   onSummarySync: (value) => emit('update:tasksSummary', value),
 })
+
+const tabItems = computed(() => {
+  const items: { label: string; slot: string }[] = [
+    { label: `Ongoing (${statusCount('ONGOING')})`, slot: 'ongoing' },
+    { label: `Completed (${statusCount('COMPLETED')})`, slot: 'completed' },
+  ]
+  if (statusCount('CANCELLED') > 0) {
+    items.push({ label: `Cancelled (${statusCount('CANCELLED')})`, slot: 'cancelled' })
+  }
+  return items
+})
+
+function emptyLabel(status: TaskStatus): string {
+  if (status === 'ONGOING') {
+    return 'No ongoing tasks.'
+  }
+  if (status === 'COMPLETED') {
+    return 'No completed tasks.'
+  }
+  return 'No cancelled tasks.'
+}
 </script>
 
 <template>
   <UPageCard class="white-bread-container space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="text-xl font-semibold text-muted">Tasks Checklist</div>
       <UButton
         icon="i-lucide-list-plus"
@@ -82,29 +102,100 @@ const {
       v-model:sort-by="sortBy"
     />
 
-    <div v-if="isLoading" class="flex items-center justify-center py-12 text-muted">
+    <div
+      v-if="isLoading"
+      class="flex items-center justify-center py-12 text-muted"
+    >
       <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
       <span class="ml-2 text-sm">Loading tasks...</span>
     </div>
 
-    <TaskListView
+    <UTabs
       v-else
-      :tasks="filteredTasks"
-      :disabled="mutationsDisabled"
-      :is-event-cancelled="isEventCancelled"
-      :selected-task-id="selectedTask?._id"
-      :collapsed-groups="collapsedGroups"
-      :updating-task-id="updatingTaskId"
-      @toggle-group="toggleGroup"
-      @status-change="handleStatusChange"
-      @priority-change="handlePriorityChange"
-      @select="openDetailsModal"
-      @edit="openEditModal"
-      @cancel="openCancelModal"
-      @restore="handleRestoreTask"
-      @remove="openRemoveModal"
-      @add-task="openCreateModal"
-    />
+      :items="tabItems"
+      variant="link"
+    >
+      <template #ongoing>
+        <div class="mt-4">
+          <UPageColumns v-if="tasksForStatus('ONGOING').length > 0">
+            <EventTaskChecklistCard
+              v-for="task in tasksForStatus('ONGOING')"
+              :key="task._id"
+              :task="task"
+              :disabled="mutationsDisabled"
+              :is-event-cancelled="isEventCancelled"
+              :updating-task-id="updatingTaskId"
+              @select="openDetailsModal"
+              @edit="openEditModal"
+              @cancel="openCancelModal"
+              @restore="handleRestoreTask"
+              @remove="openRemoveModal"
+              @status-change="handleStatusChange"
+            />
+          </UPageColumns>
+          <p
+            v-else
+            class="text-sm text-muted"
+          >
+            {{ emptyLabel('ONGOING') }}
+          </p>
+        </div>
+      </template>
+
+      <template #completed>
+        <div class="mt-4">
+          <UPageColumns v-if="tasksForStatus('COMPLETED').length > 0">
+            <EventTaskChecklistCard
+              v-for="task in tasksForStatus('COMPLETED')"
+              :key="task._id"
+              :task="task"
+              :disabled="mutationsDisabled"
+              :is-event-cancelled="isEventCancelled"
+              :updating-task-id="updatingTaskId"
+              @select="openDetailsModal"
+              @edit="openEditModal"
+              @cancel="openCancelModal"
+              @restore="handleRestoreTask"
+              @remove="openRemoveModal"
+              @status-change="handleStatusChange"
+            />
+          </UPageColumns>
+          <p
+            v-else
+            class="text-sm text-muted"
+          >
+            {{ emptyLabel('COMPLETED') }}
+          </p>
+        </div>
+      </template>
+
+      <template #cancelled>
+        <div class="mt-4">
+          <UPageColumns v-if="tasksForStatus('CANCELLED').length > 0">
+            <EventTaskChecklistCard
+              v-for="task in tasksForStatus('CANCELLED')"
+              :key="task._id"
+              :task="task"
+              :disabled="mutationsDisabled"
+              :is-event-cancelled="isEventCancelled"
+              :updating-task-id="updatingTaskId"
+              @select="openDetailsModal"
+              @edit="openEditModal"
+              @cancel="openCancelModal"
+              @restore="handleRestoreTask"
+              @remove="openRemoveModal"
+              @status-change="handleStatusChange"
+            />
+          </UPageColumns>
+          <p
+            v-else
+            class="text-sm text-muted"
+          >
+            {{ emptyLabel('CANCELLED') }}
+          </p>
+        </div>
+      </template>
+    </UTabs>
 
     <TaskDetailsModal
       v-model:open="isDetailsOpen"

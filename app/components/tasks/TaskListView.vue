@@ -22,12 +22,13 @@ const emit = defineEmits<{
   remove: [task: TaskRecord]
   'status-change': [payload: { taskId: string; status: TaskStatus }]
   'priority-change': [payload: { taskId: string; priority: number }]
+  'add-task': []
 }>()
 
-const statusSections: { status: TaskStatus; label: string }[] = [
-  { status: 'ONGOING', label: 'Ongoing' },
-  { status: 'COMPLETED', label: 'Completed' },
-  { status: 'CANCELLED', label: 'Cancelled' },
+const statusSections: { status: TaskStatus; label: string; dotClass: string }[] = [
+  { status: 'ONGOING', label: 'Ongoing', dotClass: 'bg-primary' },
+  { status: 'COMPLETED', label: 'Completed', dotClass: 'bg-success' },
+  { status: 'CANCELLED', label: 'Cancelled', dotClass: 'bg-error' },
 ]
 
 const statusOptions = [
@@ -49,6 +50,14 @@ function canRestoreTask(task: TaskRecord): boolean {
 
 const grouped = computed(() => groupTasksByStatus(props.tasks))
 
+const isEmpty = computed(() => props.tasks.length === 0)
+
+const visibleSections = computed(() =>
+  statusSections.filter(
+    (section) => section.status !== 'CANCELLED' || grouped.value.CANCELLED.length > 0
+  )
+)
+
 function isGroupCollapsed(status: TaskStatus): boolean {
   return Boolean(props.collapsedGroups[status])
 }
@@ -63,11 +72,33 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
 </script>
 
 <template>
-  <div class="w-full overflow-x-auto rounded-lg border border-default bg-white shadow-sm">
-    <table class="w-full min-w-[48rem] text-left text-sm">
+  <div
+    v-if="isEmpty"
+    class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+  >
+    <UIcon name="i-lucide-list-todo" class="size-10 text-muted" />
+    <p class="mt-4 text-base font-medium">No tasks yet</p>
+    <p class="mt-1 max-w-sm text-sm text-muted">
+      Add a task to start tracking work for this event.
+    </p>
+    <UButton
+      v-if="!disabled"
+      icon="i-lucide-list-plus"
+      class="mt-6"
+      @click="emit('add-task')"
+    >
+      Add New Task
+    </UButton>
+  </div>
+
+  <div
+    v-else
+    class="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-default bg-white shadow-sm [-webkit-overflow-scrolling:touch]"
+  >
+    <table class="w-full min-w-[52rem] text-left text-sm lg:min-w-full">
       <thead>
         <tr class="border-b border-default bg-muted/30 text-[11px] font-semibold uppercase tracking-wide text-muted">
-          <th class="min-w-[16rem] px-4 py-2">Work</th>
+          <th class="min-w-[16rem] px-4 py-2 lg:min-w-[18rem]">Work</th>
           <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Priority</th>
           <th class="min-w-[8rem] whitespace-nowrap px-4 py-2">Status</th>
           <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Budget</th>
@@ -76,23 +107,25 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
         </tr>
       </thead>
       <tbody>
-        <template v-for="section in statusSections" :key="section.status">
-          <tr class="border-b border-default bg-muted/20">
-            <td colspan="6" class="px-2 py-1.5">
+        <template v-for="section in visibleSections" :key="section.status">
+          <tr class="border-y border-default bg-muted/40">
+            <td colspan="6" class="px-4 py-2">
               <button
                 type="button"
-                class="flex w-full items-center gap-2 px-2 py-1 text-left text-xs font-semibold uppercase tracking-wide text-muted hover:text-default"
+                class="inline-flex items-center gap-1.5 text-xs font-bold text-default hover:text-highlighted"
                 @click="emit('toggle-group', section.status)"
               >
                 <UIcon
-                  name="i-lucide-chevron-right"
-                  class="size-4 transition-transform"
-                  :class="!isGroupCollapsed(section.status) ? 'rotate-90' : ''"
+                  name="i-lucide-chevron-down"
+                  class="size-3.5 text-muted transition-transform"
+                  :class="isGroupCollapsed(section.status) ? '-rotate-90' : ''"
+                />
+                <span
+                  class="inline-block size-2 rounded-full"
+                  :class="section.dotClass"
                 />
                 <span>{{ section.label }}</span>
-                <UBadge variant="subtle" color="neutral" size="sm">
-                  {{ grouped[section.status].length }}
-                </UBadge>
+                <span class="font-normal text-muted">({{ grouped[section.status].length }})</span>
               </button>
             </td>
           </tr>
@@ -101,20 +134,40 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
             <tr
               v-for="task in grouped[section.status]"
               :key="task._id"
-              class="cursor-pointer border-b border-default/60 transition hover:bg-muted/20"
+              class="cursor-pointer border-b border-default/40 transition-colors duration-100 hover:bg-primary/10 hover:shadow-[inset_3px_0_0_0_var(--ui-primary)]"
               :class="[
                 updatingTaskId === task._id ? 'opacity-60' : '',
                 selectedTaskId === task._id ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : '',
               ]"
               @click="onRowClick(task, $event)"
             >
-              <td class="px-4 py-3 align-top">
-                <div class="font-medium">{{ task.title }}</div>
-                <p class="mt-0.5 line-clamp-2 text-xs text-muted">
+              <td class="max-w-[20rem] px-4 py-2 align-middle sm:max-w-none">
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-row-action
+                    class="shrink-0 text-[11px] font-medium text-primary hover:underline"
+                    @click.stop="emit('edit', task)"
+                  >
+                    {{ task._id.slice(-6) }}
+                  </button>
+                  <button
+                    type="button"
+                    data-row-action
+                    class="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-primary"
+                    @click.stop="emit('edit', task)"
+                  >
+                    {{ task.title }}
+                  </button>
+                </div>
+                <p
+                  v-if="task.details"
+                  class="mt-0.5 truncate text-[11px] text-muted"
+                >
                   {{ task.details }}
                 </p>
               </td>
-              <td class="px-4 py-3 align-top">
+              <td class="whitespace-nowrap px-4 py-2 align-middle">
                 <USelect
                   :model-value="task.priority"
                   :items="TASK_PRIORITY_OPTIONS"
@@ -127,7 +180,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                   @click.stop
                 />
               </td>
-              <td class="px-4 py-3 align-top">
+              <td class="whitespace-nowrap px-4 py-2 align-middle">
                 <UBadge
                   v-if="task.status === 'CANCELLED'"
                   variant="subtle"
@@ -148,13 +201,13 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                   @click.stop
                 />
               </td>
-              <td class="whitespace-nowrap px-4 py-3 align-top text-muted">
+              <td class="whitespace-nowrap px-4 py-2 align-middle text-muted">
                 {{ formatTaskBudget(task.budget) }}
               </td>
-              <td class="whitespace-nowrap px-4 py-3 align-top text-muted">
+              <td class="whitespace-nowrap px-4 py-2 align-middle text-muted">
                 {{ formatTaskDate(task.deadline) ?? '—' }}
               </td>
-              <td class="px-4 py-3 align-top" data-row-action>
+              <td class="px-4 py-2 align-middle" data-row-action>
                 <div class="flex items-center gap-1">
                   <UButton
                     size="xs"
@@ -195,8 +248,8 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
               </td>
             </tr>
             <tr v-if="grouped[section.status].length === 0">
-              <td colspan="6" class="px-4 py-6 text-center text-sm text-muted">
-                No {{ section.label.toLowerCase() }} tasks
+              <td colspan="6" class="px-4 py-2 text-xs italic text-muted">
+                No tasks
               </td>
             </tr>
           </template>

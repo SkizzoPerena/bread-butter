@@ -94,6 +94,10 @@ export function useEvents() {
     formData.append('description', payload.description)
     formData.append('venue', payload.venue)
 
+    if (payload.eventDate) {
+      formData.append('eventDate', payload.eventDate)
+    }
+
     if (payload.coverImage) {
       formData.append('coverImage', payload.coverImage)
     } else if (payload.coverImageURL) {

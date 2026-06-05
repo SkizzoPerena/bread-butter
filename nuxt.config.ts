@@ -3,10 +3,18 @@ export default defineNuxtConfig({
   components: [
     {
       path: '~/components',
-      ignore: ['tasks'],
+      ignore: ['tasks', 'guests', 'event'],
     },
     {
       path: '~/components/tasks',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/guests',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/event',
       pathPrefix: false,
     },
   ],
