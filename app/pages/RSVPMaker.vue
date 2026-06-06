@@ -1,6 +1,12 @@
 <script setup lang="ts"> 
 import { ref, reactive, computed } from 'vue'
 
+definePageMeta({
+  layout: 'eventsubnavbar',
+  title: 'RSVP Maker',
+  bgClass: 'bg-emerald-50'
+})
+
 // 1. Required RSVP Data
 const rsvpData = reactive({
   requestLine: 'Together with their families',
@@ -78,30 +84,9 @@ const formatTime = (timeString: string) => {
 </script>
 
 <template>
-  <div class="relative w-full min-h-screen">
-    
-    <!-- Top Toolbar: Custom UDashboardNavbar -->
-    <UDashboardNavbar class="bg-bread-50/70 w-full sticky top-0 z-50 event-navbar">
-      
-      <!-- LEFT SIDE: Back Button & Image Slot -->
-      <template #left>
-        <div class="flex items-center gap-3">
-          <UButton 
-            icon="i-lucide-arrow-left" 
-            color="neutral" 
-            variant="ghost"
-            class="rounded-lg" 
-            aria-label="Go back" to="/UserEventDashboard"
-          />
-          
-          <!-- Image Slot Wrapper -->
-          <img src="..\assets\bpb-icons\logo-toast.svg" class="h-7" />
-          <div class="font-serif text-xl font-bold">RSVP Maker</div>
-        </div>
-      </template>
-
-      <!-- RIGHT SIDE: Status & Actions -->
-      <template #right>
+  <div>
+    <ClientOnly>
+      <Teleport to="#navbar-actions">
         <div class="flex items-center gap-4">
           <div v-if="isPublished" class="text-sm md:text-base font-medium text-success-600 dark:text-success-400">
             ✨ Your invitation is live!
@@ -115,10 +100,9 @@ const formatTime = (timeString: string) => {
             {{ isPublished ? 'Edit Invitation' : 'Create Invitation' }}
           </UButton>
         </div>
-      </template>
-
-    </UDashboardNavbar>
-
+      </Teleport>
+    </ClientOnly>
+    
     <!-- Main Content Container -->
     <UContainer>
       <div  class="mb-8"></div>
@@ -276,7 +260,6 @@ const formatTime = (timeString: string) => {
             </div>
           </UPageCard>
         </div>
-
       </UPageGrid>
     </UContainer>
   </div>

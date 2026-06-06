@@ -1,16 +1,8 @@
 ﻿<script lang="ts" setup>
-import { DateFormatter } from '@internationalized/date'
+import { DateFormatter, CalendarDate, getLocalTimeZone } from '@internationalized/date'
 import type { EventRecord, TasksSummary } from '~/types/event'
-import {
-  EVENT_CREATION_FEE_PHP,
-  getEventBalanceDue,
-  isEventFullyPaid,
-  isPaymentPendingReview,
-  needsPaymentSubmission
-} from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
-import { usePayments } from '~/composables/usePayments'
 import { getTaskTrackerMetrics } from '~/utils/taskListUpdates'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
@@ -26,7 +18,6 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
-const { submitEventPaymentProof } = usePayments()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 
@@ -38,39 +29,6 @@ const eventId = computed(() => {
 const eventRecord = ref<EventRecord | null>(null)
 const tasksSummary = ref<TasksSummary | null>(null)
 const isLoadingEvent = ref(false)
-const isSubmittingPayment = ref(false)
-
-const paymentForm = reactive({
-  transactionId: '',
-})
-const proofOfPaymentFile = ref<File | null>(null)
-const proofOfPaymentInput = ref<HTMLInputElement | null>(null)
-
-const showPaymentProofForm = computed(() =>
-  eventRecord.value ? needsPaymentSubmission(eventRecord.value) : false
-)
-
-const paymentPendingReview = computed(() =>
-  eventRecord.value ? isPaymentPendingReview(eventRecord.value.latestPayment) : false
-)
-
-const isEventPaidInFull = computed(() =>
-  eventRecord.value ? isEventFullyPaid(eventRecord.value) : false
-)
-
-const paymentBalanceDue = computed(() =>
-  eventRecord.value ? getEventBalanceDue(eventRecord.value) : EVENT_CREATION_FEE_PHP
-)
-
-const showPaymentSection = computed(() =>
-  Boolean(eventRecord.value) && !isEventPaidInFull.value
-)
-
-const paymentDenialReason = computed(() =>
-  eventRecord.value?.latestPayment?.status === 'DENIED'
-    ? eventRecord.value.latestPayment.denialReason
-    : ''
-)
 
 const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
 
@@ -163,6 +121,64 @@ const currentBudgetLabel = computed(() => {
   return 'No Budget Yet'
 })
 
+const tabItems = computed(() => {
+  const todoCount = tasksSummary.value?.byStatus?.TODO || 0
+  const ongoingCount = tasksSummary.value?.byStatus?.ONGOING || 0
+  const completedCount = tasksSummary.value?.byStatus?.COMPLETED || 0
+  return [
+    { label: `To Do (${todoCount})`, value: 0 },
+    { label: `Ongoing (${ongoingCount})`, value: 1 },
+    { label: `Completed (${completedCount})`, value: 2 }
+  ]
+})
+
+const selectedTab = ref(0)
+
+const todoTasks = computed(() => {
+  return tasksSummary.value?.preview.tasks.filter((t: any) => t.status === 'TODO') || []
+})
+
+const ongoingTasks = computed(() => {
+  return tasksSummary.value?.preview.tasks.filter((t: any) => t.status === 'ONGOING') || []
+})
+
+const completedTasks = computed(() => {
+  return tasksSummary.value?.preview.tasks.filter((t: any) => t.status === 'COMPLETED') || []
+})
+
+function getPriorityLabel(priority: number) {
+  if (priority === 1) return 'Urgent'
+  if (priority === 2) return 'Medium'
+  return 'Low'
+}
+
+function getPriorityColor(priority: number) {
+  if (priority === 1) return 'error' as const
+  if (priority === 2) return 'secondary' as const
+  return 'success' as const
+}
+
+function changeTaskStatus(taskParam: any, status: 'TODO' | 'ONGOING' | 'COMPLETED') {
+  if (tasksSummary.value) {
+    const task = tasksSummary.value.preview.tasks.find((t: any) => t._id === taskParam._id)
+    if (task) {
+      if (task.status === 'TODO') tasksSummary.value.byStatus.TODO = (tasksSummary.value.byStatus.TODO || 0) - 1
+      if (task.status === 'ONGOING') tasksSummary.value.byStatus.ONGOING = (tasksSummary.value.byStatus.ONGOING || 0) - 1
+      if (task.status === 'COMPLETED') tasksSummary.value.byStatus.COMPLETED = (tasksSummary.value.byStatus.COMPLETED || 0) - 1
+      
+      task.status = status
+      
+      if (task.status === 'TODO') tasksSummary.value.byStatus.TODO = (tasksSummary.value.byStatus.TODO || 0) + 1
+      if (task.status === 'ONGOING') tasksSummary.value.byStatus.ONGOING = (tasksSummary.value.byStatus.ONGOING || 0) + 1
+      if (task.status === 'COMPLETED') tasksSummary.value.byStatus.COMPLETED = (tasksSummary.value.byStatus.COMPLETED || 0) + 1
+    }
+  }
+  toast.add({ title: 'Task status updated', color: 'success' })
+}
+
+const taskPriorities = ['Urgent', 'Medium', 'Low']
+const modelValue = shallowRef(new CalendarDate(2025, 5, 18))
+
 function onCoverImageError(event: Event) {
   const img = event.target as HTMLImageElement
   img.src = defaultCover
@@ -193,14 +209,23 @@ async function loadEventData() {
         guestList: [],
         rsvpSummary: null,
         tasks: {
-          totalTasks: 3,
-          totalAllocatedBudget: 45000,
-          byStatus: { ONGOING: 2, COMPLETED: 1 },
+          totalTasks: 4,
+          totalAllocatedBudget: 95000,
+          byStatus: { TODO: 1, ONGOING: 2, COMPLETED: 1 },
           preview: {
             page: 1,
             limit: 5,
             subtasksLimit: 2,
             tasks: [
+              {
+                _id: 'mock-task-0',
+                title: 'Book a live band',
+                details: 'Find and book a live band for the reception.',
+                budget: 50000,
+                status: 'TODO',
+                priority: 2,
+                deadline: '2026-08-15T00:00:00.000Z',
+              },
               {
                 _id: 'mock-task-1',
                 title: 'Book a photo booth',
@@ -241,53 +266,6 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
-  }
-}
-
-function onProofOfPaymentChange(changeEvent: Event) {
-  const input = changeEvent.target as HTMLInputElement
-  proofOfPaymentFile.value = input.files?.[0] ?? null
-}
-
-async function handleSubmitPaymentProof() {
-  if (!eventId.value && !isUiOnlyMode.value) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  if (!paymentForm.transactionId.trim()) {
-    toast.add({ title: 'Transaction ID required', color: 'error' })
-    return
-  }
-  if (!proofOfPaymentFile.value) {
-    toast.add({ title: 'Proof of payment required', color: 'error' })
-    return
-  }
-
-  isSubmittingPayment.value = true
-  try {
-    const updatedEvent = await submitEventPaymentProof(eventId.value || 'mock-event-id', {
-      transactionId: paymentForm.transactionId.trim(),
-      proofOfPayment: proofOfPaymentFile.value,
-    })
-    if (eventRecord.value) {
-      eventRecord.value = {
-        ...eventRecord.value,
-        latestPayment: updatedEvent.latestPayment ?? null,
-        paymentSummary: updatedEvent.paymentSummary ?? eventRecord.value.paymentSummary,
-      }
-    } else {
-      eventRecord.value = updatedEvent
-    }
-    paymentForm.transactionId = ''
-    proofOfPaymentFile.value = null
-    toast.add({
-      title: 'Payment proof submitted',
-      description: 'An admin will review your payment shortly.',
-    })
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not submit payment proof', error })
-  } finally {
-    isSubmittingPayment.value = false
   }
 }
 
@@ -354,10 +332,26 @@ function openEventSettings() {
   navigateTo({ path: '/EventSettingsDashboard', query: { eventId: id } })
 }
 
+function openPayments() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventPaymentReview', query: { eventId: id } })
+}
+
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'guestList' | 'tasks' | 'settings'
+  action?: 'website' | 'guestList' | 'tasks' | 'settings' | 'payments'
+  bgClass: string
+  hoverClass: string
+  ringClass: string
 }
 
 function handleDashboardItemClick(item: DashboardItem) {
@@ -369,6 +363,8 @@ function handleDashboardItemClick(item: DashboardItem) {
     openTasksDashboard()
   } else if (item.action === 'settings') {
     openEventSettings()
+  } else if (item.action === 'payments') {
+    openPayments()
   }
 }
 
@@ -379,94 +375,24 @@ function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
 }
 
 const dashboardItems: DashboardItem[] = [
-  { label: 'Website', icon: 'i-lucide-globe', action: 'website' },
-  { label: 'RSVP', icon: 'i-lucide-mail' },
-  { label: 'Invitations', icon: 'i-lucide-send' },
-  { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList' },
-  { label: 'Schedules', icon: 'i-lucide-calendar' },
-  { label: 'Photos', icon: 'i-lucide-camera' },
-  { label: 'Stationery', icon: 'i-lucide-pen-tool' },
-  { label: 'Settings', icon: 'i-lucide-settings', action: 'settings' },
-  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks' },
+  { label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
+  { label: 'RSVP', icon: 'i-lucide-mail', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
+  { label: 'Invitations', icon: 'i-lucide-send', bgClass: 'bg-purple-500', hoverClass: 'group-hover:bg-purple-600', ringClass: 'group-focus-visible:ring-purple-500' },
+  { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
+  { label: 'Schedules', icon: 'i-lucide-calendar', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
+  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
+  { label: 'Stationery', icon: 'i-lucide-pen-tool', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
+  { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
+  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-rose-500', hoverClass: 'group-hover:bg-rose-600', ringClass: 'group-focus-visible:ring-rose-500' },
 ]
 
 </script>
 
 <template>
-  <UMain class="">
+  <UMain class="bg-toast-50">
 
     <UPageGrid>
-      <UContainer class="col-span-2 space-y-6">
-
-        <UPageCard
-          v-if="showPaymentSection"
-          class="white-bread-container"
-          title="Settle event payment"
-          :description="`Outstanding balance: Php ${paymentBalanceDue.toLocaleString()}`"
-        >
-          <div v-if="paymentPendingReview" class="space-y-2">
-            <UBadge color="warning" variant="soft" label="Pending review" />
-            <p class="text-sm text-muted">
-              Your payment is awaiting admin review. Once it's approved you can publish
-              your website. If the approved amount is less than the fee, a remaining
-              balance will appear here for you to settle.
-            </p>
-          </div>
-
-          <UForm
-            v-else
-            :state="paymentForm"
-            class="space-y-4"
-            @submit.prevent="handleSubmitPaymentProof"
-          >
-            <UAlert
-              v-if="paymentDenialReason"
-              color="error"
-              variant="soft"
-              icon="i-lucide-circle-alert"
-              title="Previous payment was denied"
-              :description="paymentDenialReason"
-            />
-
-            <p class="text-sm text-muted">
-              Amount to pay now:
-              <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
-              Upload your proof of payment and reference number, then an admin will
-              verify it.
-            </p>
-
-            <UFormField label="Transaction / reference ID" name="transactionId" required>
-              <UInput
-                v-model="paymentForm.transactionId"
-                class="w-full"
-                placeholder="e.g. GCash or bank reference number"
-              />
-            </UFormField>
-
-            <UFormField label="Proof of payment" name="proofOfPayment" required>
-              <input
-                ref="proofOfPaymentInput"
-                type="file"
-                accept="image/*"
-                class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-white"
-                @change="onProofOfPaymentChange"
-              >
-              <p v-if="proofOfPaymentFile" class="mt-1 text-xs text-muted">
-                Selected: {{ proofOfPaymentFile.name }}
-              </p>
-            </UFormField>
-
-            <div class="flex justify-end">
-              <UButton
-                type="submit"
-                label="Submit payment proof"
-                icon="i-lucide-upload"
-                color="primary"
-                :loading="isSubmittingPayment"
-              />
-            </div>
-          </UForm>
-        </UPageCard>
+      <UContainer class="col-span-2 space-y-6 white-bread-container" style="border-radius: 0;">
 
 <div class="flex items-center justify-center h-full">
         <UPageColumns :ui="{base: 'gap-25 space-y-3'}">
@@ -485,7 +411,9 @@ const dashboardItems: DashboardItem[] = [
             @keydown.enter="handleDashboardItemKeydown($event, item)"
           >
             <div
-              class=" p-2 aspect-square flex flex-col  items-center justify-center rounded-full bg-primary transition-all duration-200 group-hover:bg-primary/80 group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-primary">
+              class="p-2 aspect-square flex flex-col items-center justify-center rounded-full transition-all duration-200 group-active:scale-95 group-focus-visible:ring-2"
+              :class="[item.bgClass, item.hoverClass, item.ringClass]"
+            >
               <UIcon :name="item.icon" class="size-9 m-2 text-white" />
             </div>
             <div class="font-medium mt-3">{{ item.label }}</div>
@@ -495,17 +423,130 @@ const dashboardItems: DashboardItem[] = [
       </UContainer>
 
       <!-- Tasks Container -->
-      <UScrollArea class="h-[calc(100vh-64px)] py-6">
+      <UScrollArea class="h-[calc(100vh-64px)] py-6 pr-8">
         <UContainer class="space-y-4">
-          <EventTaskChecklistSidebar
-            :event-id="eventId || (isUiOnlyMode ? 'mock-event-id' : '')"
-            :event-record="eventRecord"
-            :tasks-summary="tasksSummary"
-            :is-event-cancelled="isEventCancelled"
-            :is-loading="isLoadingEvent"
-            @refresh="loadEventData"
-            @update:tasks-summary="tasksSummary = $event"
-          />
+          <UPageCard class="white-bread-container space-y-4 ">
+            <div class="flex justify-between items-center">
+              <div class="text-xl text-pretty font-semibold text-muted uppercase">Tasks Checklist</div>
+
+              <UModal title="Add New Task" :ui="{
+                header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
+                content: 'border-none ring-transparent w-1/3',
+                overlay: 'bg-toast-900/30'
+              }" :close="{
+                variant: 'link',
+                class: 'rounded-full text-white'
+              }" :dismissible="false">
+                <UButton icon="i-lucide-list-plus">Add New Task</UButton>
+                <template #body>
+                  <UForm class="space-y-4">
+                    <UFormField label="Task name" name="task-name" required>
+                      <UInput class="w-full" placeholder="Set an appointment" />
+                    </UFormField>
+                    <UFormField label="Description" name="description" required>
+                      <UTextarea class="w-full" placeholder="Drop your notes here" />
+                    </UFormField>
+                    <UFieldGroup class="w-full gap-2">
+                      <UFormField label="Priority" name="priority" required class="w-1/3">
+                        <USelect :items="taskPriorities" placeholder="Select priority" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Budget" name="budget" required class="w-1/3">
+                        <UInputNumber :increment="false" :decrement="false" class="w-full" placeholder="in Php" />
+                      </UFormField>
+                      <UFormField label="Event Date" name="date" required class="w-1/3">
+                        <UPopover>
+                          <UButton color="neutral" variant="outline" class="w-full">
+                            {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
+                          </UButton>
+
+                          <template #content="{ close }">
+                            <UCalendar v-model="modelValue" class="p-2" @update:model-value="close" />
+                          </template>
+                        </UPopover>
+                      </UFormField>
+                    </UFieldGroup>
+
+                    <UFormField class="w-full" label="Supplementary File / Photo">
+                      <UFileUpload size="xl" variant="area" label="Drop your image here"
+                        description="SVG, PNG, JPG or GIF (max. 2MB)" />
+                    </UFormField>
+                    <UButton type="submit" block class="mt-4">
+                      Add Task
+                    </UButton>
+                  </UForm>
+                </template>
+              </UModal>
+            </div>
+
+            <UTabs v-model="selectedTab" :items="tabItems" variant="link" :ui="{ content: 'hidden' }" />
+          </UPageCard>
+
+          <!-- Content rendering outside the main card container -->
+          <div v-show="selectedTab == 0" class="space-y-4">
+            <UPageCard v-for="task in todoTasks" :key="task._id" class="white-bread-container">
+              <div class="flex justify-between items-start">
+                <div class="font-semibold">{{ task.title }}</div>
+                <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
+              </div>
+              <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                <div class="flex items-center gap-1.5" v-if="task.deadline">
+                  <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                  <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
+                </div>
+                <div class="flex items-center gap-1.5" v-if="task.budget">
+                  <UIcon name="i-lucide-wallet" class="text-muted" />
+                  <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
+                </div>
+              </div>
+              <UButton block class="mt-4" @click="changeTaskStatus(task, 'ONGOING')">Mark as Ongoing</UButton>
+            </UPageCard>
+            <div v-if="todoTasks.length === 0" class="text-sm text-muted text-center py-4">No tasks to do.</div>
+          </div>
+
+          <div v-show="selectedTab == 1" class="space-y-4">
+            <UPageCard v-for="task in ongoingTasks" :key="task._id" class="white-bread-container">
+              <div class="flex justify-between items-start">
+                <div class="font-semibold">{{ task.title }}</div>
+                <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
+              </div>
+              <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                <div class="flex items-center gap-1.5" v-if="task.deadline">
+                  <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                  <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
+                </div>
+                <div class="flex items-center gap-1.5" v-if="task.budget">
+                  <UIcon name="i-lucide-wallet" class="text-muted" />
+                  <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
+                </div>
+              </div>
+              <UButton block class="mt-4" @click="changeTaskStatus(task, 'COMPLETED')">Mark as Complete</UButton>
+            </UPageCard>
+            <div v-if="ongoingTasks.length === 0" class="text-sm text-muted text-center py-4">No ongoing tasks.</div>
+          </div>
+
+          <div v-show="selectedTab == 2" class="space-y-4">
+            <UPageCard v-for="task in completedTasks" :key="task._id" class="white-bread-container">
+              <div class="flex justify-between items-start">
+                <div class="font-semibold">{{ task.title }}</div>
+                <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
+              </div>
+              <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                <div class="flex items-center gap-1.5" v-if="task.deadline">
+                  <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                  <span>Completed: {{ df.format(new Date(task.deadline)) }}</span>
+                </div>
+                <div class="flex items-center gap-1.5" v-if="task.budget">
+                  <UIcon name="i-lucide-wallet" class="text-muted" />
+                  <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
+                </div>
+              </div>
+              <UButton block class="mt-4" variant="outline" color="neutral" @click="changeTaskStatus(task, 'ONGOING')">Mark as Ongoing</UButton>
+            </UPageCard>
+            <div v-if="completedTasks.length === 0" class="text-sm text-muted text-center py-4">No completed tasks.</div>
+          </div>
         </UContainer>
       </UScrollArea>
     </UPageGrid>

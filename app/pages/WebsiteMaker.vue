@@ -1,5 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+
+definePageMeta({
+  layout: 'event-sub-navbar',
+  title: 'Website Maker',
+  bgClass: 'bg-blue-50'
+})
+
 import aisleImage from '../assets/bpb-images/login-aisle.jpg'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord } from '~/types/event'
@@ -44,11 +51,6 @@ const eventId = computed(() => {
   return typeof value === 'string' ? value : ''
 })
 
-const eventDashboardPath = computed(() => ({
-  path: '/UserEventDashboard',
-  query: { eventId: eventId.value || 'mock-event-id' },
-}))
-
 const customSiteId = ref<string | null>(null)
 const eventRecord = ref<EventRecord | null>(null)
 const isLoadingSite = ref(false)
@@ -71,10 +73,6 @@ const previewSiteDescription = computed(
     websiteData.siteDescription.trim() ||
     eventRecord.value?.description?.trim() ||
     'Your site description goes here.'
-)
-
-const makerHeaderTitle = computed(
-  () => eventRecord.value?.eventName?.trim() || 'Website Maker'
 )
 
 const loadedCustomSiteFromApi = ref(false)
@@ -653,63 +651,37 @@ const getGoogleMapsUrl = (location: string) => {
 </script>
 
 <template>
-    <div class="relative w-full min-h-screen bg-toast-50">
-
-        <!-- Top Toolbar: Custom UDashboardNavbar -->
-        <UDashboardNavbar class="bg-white w-full sticky top-0 z-50 event-navbar">
-
-            <!-- LEFT SIDE: Back Button & Image Slot -->
-            <template #left>
-                <div class="flex items-center gap-3">
-                    <UButton
-                        icon="i-lucide-arrow-left"
-                        color="neutral"
-                        variant="ghost"
-                        class="rounded-lg"
-                        aria-label="Go back"
-                        :to="eventDashboardPath"
-                    />
-
-                    <!-- Image Slot Wrapper -->
-                    <img src="..\assets\bpb-icons\logo-toast.svg" class="h-7" />
-                    <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)]">
-                        {{ makerHeaderTitle }}
-                    </div>
-                </div>
-            </template>
-
-            <!-- RIGHT SIDE: Status & Actions -->
-            <template #right>
-                <div class="flex items-center gap-4">
-                    <div v-if="isLive" class="text-sm md:text-base font-medium text-success-600 dark:text-success-400">
-                        ✨ Your website is live!
-                    </div>
-
-                    <UButton
-                        variant="outline"
-                        color="neutral"
-                        :loading="isSaving"
-                        :disabled="isLoadingSite || isLoadingEvent || isSaving"
-                        @click="handleSaveWebsite"
-                    >
-                        Save Website
-                    </UButton>
-                    <UButton
-                        :icon="isLive ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
-                        :color="isLive ? 'neutral' : 'primary'"
-                        :loading="isSaving"
-                        :disabled="isLoadingSite || isLoadingEvent || isSaving || (!isLive && !canPublishWebsite)"
-                        @click="handleGoLive"
-                    >
-                        {{ isLive ? 'Edit Website' : 'Go Live' }}
-                    </UButton>
-                </div>
-            </template>
-
-        </UDashboardNavbar>
-
         <!-- Main Content Container -->
         <UContainer :class="{ 'max-w-full px-0!': isLive }">
+            <ClientOnly>
+                <Teleport to="#navbar-actions">
+                    <div class="flex items-center gap-4">
+                        <div v-if="isLive" class="text-sm md:text-base font-medium text-success-600">
+                            ✨ Your website is live!
+                        </div>
+
+                        <UButton
+
+                            color="neutral"
+                            :loading="isSaving"
+                            :disabled="isLoadingSite || isLoadingEvent || isSaving"
+                            @click="handleSaveWebsite"
+                        >
+                            Save Website
+                        </UButton>
+                        <UButton
+                            :icon="isLive ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
+                            :color="isLive ? 'neutral' : 'blue'"
+                            :loading="isSaving"
+                            :disabled="isLoadingSite || isLoadingEvent || isSaving || (!isLive && !canPublishWebsite)"
+                            @click="handleGoLive"
+                        >
+                            {{ isLive ? 'Edit Website' : 'Go Live' }}
+                        </UButton>
+                    </div>
+                </Teleport>
+            </ClientOnly>
+
             <div class="transition-all" :class="isLive ? 'mb-0' : 'mb-8'"></div>
             <UPageGrid class="items-start" :grid="{ cols: isLive ? '1' : '1 md:4' }">
 
@@ -725,7 +697,7 @@ const getGoogleMapsUrl = (location: string) => {
                                 class="absolute left-0 p-2" aria-label="Previous Step" @click="currentStep--" />
                             <span>{{ currentStepData?.label }}</span>
                         </div>
-                        <p class="text-center text-sm text-gray-500 dark:text-gray-400 mx-3">
+                        <p class="text-center text-sm mx-3">
                             {{ currentStepData?.description }}
                         </p>
                     </div>
@@ -742,31 +714,31 @@ const getGoogleMapsUrl = (location: string) => {
                             <!-- Step 1: Choose a Format -->
                             <div v-if="currentStepData?.id === 'choose-format'" class="">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div class="relative rounded-lg cursor-pointer group transition-all duration-300 border p-4 flex flex-col items-center gap-3 bg-white dark:bg-gray-900"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg border-transparent': websiteData.format === 'format1', 'border-gray-200 dark:border-gray-700 hover:border-primary-300': websiteData.format !== 'format1' }"
+                                    <div class="relative rounded-lg cursor-pointer group transition-all duration-300 border p-4 flex flex-col items-center gap-3 bg-white"
+                                        :class="{ 'ring-2 ring-blue-500 shadow-lg border-transparent': websiteData.format === 'format1', 'border-toast-200 hover:border-blue-300': websiteData.format !== 'format1' }"
                                         @click="websiteData.format = 'format1'">
                                         <div
-                                            class="w-full h-24 bg-gray-50 dark:bg-gray-800 flex flex-col gap-1 p-1 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
-                                            <div class="w-full h-8 bg-gray-200 dark:bg-gray-600 rounded"></div>
-                                            <div class="w-full flex-1 bg-gray-100 dark:bg-gray-700 rounded"></div>
+                                            class="w-full h-24 bg-toast-50 flex flex-col gap-1 p-1 border border-toast-200 rounded shadow-sm">
+                                            <div class="w-full h-8 bg-toast-200 rounded"></div>
+                                            <div class="w-full flex-1 bg-toast-100 rounded"></div>
                                         </div>
                                         <span class="font-medium text-sm">Classic Stack</span>
                                         <div v-if="websiteData.format === 'format1'"
-                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                     </div>
-                                    <div class="relative rounded-lg cursor-pointer group transition-all duration-300 border p-4 flex flex-col items-center gap-3 bg-white dark:bg-gray-900"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg border-transparent': websiteData.format === 'format2', 'border-gray-200 dark:border-gray-700 hover:border-primary-300': websiteData.format !== 'format2' }"
+                                    <div class="relative rounded-lg cursor-pointer group transition-all duration-300 border p-4 flex flex-col items-center gap-3 bg-white"
+                                        :class="{ 'ring-2 ring-blue-500 shadow-lg border-transparent': websiteData.format === 'format2', 'border-toast-200 hover:border-blue-300': websiteData.format !== 'format2' }"
                                         @click="websiteData.format = 'format2'">
                                         <div
-                                            class="w-full h-24 bg-gray-50 dark:bg-gray-800 flex gap-1 p-1 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
-                                            <div class="w-1/2 h-full bg-gray-200 dark:bg-gray-600 rounded"></div>
-                                            <div class="w-1/2 h-full bg-gray-100 dark:bg-gray-700 rounded"></div>
+                                            class="w-full h-24 bg-toast-50 flex gap-1 p-1 border border-toast-200 rounded shadow-sm">
+                                            <div class="w-1/2 h-full bg-toast-200 rounded"></div>
+                                            <div class="w-1/2 h-full bg-toast-100 rounded"></div>
                                         </div>
                                         <span class="font-medium text-sm">Side-by-Side</span>
                                         <div v-if="websiteData.format === 'format2'"
-                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                     </div>
@@ -778,7 +750,7 @@ const getGoogleMapsUrl = (location: string) => {
                                 <div class="grid grid-cols-2 gap-4">
                                     <div v-for="motif in motifs" :key="motif.name"
                                         class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.motif === motif.name }"
+                                        :class="{ 'ring-2 ring-blue-500 shadow-lg': websiteData.motif === motif.name }"
                                         @click="selectMotif(motif)" style="height: 100px;">
                                         <img :src="motif.image" :alt="motif.name"
                                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
@@ -786,7 +758,7 @@ const getGoogleMapsUrl = (location: string) => {
                                             class="absolute inset-0 bg-toast-900/10 group-hover:bg-opacity-40 transition-all duration-300">
                                         </div>
                                         <div v-if="websiteData.motif === motif.name"
-                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                         <div class="absolute bottom-0 left-0 p-2">
@@ -803,7 +775,7 @@ const getGoogleMapsUrl = (location: string) => {
                                 <div class="grid grid-cols-2 gap-4">
                                     <div v-for="palette in colorPalettes" :key="palette.name"
                                         class="relative rounded-lg overflow-hidden cursor-pointer group transition-all duration-300 border"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.colorPalette === palette.name, 'border-gray-200 dark:border-gray-700': websiteData.colorPalette !== palette.name }"
+                                        :class="{ 'ring-2 ring-blue-500 shadow-lg border-blue-500': websiteData.colorPalette === palette.name, 'border-toast-200': websiteData.colorPalette !== palette.name }"
                                         @click="websiteData.colorPalette = palette.name">
 
                                         <div class="h-20 flex">
@@ -815,7 +787,7 @@ const getGoogleMapsUrl = (location: string) => {
                                             class="absolute inset-0 group-hover:bg-opacity-20 transition-all duration-300">
                                         </div>
                                         <div v-if="websiteData.colorPalette === palette.name"
-                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                         <div class="absolute bottom-0 left-0 p-2 bg-black/20 w-full">
@@ -846,7 +818,7 @@ const getGoogleMapsUrl = (location: string) => {
                                 <div class="grid grid-cols-1 gap-4">
                                     <div v-for="set in typographySets" :key="set.name"
                                         class="rounded-lg cursor-pointer group transition-all duration-300 border p-3 flex flex-col justify-between"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg': websiteData.typography === set.name, 'border-gray-200 dark:border-gray-700': websiteData.typography !== set.name }"
+                                        :class="{ 'ring-2 ring-blue-500 shadow-lg border-blue-500': websiteData.typography === set.name, 'border-toast-200': websiteData.typography !== set.name }"
                                         @click="websiteData.typography = set.name">
 
                                         <div>
@@ -861,11 +833,11 @@ const getGoogleMapsUrl = (location: string) => {
                                                 brown fox jumps over the lazy dog.</p>
                                         </div>
 
-                                        <div class="mt-4 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                            <h4 class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{
+                                        <div class="mt-4 pt-2 border-t border-toast-200">
+                                            <h4 class="font-semibold text-sm text-toast-800">{{
                                                 set.name
                                                 }}</h4>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ set.description
+                                            <p class="text-xs text-toast-500">{{ set.description
                                                 }}</p>
                                         </div>
                                     </div>
@@ -908,7 +880,7 @@ const getGoogleMapsUrl = (location: string) => {
                                 <div class="flex items-center justify-between">
                                     <div class="text-left">
                                         <h4 class="font-medium text-sm">Password Protection</h4>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">Require a password for
+                                        <p class="text-xs text-toast-500">Require a password for
                                             guests to
                                             view your website.</p>
                                     </div>
@@ -934,13 +906,13 @@ const getGoogleMapsUrl = (location: string) => {
                                 <div class="items-center space-y-4">
 
                                     <div v-if="!headingSection && !paragraphSection"
-                                        class="text-center text-gray-500 italic">No
+                                        class="text-center text-toast-500 italic">No
                                         sections
                                         added
                                         yet.
                                     </div>
 
-                                    <UButton v-if="!headingSection" icon="i-lucide-plus" color="primary" variant="solid"
+                                    <UButton v-if="!headingSection" icon="i-lucide-plus" color="blue" variant="solid"
                                         block @click="addContentSection('heading')">
                                         Add Heading
                                     </UButton>
@@ -958,7 +930,7 @@ const getGoogleMapsUrl = (location: string) => {
                                         </UFormField>
                                     </div>
 
-                                    <UButton v-if="!paragraphSection" icon="i-lucide-plus" color="primary"
+                                    <UButton v-if="!paragraphSection" icon="i-lucide-plus" color="blue"
                                         variant="solid" block @click="addContentSection('paragraph')">
                                         Add Paragraph
                                     </UButton>
@@ -984,18 +956,18 @@ const getGoogleMapsUrl = (location: string) => {
                                 <div class="grid grid-cols-2 gap-4">
                                     <div v-for="comp in availableComponents" :key="comp.id"
                                         class="relative rounded-lg p-5 cursor-pointer group transition-all duration-300 border flex flex-col items-center text-center gap-1"
-                                        :class="{ 'ring-4 ring-primary-500 shadow-lg border-transparent': selectedComponents.includes(comp.id), 'border-gray-200 dark:border-gray-700 hover:border-primary-300': !selectedComponents.includes(comp.id) }"
+                                        :class="{ 'ring-2 ring-blue-500 shadow-lg border-transparent': selectedComponents.includes(comp.id), 'border-toast-200 hover:border-blue-300': !selectedComponents.includes(comp.id) }"
                                         @click="toggleComponent(comp.id)">
 
                                         <UIcon :name="comp.icon" class="w-5 h-5 transition-colors duration-300"
-                                            :class="selectedComponents.includes(comp.id) ? 'text-primary-600' : 'text-gray-500 dark:text-gray-400'" />
+                                            :class="selectedComponents.includes(comp.id) ? 'text-blue-600' : 'text-toast-500'" />
                                         <h4 class="font-semibold text-base transition-colors duration-300"
-                                            :class="selectedComponents.includes(comp.id) ? 'text-primary-700 dark:text-primary-400' : ''">
+                                            :class="selectedComponents.includes(comp.id) ? 'text-blue-700' : ''">
                                             {{ comp.name }}</h4>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ comp.description }}</p>
+                                        <p class="text-xs text-toast-500">{{ comp.description }}</p>
 
                                         <div v-if="selectedComponents.includes(comp.id)"
-                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white">
+                                            class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" />
                                         </div>
                                     </div>
@@ -1005,10 +977,10 @@ const getGoogleMapsUrl = (location: string) => {
                             <!-- Dynamic Step: Q&A (formerly Tidbits) -->
                             <div v-if="currentStepData?.id === 'q-and-a'" class="flex flex-col gap-6 ">
                                 <div class="items-center space-y-4">
-                                    <div v-if="tidbits.length === 0" class="text-center text-gray-500 italic">No Q&A
+                                    <div v-if="tidbits.length === 0" class="text-center text-toast-500 italic">No Q&A
                                         added yet.
                                     </div>
-                                    <UButton icon="i-lucide-plus" color="primary" variant="solid" block
+                                    <UButton icon="i-lucide-plus" color="blue" variant="solid" block
                                         @click="addTidbit()">
                                         Add Q&A
                                     </UButton>
@@ -1034,10 +1006,10 @@ const getGoogleMapsUrl = (location: string) => {
                             <!-- Dynamic Step: Schedule -->
                             <div v-if="currentStepData?.id === 'schedule'" class="flex flex-col gap-6 ">
                                 <div class="items-center space-y-4">
-                                    <div v-if="scheduleItems.length === 0" class="text-center text-gray-500 italic">No
+                                    <div v-if="scheduleItems.length === 0" class="text-center text-toast-500 italic">No
                                         events
                                         added yet.</div>
-                                    <UButton icon="i-lucide-plus" color="primary" variant="solid" block
+                                    <UButton icon="i-lucide-plus" color="blue" variant="solid" block
                                         @click="addScheduleItem()">
                                         Add Event
                                     </UButton>
@@ -1076,7 +1048,7 @@ const getGoogleMapsUrl = (location: string) => {
                             <!-- Dynamic Step: Travel -->
                             <div v-if="currentStepData?.id === 'travel'" class="flex flex-col gap-6">
                                 <div class="items-center space-y-4">
-                                    <div class="text-center text-gray-500 italic">Travel configuration goes here.</div>
+                                    <div class="text-center text-toast-500 italic">Travel configuration goes here.</div>
                                     <!-- TODO: Add Travel form fields -->
                                 </div>
                             </div>
@@ -1084,7 +1056,7 @@ const getGoogleMapsUrl = (location: string) => {
                             <!-- Dynamic Step: Wedding Party -->
                             <div v-if="currentStepData?.id === 'wedding-party'" class="flex flex-col gap-6">
                                 <div class="items-center space-y-4">
-                                    <div class="text-center text-gray-500 italic">Wedding Party configuration goes here.
+                                    <div class="text-center text-toast-500 italic">Wedding Party configuration goes here.
                                     </div>
                                     <!-- TODO: Add Wedding Party form fields -->
                                 </div>
@@ -1115,13 +1087,13 @@ const getGoogleMapsUrl = (location: string) => {
                                 </div>
                                 <p
                                     v-if="!canPublishWebsite"
-                                    class="text-sm text-gray-500 dark:text-gray-400"
+                                    class="text-sm text-toast-500"
                                 >
                                     Event payment must be approved before you can publish your website. You can still save your progress.
                                 </p>
                                 <UButton
                                     v-if="canPublishWebsite"
-                                    color="primary"
+                                    color="blue"
                                     block
                                     :loading="isSaving"
                                     :disabled="isLoadingSite || isLoadingEvent || isSaving"
@@ -1131,7 +1103,7 @@ const getGoogleMapsUrl = (location: string) => {
                                 </UButton>
                                 <UButton
                                     v-else
-                                    color="primary"
+                                    color="blue"
                                     block
                                     :loading="isSaving"
                                     :disabled="isLoadingSite || isLoadingEvent || isSaving"
@@ -1148,7 +1120,7 @@ const getGoogleMapsUrl = (location: string) => {
                     <div class="pb-6 px-6 pt-4 shrink-0">
                         <div class="flex justify-end items-center">
                             <UButton v-if="currentStep < websiteSteps.length - 1" icon="i-lucide-arrow-right"
-                                color="primary" @click="currentStep++" block class="items-center">
+                                color="blue" @click="currentStep++" block class="items-center">
                                 Next Step
                             </UButton>
                         </div>
@@ -1351,7 +1323,7 @@ const getGoogleMapsUrl = (location: string) => {
                                                 :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Where to Stay</div>
                                             
-                                            <div v-if="websiteData.whereToStayLocation" class="relative w-full h-[400px] max-w-4xl mx-auto rounded-lg overflow-hidden shadow-lg border" :style="{ borderColor: getDynamicStyle(index).text }">
+                                            <div v-if="websiteData.whereToStayLocation" class="relative w-full h-100 max-w-4xl mx-auto rounded-lg overflow-hidden shadow-lg border" :style="{ borderColor: getDynamicStyle(index).text }">
                                                 <iframe 
                                                     width="100%" 
                                                     height="100%" 
@@ -1360,7 +1332,7 @@ const getGoogleMapsUrl = (location: string) => {
                                                     marginheight="0" 
                                                     marginwidth="0" 
                                                     :src="getGoogleMapsUrl(websiteData.whereToStayLocation)"
-                                                    style="filter: grayscale(1) contrast(1);">
+                                                    style="filter: toastscale(1) contrast(1);">
                                                 </iframe>
                                                 <!-- Seamless Map Tint Overlay -->
                                                 <div class="absolute inset-0 pointer-events-none opacity-60"
@@ -1437,7 +1409,6 @@ const getGoogleMapsUrl = (location: string) => {
 
             </UPageGrid>
         </UContainer>
-    </div>
 </template>
 
 <style scoped>

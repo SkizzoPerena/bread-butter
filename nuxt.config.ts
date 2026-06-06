@@ -43,7 +43,18 @@ export default defineNuxtConfig({
         'info',
         'success',
         'warning',
-        'error'
+        'error',
+        'charcoal',
+        'blue',
+        'emerald',
+        'purple',
+        'teal',
+        'orange',
+        'pink',
+        'indigo',
+        'slate',
+        'rose',
+        'monochrome'
       ]
     }
   },

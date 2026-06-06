@@ -59,32 +59,32 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar variant="link" class="bg-toast-500/70 w-full sticky top-0 z-50 event-navbar">
-    <template #leading>
-      <NuxtLink to="/UserDashboard" class="flex items-center">
-        <img src="..\assets\bpb-icons\logo-white.svg" class="h-7" />
-      </NuxtLink>
-      <div class="font-semibold font-serif text-2xl text-white mx-3 truncate max-w-[min(100%,28rem)]">
-        {{ headerEventTitle }}
+  <UDashboardNavbar class="bg-white w-full sticky top-0 z-50 event-navbar">
+    <template #left>
+      <div class="flex items-center gap-3">
+        <NuxtLink to="/UserDashboard" class="flex items-center">
+          <img src="..\assets\bpb-icons\logo-toast.svg" class="h-7" />
+        </NuxtLink>
+        <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)]">
+          {{ headerEventTitle }}
+        </div>
       </div>
     </template>
     <template #right>
-      <div class="flex items-center gap-3">
-        <UColorModeButton class="text-white" variant="link" />
+      <div class="flex items-center gap-4">
+        <UColorModeButton />
         <UDropdownMenu
           :items="dropitems"
           :modal="false"
           :content="{ align: 'end', side: 'bottom' }"
           :ui="{
-            content: 'bg-toast-500/70 ring ring-transparent mt-1 min-w-40 -mr-4 rounded-xl',
+            content: 'mt-1 min-w-40 -mr-4 rounded-xl',
             label: '',
-            itemLeadingIcon: 'text-white',
-            item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
           }"
         >
           <UAvatar :src="avatarSrc" :alt="avatarLabel" />
           <template #account>
-            <div class="flex items-center gap-2 text-white">
+            <div class="flex items-center gap-2">
               <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
               <span class="font-semibold">{{ userDisplayName }}</span>
             </div>
