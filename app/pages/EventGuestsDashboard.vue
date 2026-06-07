@@ -6,6 +6,7 @@ import { useEvents } from '~/composables/useEvents'
 import { useGuests } from '~/composables/useGuests'
 import { useEventGuestsManager, addGuestSchema } from '~/composables/useEventGuestsManager'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
+import { useEventGuestGroupsManager } from '~/composables/useEventGuestGroupsManager'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -36,6 +37,9 @@ const isLoadingGuests = ref(false)
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
 
 const UBadge = resolveComponent('UBadge')
+const UCheckbox = resolveComponent('UCheckbox')
+
+const reloadGuestGroupsRef = ref<((targetEventId?: string) => Promise<void>) | null>(null)
 
 const {
   isAddGuestModalOpen,
@@ -50,6 +54,7 @@ const {
   mutationsDisabled,
   tableRows,
   isGuestListEmpty,
+  guestListSize,
   invitationsSentCount,
   canInviteAll,
   rsvpStats,
@@ -68,7 +73,56 @@ const {
   guestList,
   isLoadingGuests,
   autoLoadGuests: false,
+  onGuestListMutated: () => reloadGuestGroupsRef.value?.(),
 })
+
+const {
+  isLoadingGroups,
+  isGroupActionLoading,
+  searchQuery,
+  isGroupAssignmentModalOpen,
+  isAddToExistingModalOpen,
+  isRenameGroupModalOpen,
+  groupAssignmentMode,
+  createGroupName,
+  renameGroupName,
+  targetGroupId,
+  assignableGroupOptions,
+  displayRows,
+  isSearchEmpty,
+  showActionBar,
+  selectedCount,
+  selectedGuestIds,
+  selectionContext,
+  canGroupGuests,
+  showCreateGroupHint,
+  canRenameGroup,
+  canUngroupAll,
+  canAddToExistingGroup,
+  canAssignToExistingInModal,
+  canUngroupSingle,
+  allVisibleSelected,
+  someVisibleSelected,
+  loadGuestGroups,
+  clearSelection,
+  toggleSelection,
+  toggleSelectAllVisible,
+  openGroupAssignmentModal,
+  openAddToExistingModal,
+  openRenameGroupModal,
+  handleGroupAssignment,
+  handleAddToExistingGroup,
+  handleRenameGroup,
+  handleUngroupSingle,
+  handleUngroupAll,
+} = useEventGuestGroupsManager({
+  eventId,
+  tableRows,
+  mutationsDisabled,
+  isUiOnlyMode,
+})
+
+reloadGuestGroupsRef.value = loadGuestGroups
 
 const guestModalUi = {
   header: 'bg-orange-500 border-none',
@@ -88,7 +142,47 @@ const rsvpMakerLink = computed(() => ({
 }))
 
 const columns: TableColumn<GuestTableRow>[] = [
-  { accessorKey: 'name', header: 'Name' },
+  {
+    id: 'select',
+    header: () =>
+      h(UCheckbox, {
+        modelValue: allVisibleSelected.value,
+        indeterminate: someVisibleSelected.value,
+        disabled: mutationsDisabled.value || displayRows.value.length === 0,
+        'aria-label': 'Select all visible guests',
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+          toggleSelectAllVisible(value === true)
+        },
+      }),
+    cell: ({ row }) => {
+      const person = row.original
+      return h(UCheckbox, {
+        modelValue: selectedGuestIds.value.has(person.guestId),
+        disabled: mutationsDisabled.value,
+        'aria-label': `Select ${person.name}`,
+        'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+          toggleSelection(person.guestId, value === true)
+        },
+      })
+    },
+  },
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    cell: ({ row }) => {
+      const person = row.original
+      return h('div', { class: 'space-y-1' }, [
+        h('span', { class: 'font-medium' }, person.name),
+        person.groupName
+          ? h(
+              UBadge,
+              { variant: 'subtle', color: 'orange', size: 'xs' },
+              () => person.groupName
+            )
+          : null,
+      ])
+    },
+  },
   { accessorKey: 'email', header: 'Email' },
   { accessorKey: 'guests', header: 'Attendants' },
   {
@@ -199,7 +293,7 @@ async function loadEventData() {
     rsvpSummary.value = detail.rsvpSummary
     setActiveEvent(detail.event)
 
-    await loadGuestList(targetEventId)
+    await Promise.all([loadGuestList(targetEventId), loadGuestGroups(targetEventId)])
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -234,21 +328,18 @@ watch(eventId, () => {
           <UButton
             :to="rsvpMakerLink"
             icon="i-lucide-calendar"
-
           >
             RSVP Maker
           </UButton>
           <UButton
             :to="bulkAddLink"
             icon="i-lucide-users"
-
             :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
           >
             Bulk Add
           </UButton>
           <UButton
             icon="i-lucide-mail"
-
             :disabled="!canInviteAll"
             :loading="isInvitingAll"
             @click="handleInviteAll"
@@ -292,7 +383,7 @@ watch(eventId, () => {
           :ui="{ title: 'text-orange-600 dark:text-orange-400', description: 'text-orange-600/70 dark:text-orange-400/70' }"
         >
           <template #title>
-            <div class="text-2xl font-bold">{{ invitationsSentCount }}</div>
+            <div class="text-2xl font-bold">{{ invitationsSentCount }}/{{ guestListSize }}</div>
           </template>
         </UPageCard>
         <UPageCard
@@ -316,7 +407,7 @@ watch(eventId, () => {
       </UPageGrid>
 
       <div
-        v-if="isLoadingGuests"
+        v-if="isLoadingGuests || isLoadingGroups"
         class="flex items-center justify-center py-12 text-muted"
       >
         <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
@@ -346,18 +437,119 @@ watch(eventId, () => {
           <UButton
             :to="bulkAddLink"
             icon="i-lucide-users"
-
           >
             Bulk Add
           </UButton>
         </div>
       </div>
 
-      <UTable
-        v-else
-        :data="tableRows"
-        :columns="columns"
-      />
+      <template v-else>
+        <UInput
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search by name, email, or group..."
+          icon="i-lucide-search"
+          class="w-full sm:w-72"
+        />
+
+        <div
+          v-if="isSearchEmpty"
+          class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+        >
+          <UIcon name="i-lucide-search-x" class="size-10 text-muted" />
+          <p class="mt-4 text-base font-medium">No guests match your search</p>
+          <p class="mt-1 max-w-sm text-sm text-muted">
+            Try a different name, email, or group name. Matching a grouped guest shows their whole group.
+          </p>
+        </div>
+
+        <div
+          v-else
+          class="relative"
+          :class="showActionBar ? 'pb-24' : ''"
+        >
+          <UTable
+            :data="displayRows"
+            :columns="columns"
+          />
+        </div>
+
+        <div
+          v-if="showActionBar"
+          class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-200 bg-white px-4 py-3 shadow-lg dark:border-orange-800 dark:bg-neutral-900"
+        >
+          <div class="space-y-1">
+            <span class="text-sm font-medium text-highlighted">
+              {{ selectedCount }} selected
+            </span>
+            <p
+              v-if="showCreateGroupHint"
+              class="text-xs text-muted"
+            >
+              Select at least 2 guests to create a new group
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton
+              v-if="canGroupGuests"
+              color="orange"
+              icon="i-lucide-users-round"
+              :loading="isGroupActionLoading"
+              @click="openGroupAssignmentModal"
+            >
+              Group guests…
+            </UButton>
+            <UButton
+              v-if="canRenameGroup"
+              color="orange"
+              variant="outline"
+              icon="i-lucide-pencil"
+              :loading="isGroupActionLoading"
+              @click="openRenameGroupModal"
+            >
+              Rename group
+            </UButton>
+            <UButton
+              v-if="canAddToExistingGroup"
+              color="orange"
+              variant="outline"
+              icon="i-lucide-user-plus"
+              :loading="isGroupActionLoading"
+              @click="openAddToExistingModal"
+            >
+              Add to existing group
+            </UButton>
+            <UButton
+              v-if="canUngroupSingle"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-user-minus"
+              :loading="isGroupActionLoading"
+              @click="handleUngroupSingle"
+            >
+              Ungroup
+            </UButton>
+            <UButton
+              v-if="canUngroupAll && (selectionContext === 'same_group' || selectionContext === 'mixed')"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-user-minus"
+              :loading="isGroupActionLoading"
+              @click="handleUngroupAll"
+            >
+              Ungroup all
+            </UButton>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              :disabled="isGroupActionLoading"
+              @click="clearSelection"
+            >
+              Clear
+            </UButton>
+          </div>
+        </div>
+      </template>
 
       <UModal
         v-model:open="isAddGuestModalOpen"
@@ -401,6 +593,158 @@ watch(eventId, () => {
               Add Guest
             </UButton>
           </UForm>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isGroupAssignmentModalOpen"
+        title="Group guests"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+        :dismissible="!isGroupActionLoading"
+      >
+        <template #body>
+          <p class="mb-4 text-sm text-muted">
+            Group {{ selectedCount }} guests together. A group requires at least 2 members.
+          </p>
+          <div
+            v-if="canAssignToExistingInModal"
+            class="mb-4 flex gap-2"
+          >
+            <UButton
+              label="Create new group"
+              :color="groupAssignmentMode === 'new' ? 'orange' : 'neutral'"
+              :variant="groupAssignmentMode === 'new' ? 'solid' : 'outline'"
+              class="flex-1"
+              :disabled="isGroupActionLoading"
+              @click="groupAssignmentMode = 'new'"
+            />
+            <UButton
+              label="Add to existing"
+              :color="groupAssignmentMode === 'existing' ? 'orange' : 'neutral'"
+              :variant="groupAssignmentMode === 'existing' ? 'solid' : 'outline'"
+              class="flex-1"
+              :disabled="isGroupActionLoading"
+              @click="groupAssignmentMode = 'existing'"
+            />
+          </div>
+          <UFormField
+            v-if="groupAssignmentMode === 'new'"
+            label="Group name (optional)"
+            name="groupName"
+          >
+            <UInput
+              v-model="createGroupName"
+              class="w-full"
+              placeholder="Smith Family"
+              :disabled="isGroupActionLoading"
+            />
+          </UFormField>
+          <UFormField
+            v-else
+            label="Group"
+            name="targetGroup"
+            required
+          >
+            <USelect
+              v-model="targetGroupId"
+              :items="assignableGroupOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              :disabled="isGroupActionLoading"
+            />
+          </UFormField>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isGroupActionLoading"
+              @click="isGroupAssignmentModalOpen = false"
+            />
+            <UButton
+              :label="groupAssignmentMode === 'new' ? 'Create group' : 'Add to group'"
+              color="orange"
+              :loading="isGroupActionLoading"
+              :disabled="groupAssignmentMode === 'existing' && !targetGroupId"
+              @click="handleGroupAssignment"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isAddToExistingModalOpen"
+        title="Add to existing group"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+        :dismissible="!isGroupActionLoading"
+      >
+        <template #body>
+          <p class="mb-4 text-sm text-muted">
+            Add the selected guest to an existing group.
+          </p>
+          <UFormField label="Group" name="targetGroup" required>
+            <USelect
+              v-model="targetGroupId"
+              :items="assignableGroupOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              :disabled="isGroupActionLoading"
+            />
+          </UFormField>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isGroupActionLoading"
+              @click="isAddToExistingModalOpen = false"
+            />
+            <UButton
+              label="Add to group"
+              color="orange"
+              :loading="isGroupActionLoading"
+              :disabled="!targetGroupId"
+              @click="handleAddToExistingGroup"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isRenameGroupModalOpen"
+        title="Rename group"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+        :dismissible="!isGroupActionLoading"
+      >
+        <template #body>
+          <p class="mb-4 text-sm text-muted">
+            Rename the group shared by all selected guests.
+          </p>
+          <UFormField label="Group name" name="renameGroupName">
+            <UInput
+              v-model="renameGroupName"
+              class="w-full"
+              placeholder="Smith Family"
+              :disabled="isGroupActionLoading"
+            />
+          </UFormField>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isGroupActionLoading"
+              @click="isRenameGroupModalOpen = false"
+            />
+            <UButton
+              label="Save"
+              color="orange"
+              :loading="isGroupActionLoading"
+              @click="handleRenameGroup"
+            />
+          </div>
         </template>
       </UModal>
 

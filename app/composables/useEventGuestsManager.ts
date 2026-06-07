@@ -19,6 +19,9 @@ export type GuestTableRow = {
   guests: number
   rsvpStatus: typeof rsvpOptions[number]
   invitationSent: boolean
+  groupId?: string | null
+  groupName?: string | null
+  groupSize?: number | null
 }
 
 export const addGuestSchema = z.object({
@@ -36,6 +39,7 @@ export interface UseEventGuestsManagerOptions {
   guestList?: Ref<GuestRecord[]>
   isLoadingGuests?: Ref<boolean>
   autoLoadGuests?: boolean
+  onGuestListMutated?: () => void | Promise<void>
 }
 
 export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
@@ -273,6 +277,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
         description: response.message,
       })
       closeRemoveGuestModal()
+      await options.onGuestListMutated?.()
     } catch (error) {
       reportApiError(toast, { title: 'Could not remove guest', error })
     } finally {
