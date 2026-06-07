@@ -6,6 +6,7 @@ import { useEvents } from '~/composables/useEvents'
 import { getTaskTrackerMetrics } from '~/utils/taskListUpdates'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
+import type { TaskStatus } from '~/types/task'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -18,6 +19,7 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
+const { updateTaskStatus } = useTasks()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 
@@ -133,6 +135,7 @@ const tabItems = computed(() => {
 })
 
 const selectedTab = ref(0)
+const updatingPreviewTaskId = ref<string | null>(null)
 
 const todoTasks = computed(() => {
   return tasksSummary.value?.preview.tasks.filter((t: any) => t.status === 'TODO') || []
@@ -158,22 +161,38 @@ function getPriorityColor(priority: number) {
   return 'success' as const
 }
 
-function changeTaskStatus(taskParam: any, status: 'TODO' | 'ONGOING' | 'COMPLETED') {
-  if (tasksSummary.value) {
-    const task = tasksSummary.value.preview.tasks.find((t: any) => t._id === taskParam._id)
-    if (task) {
-      if (task.status === 'TODO') tasksSummary.value.byStatus.TODO = (tasksSummary.value.byStatus.TODO || 0) - 1
-      if (task.status === 'ONGOING') tasksSummary.value.byStatus.ONGOING = (tasksSummary.value.byStatus.ONGOING || 0) - 1
-      if (task.status === 'COMPLETED') tasksSummary.value.byStatus.COMPLETED = (tasksSummary.value.byStatus.COMPLETED || 0) - 1
-      
-      task.status = status
-      
-      if (task.status === 'TODO') tasksSummary.value.byStatus.TODO = (tasksSummary.value.byStatus.TODO || 0) + 1
-      if (task.status === 'ONGOING') tasksSummary.value.byStatus.ONGOING = (tasksSummary.value.byStatus.ONGOING || 0) + 1
-      if (task.status === 'COMPLETED') tasksSummary.value.byStatus.COMPLETED = (tasksSummary.value.byStatus.COMPLETED || 0) + 1
-    }
+async function changeTaskStatus(
+  taskParam: { _id: string; status: string },
+  status: Extract<TaskStatus, 'TODO' | 'ONGOING' | 'COMPLETED'>
+) {
+  if (isEventCancelled.value || !tasksSummary.value) {
+    return
   }
-  toast.add({ title: 'Task status updated', color: 'success' })
+
+  const task = tasksSummary.value.preview.tasks.find((entry) => entry._id === taskParam._id)
+  if (!task || task.status === status) {
+    return
+  }
+
+  const previousStatus = task.status as Extract<TaskStatus, 'TODO' | 'ONGOING' | 'COMPLETED'>
+  const byStatus = tasksSummary.value.byStatus
+
+  byStatus[previousStatus] = Math.max(0, (byStatus[previousStatus] ?? 0) - 1)
+  task.status = status
+  byStatus[status] = (byStatus[status] ?? 0) + 1
+
+  updatingPreviewTaskId.value = task._id
+  try {
+    await updateTaskStatus(task._id, status)
+    toast.add({ title: 'Task status updated', color: 'success' })
+  } catch (error) {
+    byStatus[status] = Math.max(0, (byStatus[status] ?? 0) - 1)
+    task.status = previousStatus
+    byStatus[previousStatus] = (byStatus[previousStatus] ?? 0) + 1
+    reportApiError(toast, { title: 'Could not update task status', error })
+  } finally {
+    updatingPreviewTaskId.value = null
+  }
 }
 
 const taskPriorities = ['Urgent', 'Medium', 'Low']
@@ -517,7 +536,15 @@ const dashboardItems: DashboardItem[] = [
                   <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
                 </div>
               </div>
-              <UButton block class="mt-4" @click="changeTaskStatus(task, 'ONGOING')">Mark as Ongoing</UButton>
+              <UButton
+                block
+                class="mt-4"
+                :loading="updatingPreviewTaskId === task._id"
+                :disabled="isEventCancelled"
+                @click="changeTaskStatus(task, 'ONGOING')"
+              >
+                Mark as Ongoing
+              </UButton>
             </UPageCard>
             <div v-if="todoTasks.length === 0" class="text-sm text-muted text-center py-4">No tasks to do.</div>
           </div>
@@ -539,7 +566,15 @@ const dashboardItems: DashboardItem[] = [
                   <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
                 </div>
               </div>
-              <UButton block class="mt-4" @click="changeTaskStatus(task, 'COMPLETED')">Mark as Complete</UButton>
+              <UButton
+                block
+                class="mt-4"
+                :loading="updatingPreviewTaskId === task._id"
+                :disabled="isEventCancelled"
+                @click="changeTaskStatus(task, 'COMPLETED')"
+              >
+                Mark as Complete
+              </UButton>
             </UPageCard>
             <div v-if="ongoingTasks.length === 0" class="text-sm text-muted text-center py-4">No ongoing tasks.</div>
           </div>
@@ -561,7 +596,17 @@ const dashboardItems: DashboardItem[] = [
                   <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
                 </div>
               </div>
-              <UButton block class="mt-4" variant="outline" color="neutral" @click="changeTaskStatus(task, 'ONGOING')">Mark as Ongoing</UButton>
+              <UButton
+                block
+                class="mt-4"
+                variant="outline"
+                color="neutral"
+                :loading="updatingPreviewTaskId === task._id"
+                :disabled="isEventCancelled"
+                @click="changeTaskStatus(task, 'ONGOING')"
+              >
+                Mark as Ongoing
+              </UButton>
             </UPageCard>
             <div v-if="completedTasks.length === 0" class="text-sm text-muted text-center py-4">No completed tasks.</div>
           </div>

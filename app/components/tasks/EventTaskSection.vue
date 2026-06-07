@@ -18,6 +18,7 @@ const tasksSummaryRef = toRef(props, 'tasksSummary')
 
 const {
   isUiOnlyMode,
+  assigneeSelectItems,
   isLoading,
   updatingTaskId,
   searchQuery,
@@ -28,24 +29,21 @@ const {
   editingTask,
   isDetailsOpen,
   selectedTask,
-  isActionModalOpen,
-  taskForAction,
-  actionMode,
-  isActionSubmitting,
+  isRemoveModalOpen,
+  taskForRemove,
+  isRemoveSubmitting,
   mutationsDisabled,
-  actionModalTitle,
   filteredTasks,
   openCreateModal,
   openDetailsModal,
   openEditModal,
-  handleRestoreTask,
-  openCancelModal,
   openRemoveModal,
-  closeActionModal,
+  closeRemoveModal,
   handleStatusChange,
+  handleMoveToTodo,
   handlePriorityChange,
   handleFormSaved,
-  confirmTaskAction,
+  confirmRemoveTask,
   toggleGroup,
 } = useEventTasksManager({
   eventId: eventIdRef,
@@ -73,7 +71,7 @@ const {
       color="warning"
       variant="subtle"
       title="Event cancelled"
-      description="Tasks cannot be added or edited. Use Remove to permanently delete a task from this event."
+      description="Tasks cannot be added or edited while this event is cancelled."
     />
 
     <TaskToolbar
@@ -91,7 +89,6 @@ const {
       v-else
       :tasks="filteredTasks"
       :disabled="mutationsDisabled"
-      :is-event-cancelled="isEventCancelled"
       :selected-task-id="selectedTask?._id"
       :collapsed-groups="collapsedGroups"
       :updating-task-id="updatingTaskId"
@@ -100,9 +97,8 @@ const {
       @priority-change="handlePriorityChange"
       @select="openDetailsModal"
       @edit="openEditModal"
-      @cancel="openCancelModal"
-      @restore="handleRestoreTask"
       @remove="openRemoveModal"
+      @move-to-todo="handleMoveToTodo"
       @add-task="openCreateModal"
     />
 
@@ -116,43 +112,37 @@ const {
       :event-id="eventId"
       :event-record="eventRecord"
       :task="editingTask"
+      :assignee-select-items="assigneeSelectItems"
       :disabled="mutationsDisabled"
       @saved="handleFormSaved"
     />
 
     <UModal
-      v-model:open="isActionModalOpen"
-      :title="actionModalTitle"
-      :dismissible="!isActionSubmitting"
+      v-model:open="isRemoveModalOpen"
+      title="Delete task?"
+      :dismissible="!isRemoveSubmitting"
       :ui="{ content: 'border-none ring-transparent max-w-md' }"
     >
       <template #body>
         <p class="mb-4 text-sm text-muted">
-          <template v-if="actionMode === 'remove'">
-            Permanently remove
-            <span class="font-medium text-highlighted">{{ taskForAction?.title }}</span>
-            ? Any subtasks will become main tasks. Attached photos for this task will be deleted.
-            This cannot be undone.
-          </template>
-          <template v-else>
-            Cancel
-            <span class="font-medium text-highlighted">{{ taskForAction?.title }}</span>
-            ? It will move to the Cancelled section.
-          </template>
+          Permanently delete
+          <span class="font-medium text-highlighted">{{ taskForRemove?.title }}</span>
+          ? Any subtasks will become main tasks. Attached photos for this task will be deleted.
+          This cannot be undone.
         </p>
         <div class="flex justify-end gap-2">
           <UButton
             label="Back"
             color="neutral"
             variant="outline"
-            :disabled="isActionSubmitting"
-            @click="closeActionModal"
+            :disabled="isRemoveSubmitting"
+            @click="closeRemoveModal"
           />
           <UButton
-            :label="actionMode === 'remove' ? 'Remove permanently' : 'Cancel task'"
+            label="Delete permanently"
             color="error"
-            :loading="isActionSubmitting"
-            @click="confirmTaskAction"
+            :loading="isRemoveSubmitting"
+            @click="confirmRemoveTask"
           />
         </div>
       </template>

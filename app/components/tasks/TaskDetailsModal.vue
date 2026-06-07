@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { TaskRecord } from '~/types/task'
+import { getAssigneeLabel } from '~/utils/taskAssignee'
 import { mapTaskPriority } from '~/utils/taskPriority'
 import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
 
@@ -17,14 +18,19 @@ const statusLabel = computed(() => {
   if (!props.task) {
     return '—'
   }
+  if (props.task.status === 'TODO') {
+    return 'To Do'
+  }
   if (props.task.status === 'ONGOING') {
     return 'Ongoing'
   }
   if (props.task.status === 'COMPLETED') {
     return 'Completed'
   }
-  return 'Cancelled'
+  return props.task.status
 })
+
+const assigneeLabel = computed(() => (props.task ? getAssigneeLabel(props.task) : '—'))
 
 const imageUrls = computed(() => {
   if (!props.task?.attachedFileURLs?.length) {
@@ -65,6 +71,10 @@ const subtasks = computed(() => props.task?.subtasks ?? [])
             <UBadge :color="priorityMeta.color" variant="subtle" class="mt-1">
               {{ priorityMeta.label }}
             </UBadge>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted">Assigned to</p>
+            <p class="mt-1 text-sm">{{ assigneeLabel }}</p>
           </div>
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Budget</p>

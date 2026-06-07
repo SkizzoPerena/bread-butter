@@ -1,10 +1,15 @@
-export type TaskStatus = 'ONGOING' | 'COMPLETED' | 'CANCELLED'
+export type TaskStatus = 'TODO' | 'ONGOING' | 'COMPLETED' | 'CANCELLED'
 
 export interface TaskAttachedFile {
   fileName: string
   description?: string
   fileType: string
   fileURL: string
+}
+
+export interface TaskAssigneeRef {
+  _id: string
+  name: string
 }
 
 export interface TaskRecord {
@@ -19,6 +24,7 @@ export interface TaskRecord {
   parentTask?: string | null
   subtasks?: TaskRecord[]
   attachedFileURLs?: TaskAttachedFile[]
+  assignee?: TaskAssigneeRef | null
 }
 
 export interface TasksByEventResponse {
@@ -61,6 +67,7 @@ export interface CreateTaskPayload {
   budget: number
   priority: number
   deadline: string
+  assigneeId?: string | null
 }
 
 export interface UpdateTaskDetailsPayload {

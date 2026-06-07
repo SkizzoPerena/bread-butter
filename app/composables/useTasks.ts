@@ -10,7 +10,22 @@ import type {
 } from '~/types/task'
 import type { TaskStatus } from '~/types/task'
 
+const MOCK_ASSIGNEE = { _id: 'mock-assignee-1', name: 'Florist' }
+
 const MOCK_TASKS: TaskRecord[] = [
+  {
+    _id: 'mock-task-0',
+    event: 'mock-event-id',
+    title: 'Book a live band',
+    details: 'Find and book a live band for the reception.',
+    budget: 50000,
+    status: 'TODO',
+    priority: 1,
+    deadline: '2026-08-15T00:00:00.000Z',
+    parentTask: null,
+    subtasks: [],
+    assignee: null,
+  },
   {
     _id: 'mock-task-1',
     event: 'mock-event-id',
@@ -22,6 +37,7 @@ const MOCK_TASKS: TaskRecord[] = [
     deadline: '2026-06-15T00:00:00.000Z',
     parentTask: null,
     subtasks: [],
+    assignee: MOCK_ASSIGNEE,
   },
   {
     _id: 'mock-task-2',
@@ -34,6 +50,7 @@ const MOCK_TASKS: TaskRecord[] = [
     deadline: '2026-07-01T00:00:00.000Z',
     parentTask: null,
     subtasks: [],
+    assignee: null,
   },
   {
     _id: 'mock-task-3',
@@ -46,6 +63,7 @@ const MOCK_TASKS: TaskRecord[] = [
     deadline: '2026-05-01T00:00:00.000Z',
     parentTask: null,
     subtasks: [],
+    assignee: null,
   },
 ]
 
@@ -58,7 +76,7 @@ export function useTasks() {
     }
 
     const response = await apiRequest<TasksByEventResponse>(`/user/tasks/event/${eventId}`)
-    return response.tasks ?? []
+    return normalizeTaskList(response.tasks ?? [])
   }
 
   async function fetchTask(taskId: string): Promise<TaskRecord> {
@@ -71,7 +89,7 @@ export function useTasks() {
     }
 
     const response = await apiRequest<TaskResponse>(`/user/tasks/${taskId}`)
-    return response.task
+    return normalizeTask(response.task)
   }
 
   async function createTask(
@@ -87,10 +105,13 @@ export function useTasks() {
         budget: payload.budget,
         priority: payload.priority,
         deadline: payload.deadline,
-        status: 'ONGOING',
+        status: 'TODO',
         parentTask: null,
         subtasks: [],
         attachedFileURLs: [],
+        assignee: payload.assigneeId
+          ? { _id: payload.assigneeId, name: 'Assignee' }
+          : null,
       }
       return {
         success: true,
@@ -107,11 +128,15 @@ export function useTasks() {
     formData.append('budget', String(payload.budget))
     formData.append('priority', String(payload.priority))
     formData.append('deadline', payload.deadline)
+    if (payload.assigneeId) {
+      formData.append('assigneeId', payload.assigneeId)
+    }
     for (const file of files ?? []) {
       formData.append('images', file)
     }
 
-    return apiUpload<CreateTaskResponse>('/user/tasks', formData)
+    const response = await apiUpload<CreateTaskResponse>('/user/tasks', formData)
+    return { ...response, task: normalizeTask(response.task) }
   }
 
   async function updateTaskStatus(
@@ -128,10 +153,13 @@ export function useTasks() {
       }
     }
 
-    return apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/status`, {
+    const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/status`, {
       method: 'PATCH',
       body: { status },
     })
+    return response.task
+      ? { ...response, task: normalizeTask(response.task) }
+      : response
   }
 
   async function updateTaskPriority(
@@ -170,6 +198,33 @@ export function useTasks() {
     })
   }
 
+  async function updateTaskAssignee(
+    taskId: string,
+    assigneeId: string | null
+  ): Promise<UpdateTaskMessageResponse> {
+    if (isUiOnlyMode.value) {
+      const base = MOCK_TASKS.find((task) => task._id === taskId) ?? MOCK_TASKS[0]
+      return {
+        success: true,
+        status: 200,
+        message: 'Task assignee updated successfully.',
+        task: {
+          ...base,
+          _id: taskId,
+          assignee: assigneeId ? { _id: assigneeId, name: 'Assignee' } : null,
+        } as TaskRecord,
+      }
+    }
+
+    const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/assignee`, {
+      method: 'PATCH',
+      body: { assigneeId },
+    })
+    return response.task
+      ? { ...response, task: normalizeTask(response.task) }
+      : response
+  }
+
   async function updateTaskDetails(
     taskId: string,
     payload: UpdateTaskDetailsPayload,
@@ -197,9 +252,12 @@ export function useTasks() {
       formData.append('images', file)
     }
 
-    return apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
+    const response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
       method: 'PATCH',
     })
+    return response.task
+      ? { ...response, task: normalizeTask(response.task) }
+      : response
   }
 
   async function hardDeleteTask(taskId: string): Promise<DeleteTaskResponse> {
@@ -224,7 +282,19 @@ export function useTasks() {
     updateTaskStatus,
     updateTaskPriority,
     updateTaskBudget,
+    updateTaskAssignee,
     updateTaskDetails,
     hardDeleteTask,
   }
+}
+
+function normalizeTaskList(tasks: TaskRecord[]): TaskRecord[] {
+  return tasks.map(normalizeTask)
+}
+
+function normalizeTask(task: TaskRecord): TaskRecord {
+  if (task.status === 'CANCELLED') {
+    return { ...task, status: 'TODO' }
+  }
+  return task
 }

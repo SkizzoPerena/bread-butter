@@ -16,9 +16,9 @@ const emit = defineEmits<{
 }>()
 
 const columns: { status: TaskStatus; label: string }[] = [
+  { status: 'TODO', label: 'To Do' },
   { status: 'ONGOING', label: 'Ongoing' },
   { status: 'COMPLETED', label: 'Completed' },
-  { status: 'CANCELLED', label: 'Cancelled' },
 ]
 
 const grouped = computed(() => groupTasksByStatus(props.tasks))

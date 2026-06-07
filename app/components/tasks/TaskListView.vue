@@ -7,7 +7,6 @@ import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
 const props = defineProps<{
   tasks: TaskRecord[]
   disabled?: boolean
-  isEventCancelled?: boolean
   selectedTaskId?: string | null
   collapsedGroups: Partial<Record<TaskStatus, boolean>>
   updatingTaskId?: string | null
@@ -17,46 +16,36 @@ const emit = defineEmits<{
   'toggle-group': [status: TaskStatus]
   select: [task: TaskRecord]
   edit: [task: TaskRecord]
-  cancel: [task: TaskRecord]
-  restore: [task: TaskRecord]
   remove: [task: TaskRecord]
+  'move-to-todo': [task: TaskRecord]
   'status-change': [payload: { taskId: string; status: TaskStatus }]
   'priority-change': [payload: { taskId: string; priority: number }]
   'add-task': []
 }>()
 
 const statusSections: { status: TaskStatus; label: string; dotClass: string }[] = [
+  { status: 'TODO', label: 'To Do', dotClass: 'bg-error' },
   { status: 'ONGOING', label: 'Ongoing', dotClass: 'bg-primary' },
   { status: 'COMPLETED', label: 'Completed', dotClass: 'bg-success' },
-  { status: 'CANCELLED', label: 'Cancelled', dotClass: 'bg-error' },
 ]
 
 const statusOptions = [
+  { label: 'To Do', value: 'TODO' },
   { label: 'Ongoing', value: 'ONGOING' },
   { label: 'Completed', value: 'COMPLETED' },
 ]
 
-function canCancelTask(task: TaskRecord): boolean {
-  return !props.isEventCancelled && !props.disabled && task.status !== 'CANCELLED'
+function canDeleteTask(task: TaskRecord): boolean {
+  return !props.disabled && task.status === 'TODO'
 }
 
-function canRemoveTask(): boolean {
-  return Boolean(props.isEventCancelled)
-}
-
-function canRestoreTask(task: TaskRecord): boolean {
-  return !props.isEventCancelled && !props.disabled && task.status === 'CANCELLED'
+function canMoveToTodo(task: TaskRecord): boolean {
+  return !props.disabled && (task.status === 'ONGOING' || task.status === 'COMPLETED')
 }
 
 const grouped = computed(() => groupTasksByStatus(props.tasks))
 
 const isEmpty = computed(() => props.tasks.length === 0)
-
-const visibleSections = computed(() =>
-  statusSections.filter(
-    (section) => section.status !== 'CANCELLED' || grouped.value.CANCELLED.length > 0
-  )
-)
 
 function isGroupCollapsed(status: TaskStatus): boolean {
   return Boolean(props.collapsedGroups[status])
@@ -107,7 +96,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
         </tr>
       </thead>
       <tbody>
-        <template v-for="section in visibleSections" :key="section.status">
+        <template v-for="section in statusSections" :key="section.status">
           <tr class="border-y border-default bg-muted/40">
             <td colspan="6" class="px-4 py-2">
               <button
@@ -181,15 +170,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                 />
               </td>
               <td class="whitespace-nowrap px-4 py-2 align-middle">
-                <UBadge
-                  v-if="task.status === 'CANCELLED'"
-                  variant="subtle"
-                  color="neutral"
-                >
-                  Cancelled
-                </UBadge>
                 <USelect
-                  v-else
                   :model-value="task.status"
                   :items="statusOptions"
                   value-key="value"
@@ -218,30 +199,20 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                     @click.stop="emit('edit', task)"
                   />
                   <UButton
-                    v-if="canRestoreTask(task)"
+                    v-if="canMoveToTodo(task)"
                     size="xs"
                     variant="ghost"
-                    color="primary"
-                    icon="i-lucide-undo-2"
-                    aria-label="Restore task"
-                    @click.stop="emit('restore', task)"
+                    icon="i-lucide-list-todo"
+                    aria-label="Move to To Do"
+                    @click.stop="emit('move-to-todo', task)"
                   />
                   <UButton
-                    v-if="canCancelTask(task)"
-                    size="xs"
-                    variant="ghost"
-                    color="error"
-                    icon="i-lucide-ban"
-                    aria-label="Cancel task"
-                    @click.stop="emit('cancel', task)"
-                  />
-                  <UButton
-                    v-if="canRemoveTask()"
+                    v-if="canDeleteTask(task)"
                     size="xs"
                     variant="ghost"
                     color="error"
                     icon="i-lucide-trash-2"
-                    aria-label="Permanently remove task"
+                    aria-label="Delete task"
                     @click.stop="emit('remove', task)"
                   />
                 </div>

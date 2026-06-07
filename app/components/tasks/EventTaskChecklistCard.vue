@@ -1,25 +1,29 @@
 <script lang="ts" setup>
 import type { TaskRecord, TaskStatus } from '~/types/task'
+import { getAssigneeLabel } from '~/utils/taskAssignee'
 import { mapTaskPriority } from '~/utils/taskPriority'
 import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
 
 const props = defineProps<{
   task: TaskRecord
   disabled?: boolean
-  isEventCancelled?: boolean
   updatingTaskId?: string | null
 }>()
 
 const emit = defineEmits<{
   edit: [task: TaskRecord]
-  cancel: [task: TaskRecord]
-  restore: [task: TaskRecord]
   remove: [task: TaskRecord]
+  'move-to-todo': [task: TaskRecord]
   'status-change': [payload: { taskId: string; status: TaskStatus }]
   select: [task: TaskRecord]
 }>()
 
 const priorityMeta = computed(() => mapTaskPriority(props.task.priority))
+const assigneeLabel = computed(() => getAssigneeLabel(props.task))
+
+const imageUrls = computed(() =>
+  (props.task.attachedFileURLs ?? []).map((file) => file.fileURL).filter(Boolean)
+)
 
 const dateLabel = computed(() => {
   const formatted = formatTaskDate(props.task.deadline)
@@ -34,16 +38,15 @@ const dateLabel = computed(() => {
 
 const isUpdating = computed(() => props.updatingTaskId === props.task._id)
 
-function canCancelTask(): boolean {
-  return !props.isEventCancelled && !props.disabled && props.task.status !== 'CANCELLED'
+function canDeleteTask(): boolean {
+  return !props.disabled && props.task.status === 'TODO'
 }
 
-function canRestoreTask(): boolean {
-  return !props.isEventCancelled && !props.disabled && props.task.status === 'CANCELLED'
-}
-
-function canRemoveTask(): boolean {
-  return Boolean(props.isEventCancelled)
+function canMoveToTodo(): boolean {
+  return (
+    !props.disabled &&
+    (props.task.status === 'ONGOING' || props.task.status === 'COMPLETED')
+  )
 }
 
 function onCardClick(event: MouseEvent) {
@@ -55,15 +58,17 @@ function onCardClick(event: MouseEvent) {
 }
 
 function onPrimaryAction() {
+  if (props.task.status === 'TODO') {
+    emit('status-change', { taskId: props.task._id, status: 'ONGOING' })
+    return
+  }
   if (props.task.status === 'ONGOING') {
     emit('status-change', { taskId: props.task._id, status: 'COMPLETED' })
     return
   }
   if (props.task.status === 'COMPLETED') {
     emit('status-change', { taskId: props.task._id, status: 'ONGOING' })
-    return
   }
-  emit('restore', props.task)
 }
 </script>
 
@@ -82,12 +87,32 @@ function onPrimaryAction() {
       </UBadge>
     </div>
 
+    <div class="mt-2 flex flex-wrap items-center gap-2">
+      <UBadge color="neutral" variant="outline" size="sm">
+        <UIcon name="i-lucide-user" class="mr-1 size-3" />
+        {{ assigneeLabel }}
+      </UBadge>
+    </div>
+
     <p
       v-if="task.details"
       class="mt-1 text-sm text-muted"
     >
       {{ task.details }}
     </p>
+
+    <div
+      v-if="imageUrls.length > 0"
+      class="mt-3 flex flex-wrap gap-2"
+    >
+      <img
+        v-for="url in imageUrls"
+        :key="url"
+        :src="url"
+        alt=""
+        class="h-14 w-14 rounded object-cover ring ring-default"
+      >
+    </div>
 
     <div
       v-if="dateLabel || task.budget"
@@ -110,15 +135,22 @@ function onPrimaryAction() {
     </div>
 
     <div
-      v-if="!isEventCancelled"
+      v-if="!disabled"
       class="mt-4 space-y-2"
       data-card-action
     >
       <UButton
-        v-if="task.status === 'ONGOING'"
+        v-if="task.status === 'TODO'"
         block
         :loading="isUpdating"
-        :disabled="disabled"
+        @click.stop="onPrimaryAction"
+      >
+        Mark as Ongoing
+      </UButton>
+      <UButton
+        v-else-if="task.status === 'ONGOING'"
+        block
+        :loading="isUpdating"
         @click.stop="onPrimaryAction"
       >
         Mark as Complete
@@ -128,19 +160,18 @@ function onPrimaryAction() {
         block
         variant="outline"
         :loading="isUpdating"
-        :disabled="disabled"
         @click.stop="onPrimaryAction"
       >
         Mark as Ongoing
       </UButton>
       <UButton
-        v-else-if="canRestoreTask()"
+        v-if="canMoveToTodo()"
         block
         variant="outline"
         :loading="isUpdating"
-        @click.stop="onPrimaryAction"
+        @click.stop="emit('move-to-todo', task)"
       >
-        Restore task
+        Mark as To Do
       </UButton>
     </div>
 
@@ -157,30 +188,12 @@ function onPrimaryAction() {
         @click.stop="emit('edit', task)"
       />
       <UButton
-        v-if="canRestoreTask()"
-        size="xs"
-        variant="ghost"
-        color="primary"
-        icon="i-lucide-undo-2"
-        aria-label="Restore task"
-        @click.stop="emit('restore', task)"
-      />
-      <UButton
-        v-if="canCancelTask()"
-        size="xs"
-        variant="ghost"
-        color="error"
-        icon="i-lucide-ban"
-        aria-label="Cancel task"
-        @click.stop="emit('cancel', task)"
-      />
-      <UButton
-        v-if="canRemoveTask()"
+        v-if="canDeleteTask()"
         size="xs"
         variant="ghost"
         color="error"
         icon="i-lucide-trash-2"
-        aria-label="Permanently remove task"
+        aria-label="Delete task"
         @click.stop="emit('remove', task)"
       />
     </div>

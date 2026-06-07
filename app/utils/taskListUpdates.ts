@@ -2,6 +2,7 @@ import type { TasksSummary } from '~/types/event'
 import type { TaskRecord, TaskStatus } from '~/types/task'
 
 export interface TasksByStatusGroups {
+  TODO: TaskRecord[]
   ONGOING: TaskRecord[]
   COMPLETED: TaskRecord[]
   CANCELLED: TaskRecord[]
@@ -11,12 +12,17 @@ export function isParentTask(task: TaskRecord): boolean {
   return task.parentTask == null
 }
 
+export function isActiveTaskStatus(status: TaskStatus): boolean {
+  return status === 'TODO' || status === 'ONGOING' || status === 'COMPLETED'
+}
+
 export function groupTasksByStatus(tasks: TaskRecord[]): TasksByStatusGroups {
-  const parents = tasks.filter(isParentTask)
+  const parents = tasks.filter(isParentTask).filter((task) => isActiveTaskStatus(task.status))
   return {
+    TODO: parents.filter((task) => task.status === 'TODO'),
     ONGOING: parents.filter((task) => task.status === 'ONGOING'),
     COMPLETED: parents.filter((task) => task.status === 'COMPLETED'),
-    CANCELLED: parents.filter((task) => task.status === 'CANCELLED'),
+    CANCELLED: [],
   }
 }
 
@@ -49,7 +55,7 @@ export function removeTaskFromList(tasks: TaskRecord[], taskId: string): TaskRec
     )
 }
 
-/** Task Tracker: completed vs active total (ongoing + completed; excludes cancelled). */
+/** Task Tracker: completed vs active total (ongoing + completed; excludes todo). */
 export function getTaskTrackerMetrics(byStatus: Record<string, number>) {
   const ongoing = byStatus.ONGOING ?? 0
   const completed = byStatus.COMPLETED ?? 0
@@ -65,7 +71,7 @@ export function patchTaskSummaryCounts(
     return summary
   }
 
-  const parents = tasks.filter(isParentTask)
+  const parents = tasks.filter(isParentTask).filter((task) => isActiveTaskStatus(task.status))
   const byStatus = parents.reduce<Record<string, number>>((acc, task) => {
     acc[task.status] = (acc[task.status] ?? 0) + 1
     return acc

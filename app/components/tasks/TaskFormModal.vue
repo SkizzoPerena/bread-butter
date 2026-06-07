@@ -7,6 +7,7 @@ import type { TaskRecord } from '~/types/task'
 import { reportApiError } from '~/types/auth'
 import { TASK_PRIORITY_OPTIONS } from '~/utils/taskPriority'
 import { formatTaskDate } from '~/utils/taskFormat'
+import type { AssigneeSelectItem } from '~/utils/taskAssignee'
 import {
   calendarDateFromDateValue,
   calendarDateToUtcIso,
@@ -17,6 +18,7 @@ const props = defineProps<{
   eventId: string
   eventRecord: EventRecord | null
   task?: TaskRecord | null
+  assigneeSelectItems?: AssigneeSelectItem[]
   disabled?: boolean
 }>()
 
@@ -28,7 +30,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
-const { createTask, updateTaskDetails, updateTaskBudget, updateTaskPriority } = useTasks()
+const { createTask, updateTaskDetails, updateTaskBudget, updateTaskPriority, updateTaskAssignee } = useTasks()
 
 const isEditMode = computed(() => Boolean(props.task))
 const isSubmitting = ref(false)
@@ -55,6 +57,7 @@ const formState = reactive<TaskSchema>({
 const deadlineDate = shallowRef<CalendarDate | null>(null)
 const imageFiles = ref<File[]>([])
 const keptImageUrls = ref<string[]>([])
+const assigneeId = ref<string | null>(null)
 
 const modalTitle = computed(() => (isEditMode.value ? 'Edit Task' : 'Add New Task'))
 
@@ -66,6 +69,7 @@ function resetForm() {
   deadlineDate.value = null
   imageFiles.value = []
   keptImageUrls.value = []
+  assigneeId.value = null
 }
 
 function loadTask(task: TaskRecord) {
@@ -78,6 +82,7 @@ function loadTask(task: TaskRecord) {
     .map((file) => file.fileURL)
     .filter(Boolean)
   imageFiles.value = []
+  assigneeId.value = task.assignee?._id ?? null
 }
 
 watch(
@@ -153,6 +158,10 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
       if (props.task.priority !== event.data.priority) {
         await updateTaskPriority(props.task._id, event.data.priority)
       }
+      const previousAssigneeId = props.task.assignee?._id ?? null
+      if (previousAssigneeId !== assigneeId.value) {
+        await updateTaskAssignee(props.task._id, assigneeId.value)
+      }
     } else {
       await createTask(
         {
@@ -162,6 +171,7 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
           budget: event.data.budget,
           priority: event.data.priority,
           deadline: deadlineIso!,
+          assigneeId: assigneeId.value,
         },
         imageFiles.value
       )
@@ -272,7 +282,18 @@ function removeKeptImage(url: string) {
           </UFormField>
         </div>
 
-        <UFormField label="Photos" class="w-full">
+        <UFormField label="Assigned to" name="assignee">
+          <USelect
+            v-model="assigneeId"
+            :items="assigneeSelectItems ?? [{ label: 'Me', value: null }]"
+            value-key="value"
+            label-key="label"
+            class="w-full"
+            :disabled="disabled"
+          />
+        </UFormField>
+
+        <UFormField label="Supplementary File / Photo" class="w-full">
           <UFileUpload
             v-model="imageFiles"
             multiple

@@ -19,33 +19,36 @@ const tasksSummaryRef = toRef(props, 'tasksSummary')
 
 const {
   isUiOnlyMode,
+  assignees,
+  assigneeSelectItems,
   isLoading,
   updatingTaskId,
   searchQuery,
   priorityFilter,
   sortBy,
+  selectedTab,
+  tabItems,
   isFormOpen,
   editingTask,
   isDetailsOpen,
   selectedTask,
-  isActionModalOpen,
-  taskForAction,
-  actionMode,
-  isActionSubmitting,
+  isRemoveModalOpen,
+  taskForRemove,
+  isRemoveSubmitting,
+  isManageAssigneesOpen,
   mutationsDisabled,
-  actionModalTitle,
-  tasksForStatus,
-  statusCount,
+  tasksForTab,
   openCreateModal,
   openDetailsModal,
   openEditModal,
-  handleRestoreTask,
-  openCancelModal,
+  openManageAssigneesModal,
   openRemoveModal,
-  closeActionModal,
+  closeRemoveModal,
   handleStatusChange,
+  handleMoveToTodo,
   handleFormSaved,
-  confirmTaskAction,
+  handleAssigneesChanged,
+  confirmRemoveTask,
 } = useEventTasksManager({
   eventId: eventIdRef,
   isEventCancelled: isEventCancelledRef,
@@ -53,25 +56,19 @@ const {
   onSummarySync: (value) => emit('update:tasksSummary', value),
 })
 
-const tabItems = computed(() => {
-  const items: { label: string; slot: string }[] = [
-    { label: `Ongoing (${statusCount('ONGOING')})`, slot: 'ongoing' },
-    { label: `Completed (${statusCount('COMPLETED')})`, slot: 'completed' },
-  ]
-  if (statusCount('CANCELLED') > 0) {
-    items.push({ label: `Cancelled (${statusCount('CANCELLED')})`, slot: 'cancelled' })
-  }
-  return items
-})
+defineExpose({ openCreateModal })
+
+const tabSlots = ['todo', 'ongoing', 'completed'] as const
 
 function emptyLabel(status: TaskStatus): string {
-  if (status === 'ONGOING') {
-    return 'No ongoing tasks.'
-  }
-  if (status === 'COMPLETED') {
-    return 'No completed tasks.'
-  }
-  return 'No cancelled tasks.'
+  if (status === 'TODO') return 'No tasks to do.'
+  if (status === 'ONGOING') return 'No ongoing tasks.'
+  return 'No completed tasks.'
+}
+
+function tabStatus(index: number): TaskStatus {
+  const statuses: TaskStatus[] = ['TODO', 'ONGOING', 'COMPLETED']
+  return statuses[index] ?? 'TODO'
 }
 </script>
 
@@ -79,13 +76,23 @@ function emptyLabel(status: TaskStatus): string {
   <UPageCard class="white-bread-container space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="text-xl font-semibold text-muted">Tasks Checklist</div>
-      <UButton
-        icon="i-lucide-list-plus"
-        :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
-        @click="openCreateModal"
-      >
-        Add New Task
-      </UButton>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          icon="i-lucide-users"
+          variant="outline"
+          :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
+          @click="openManageAssigneesModal"
+        >
+          Manage Assignees
+        </UButton>
+        <UButton
+          icon="i-lucide-list-plus"
+          :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
+          @click="openCreateModal"
+        >
+          Add New Task
+        </UButton>
+      </div>
     </div>
 
     <UAlert
@@ -93,7 +100,7 @@ function emptyLabel(status: TaskStatus): string {
       color="warning"
       variant="subtle"
       title="Event cancelled"
-      description="Tasks cannot be added or edited. Use Remove to permanently delete a task from this event."
+      description="Tasks cannot be added or edited while this event is cancelled."
     />
 
     <TaskToolbar
@@ -112,24 +119,27 @@ function emptyLabel(status: TaskStatus): string {
 
     <UTabs
       v-else
+      v-model="selectedTab"
       :items="tabItems"
       variant="link"
     >
-      <template #ongoing>
+      <template
+        v-for="(slot, index) in tabSlots"
+        :key="slot"
+        #[slot]
+      >
         <div class="mt-4">
-          <UPageColumns v-if="tasksForStatus('ONGOING').length > 0">
+          <UPageColumns v-if="tasksForTab(index).length > 0">
             <EventTaskChecklistCard
-              v-for="task in tasksForStatus('ONGOING')"
+              v-for="task in tasksForTab(index)"
               :key="task._id"
               :task="task"
               :disabled="mutationsDisabled"
-              :is-event-cancelled="isEventCancelled"
               :updating-task-id="updatingTaskId"
               @select="openDetailsModal"
               @edit="openEditModal"
-              @cancel="openCancelModal"
-              @restore="handleRestoreTask"
               @remove="openRemoveModal"
+              @move-to-todo="handleMoveToTodo"
               @status-change="handleStatusChange"
             />
           </UPageColumns>
@@ -137,61 +147,7 @@ function emptyLabel(status: TaskStatus): string {
             v-else
             class="text-sm text-muted"
           >
-            {{ emptyLabel('ONGOING') }}
-          </p>
-        </div>
-      </template>
-
-      <template #completed>
-        <div class="mt-4">
-          <UPageColumns v-if="tasksForStatus('COMPLETED').length > 0">
-            <EventTaskChecklistCard
-              v-for="task in tasksForStatus('COMPLETED')"
-              :key="task._id"
-              :task="task"
-              :disabled="mutationsDisabled"
-              :is-event-cancelled="isEventCancelled"
-              :updating-task-id="updatingTaskId"
-              @select="openDetailsModal"
-              @edit="openEditModal"
-              @cancel="openCancelModal"
-              @restore="handleRestoreTask"
-              @remove="openRemoveModal"
-              @status-change="handleStatusChange"
-            />
-          </UPageColumns>
-          <p
-            v-else
-            class="text-sm text-muted"
-          >
-            {{ emptyLabel('COMPLETED') }}
-          </p>
-        </div>
-      </template>
-
-      <template #cancelled>
-        <div class="mt-4">
-          <UPageColumns v-if="tasksForStatus('CANCELLED').length > 0">
-            <EventTaskChecklistCard
-              v-for="task in tasksForStatus('CANCELLED')"
-              :key="task._id"
-              :task="task"
-              :disabled="mutationsDisabled"
-              :is-event-cancelled="isEventCancelled"
-              :updating-task-id="updatingTaskId"
-              @select="openDetailsModal"
-              @edit="openEditModal"
-              @cancel="openCancelModal"
-              @restore="handleRestoreTask"
-              @remove="openRemoveModal"
-              @status-change="handleStatusChange"
-            />
-          </UPageColumns>
-          <p
-            v-else
-            class="text-sm text-muted"
-          >
-            {{ emptyLabel('CANCELLED') }}
+            {{ emptyLabel(tabStatus(index)) }}
           </p>
         </div>
       </template>
@@ -207,43 +163,45 @@ function emptyLabel(status: TaskStatus): string {
       :event-id="eventId"
       :event-record="eventRecord"
       :task="editingTask"
+      :assignee-select-items="assigneeSelectItems"
       :disabled="mutationsDisabled"
       @saved="handleFormSaved"
     />
 
+    <ManageAssigneesModal
+      v-model:open="isManageAssigneesOpen"
+      :event-id="eventId"
+      :assignees="assignees"
+      :disabled="mutationsDisabled"
+      @changed="handleAssigneesChanged"
+    />
+
     <UModal
-      v-model:open="isActionModalOpen"
-      :title="actionModalTitle"
-      :dismissible="!isActionSubmitting"
+      v-model:open="isRemoveModalOpen"
+      title="Delete task?"
+      :dismissible="!isRemoveSubmitting"
       :ui="{ content: 'border-none ring-transparent max-w-md' }"
     >
       <template #body>
         <p class="mb-4 text-sm text-muted">
-          <template v-if="actionMode === 'remove'">
-            Permanently remove
-            <span class="font-medium text-highlighted">{{ taskForAction?.title }}</span>
-            ? Any subtasks will become main tasks. Attached photos for this task will be deleted.
-            This cannot be undone.
-          </template>
-          <template v-else>
-            Cancel
-            <span class="font-medium text-highlighted">{{ taskForAction?.title }}</span>
-            ? It will move to the Cancelled section.
-          </template>
+          Permanently delete
+          <span class="font-medium text-highlighted">{{ taskForRemove?.title }}</span>
+          ? Any subtasks will become main tasks. Attached photos for this task will be deleted.
+          This cannot be undone.
         </p>
         <div class="flex justify-end gap-2">
           <UButton
             label="Back"
             color="neutral"
             variant="outline"
-            :disabled="isActionSubmitting"
-            @click="closeActionModal"
+            :disabled="isRemoveSubmitting"
+            @click="closeRemoveModal"
           />
           <UButton
-            :label="actionMode === 'remove' ? 'Remove permanently' : 'Cancel task'"
+            label="Delete permanently"
             color="error"
-            :loading="isActionSubmitting"
-            @click="confirmTaskAction"
+            :loading="isRemoveSubmitting"
+            @click="confirmRemoveTask"
           />
         </div>
       </template>

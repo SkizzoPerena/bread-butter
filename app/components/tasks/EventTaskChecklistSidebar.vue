@@ -37,14 +37,19 @@ function statusCount(status: TaskStatus): number {
 
 const tabItems = computed(() => {
   const items: { label: string; slot: string }[] = [
+    { label: `To Do (${statusCount('TODO')})`, slot: 'todo' },
     { label: `Ongoing (${statusCount('ONGOING')})`, slot: 'ongoing' },
     { label: `Completed (${statusCount('COMPLETED')})`, slot: 'completed' },
   ]
-  if (statusCount('CANCELLED') > 0) {
-    items.push({ label: `Cancelled (${statusCount('CANCELLED')})`, slot: 'cancelled' })
-  }
   return items
 })
+
+function statusChangeLabel(status: TaskStatus): string {
+  if (status === 'TODO') return 'To Do'
+  if (status === 'ONGOING') return 'Ongoing'
+  if (status === 'COMPLETED') return 'Completed'
+  return status
+}
 
 function previewTasksForStatus(status: TaskStatus): TaskPreview[] {
   return props.tasksSummary?.preview.tasks.filter((task) => task.status === status) ?? []
@@ -75,7 +80,7 @@ async function handleStatusChange(task: TaskPreview, status: TaskStatus) {
     await updateTaskStatus(task._id, status)
     toast.add({
       title: 'Task updated',
-      description: `Moved to ${status === 'ONGOING' ? 'Ongoing' : status === 'COMPLETED' ? 'Completed' : 'Cancelled'}.`,
+      description: `Moved to ${statusChangeLabel(status)}.`,
       color: 'success',
     })
     emit('refresh')
@@ -142,6 +147,70 @@ function goToTasksDashboard() {
       :items="tabItems"
       variant="link"
     >
+      <template #todo>
+        <div class="mt-4 space-y-4">
+          <UPageCard
+            v-for="task in previewTasksForStatus('TODO')"
+            :key="task._id"
+            class="white-bread-container"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="font-semibold">{{ task.title }}</div>
+              <UBadge
+                :color="priorityMeta(task).color"
+                variant="subtle"
+              >
+                {{ priorityMeta(task).label }}
+              </UBadge>
+            </div>
+
+            <p
+              v-if="task.details"
+              class="mt-1 text-sm text-muted"
+            >
+              {{ task.details }}
+            </p>
+
+            <div
+              v-if="dateLabel(task) || task.budget"
+              class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
+            >
+              <div
+                v-if="dateLabel(task)"
+                class="flex items-center gap-1.5 text-muted"
+              >
+                <UIcon name="i-lucide-calendar-clock" />
+                <span>{{ dateLabel(task) }}</span>
+              </div>
+              <div
+                v-if="task.budget"
+                class="flex items-center gap-1.5 text-muted"
+              >
+                <UIcon name="i-lucide-wallet" />
+                <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
+              </div>
+            </div>
+
+            <UButton
+              v-if="!isEventCancelled"
+              block
+              class="mt-4"
+              :loading="updatingTaskId === task._id"
+              @click="handleStatusChange(task, 'ONGOING')"
+            >
+              Mark as Ongoing
+            </UButton>
+          </UPageCard>
+
+          <p
+            v-if="previewTasksForStatus('TODO').length === 0"
+            class="text-sm text-muted"
+          >
+            No tasks to do.
+          </p>
+        </div>
+      </template>
+
       <template #ongoing>
         <div class="mt-4 space-y-4">
           <UPageCard
@@ -313,85 +382,6 @@ function goToTasksDashboard() {
             class="text-center text-sm text-muted"
           >
             Showing {{ previewTasksForStatus('COMPLETED').length }} of {{ statusCount('COMPLETED') }}.
-            <UButton
-              variant="link"
-              color="primary"
-              class="p-0 align-baseline"
-              @click="goToTasksDashboard"
-            >
-              View All
-            </UButton>
-          </p>
-        </div>
-      </template>
-
-      <template #cancelled>
-        <div class="mt-4 space-y-4">
-          <UPageCard
-            v-for="task in previewTasksForStatus('CANCELLED')"
-            :key="task._id"
-            class="white-bread-container"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div class="font-semibold">{{ task.title }}</div>
-              <UBadge
-                :color="priorityMeta(task).color"
-                variant="subtle"
-              >
-                {{ priorityMeta(task).label }}
-              </UBadge>
-            </div>
-
-            <p
-              v-if="task.details"
-              class="mt-1 text-sm text-muted"
-            >
-              {{ task.details }}
-            </p>
-
-            <div
-              v-if="dateLabel(task) || task.budget"
-              class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
-            >
-              <div
-                v-if="dateLabel(task)"
-                class="flex items-center gap-1.5 text-muted"
-              >
-                <UIcon name="i-lucide-calendar-clock" />
-                <span>{{ dateLabel(task) }}</span>
-              </div>
-              <div
-                v-if="task.budget"
-                class="flex items-center gap-1.5 text-muted"
-              >
-                <UIcon name="i-lucide-wallet" />
-                <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
-              </div>
-            </div>
-
-            <UButton
-              v-if="!isEventCancelled"
-              block
-              variant="outline"
-              class="mt-4"
-              :loading="updatingTaskId === task._id"
-              @click="handleStatusChange(task, 'ONGOING')"
-            >
-              Restore task
-            </UButton>
-          </UPageCard>
-
-          <p
-            v-if="previewTasksForStatus('CANCELLED').length === 0"
-            class="text-sm text-muted"
-          >
-            No cancelled tasks.
-          </p>
-          <p
-            v-else-if="statusCount('CANCELLED') > previewTasksForStatus('CANCELLED').length && showViewAll"
-            class="text-center text-sm text-muted"
-          >
-            Showing {{ previewTasksForStatus('CANCELLED').length }} of {{ statusCount('CANCELLED') }}.
             <UButton
               variant="link"
               color="primary"
