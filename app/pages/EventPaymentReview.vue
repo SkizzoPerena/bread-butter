@@ -12,9 +12,11 @@ import { usePayments } from '~/composables/usePayments'
 import { useEvents } from '~/composables/useEvents'
 
 definePageMeta({
-  layout: 'eventsubnavbar',
+  layout: 'event-sub-navbar',
+  key: (route) => route.fullPath,
+  useLogo: true,
+  title: 'Payments',
   bgClass: 'bg-teal-50',
-  useBlackLogo: true
 })
 
 const toast = useToast()
@@ -63,6 +65,11 @@ const paymentDenialReason = computed(() =>
     ? eventRecord.value.latestPayment.denialReason
     : ''
 )
+
+const submittedPayments = computed(() => {
+  if (!eventRecord.value?.latestPayment) return []
+  return [eventRecord.value.latestPayment]
+})
 
 function onProofOfPaymentChange(changeEvent: Event) {
   const input = changeEvent.target as HTMLInputElement
@@ -154,91 +161,137 @@ async function handleSubmitPaymentProof() {
 </script>
 
 <template>
-
-    <UContainer class="py-8 max-w-3xl">
-      <USkeleton v-if="isLoadingEvent" class="h-64 w-full" />
-      <UPageCard
-        v-else-if="showPaymentSection"
-        class="white-bread-container"
-        title="Settle event payment"
-        :description="`Outstanding balance: Php ${paymentBalanceDue.toLocaleString()}`"
-      >
-        <div v-if="paymentPendingReview" class="space-y-2">
-          <UBadge color="warning" variant="soft" label="Pending review" />
-          <p class="text-sm text-muted">
-            Your payment is awaiting admin review. Once it's approved you can publish
-            your website. If the approved amount is less than the fee, a remaining
-            balance will appear here for you to settle.
-          </p>
-        </div>
-
-        <UForm
-          v-else
-          :state="paymentForm"
-          class="space-y-4"
-          @submit.prevent="handleSubmitPaymentProof"
+  <UContainer class="space-y-6 py-8 pb-12">
+    <div
+      v-if="isLoadingEvent"
+      class="flex items-center justify-center py-16 text-muted"
+    >
+      <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
+      <span class="ml-2 text-sm">Loading event...</span>
+    </div>
+    
+    <div v-else-if="eventRecord" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      <!-- First Column: Form / Status -->
+      <div class="col-span-1 flex flex-col gap-4">
+        <UPageCard
+          v-if="showPaymentSection"
+          class="white-bread-container"
+          title="Settle event payment"
+          :description="`Outstanding balance: Php ${paymentBalanceDue.toLocaleString()}`"
         >
-          <UAlert
-            v-if="paymentDenialReason"
-            color="error"
-            variant="soft"
-            icon="i-lucide-circle-alert"
-            title="Previous payment was denied"
-            :description="paymentDenialReason"
-          />
-
-          <p class="text-sm text-muted">
-            Amount to pay now:
-            <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
-            Upload your proof of payment and reference number, then an admin will
-            verify it.
-          </p>
-
-          <UFormField label="Transaction / reference ID" name="transactionId" required>
-            <UInput
-              v-model="paymentForm.transactionId"
-              class="w-full"
-              placeholder="e.g. GCash or bank reference number"
-            />
-          </UFormField>
-
-          <UFormField label="Proof of payment" name="proofOfPayment" required>
-            <input
-              ref="proofOfPaymentInput"
-              type="file"
-              accept="image/*"
-              class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-white"
-              @change="onProofOfPaymentChange"
-            >
-            <p v-if="proofOfPaymentFile" class="mt-1 text-xs text-muted">
-              Selected: {{ proofOfPaymentFile.name }}
+          <div v-if="paymentPendingReview" class="space-y-2">
+            <UBadge color="warning" variant="soft" label="Pending review" />
+            <p class="text-sm text-muted">
+              Your payment is awaiting admin review. Once it's approved you can publish
+              your website. If the approved amount is less than the fee, a remaining
+              balance will appear here for you to settle.
             </p>
-          </UFormField>
+          </div>
 
-          <div class="flex justify-end">
+          <UForm
+            v-else
+            :state="paymentForm"
+            class="space-y-4"
+            @submit.prevent="handleSubmitPaymentProof"
+          >
+            <UAlert
+              v-if="paymentDenialReason"
+              color="error"
+              variant="soft"
+              icon="i-lucide-circle-alert"
+              title="Previous payment was denied"
+              :description="paymentDenialReason"
+            />
+
+            <p class="text-sm text-muted">
+              Amount to pay now:
+              <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
+              Upload your proof of payment and reference number, then an admin will
+              verify it.
+            </p>
+
+            <UFormField label="Transaction / reference ID" name="transactionId" required>
+              <UInput
+                v-model="paymentForm.transactionId"
+                class="w-full"
+                placeholder="e.g. GCash or bank reference number"
+              />
+            </UFormField>
+
+            <UFormField label="Proof of payment" name="proofOfPayment" required>
+              <input
+                ref="proofOfPaymentInput"
+                type="file"
+                accept="image/*"
+                class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-teal-500 file:px-3 file:py-1.5 file:text-white"
+                @change="onProofOfPaymentChange"
+              >
+              <p v-if="proofOfPaymentFile" class="mt-1 text-xs text-muted">
+                Selected: {{ proofOfPaymentFile.name }}
+              </p>
+            </UFormField>
+
             <UButton
               type="submit"
+              block
+              class="mt-2"
               label="Submit payment proof"
               icon="i-lucide-upload"
-              color="primary"
+              color="teal"
               :loading="isSubmittingPayment"
             />
-          </div>
-        </UForm>
-      </UPageCard>
+          </UForm>
+        </UPageCard>
 
-      <UPageCard
-        v-else-if="eventRecord"
-        class="white-bread-container"
-      >
-        <UAlert
-          color="success"
-          variant="soft"
-          icon="i-lucide-check-circle-2"
-          title="Event is fully paid"
-          description="Your event has no outstanding balance."
-        />
-      </UPageCard>
-    </UContainer>
+        <UPageCard
+          v-else
+          class="white-bread-container"
+        >
+          <UAlert
+            color="success"
+            variant="soft"
+            icon="i-lucide-check-circle-2"
+            title="Event is fully paid"
+            description="Your event has no outstanding balance."
+          />
+        </UPageCard>
+      </div>
 
+      <!-- Next 2 Columns: Submitted Payments -->
+      <div class="md:col-span-2">
+        <div v-if="submittedPayments.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <UPageCard
+            v-for="(payment, index) in submittedPayments"
+            :key="index"
+            class="white-bread-container relative group"
+            :ui="{ body: 'p-4 sm:p-4' }"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-medium truncate text-default">Ref: {{ payment.transactionId || 'N/A' }}</div>
+                <div class="text-sm text-muted mt-1">
+                  <UBadge :color="payment.status === 'APPROVED' ? 'success' : payment.status === 'DENIED' ? 'error' : 'warning'" variant="subtle">
+                    {{ payment.status || 'PENDING' }}
+                  </UBadge>
+                </div>
+                <div v-if="payment.denialReason" class="text-xs text-error mt-2">
+                  Reason: {{ payment.denialReason }}
+                </div>
+              </div>
+              <UIcon name="i-lucide-receipt" class="size-5 bg-teal-500 opacity-50" />
+            </div>
+          </UPageCard>
+        </div>
+        
+        <div
+          v-else
+          class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center h-full min-h-[200px]"
+        >
+          <UIcon name="i-lucide-receipt" class="size-10 text-muted" />
+          <p class="mt-4 text-sm font-medium">No payments submitted</p>
+          <p class="mt-1 text-sm text-muted">Upload your proof of payment to see it here.</p>
+        </div>
+      </div>
+    </div>
+  </UContainer>
 </template>

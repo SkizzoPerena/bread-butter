@@ -662,7 +662,7 @@ const getGoogleMapsUrl = (location: string) => {
 
                         <UButton
 
-                            color="neutral"
+
                             :loading="isSaving"
                             :disabled="isLoadingSite || isLoadingEvent || isSaving"
                             @click="handleSaveWebsite"

@@ -1,13 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
-
-const eventDashboardPath = computed(() => {
-  const eventId = route.query.eventId
-  return {
-    path: '/UserEventDashboard',
-    query: { eventId: typeof eventId === 'string' ? eventId : 'mock-event-id' }
-  }
-})
+const router = useRouter()
 
 const titleThemeClass = computed(() => {
   const bgClass = route.meta.bgClass as string || ''
@@ -38,7 +31,7 @@ const titleThemeClass = computed(() => {
             variant="ghost"
             class="rounded-lg"
             aria-label="Go back"
-            :to="eventDashboardPath"
+            @click="router.back()"
           />
 
           <!-- Image Slot Wrapper -->

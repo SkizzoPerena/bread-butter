@@ -241,6 +241,14 @@ watch(eventId, () => {
 <template>
   <UContainer class="space-y-6 py-8 pb-12">
 
+    <ClientOnly>
+      <Teleport to="#navbar-actions">
+        <UButton icon="i-lucide-plus" color="rose" @click="openAddModal" :disabled="isEventCancelled">
+          Add Task
+        </UButton>
+      </Teleport>
+    </ClientOnly>
+
     <div
       v-if="isLoadingEvent"
       class="flex items-center justify-center py-16 text-muted"
@@ -253,15 +261,6 @@ watch(eventId, () => {
       v-else
       class="white-bread-container"
     >
-      <div class="pt-4 flex flex-col sm:flex-row sm:items-center justify-between">
-        <div>
-          <h2 class="text-xl font-semibold font-serif">Tasks Checklist</h2>
-          <p class="text-sm text-muted">Manage your event to-dos and track your progress.</p>
-        </div>
-        <UButton icon="i-lucide-plus" color="rose" @click="openAddModal" :disabled="isEventCancelled">
-          Add Task
-        </UButton>
-      </div>
 
       <div class="pt-2">
         <UTabs v-model="selectedTab" :items="tabItems" color="rose" :ui="{ list:'bg-rose-100 dark:bg-rose-800', content: 'hidden' }" />
@@ -322,7 +321,7 @@ watch(eventId, () => {
       </UTable>
 
       <!-- Unified Form Modal Template for Add / Edit -->
-      <UModal v-model="isAddModalOpen" title="Add New Task" :ui="{ header: 'bg-rose-500 border-none', title: 'text-white font-serif text-xl', content: 'border-none ring-transparent max-w-md w-full' }" :close="{ variant: 'link', class: 'rounded-full text-white' }">
+      <UModal v-model:open="isAddModalOpen" title="Add New Task" :ui="{ header: 'bg-rose-500 border-none', title: 'text-white font-serif text-xl', content: 'border-none ring-transparent max-w-md w-full' }" :close="{ variant: 'link', class: 'rounded-full text-white' }">
         <template #body>
           <UForm :state="newTask" class="space-y-4" @submit.prevent="submitNewTask">
             <UFormField label="Task name" name="title" required><UInput v-model="newTask.title" class="w-full" placeholder="e.g. Set an appointment" /></UFormField>
@@ -344,7 +343,7 @@ watch(eventId, () => {
         </template>
       </UModal>
 
-      <UModal v-model="isEditModalOpen" title="Edit Task" :ui="{ header: 'bg-rose-500 border-none', title: 'text-white font-serif text-xl', content: 'border-none ring-transparent max-w-md w-full' }" :close="{ variant: 'link', class: 'rounded-full text-white' }">
+      <UModal v-model:open="isEditModalOpen" title="Edit Task" :ui="{ header: 'bg-rose-500 border-none', title: 'text-white font-serif text-xl', content: 'border-none ring-transparent max-w-md w-full' }" :close="{ variant: 'link', class: 'rounded-full text-white' }">
         <template #body>
           <UForm v-if="editingTask" :state="editingTask" class="space-y-4" @submit.prevent="submitEditTask">
             <UFormField label="Task name" name="title" required><UInput v-model="editingTask.title" class="w-full" /></UFormField>

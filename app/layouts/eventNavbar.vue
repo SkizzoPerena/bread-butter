@@ -72,7 +72,6 @@ const dropitems: DropdownMenuItem[][] = [
     </template>
     <template #right>
       <div class="flex items-center gap-4">
-        <UColorModeButton />
         <UDropdownMenu
           :items="dropitems"
           :modal="false"

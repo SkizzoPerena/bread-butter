@@ -293,6 +293,22 @@ function openWebsiteMaker() {
   navigateTo({ path: '/WebsiteMaker', query: { eventId: id } })
 }
 
+function openInvitationMaker() {
+  if (isEventCancelled.value) {
+    return
+  }
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/InvitationMaker', query: { eventId: id } })
+}
+
 function openGuestList() {
   const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
   if (!id) {
@@ -348,7 +364,7 @@ function openPayments() {
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'guestList' | 'tasks' | 'settings' | 'payments'
+  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'settings' | 'payments'
   bgClass: string
   hoverClass: string
   ringClass: string
@@ -357,6 +373,8 @@ type DashboardItem = {
 function handleDashboardItemClick(item: DashboardItem) {
   if (item.action === 'website') {
     openWebsiteMaker()
+  } else if (item.action === 'invitation') {
+    openInvitationMaker()
   } else if (item.action === 'guestList') {
     openGuestList()
   } else if (item.action === 'tasks') {
@@ -376,14 +394,14 @@ function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
 
 const dashboardItems: DashboardItem[] = [
   { label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
+  { label: 'Invitation', icon: 'i-lucide-send', action: 'invitation', bgClass: 'bg-purple-500', hoverClass: 'group-hover:bg-purple-600', ringClass: 'group-focus-visible:ring-purple-500' },
+  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
+  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-rose-500', hoverClass: 'group-hover:bg-rose-600', ringClass: 'group-focus-visible:ring-rose-500' },
   { label: 'RSVP', icon: 'i-lucide-mail', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
-  { label: 'Invitations', icon: 'i-lucide-send', bgClass: 'bg-purple-500', hoverClass: 'group-hover:bg-purple-600', ringClass: 'group-focus-visible:ring-purple-500' },
+  { label: 'Sub-Events', icon: 'i-lucide-pen-tool', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
   { label: 'Schedules', icon: 'i-lucide-calendar', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
-  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
-  { label: 'Stationery', icon: 'i-lucide-pen-tool', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
-  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-rose-500', hoverClass: 'group-hover:bg-rose-600', ringClass: 'group-focus-visible:ring-rose-500' },
 ]
 
 </script>
@@ -402,10 +420,10 @@ const dashboardItems: DashboardItem[] = [
             :key="item.label"
             role="button"
             tabindex="0"
-            class="group flex flex-col items-center justify-center aspect-square w-fit h-fit p-4 cursor-pointer rounded-xl focus-visible:outline-none"
+            class="group flex flex-col items-center justify-center aspect-square mx-auto w-fit h-fit p-4 cursor-pointer rounded-xl focus-visible:outline-none text-center"
             :class="{
               'opacity-50 pointer-events-none':
-                item.action === 'website' && (isEventCancelled || (!eventId && !isUiOnlyMode)),
+                (item.action === 'website' || item.action === 'invitation') && (isEventCancelled || (!eventId && !isUiOnlyMode)),
             }"
             @click="handleDashboardItemClick(item)"
             @keydown.enter="handleDashboardItemKeydown($event, item)"
@@ -416,7 +434,7 @@ const dashboardItems: DashboardItem[] = [
             >
               <UIcon :name="item.icon" class="size-9 m-2 text-white" />
             </div>
-            <div class="font-medium mt-3">{{ item.label }}</div>
+            <div class="font-medium mt-3 text-center">{{ item.label }}</div>
           </div>
         </UPageColumns>
 </div>

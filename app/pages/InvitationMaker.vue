@@ -2,7 +2,8 @@
 import { ref, reactive, computed } from 'vue'
 
 definePageMeta({
-  layout: 'eventsubnavbar',
+  layout: 'event-sub-navbar',
+  key: (route) => route.fullPath,
   title: 'Invitation Maker',
   bgClass: 'bg-purple-50'
 })
@@ -51,6 +52,32 @@ const togglePublish = () => {
   isPublished.value = !isPublished.value
 }
 
+const currentStep = ref(0)
+
+interface StepDef {
+  id: string
+  icon: string
+  label: string
+  description: string
+}
+
+const invitationSteps = computed<StepDef[]>(() => [
+  {
+    id: 'core-details', icon: 'i-lucide-info', label: '1. Core Event Details',
+    description: 'Provide the essential details for your event, like the title, date, and venue.'
+  },
+  {
+    id: 'schedule-details', icon: 'i-lucide-list', label: '2. Schedule & Details',
+    description: 'Add a schedule or any extra details your guests might need.'
+  },
+  {
+    id: 'rsvp-deadline', icon: 'i-lucide-calendar-clock', label: '3. Set RSVP Deadline',
+    description: 'Configure when and how your guests should respond.'
+  }
+])
+
+const currentStepData = computed(() => invitationSteps.value[currentStep.value])
+
 // 3. Computed properties to grab specific blocks to lock their layout positions
 const headingBlock = computed(() => blocks.value.find(b => b.type === 'heading'))
 const textBlock = computed(() => blocks.value.find(b => b.type === 'text'))
@@ -94,7 +121,7 @@ const formatTime = (timeString: string) => {
           
           <UButton 
             :icon="isPublished ? 'i-lucide-pencil' : 'i-lucide-check-circle'" 
-            :color="isPublished ? 'neutral' : 'primary'" 
+            :color="isPublished ? 'neutral' : 'purple'" 
             @click="togglePublish"
           >
             {{ isPublished ? 'Edit Invitation' : 'Create Invitation' }}
@@ -111,83 +138,90 @@ const formatTime = (timeString: string) => {
         
         <!-- LEFT SIDE: Content Blocks Form -->
 
-          <UPageCard  v-if="!isPublished" class="bread-container">
-            <div class="text-2xl font-semibold">Editor</div>
+        <UPageCard 
+          v-if="!isPublished" 
+          class="bread-container col-span-1 p-0 sm:p-0 overflow-hidden flex flex-col max-h-[calc(100vh-125px)]"
+          :ui="{ container: 'p-0 sm:p-0 lg:p-0 flex flex-col w-full min-h-0 gap-0' }"
+        >
+          <!-- Static Header -->
+          <div class="px-6 pt-6 pb-4 shrink-0">
+            <div class="relative flex justify-center items-center text-xl font-semibold mb-1">
+              <UButton 
+                v-if="currentStep > 0" 
+                icon="i-lucide-arrow-left" 
+                color="neutral" 
+                variant="ghost"
+                class="absolute left-0 p-2" 
+                aria-label="Previous Step" 
+                @click="currentStep--" 
+              />
+              <span>{{ currentStepData?.label }}</span>
+            </div>
+            <p class="text-center text-sm mx-3 text-muted">
+              {{ currentStepData?.description }}
+            </p>
+          </div>
 
-          <!-- REQUIRED FIELD: Core Event Details -->
-          <UAccordion :ui="{label: 'text-lg font-semibold'}" :items="[{ label: '1. Core Event Details', slot: 'core-details', defaultOpen: true }]">
-            <template #core-details>
-              <div class="flex flex-col gap-4 p-4">
+          <UScrollArea class="w-full shrink min-h-0 my-0 py-0">
+            <div class="px-6 py-4">
+              <!-- Step 1: Core Details -->
+              <div v-if="currentStepData?.id === 'core-details'" class="flex flex-col gap-4">
                 <UFormField label="Introductory Line">
                   <UInput v-model="rsvpData.requestLine" placeholder="e.g., You are invited to..." class="w-full" />
                 </UFormField>
-                
                 <UFormField label="Event Headline">
                   <UInput v-model="rsvpData.eventLabel" placeholder="e.g., The Wedding of..." size="lg" class="w-full" />
                 </UFormField>
-
                 <div class="grid grid-cols-2 gap-4">
                   <UFormField label="Event Date">
                     <UInput type="date" v-model="rsvpData.eventDate" icon="i-lucide-calendar" class="w-full" />
                   </UFormField>
-                  
                   <UFormField label="Event Time">
                     <UInput type="time" v-model="rsvpData.eventTime" icon="i-lucide-clock" class="w-full" />
                   </UFormField>
                 </div>
-
                 <UFormField label="Venue">
                   <UInput v-model="rsvpData.eventVenue" placeholder="e.g., The Grand Hotel, Cityville" icon="i-lucide-map-pin" class="w-full" />
                 </UFormField>
               </div>
-            </template>
-          </UAccordion>
 
-          <!-- FIXED SLOT: Schedule & Details Block -->
-          <div>
-
-              <div class="flex justify-between items-center">
-                <div class="text-lg font-semibold">
-                  2. Schedule & Details
-                </div>
+              <!-- Step 2: Schedule & Details -->
+              <div v-else-if="currentStepData?.id === 'schedule-details'" class="flex flex-col gap-4">
                 <UButton
-                  v-if="headingBlock"
-                  icon="i-lucide-trash"
-                  color="error"
-                  variant="ghost"
-                  class="rounded-lg" 
-                  @click="removeScheduleBlock()"
-                />
-                <UButton
-                  v-else
+                  v-if="!headingBlock && !textBlock"
                   icon="i-lucide-plus"
-                  color="primary"
-                  variant="solid"
-                  class="rounded-lg" 
+                  color="purple"
+                  variant="outline"
+                  block
                   @click="addScheduleBlock()"
-                />
+                >
+                  Add Schedule Block
+                </UButton>
+                <div v-else class="flex justify-end">
+                  <UButton
+                    icon="i-lucide-trash"
+                    color="error"
+                    variant="ghost"
+                    @click="removeScheduleBlock()"
+                    block
+                  >
+                    Remove Block
+                  </UButton>
+                </div>
+
+                <UFormField v-if="headingBlock" label="Schedule Heading">
+                  <UInput v-model="headingBlock.content" placeholder="e.g., Schedule of Events" size="lg" class="w-full" />
+                </UFormField>
+                <UFormField v-if="textBlock" label="Details">
+                  <UTextarea v-model="textBlock.content" class="w-full" placeholder="Add more details like ceremony times, dinner information, etc." />
+                </UFormField>
               </div>
 
-            <div v-if="headingBlock || textBlock" class="flex flex-col p-4 gap-4">
-              <UFormField v-if="headingBlock" label="Schedule Heading">
-                <UInput v-model="headingBlock.content" placeholder="e.g., Schedule of Events" size="lg" class="w-full" />
-              </UFormField>
-              
-              <UFormField v-if="textBlock" label="Details">
-                <UTextarea v-model="textBlock.content" class="w-full" placeholder="Add more details like ceremony times, dinner information, etc." />
-              </UFormField>
-            </div>
-          </div>
-
-
-          <!-- REQUIRED FIELD: RSVP Deadline -->
-          <UAccordion :ui="{label: 'text-lg font-semibold'}" :items="[{ label: '3. Set RSVP Deadline (Required)', slot: 'rsvp-deadline', defaultOpen: true }]">
-            <template #rsvp-deadline>
-              <div class="flex flex-col gap-6 p-4">
+              <!-- Step 3: RSVP Deadline -->
+              <div v-else-if="currentStepData?.id === 'rsvp-deadline'" class="flex flex-col gap-6">
                 <UFormField label="Deadline Message">
                   <UTextarea v-model="rsvpData.deadlineText" class="w-full" />
                 </UFormField>
-                
                 <UFormField label="Deadline Date">
                   <UInput 
                     type="date" 
@@ -197,8 +231,32 @@ const formatTime = (timeString: string) => {
                   />
                 </UFormField>
               </div>
-            </template>
-          </UAccordion>
+            </div>
+          </UScrollArea>
+
+          <!-- Static Footer -->
+          <div class="pb-6 px-6 pt-4 shrink-0">
+            <div class="flex justify-end items-center">
+              <UButton 
+                v-if="currentStep < invitationSteps.length - 1" 
+                icon="i-lucide-arrow-right"
+                color="purple" 
+                @click="currentStep++" 
+                block 
+              >
+                Next Step
+              </UButton>
+              <UButton 
+                v-else
+                icon="i-lucide-check-circle"
+                color="purple" 
+                @click="togglePublish" 
+                block 
+              >
+                Create Invitation
+              </UButton>
+            </div>
+          </div>
 
         </UPageCard>
 
@@ -250,7 +308,7 @@ const formatTime = (timeString: string) => {
                 
                 <div 
                   v-if="rsvpData.deadlineDate" 
-                  class="mt-6 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-400 rounded-lg font-semibold text-sm"
+                  class="mt-6 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-400 rounded-lg font-semibold text-sm"
                 >
                   <UIcon name="i-lucide-calendar" class="w-5 h-5" />
                   RSVP by {{ formatDateWithWeekday(rsvpData.deadlineDate) }}
