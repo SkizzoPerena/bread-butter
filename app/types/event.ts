@@ -59,6 +59,19 @@ export interface RsvpSummary {
   }
 }
 
+export interface ChartSlice {
+  label: string
+  value: number
+}
+
+export function rsvpSummaryToChartData(summary: RsvpSummary): ChartSlice[] {
+  return [
+    { label: 'Attending', value: summary.going },
+    { label: 'Not Attending', value: summary.notGoing },
+    { label: 'Pending', value: summary.pending },
+  ].filter((slice) => slice.value > 0)
+}
+
 export interface TaskPreview {
   _id: string
   title: string

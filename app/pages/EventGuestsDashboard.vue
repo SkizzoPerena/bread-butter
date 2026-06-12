@@ -137,7 +137,7 @@ const bulkAddLink = computed(() => ({
 }))
 
 const rsvpMakerLink = computed(() => ({
-  path: '/RSVPMaker',
+  path: '/EventRSVPDashboard',
   query: eventId.value ? { eventId: eventId.value } : {},
 }))
 
@@ -329,7 +329,7 @@ watch(eventId, () => {
             :to="rsvpMakerLink"
             icon="i-lucide-calendar"
           >
-            RSVP Maker
+            RSVP
           </UButton>
           <UButton
             :to="bulkAddLink"
@@ -786,7 +786,7 @@ watch(eventId, () => {
         <template #body>
           <p class="mb-4 text-sm text-muted">
             This event has no RSVP questions configured. Invitations may not collect
-            meaningful responses until you set up RSVP questions in RSVP Maker.
+            meaningful responses until you set up RSVP questions in the RSVP dashboard.
           </p>
           <div class="flex justify-end gap-2">
             <UButton
