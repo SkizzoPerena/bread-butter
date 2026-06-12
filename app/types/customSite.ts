@@ -84,3 +84,40 @@ export interface CustomSiteMutationResponse {
   message: string
   customSite?: CustomSiteRecord
 }
+
+export type PublicCustomSiteAvailability = 'UNPUBLISHED'
+
+export interface PublicCustomSiteMeta {
+  success: boolean
+  passwordProtected: boolean
+  siteName: string
+  customSite?: PublicCustomSiteRecord
+}
+
+export type PublicCustomSiteRecord = Omit<CustomSiteRecord, 'passcode'>
+
+export interface PublicCustomSiteUnavailableResponse {
+  success: false
+  status: number
+  availability: PublicCustomSiteAvailability
+  message: string
+}
+
+export interface UnlockCustomSiteResponse {
+  success: boolean
+  status: number
+  message: string
+  accessToken?: string
+}
+
+export class PublicCustomSiteError extends Error {
+  status: number
+  availability?: PublicCustomSiteAvailability
+
+  constructor(message: string, status: number, availability?: PublicCustomSiteAvailability) {
+    super(message)
+    this.name = 'PublicCustomSiteError'
+    this.status = status
+    this.availability = availability
+  }
+}

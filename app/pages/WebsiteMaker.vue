@@ -16,6 +16,17 @@ import {
   buildCustomSiteFormData,
   validateWebsiteEditorForSave,
 } from '~/utils/customSiteForm'
+import {
+  colorPalettes,
+  typographySets,
+  resolvePalette,
+  resolveTypography,
+  getDynamicStyle,
+  formatDateWithWeekday,
+  getGoogleMapsUrl,
+  type ColorPalette,
+  type TypographySet,
+} from '~/utils/websiteTheme'
 
 const route = useRoute()
 const toast = useToast()
@@ -75,6 +86,23 @@ const previewSiteDescription = computed(
     'Your site description goes here.'
 )
 
+const liveSiteSlug = computed(() => {
+  const domain = websiteData.domainName.trim()
+  if (domain) {
+    return domain.slice(0, 50)
+  }
+  return websiteData.siteTitle
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50)
+})
+
+const liveSiteLink = computed(() =>
+  liveSiteSlug.value ? `/sites/${encodeURIComponent(liveSiteSlug.value)}` : null
+)
+
 const loadedCustomSiteFromApi = ref(false)
 
 // 1. Website Data
@@ -114,121 +142,6 @@ const selectMotif = (motif: typeof motifs[0]) => {
     websiteData.typography = motif.typography
 }
 
-// Interface for Color Palette
-interface ColorPalette {
-    name: string;
-    colors: {
-        background: string;
-        surface: string;
-        primary: string;
-        text: string;
-        heading: string;
-    };
-}
-
-// Color Palette Data
-const colorPalettes: ColorPalette[] = [
-    {
-        name: 'Classic Ivory & Gold',
-        colors: { background: '#F8F7F2', surface: '#F2E8D5', primary: '#D4AF37', heading: '#B8977B', text: '#8E8A83' }
-    },
-    {
-        name: 'Sage Green Romance',
-        colors: { background: '#EEF2EC', surface: '#C7D9C1', primary: '#8EAF92', heading: '#5E7F64', text: '#3E5B49' }
-    },
-    {
-        name: 'Blush & Mauve',
-        colors: { background: '#FBE7EA', surface: '#F4C7D4', primary: '#D48BA0', heading: '#A46A7A', text: '#6E5160' }
-    },
-    {
-        name: 'Navy & Champagne',
-        colors: { background: '#F6F3EE', surface: '#E7D7B5', primary: '#C8A972', heading: '#1E2A44', text: '#0D1B2A' }
-    },
-    {
-        name: 'Modern Black Tie',
-        colors: { background: '#FFFFFF', surface: '#EDEDED', primary: '#BFA076', heading: '#333333', text: '#0A0A0A' }
-    },
-    {
-        name: 'Dusty Blue Serenity',
-        colors: { background: '#E6EEF6', surface: '#BFD1E1', primary: '#8FA7BF', heading: '#617D9B', text: '#3F5B70' }
-    },
-    {
-        name: 'Terracotta & Olive',
-        colors: { background: '#F6F1E9', surface: '#A3A078', primary: '#E07A5F', heading: '#C85C3D', text: '#6E7A5E' }
-    },
-    {
-        name: 'Lavender & Silver',
-        colors: { background: '#EDECEF', surface: '#E7E1F5', primary: '#C8BCE8', heading: '#A89FD1', text: '#8F8AA8' }
-    },
-    {
-        name: 'Emerald & Gold',
-        colors: { background: '#F7F5F0', surface: '#EBDCC0', primary: '#D4AF37', heading: '#0F7A5A', text: '#064E3B' }
-    },
-    {
-        name: 'Rustic Burnt Orange',
-        colors: { background: '#F5EFE6', surface: '#DCC8B0', primary: '#E09A5A', heading: '#B5522D', text: '#7D7050' }
-    },
-    {
-        name: 'Teal & Cream',
-        colors: { background: '#FAF7F2', surface: '#F6E9D6', primary: '#BEE3DB', heading: '#41B3A3', text: '#0D9488' }
-    },
-    {
-        name: 'Plum & Blush',
-        colors: { background: '#FAF4F6', surface: '#F2D9DC', primary: '#C38CA8', heading: '#7D4A7D', text: '#4B2E4D' }
-    },
-    {
-        name: 'Sand & Mocha',
-        colors: { background: '#F5EFE6', surface: '#E1D2BE', primary: '#B18E6B', heading: '#7A5B45', text: '#4B3B31' }
-    },
-    {
-        name: 'Coral & Peach',
-        colors: { background: '#F6F7F2', surface: '#FFDCC8', primary: '#FFB6A1', heading: '#A8C5A1', text: '#FF7F6A' }
-    },
-    {
-        name: 'Sky Blue & Stone',
-        colors: { background: '#F3F2EF', surface: '#D7E7F2', primary: '#A8C5D8', heading: '#A4AAAA', text: '#7EA1B7' }
-    },
-    {
-        name: 'Forest Green & Blush',
-        colors: { background: '#FAF8F5', surface: '#EEE3D7', primary: '#D8B4BB', heading: '#47664B', text: '#1F3D2E' }
-    },
-    {
-        name: 'Mustard & Navy',
-        colors: { background: '#F7F6F2', surface: '#F2C94C', primary: '#DAA520', heading: '#7D8B9D', text: '#1E2A44' }
-    },
-    {
-        name: 'Burgundy & Gold',
-        colors: { background: '#FBF9F6', surface: '#F1E4C3', primary: '#D4AF37', heading: '#9E1B32', text: '#6D0F1A' }
-    },
-    {
-        name: 'Charcoal & Sage',
-        colors: { background: '#F5F4F1', surface: '#D9DCCB', primary: '#A3B18A', heading: '#6B7170', text: '#2F3437' }
-    },
-    {
-        name: 'Peacock Blue & Copper',
-        colors: { background: '#F9F6F2', surface: '#F6D5B8', primary: '#B87333', heading: '#0A9396', text: '#005F73' }
-    }
-]
-
-// Interface for Typography Set
-interface TypographySet {
-    name: string;
-    headerFont: string;
-    subheaderFont: string;
-    bodyFont: string;
-    description: string;
-}
-
-// Typography Data
-const typographySets: TypographySet[] = [
-    { name: 'Romantic Script', headerFont: 'Parisienne', subheaderFont: 'Gambetta', bodyFont: 'Satoshi', description: 'A formal script paired with an elegant serif and clean sans.' },
-    { name: 'Casual Script', headerFont: 'Engagement', subheaderFont: 'Sentient', bodyFont: 'Switzer', description: 'A lively, bouncing script matched with a robust serif and crisp sans.' },
-    { name: 'Whimsical Script', headerFont: 'Great Vibes', subheaderFont: 'Quicksand', bodyFont: 'Outfit', description: 'An informal script with a soft, rounded sans-serif combination.' },
-    { name: 'Elegant Serif', headerFont: 'Boska', subheaderFont: 'Rowan', bodyFont: 'General Sans', description: 'A sophisticated high-contrast serif for headings with a readable serif and sans.' },
-    { name: 'Bold & Expressive', headerFont: 'Melodrama', subheaderFont: 'Satoshi', bodyFont: 'Amulya', description: 'Fashionable, high-contrast headings combined with humanistic body fonts.' },
-    { name: 'Modern Sans', headerFont: 'Clash Display', subheaderFont: 'Bespoke Sans', bodyFont: 'Switzer', description: 'Clean, contemporary, and versatile sans-serifs throughout.' }
-]
-
 // 2. Dynamic Content Sections
 interface WebsiteSection {
     id: number;
@@ -257,13 +170,16 @@ watch(
   }
 )
 
-const selectedPalette = computed<ColorPalette>(() => {
-    return colorPalettes.find(p => p.name === websiteData.colorPalette) || colorPalettes[0]!
-})
+const selectedPalette = computed<ColorPalette>(() =>
+  resolvePalette(websiteData.colorPalette)
+)
 
-const selectedTypography = computed<TypographySet>(() => {
-    return typographySets.find(p => p.name === websiteData.typography) || typographySets[0]!
-})
+const selectedTypography = computed<TypographySet>(() =>
+  resolveTypography(websiteData.typography)
+)
+
+const previewDynamicStyle = (index: number) =>
+  getDynamicStyle(index, selectedPalette.value.colors)
 
 const selectedHeaderFile = ref<File | undefined>();
 
@@ -616,35 +532,6 @@ async function handleSaveWebsite() {
   await saveCustomSite()
 }
 
-const getDynamicStyle = (index: number) => {
-    const cycle = ((index % 3) + 3) % 3; // Ensure positive modulo for negative numbers
-    const colors = selectedPalette.value.colors;
-
-    if (cycle === 0) {
-        return { bg: colors.surface, heading: colors.heading, text: colors.text };
-    } else if (cycle === 1) {
-        return { bg: colors.text, heading: colors.background, text: colors.background };
-    } else {
-        return { bg: 'transparent', heading: colors.heading, text: colors.text };
-    }
-}
-
-const formatDateWithWeekday = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString.replace(/-/g, '/'))
-    return date.toLocaleDateString(undefined, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    })
-}
-
-const getGoogleMapsUrl = (location: string) => {
-    if (!location) return '';
-    return `https://maps.google.com/maps?q=hotels+near+${encodeURIComponent(location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
-}
-
 // Computed properties to grab specific sections if needed, similar to RSVPMaker
 // For now, we'll just iterate over `sections` directly in the preview.
 
@@ -661,8 +548,17 @@ const getGoogleMapsUrl = (location: string) => {
                         </div>
 
                         <UButton
+                            v-if="isLive && liveSiteLink"
+                            :to="liveSiteLink"
+                            target="_blank"
+                            icon="i-lucide-external-link"
+                            variant="outline"
+                            color="blue"
+                        >
+                            View Live Site
+                        </UButton>
 
-
+                        <UButton
                             :loading="isSaving"
                             :disabled="isLoadingSite || isLoadingEvent || isSaving"
                             @click="handleSaveWebsite"
@@ -1227,23 +1123,23 @@ const getGoogleMapsUrl = (location: string) => {
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0"
                                             class="flex flex-col justify-center gap-10 px-6 text-center py-20"
                                             :class="{ 'min-h-[80vh]': isLive }" :style="{
-                                                backgroundColor: getDynamicStyle(index).bg,
+                                                backgroundColor: previewDynamicStyle(index).bg,
                                             }">
                                             <div class="font-bold transition-all duration-300"
                                                 :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Q&A</div>
 
 
                                             <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
                                                 <h3 class="font-bold transition-all duration-300"
                                                     :class="isLive ? 'text-4xl' : 'text-2xl'"
-                                                    :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ tidbit.heading }}
                                                 </h3>
                                                 <div class="prose max-w-none mx-auto text-center transition-all duration-300"
                                                     :class="isLive ? 'text-xl' : 'text-base'"
-                                                    :style="{ color: getDynamicStyle(index).text }">
+                                                    :style="{ color: previewDynamicStyle(index).text }">
                                                     {{ tidbit.paragraph }}
                                                 </div>
                                             </div>
@@ -1255,28 +1151,28 @@ const getGoogleMapsUrl = (location: string) => {
                                         <div v-if="compId === 'schedule' && scheduleItems.length > 0"
                                             class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
                                             :class="{ 'min-h-[80vh]': isLive }"
-                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="font-bold transition-all duration-300"
                                                 :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Schedule</div>
 
                                             <div v-for="item in scheduleItems" :key="item.id"
                                                 class="flex flex-col gap-3">
                                                 <h3 class="font-bold transition-all duration-300"
                                                     :class="isLive ? 'text-4xl' : 'text-2xl'"
-                                                    :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ item.title }}
                                                 </h3>
                                                 <div class="prose max-w-none mx-auto text-center transition-all duration-300"
                                                     :class="isLive ? 'text-xl' : 'text-base'"
-                                                    :style="{ color: getDynamicStyle(index).text }">
+                                                    :style="{ color: previewDynamicStyle(index).text }">
                                                     {{ item.description }}
                                                 </div>
                                                 <div v-if="item.location"
                                                     class="font-semibold italic mt-2 transition-all duration-300"
                                                     :class="isLive ? 'text-lg' : 'text-sm'"
-                                                    :style="{ color: getDynamicStyle(index).heading }">
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
                                                     <UIcon name="i-lucide-map-pin"
                                                         class="mr-1 inline-block align-middle" />{{
                                                             item.location
@@ -1289,13 +1185,13 @@ const getGoogleMapsUrl = (location: string) => {
                                         <div v-if="compId === 'rsvp'"
                                             class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
                                             :class="{ 'min-h-[80vh]': isLive }"
-                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="font-bold transition-all duration-300"
                                                 :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 RSVP</div>
                                             <div class="flex flex-col items-center gap-5 text-sm"
-                                                :style="{ color: getDynamicStyle(index).text }">
+                                                :style="{ color: previewDynamicStyle(index).text }">
                                                 <div v-if="websiteData.rsvpDeadlineDate" class="font-semibold uppercase tracking-widest text-xs opacity-80">
                                                     <UIcon name="i-lucide-calendar" class="w-4 h-4 inline-block align-text-bottom mr-1" />
                                                     RSVP by {{ formatDateWithWeekday(websiteData.rsvpDeadlineDate) }}
@@ -1303,9 +1199,9 @@ const getGoogleMapsUrl = (location: string) => {
                                                 <UButton size="lg" 
                                                     class="transition-all duration-300 hover:opacity-80 shadow-md border" 
                                                     :style="{ 
-                                                        backgroundColor: getDynamicStyle(index ).text, 
-                                                        color: getDynamicStyle(index ).bg, 
-                                                        borderColor: getDynamicStyle(index ).bg === 'transparent' ? getDynamicStyle(index - 1).text : getDynamicStyle(index - 1).bg 
+                                                        backgroundColor: previewDynamicStyle(index ).text, 
+                                                        color: previewDynamicStyle(index ).bg, 
+                                                        borderColor: previewDynamicStyle(index ).bg === 'transparent' ? previewDynamicStyle(index - 1).text : previewDynamicStyle(index - 1).bg 
                                                     }"
                                                 >
                                                     RSVP Here
@@ -1317,13 +1213,13 @@ const getGoogleMapsUrl = (location: string) => {
                                         <div v-if="compId === 'where-to-stay'"
                                             class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
                                             :class="{ 'min-h-[80vh]': isLive }"
-                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="font-bold transition-all duration-300"
                                                 :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Where to Stay</div>
                                             
-                                            <div v-if="websiteData.whereToStayLocation" class="relative w-full h-100 max-w-4xl mx-auto rounded-lg overflow-hidden shadow-lg border" :style="{ borderColor: getDynamicStyle(index).text }">
+                                            <div v-if="websiteData.whereToStayLocation" class="relative w-full h-100 max-w-4xl mx-auto rounded-lg overflow-hidden shadow-lg border" :style="{ borderColor: previewDynamicStyle(index).text }">
                                                 <iframe 
                                                     width="100%" 
                                                     height="100%" 
@@ -1336,11 +1232,11 @@ const getGoogleMapsUrl = (location: string) => {
                                                 </iframe>
                                                 <!-- Seamless Map Tint Overlay -->
                                                 <div class="absolute inset-0 pointer-events-none opacity-60"
-                                                     :style="{ backgroundColor: getDynamicStyle(index).text, mixBlendMode: 'color' }">
+                                                     :style="{ backgroundColor: previewDynamicStyle(index).text, mixBlendMode: 'color' }">
                                                 </div>
                                             </div>
                                             <div v-else class="text-sm italic opacity-70"
-                                                :style="{ color: getDynamicStyle(index).text }">
+                                                :style="{ color: previewDynamicStyle(index).text }">
                                                 [ Enter a location to view the map ]
                                             </div>
                                         </div>
@@ -1349,13 +1245,13 @@ const getGoogleMapsUrl = (location: string) => {
                                         <div v-if="compId === 'travel'"
                                             class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
                                             :class="{ 'min-h-[80vh]': isLive }"
-                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="font-bold transition-all duration-300"
                                                 :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Travel</div>
                                             <div class="text-sm italic opacity-70"
-                                                :style="{ color: getDynamicStyle(index).text }">
+                                                :style="{ color: previewDynamicStyle(index).text }">
                                                 [ Travel Component Preview goes here ]
                                             </div>
                                         </div>
@@ -1364,13 +1260,13 @@ const getGoogleMapsUrl = (location: string) => {
                                         <div v-if="compId === 'wedding-party'"
                                             class="flex flex-col justify-center gap-10 px-6 py-20 text-center"
                                             :class="{ 'min-h-[80vh]': isLive }"
-                                            :style="{ backgroundColor: getDynamicStyle(index).bg }">
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="font-bold transition-all duration-300"
                                                 :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: getDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Wedding Party</div>
                                             <div class="text-sm italic opacity-70"
-                                                :style="{ color: getDynamicStyle(index).text }">
+                                                :style="{ color: previewDynamicStyle(index).text }">
                                                 [ Wedding Party Component Preview goes here ]
                                             </div>
                                         </div>
@@ -1379,15 +1275,15 @@ const getGoogleMapsUrl = (location: string) => {
                                     <!-- Thank You / Ending Preview -->
                                     <div class="flex flex-col justify-center gap-6 px-6 py-20 text-center"
                                         :class="{ 'min-h-[80vh]': isLive }"
-                                        :style="{ backgroundColor: getDynamicStyle(selectedComponents.length).bg }">
+                                        :style="{ backgroundColor: previewDynamicStyle(selectedComponents.length).bg }">
                                         <h2 class="font-bold transition-all duration-300"
                                             :class="isLive ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: getDynamicStyle(selectedComponents.length).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                            :style="{ color: previewDynamicStyle(selectedComponents.length).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                             {{ websiteData.endingTitle }}
                                         </h2>
                                         <p class="prose max-w-none mx-auto text-center transition-all duration-300"
                                             :class="isLive ? 'text-2xl' : 'text-lg'"
-                                            :style="{ color: getDynamicStyle(selectedComponents.length).text }">
+                                            :style="{ color: previewDynamicStyle(selectedComponents.length).text }">
                                             {{ websiteData.endingMessage }}
                                         </p>
                                     </div>
