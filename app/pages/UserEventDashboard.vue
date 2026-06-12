@@ -393,10 +393,23 @@ function openPayments() {
   navigateTo({ path: '/EventPaymentReview', query: { eventId: id } })
 }
 
+function openSchedulesDashboard() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventSchedulesDashboard', query: { eventId: id } })
+}
+
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'settings' | 'payments'
+  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments'
   bgClass: string
   hoverClass: string
   ringClass: string
@@ -417,6 +430,8 @@ function handleDashboardItemClick(item: DashboardItem) {
     openEventSettings()
   } else if (item.action === 'payments') {
     openPayments()
+  } else if (item.action === 'schedules') {
+    openSchedulesDashboard()
   }
 }
 
@@ -434,7 +449,7 @@ const dashboardItems: DashboardItem[] = [
   { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
   { label: 'Gifts', icon: 'i-lucide-gift', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
-  { label: 'Schedules', icon: 'i-lucide-calendar', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
+  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
 ]
 

@@ -64,12 +64,54 @@ export function useGuests() {
     })
   }
 
-  async function fetchGuestsByEvent(eventId: string): Promise<GuestRecord[]> {
+  async function fetchGuestsByEvent(
+    eventId: string,
+    subEventId?: string
+  ): Promise<GuestRecord[]> {
     if (isUiOnlyMode.value) {
-      return []
+      const mockGuests: GuestRecord[] = [
+        {
+          _id: 'mock-guest-1',
+          name: 'maria santos',
+          email: 'maria.santos@example.com',
+          rsvp: subEventId
+            ? {
+                _id: 'mock-sub-rsvp-1',
+                status: 'GOING',
+                invitedAt: '2026-04-01T10:00:00.000Z',
+                respondedAt: '2026-04-02T14:30:00.000Z',
+              }
+            : null,
+        },
+        {
+          _id: 'mock-guest-2',
+          name: 'juan dela cruz',
+          email: 'juan.delacruz@example.com',
+          rsvp: subEventId
+            ? {
+                _id: 'mock-sub-rsvp-2',
+                status: 'PENDING',
+                invitedAt: '2026-04-01T10:00:00.000Z',
+                respondedAt: null,
+              }
+            : null,
+        },
+        {
+          _id: 'mock-guest-3',
+          name: 'ana reyes',
+          email: 'ana.reyes@example.com',
+          rsvp: null,
+        },
+      ]
+      return mockGuests
     }
 
-    const response = await apiRequest<GuestsListResponse>(`/user/guests/event/${eventId}`)
+    const query = subEventId
+      ? `?subEventId=${encodeURIComponent(subEventId)}`
+      : ''
+    const response = await apiRequest<GuestsListResponse>(
+      `/user/guests/event/${eventId}${query}`
+    )
     return response.guests ?? []
   }
 
