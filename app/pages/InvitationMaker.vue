@@ -11,6 +11,7 @@ import {
   seedInvitationDefaultsFromEvent,
   type InvitationEditorBlock,
 } from '~/utils/invitationForm'
+import type { InvitationRecord } from '~/types/invitation'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -254,26 +255,18 @@ const currentStepData = computed(() => invitationSteps.value[currentStep.value])
 const headingBlock = computed(() => blocks.value.find(b => b.type === 'heading'))
 const textBlock = computed(() => blocks.value.find(b => b.type === 'text'))
 
-const formatDateWithWeekday = (dateString: string) => {
-  if (!dateString) return ''
-  const date = new Date(dateString.replace(/-/g, '/'))
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-const formatTime = (timeString: string) => {
-  if (!timeString) return ''
-  const date = new Date(`1970-01-01T${timeString}`)
-  return date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  })
-}
+const previewInvitation = computed<InvitationRecord>(() => ({
+  _id: invitationId.value || 'preview-invitation',
+  event: eventId.value || 'mock-event-id',
+  requestLine: rsvpData.requestLine,
+  eventLabel: rsvpData.eventLabel,
+  eventDate: rsvpData.eventDate,
+  eventTime: rsvpData.eventTime,
+  eventVenue: rsvpData.eventVenue,
+  blocks: blocks.value.map(({ type, content }) => ({ type, content })),
+  deadlineText: rsvpData.deadlineText,
+  deadlineDate: rsvpData.deadlineDate,
+}))
 
 </script>
 
@@ -430,55 +423,10 @@ const formatTime = (timeString: string) => {
         </UPageCard>
 
         <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-6">
-          <UPageCard class="bread-container-bordered border border-toast-400" :class="isPublished ? 'shadow-2xl max-w-3xl mx-auto' : ' '">
-            <div class="flex flex-col gap-8 text-center py-8 px-4">
-              <div class="space-y-4">
-                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">
-                  {{ rsvpData.requestLine || 'Your request line...' }}
-                </p>
-                <h1 class="text-4xl md:text-5xl font-bold font-serif text-neutral-900 dark:text-white leading-tight">
-                  {{ rsvpData.eventLabel || 'Your Event Label...' }}
-                </h1>
-
-                <div class="mt-6 flex flex-col items-center text-neutral-700 dark:text-neutral-300">
-                  <div class="text-lg font-semibold uppercase">
-                    {{ formatDateWithWeekday(rsvpData.eventDate) || 'Event Date' }}
-                  </div>
-                  <div>{{ formatTime(rsvpData.eventTime) || 'Event Time' }}</div>
-                  <div class="flex items-center font-semibold font-serif pt-2">
-                    {{ rsvpData.eventVenue || 'Event Venue Placeholder' }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-col">
-                <h2 v-if="headingBlock" class="text-2xl font-bold">
-                  {{ headingBlock.content }}
-                </h2>
-
-                <div
-                  v-if="textBlock"
-                  class="prose dark:prose-invert max-w-none mx-auto text-center"
-                  v-html="textBlock.content"
-                />
-              </div>
-
-              <div class="mt-8 pt-8 border-t border-neutral-200 dark:border-neutral-800">
-                <div
-                  class="prose dark:prose-invert mx-auto text-center text-sm"
-                  v-html="rsvpData.deadlineText"
-                />
-
-                <div
-                  v-if="rsvpData.deadlineDate"
-                  class="mt-6 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-400 rounded-lg font-semibold text-sm"
-                >
-                  <UIcon name="i-lucide-calendar" class="w-5 h-5" />
-                  RSVP by {{ formatDateWithWeekday(rsvpData.deadlineDate) }}
-                </div>
-              </div>
-            </div>
-          </UPageCard>
+          <InvitationRsvpVisual
+            :invitation="previewInvitation"
+            :class="isPublished ? 'shadow-2xl max-w-3xl mx-auto' : ''"
+          />
         </div>
       </UPageGrid>
     </UContainer>
