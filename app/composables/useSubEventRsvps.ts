@@ -49,6 +49,52 @@ function getMockSubEventRsvps(subEventId: string): RsvpRecord[] {
   return MOCK_SUB_EVENT_RSVPS.get(subEventId)!
 }
 
+export function findMockSubEventRsvpByEmail(
+  subEventId: string,
+  email: string
+): RsvpRecord | null {
+  const normalized = email.toLowerCase()
+  return (
+    getMockSubEventRsvps(subEventId).find(
+      (rsvp) => rsvp.email.toLowerCase() === normalized
+    ) ?? null
+  )
+}
+
+export function addMockSubEventRsvp(
+  subEventId: string,
+  guest: { _id: string; name: string; email: string }
+): RsvpRecord {
+  const rsvps = getMockSubEventRsvps(subEventId)
+  const existing = findMockSubEventRsvpByEmail(subEventId, guest.email)
+  if (existing) {
+    return existing
+  }
+
+  const rsvp: RsvpRecord = {
+    _id: `mock-sub-rsvp-${guest._id}`,
+    name: guest.name,
+    email: guest.email,
+    status: 'PENDING',
+    invitedAt: new Date().toISOString(),
+    respondedAt: null,
+    answers: [],
+  }
+  rsvps.push(rsvp)
+  return rsvp
+}
+
+export function removeMockSubEventRsvp(rsvpId: string): boolean {
+  for (const rsvps of MOCK_SUB_EVENT_RSVPS.values()) {
+    const index = rsvps.findIndex((rsvp) => rsvp._id === rsvpId)
+    if (index >= 0) {
+      rsvps.splice(index, 1)
+      return true
+    }
+  }
+  return false
+}
+
 function filterMockRsvps(rsvps: RsvpRecord[], status: RsvpStatusFilter): RsvpRecord[] {
   if (status === 'ALL') {
     return rsvps
@@ -141,14 +187,40 @@ export function useSubEventRsvps() {
     guestIds?: string[]
   ): Promise<SendInviteResponse> {
     if (isUiOnlyMode.value) {
+      const mockGuestDirectory: Record<string, { name: string; email: string }> = {
+        'mock-guest-1': { name: 'maria santos', email: 'maria.santos@example.com' },
+        'mock-guest-2': { name: 'juan dela cruz', email: 'juan.delacruz@example.com' },
+        'mock-guest-3': { name: 'ana reyes', email: 'ana.reyes@example.com' },
+      }
+
+      const ids = guestIds ?? []
+      let created = 0
+      let skippedAlreadyInvited = 0
+      let notFound = 0
+
+      for (const guestId of ids) {
+        const guest = mockGuestDirectory[guestId]
+        if (!guest) {
+          notFound += 1
+          continue
+        }
+        const existing = findMockSubEventRsvpByEmail(subEventId, guest.email)
+        if (existing) {
+          skippedAlreadyInvited += 1
+          continue
+        }
+        addMockSubEventRsvp(subEventId, { _id: guestId, ...guest })
+        created += 1
+      }
+
       return {
         success: true,
         status: 201,
         message: 'Sub-event RSVP invites processed.',
-        requested: guestIds?.length ?? 2,
-        created: 1,
-        skippedAlreadyInvited: 1,
-        notFound: 0,
+        requested: ids.length,
+        created,
+        skippedAlreadyInvited,
+        notFound,
       }
     }
 
@@ -180,11 +252,23 @@ export function useSubEventRsvps() {
     )
   }
 
+  async function deleteSubEventRsvp(rsvpId: string): Promise<{ success: boolean; message: string }> {
+    if (isUiOnlyMode.value) {
+      removeMockSubEventRsvp(rsvpId)
+      return { success: true, message: 'RSVP deleted.' }
+    }
+
+    return apiRequest<{ success: boolean; message: string }>(`/user/rsvps/${rsvpId}`, {
+      method: 'DELETE',
+    })
+  }
+
   return {
     fetchSubEventRsvps,
     fetchAllSubEventRsvps,
     sendSubEventInvites,
     sendSubEventGuestInvite,
+    deleteSubEventRsvp,
     rsvpsToSummary,
   }
 }

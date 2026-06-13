@@ -7,6 +7,7 @@ import type {
   SendInviteResponse
 } from '~/types/guest'
 import type { GuestRecord } from '~/types/event'
+import { findMockSubEventRsvpByEmail } from '~/composables/useSubEventRsvps'
 
 export function useGuests() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
@@ -74,27 +75,13 @@ export function useGuests() {
           _id: 'mock-guest-1',
           name: 'maria santos',
           email: 'maria.santos@example.com',
-          rsvp: subEventId
-            ? {
-                _id: 'mock-sub-rsvp-1',
-                status: 'GOING',
-                invitedAt: '2026-04-01T10:00:00.000Z',
-                respondedAt: '2026-04-02T14:30:00.000Z',
-              }
-            : null,
+          rsvp: null,
         },
         {
           _id: 'mock-guest-2',
           name: 'juan dela cruz',
           email: 'juan.delacruz@example.com',
-          rsvp: subEventId
-            ? {
-                _id: 'mock-sub-rsvp-2',
-                status: 'PENDING',
-                invitedAt: '2026-04-01T10:00:00.000Z',
-                respondedAt: null,
-              }
-            : null,
+          rsvp: null,
         },
         {
           _id: 'mock-guest-3',
@@ -103,6 +90,24 @@ export function useGuests() {
           rsvp: null,
         },
       ]
+
+      if (subEventId) {
+        return mockGuests.map((guest) => {
+          const subEventRsvp = findMockSubEventRsvpByEmail(subEventId, guest.email)
+          return {
+            ...guest,
+            rsvp: subEventRsvp
+              ? {
+                  _id: subEventRsvp._id,
+                  status: subEventRsvp.status,
+                  invitedAt: subEventRsvp.invitedAt,
+                  respondedAt: subEventRsvp.respondedAt,
+                }
+              : null,
+          }
+        })
+      }
+
       return mockGuests
     }
 

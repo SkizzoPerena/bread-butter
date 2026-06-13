@@ -19,6 +19,7 @@ export type GuestTableRow = {
   guests: number
   rsvpStatus: typeof rsvpOptions[number]
   invitationSent: boolean
+  rsvpId?: string | null
   groupId?: string | null
   groupName?: string | null
   groupSize?: number | null

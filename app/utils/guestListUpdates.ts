@@ -92,6 +92,86 @@ export function applySendAllInvitesToGuestList(
   return { guestList: updatedGuestList, rsvpSummary: updatedRsvpSummary }
 }
 
+export function clearSubEventInviteFromList(
+  guestList: GuestRecord[],
+  rsvpSummary: RsvpSummary | null,
+  guestId: string
+): { guestList: GuestRecord[]; rsvpSummary: RsvpSummary | null } {
+  const guest = guestList.find((entry) => entry._id === guestId)
+  if (!guest) {
+    return { guestList, rsvpSummary }
+  }
+
+  const hadInvite = Boolean(guest.rsvp?.invitedAt)
+  const status = guest.rsvp?.status
+
+  let updatedRsvpSummary = rsvpSummary
+  if (rsvpSummary && hadInvite) {
+    updatedRsvpSummary = {
+      ...rsvpSummary,
+      totalSent: Math.max(0, rsvpSummary.totalSent - 1),
+      pending: status === 'PENDING'
+        ? Math.max(0, rsvpSummary.pending - 1)
+        : rsvpSummary.pending,
+      going: status === 'GOING'
+        ? Math.max(0, rsvpSummary.going - 1)
+        : rsvpSummary.going,
+      notGoing: status === 'NOT_GOING'
+        ? Math.max(0, rsvpSummary.notGoing - 1)
+        : rsvpSummary.notGoing,
+    }
+  }
+
+  const updatedGuestList = guestList.map((entry) => {
+    if (entry._id !== guestId) {
+      return entry
+    }
+    return { ...entry, rsvp: null }
+  })
+
+  return { guestList: updatedGuestList, rsvpSummary: updatedRsvpSummary }
+}
+
+export function applyBulkSendInvitesToGuestList(
+  guestList: GuestRecord[],
+  rsvpSummary: RsvpSummary | null,
+  guestIds: string[],
+  response: SendInviteResponse
+): { guestList: GuestRecord[]; rsvpSummary: RsvpSummary | null } {
+  if (response.created <= 0) {
+    return { guestList, rsvpSummary }
+  }
+
+  const guestIdSet = new Set(guestIds)
+  const invitedAt = new Date().toISOString()
+  const updatedGuestList = guestList.map((guest) => {
+    if (!guestIdSet.has(guest._id) || guest.rsvp?.invitedAt) {
+      return guest
+    }
+
+    return {
+      ...guest,
+      rsvp: {
+        _id: guest.rsvp?._id ?? `rsvp-${guest._id}`,
+        status: guest.rsvp?.status ?? 'PENDING',
+        invitedAt,
+        respondedAt: guest.rsvp?.respondedAt ?? null,
+      },
+    }
+  })
+
+  let updatedRsvpSummary = rsvpSummary
+  if (rsvpSummary && response.created > 0) {
+    updatedRsvpSummary = {
+      ...rsvpSummary,
+      totalSent: rsvpSummary.totalSent + response.created,
+      pending: rsvpSummary.pending + response.created,
+    }
+  }
+
+  return { guestList: updatedGuestList, rsvpSummary: updatedRsvpSummary }
+}
+
 export function removeGuestFromList(
   guestList: GuestRecord[],
   rsvpSummary: RsvpSummary | null,

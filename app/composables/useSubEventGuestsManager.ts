@@ -1,11 +1,15 @@
 import type { EventRecord, GuestRecord, RsvpSummary } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import {
-  applySendAllInvitesToGuestList,
-  applySendInviteToGuestList,
+  applyBulkSendInvitesToGuestList,
+  clearSubEventInviteFromList,
 } from '~/utils/guestListUpdates'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { mapRsvpStatusToBadgeColor, mapRsvpStatusToLabel } from '~/utils/rsvpDisplay'
+
+export interface SubEventGuestTableRow extends GuestTableRow {
+  rsvpId: string
+}
 
 export interface UseSubEventGuestsManagerOptions {
   eventId: Ref<string>
@@ -20,41 +24,72 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
   const toast = useToast()
   const { isUiOnlyMode } = useApiMode()
   const { fetchGuestsByEvent } = useGuests()
-  const { sendSubEventInvites, sendSubEventGuestInvite } = useSubEventRsvps()
+  const { sendSubEventInvites, deleteSubEventRsvp } = useSubEventRsvps()
 
   const guestList = ref<GuestRecord[]>([])
   const isLoadingGuests = ref(false)
-  const sendingGuestId = ref<string | null>(null)
-  const isInvitingAll = ref(false)
+  const uninvitingGuestId = ref<string | null>(null)
+  const isSendingInvites = ref(false)
+  const selectedInviteGuestIds = ref<Set<string>>(new Set())
+  const inviteSearchQuery = ref('')
 
   const mutationsDisabled = computed(() => Boolean(options.isEventCancelled?.value))
 
-  const tableRows = computed<GuestTableRow[]>(() =>
-    guestList.value.map((guest) => ({
+  const invitedGuests = computed(() =>
+    guestList.value.filter((guest) => Boolean(guest.rsvp?.invitedAt))
+  )
+
+  const uninvitedGuests = computed(() =>
+    guestList.value.filter((guest) => !guest.rsvp?.invitedAt)
+  )
+
+  const tableRows = computed<SubEventGuestTableRow[]>(() =>
+    invitedGuests.value.map((guest) => ({
       guestId: guest._id,
+      rsvpId: guest.rsvp!._id,
       name: guest.name,
       email: guest.email,
       guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
-      invitationSent: Boolean(guest.rsvp?.invitedAt),
+      invitationSent: true,
     }))
   )
+
+  const filteredUninvitedGuests = computed(() => {
+    const query = inviteSearchQuery.value.trim().toLowerCase()
+    if (!query) {
+      return uninvitedGuests.value
+    }
+    return uninvitedGuests.value.filter(
+      (guest) =>
+        guest.name.toLowerCase().includes(query)
+        || guest.email.toLowerCase().includes(query)
+    )
+  })
 
   const isGuestListEmpty = computed(
     () => !isLoadingGuests.value && tableRows.value.length === 0
   )
 
-  const uninvitedGuestsCount = computed(() =>
-    guestList.value.filter((guest) => !guest.rsvp?.invitedAt).length
-  )
-
-  const canInviteAll = computed(
+  const canInviteGuests = computed(
     () =>
-      uninvitedGuestsCount.value > 0
+      uninvitedGuests.value.length > 0
       && !mutationsDisabled.value
       && Boolean(options.subEventId.value || isUiOnlyMode.value)
-      && tableRows.value.length > 0
   )
+
+  const allUninvitedSelected = computed(() => {
+    const visible = filteredUninvitedGuests.value
+    return visible.length > 0 && visible.every((guest) => selectedInviteGuestIds.value.has(guest._id))
+  })
+
+  const someUninvitedSelected = computed(() => {
+    const visible = filteredUninvitedGuests.value
+    const selectedCount = visible.filter((guest) =>
+      selectedInviteGuestIds.value.has(guest._id)
+    ).length
+    return selectedCount > 0 && selectedCount < visible.length
+  })
 
   async function loadGuests() {
     if (!options.eventId.value && !isUiOnlyMode.value) {
@@ -88,8 +123,33 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     { immediate: true }
   )
 
-  async function handleInviteAll() {
-    if (isInvitingAll.value || !canInviteAll.value) {
+  function toggleInviteSelection(guestId: string, selected: boolean) {
+    const next = new Set(selectedInviteGuestIds.value)
+    if (selected) {
+      next.add(guestId)
+    } else {
+      next.delete(guestId)
+    }
+    selectedInviteGuestIds.value = next
+  }
+
+  function toggleSelectAllUninvited(selected: boolean) {
+    if (!selected) {
+      selectedInviteGuestIds.value = new Set()
+      return
+    }
+    selectedInviteGuestIds.value = new Set(
+      filteredUninvitedGuests.value.map((guest) => guest._id)
+    )
+  }
+
+  function clearInviteSelection() {
+    selectedInviteGuestIds.value = new Set()
+    inviteSearchQuery.value = ''
+  }
+
+  async function handleBulkInvite(guestIds: string[]) {
+    if (isSendingInvites.value || guestIds.length === 0) {
       return
     }
     if (mutationsDisabled.value) {
@@ -101,78 +161,91 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
       return
     }
 
-    isInvitingAll.value = true
+    isSendingInvites.value = true
     try {
       const response = await sendSubEventInvites(
-        options.subEventId.value || 'mock-sub-event-1'
+        options.subEventId.value || 'mock-sub-event-1',
+        guestIds
       )
-      const updated = applySendAllInvitesToGuestList(
+      const updated = applyBulkSendInvitesToGuestList(
         guestList.value,
         options.rsvpSummary.value,
+        guestIds,
         response
       )
       guestList.value = updated.guestList
       options.rsvpSummary.value = updated.rsvpSummary
+      await loadGuests()
+      await options.onInvitesSent?.()
       toast.add({
         title: 'Invitations sent',
         description: response.message,
       })
-      await options.onInvitesSent?.()
     } catch (error) {
       reportApiError(toast, { title: 'Could not send invitations', error })
     } finally {
-      isInvitingAll.value = false
+      isSendingInvites.value = false
     }
   }
 
-  async function handleSendGuestInvite(guestId: string) {
-    if (!guestId || sendingGuestId.value || isInvitingAll.value) {
+  async function handleUninvite(guestId: string, rsvpId: string) {
+    if (!guestId || !rsvpId || uninvitingGuestId.value || isSendingInvites.value) {
       return
     }
     if (mutationsDisabled.value) {
       toast.add({
         title: 'Event cancelled',
-        description: 'Cannot send invitations for a cancelled event.',
+        description: 'Cannot modify invitations for a cancelled event.',
         color: 'error',
       })
       return
     }
 
-    sendingGuestId.value = guestId
+    uninvitingGuestId.value = guestId
     try {
-      const response = await sendSubEventGuestInvite(
-        options.subEventId.value || 'mock-sub-event-1',
-        guestId
-      )
-      const updated = applySendInviteToGuestList(
+      await deleteSubEventRsvp(rsvpId)
+      const updated = clearSubEventInviteFromList(
         guestList.value,
         options.rsvpSummary.value,
-        guestId,
-        response
+        guestId
       )
       guestList.value = updated.guestList
       options.rsvpSummary.value = updated.rsvpSummary
-      toast.add({ title: 'Invitation sent', description: response.message })
+      await loadGuests()
       await options.onInvitesSent?.()
+      toast.add({
+        title: 'Guest uninvited',
+        description: 'The invitation has been removed from this schedule.',
+      })
     } catch (error) {
-      reportApiError(toast, { title: 'Could not send invitation', error })
+      reportApiError(toast, { title: 'Could not uninvite guest', error })
     } finally {
-      sendingGuestId.value = null
+      uninvitingGuestId.value = null
     }
   }
 
   return {
     guestList,
     isLoadingGuests,
-    sendingGuestId,
-    isInvitingAll,
+    uninvitingGuestId,
+    isSendingInvites,
     mutationsDisabled,
+    invitedGuests,
+    uninvitedGuests,
+    filteredUninvitedGuests,
     tableRows,
     isGuestListEmpty,
-    canInviteAll,
+    canInviteGuests,
+    selectedInviteGuestIds,
+    inviteSearchQuery,
+    allUninvitedSelected,
+    someUninvitedSelected,
     loadGuests,
-    handleInviteAll,
-    handleSendGuestInvite,
+    toggleInviteSelection,
+    toggleSelectAllUninvited,
+    clearInviteSelection,
+    handleBulkInvite,
+    handleUninvite,
     mapRsvpStatusToBadgeColor,
   }
 }
