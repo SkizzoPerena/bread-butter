@@ -161,6 +161,8 @@ const EVENT_TYPE_LABELS = [
 
 export const EVENT_TYPE_OPTIONS = [...EVENT_TYPE_LABELS]
 
+export type EventTypeLabel = (typeof EVENT_TYPE_LABELS)[number]
+
 const LEGACY_EVENT_TYPE_TO_LABEL: Record<string, (typeof EVENT_TYPE_LABELS)[number]> = {
   BAPTISM: 'Christening',
   GENDER_REVEAL_PARTY: 'Other Events',

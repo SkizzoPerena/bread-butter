@@ -1,5 +1,5 @@
-import type { EventRecord } from '~/types/event'
-import { mapApiToEventTypeLabel, mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType } from '~/types/event'
+import type { EventRecord, EventTypeLabel } from '~/types/event'
+import { mapApiToEventTypeLabel, mapEventTypeToApi, isWeddingEventType } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 
@@ -7,8 +7,6 @@ export interface UseEventSettingsFormOptions {
   eventId: Ref<string>
   eventRecord: Ref<EventRecord | null>
 }
-
-type EventTypeLabel = (typeof EVENT_TYPE_OPTIONS)[number]
 
 export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
   const toast = useToast()

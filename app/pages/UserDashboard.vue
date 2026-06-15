@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
-import { mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType } from '~/types/event'
+import { mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType, type EventTypeLabel } from '~/types/event'
 import { EVENT_CREATION_FEE_PHP, getEventBalanceDue, isEventFullyPaid } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
@@ -23,7 +23,15 @@ const isSubmitting = ref(false)
 
 const eventTypes = EVENT_TYPE_OPTIONS
 
-const form = reactive({
+const form = reactive<{
+  eventName: string
+  eventType: EventTypeLabel
+  description: string
+  venue: string
+  payLater: boolean
+  transactionId: string
+  isCatholicWedding: boolean
+}>({
   eventName: '',
   eventType: 'Wedding',
   description: '',
