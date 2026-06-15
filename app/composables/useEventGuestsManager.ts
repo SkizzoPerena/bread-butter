@@ -9,6 +9,7 @@ import {
   formatGuestValidationErrors,
   removeGuestFromList,
 } from '~/utils/guestListUpdates'
+import { formatTableLabel } from '~/utils/tableCode'
 
 const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
 
@@ -23,6 +24,9 @@ export type GuestTableRow = {
   groupId?: string | null
   groupName?: string | null
   groupSize?: number | null
+  roleNames?: string[]
+  tableCode?: string | null
+  tableLabel?: string | null
 }
 
 export const addGuestSchema = z.object({
@@ -133,6 +137,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
   }
 
   function mapGuestToPerson(guest: GuestRecord): GuestTableRow {
+    const roleNames = (guest.roles ?? []).map((role) => role.name)
     return {
       guestId: guest._id,
       name: guest.name,
@@ -140,6 +145,9 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
       guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
       invitationSent: Boolean(guest.rsvp?.invitedAt),
+      roleNames,
+      tableCode: guest.tableCode ?? null,
+      tableLabel: formatTableLabel(guest.tableCode),
     }
   }
 

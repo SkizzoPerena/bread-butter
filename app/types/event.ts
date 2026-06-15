@@ -46,6 +46,8 @@ export interface GuestRecord {
   _id: string
   name: string
   email: string
+  roles?: { _id: string; name: string }[]
+  tableCode?: string | null
   rsvp?: GuestRsvpSnapshot | null
 }
 

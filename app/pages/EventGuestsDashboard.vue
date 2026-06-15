@@ -7,6 +7,8 @@ import { useGuests } from '~/composables/useGuests'
 import { useEventGuestsManager, addGuestSchema } from '~/composables/useEventGuestsManager'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { useEventGuestGroupsManager } from '~/composables/useEventGuestGroupsManager'
+import { useEventGuestRolesAndTablesManager } from '~/composables/useEventGuestRolesAndTablesManager'
+import type { GuestRoleRecord } from '~/types/guest_role'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -39,7 +41,9 @@ const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED
 const UBadge = resolveComponent('UBadge')
 const UCheckbox = resolveComponent('UCheckbox')
 
-const reloadGuestGroupsRef = ref<((targetEventId?: string) => Promise<void>) | null>(null)
+const reloadGuestDataRef = ref<((targetEventId?: string) => Promise<void>) | null>(null)
+const guestRoles = ref<GuestRoleRecord[]>([])
+const selectedTab = ref('guest-list')
 
 const {
   isAddGuestModalOpen,
@@ -73,7 +77,7 @@ const {
   guestList,
   isLoadingGuests,
   autoLoadGuests: false,
-  onGuestListMutated: () => reloadGuestGroupsRef.value?.(),
+  onGuestListMutated: () => reloadGuestDataRef.value?.(),
 })
 
 const {
@@ -120,15 +124,74 @@ const {
   tableRows,
   mutationsDisabled,
   isUiOnlyMode,
+  guestRoles,
 })
 
-reloadGuestGroupsRef.value = loadGuestGroups
+const {
+  isLoadingRoles,
+  isRoleTableActionLoading,
+  isRoleAssignmentModalOpen,
+  isRoleUnassignmentModalOpen,
+  isTableAssignmentModalOpen,
+  roleAssignmentMode,
+  targetRoleId,
+  targetUnassignRoleId,
+  createRoleName,
+  targetTableValue,
+  roleOptions,
+  unassignRoleOptions,
+  tableOptions,
+  canAssignRole,
+  canUnassignRole,
+  canAssignTable,
+  rolesBySection,
+  tablesBySection,
+  loadGuestRoles,
+  loadEventTables,
+  reloadAll,
+  openRoleAssignmentModal,
+  openRoleUnassignmentModal,
+  openTableAssignmentModal,
+  handleRoleAssignment,
+  handleRoleUnassignment,
+  handleRemoveGuestFromRole,
+  handleTableAssignment,
+} = useEventGuestRolesAndTablesManager({
+  eventId,
+  guestList,
+  guestRoles,
+  tableRows,
+  selectedGuestIds,
+  mutationsDisabled,
+  isUiOnlyMode,
+  searchQuery,
+  onGuestListMutated: () => reloadGuestDataRef.value?.(),
+  clearSelection,
+})
 
 const guestModalUi = {
   header: 'bg-orange-500 border-none',
   title: 'text-white font-serif text-xl',
   content: 'border-none ring-transparent w-full max-w-md',
   overlay: 'bg-orange-900/30',
+}
+
+const tabItems = computed(() => [
+  { label: `Guest List (${guestListSize.value})`, slot: 'guest-list' },
+  { label: `Roles (${guestRoles.value.length})`, slot: 'roles' },
+  { label: 'Tables', slot: 'tables' },
+])
+
+const isRolesTabEmpty = computed(
+  () => rolesBySection.value.length === 0 && !isLoadingRoles.value
+)
+
+const isTablesTabEmpty = computed(() => tablesBySection.value.length === 0)
+
+function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
+  if (status === 'Attending') return 'success'
+  if (status === 'Not Attending') return 'error'
+  return 'secondary'
 }
 
 const bulkAddLink = computed(() => ({
@@ -173,17 +236,31 @@ const columns: TableColumn<GuestTableRow>[] = [
       const person = row.original
       return h('div', { class: 'space-y-1' }, [
         h('span', { class: 'font-medium' }, person.name),
-        person.groupName
-          ? h(
+        h('div', { class: 'flex flex-wrap gap-1' }, [
+          person.groupName
+            ? h(
+                UBadge,
+                { variant: 'subtle', color: 'orange', size: 'xs' },
+                () => person.groupName
+              )
+            : null,
+          ...(person.roleNames ?? []).map((roleName) =>
+            h(
               UBadge,
-              { variant: 'subtle', color: 'orange', size: 'xs' },
-              () => person.groupName
+              { variant: 'subtle', color: 'neutral', size: 'xs' },
+              () => roleName
             )
-          : null,
+          ),
+        ]),
       ])
     },
   },
   { accessorKey: 'email', header: 'Email' },
+  {
+    accessorKey: 'tableLabel',
+    header: 'Table',
+    cell: ({ row }) => row.original.tableLabel ?? '—',
+  },
   { accessorKey: 'guests', header: 'Attendants' },
   {
     accessorKey: 'rsvpStatus',
@@ -255,6 +332,18 @@ async function loadGuestList(targetEventId: string) {
   }
 }
 
+async function reloadGuestData(targetEventId?: string) {
+  const id = targetEventId ?? eventId.value
+  if (!id) return
+  await Promise.all([
+    loadGuestList(id),
+    loadGuestGroups(id),
+    reloadAll(id),
+  ])
+}
+
+reloadGuestDataRef.value = reloadGuestData
+
 async function loadEventData() {
   if (!eventId.value && !isUiOnlyMode.value) {
     eventRecord.value = null
@@ -293,7 +382,7 @@ async function loadEventData() {
     rsvpSummary.value = detail.rsvpSummary
     setActiveEvent(detail.event)
 
-    await Promise.all([loadGuestList(targetEventId), loadGuestGroups(targetEventId)])
+    await reloadGuestData(targetEventId)
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -407,7 +496,7 @@ watch(eventId, () => {
       </UPageGrid>
 
       <div
-        v-if="isLoadingGuests || isLoadingGroups"
+        v-if="isLoadingGuests || isLoadingGroups || isLoadingRoles"
         class="flex items-center justify-center py-12 text-muted"
       >
         <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
@@ -444,35 +533,167 @@ watch(eventId, () => {
       </div>
 
       <template v-else>
-        <UInput
-          v-model="searchQuery"
-          type="search"
-          placeholder="Search by name, email, or group..."
-          icon="i-lucide-search"
-          class="w-full sm:w-72"
-        />
+        <UTabs v-model="selectedTab" :items="tabItems" variant="link" class="w-full">
+          <template #guest-list>
+            <div class="mt-4 space-y-4">
+              <UInput
+                v-model="searchQuery"
+                type="search"
+                placeholder="Search by name, email, group, role, or table..."
+                icon="i-lucide-search"
+                class="w-full sm:w-72"
+              />
 
-        <div
-          v-if="isSearchEmpty"
-          class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
-        >
-          <UIcon name="i-lucide-search-x" class="size-10 text-muted" />
-          <p class="mt-4 text-base font-medium">No guests match your search</p>
-          <p class="mt-1 max-w-sm text-sm text-muted">
-            Try a different name, email, or group name. Matching a grouped guest shows their whole group.
-          </p>
-        </div>
+              <div
+                v-if="isSearchEmpty"
+                class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+              >
+                <UIcon name="i-lucide-search-x" class="size-10 text-muted" />
+                <p class="mt-4 text-base font-medium">No guests match your search</p>
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                  Try a different name, email, group, role, or table. Matching a grouped guest shows their whole group.
+                </p>
+              </div>
 
-        <div
-          v-else
-          class="relative"
-          :class="showActionBar ? 'pb-24' : ''"
-        >
-          <UTable
-            :data="displayRows"
-            :columns="columns"
-          />
-        </div>
+              <div
+                v-else
+                class="relative"
+                :class="showActionBar ? 'pb-24' : ''"
+              >
+                <UTable
+                  :data="displayRows"
+                  :columns="columns"
+                />
+              </div>
+            </div>
+          </template>
+
+          <template #roles>
+            <div class="mt-4 space-y-4">
+              <UInput
+                v-model="searchQuery"
+                type="search"
+                placeholder="Search by name, email, group, role, or table..."
+                icon="i-lucide-search"
+                class="w-full sm:w-72"
+              />
+
+              <div
+                v-if="isRolesTabEmpty"
+                class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+              >
+                <UIcon name="i-lucide-theater" class="size-10 text-muted" />
+                <p class="mt-4 text-base font-medium">No roles assigned yet</p>
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                  Select guests on the Guest List tab and assign them a role.
+                </p>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div
+                  v-for="section in rolesBySection"
+                  :key="section.roleId"
+                  class="rounded-lg border border-default bg-muted/10"
+                >
+                  <div class="border-b border-default px-4 py-3">
+                    <h3 class="font-medium text-highlighted">
+                      {{ section.roleName }}
+                      <span class="text-sm font-normal text-muted">({{ section.guests.length }})</span>
+                    </h3>
+                  </div>
+                  <ul class="divide-y divide-default">
+                    <li
+                      v-for="guest in section.guests"
+                      :key="`${section.roleId}-${guest.guestId}`"
+                      class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
+                    >
+                      <div>
+                        <p class="font-medium">{{ guest.name }}</p>
+                        <p class="text-muted">{{ guest.email }}</p>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <UBadge
+                          :color="rsvpStatusColor(guest.rsvpStatus)"
+                          variant="subtle"
+                          class="capitalize"
+                        >
+                          {{ guest.rsvpStatus }}
+                        </UBadge>
+                        <UButton
+                          v-if="!mutationsDisabled"
+                          size="xs"
+                          variant="ghost"
+                          color="neutral"
+                          icon="i-lucide-user-minus"
+                          :loading="isRoleTableActionLoading"
+                          aria-label="Remove from role"
+                          @click="handleRemoveGuestFromRole(section.roleId, guest.guestId)"
+                        />
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #tables>
+            <div class="mt-4 space-y-4">
+              <UInput
+                v-model="searchQuery"
+                type="search"
+                placeholder="Search by name, email, group, role, or table..."
+                icon="i-lucide-search"
+                class="w-full sm:w-72"
+              />
+
+              <div
+                v-if="isTablesTabEmpty"
+                class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+              >
+                <UIcon name="i-lucide-layout-grid" class="size-10 text-muted" />
+                <p class="mt-4 text-base font-medium">No table assignments yet</p>
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                  Select guests on the Guest List tab and assign them to a table.
+                </p>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div
+                  v-for="section in tablesBySection"
+                  :key="section.label"
+                  class="rounded-lg border border-default bg-muted/10"
+                >
+                  <div class="border-b border-default px-4 py-3">
+                    <h3 class="font-medium text-highlighted">
+                      {{ section.label }}
+                      <span class="text-sm font-normal text-muted">({{ section.guests.length }})</span>
+                    </h3>
+                  </div>
+                  <ul class="divide-y divide-default">
+                    <li
+                      v-for="guest in section.guests"
+                      :key="`${section.label}-${guest.guestId}`"
+                      class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
+                    >
+                      <div>
+                        <p class="font-medium">{{ guest.name }}</p>
+                        <p class="text-muted">{{ guest.email }}</p>
+                      </div>
+                      <UBadge
+                        :color="rsvpStatusColor(guest.rsvpStatus)"
+                        variant="subtle"
+                        class="capitalize"
+                      >
+                        {{ guest.rsvpStatus }}
+                      </UBadge>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </template>
+        </UTabs>
 
         <div
           v-if="showActionBar"
@@ -490,6 +711,36 @@ watch(eventId, () => {
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
+            <UButton
+              v-if="canAssignRole"
+              color="orange"
+              variant="outline"
+              icon="i-lucide-theater"
+              :loading="isRoleTableActionLoading"
+              @click="openRoleAssignmentModal"
+            >
+              Assign role…
+            </UButton>
+            <UButton
+              v-if="canUnassignRole"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-user-minus"
+              :loading="isRoleTableActionLoading"
+              @click="openRoleUnassignmentModal"
+            >
+              Unassign role…
+            </UButton>
+            <UButton
+              v-if="canAssignTable"
+              color="orange"
+              variant="outline"
+              icon="i-lucide-layout-grid"
+              :loading="isRoleTableActionLoading"
+              @click="openTableAssignmentModal"
+            >
+              Assign table…
+            </UButton>
             <UButton
               v-if="canGroupGuests"
               color="orange"
@@ -542,7 +793,7 @@ watch(eventId, () => {
             <UButton
               color="neutral"
               variant="ghost"
-              :disabled="isGroupActionLoading"
+              :disabled="isGroupActionLoading || isRoleTableActionLoading"
               @click="clearSelection"
             >
               Clear
@@ -593,6 +844,163 @@ watch(eventId, () => {
               Add Guest
             </UButton>
           </UForm>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isRoleAssignmentModalOpen"
+        title="Assign role"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+        :dismissible="!isRoleTableActionLoading"
+      >
+        <template #body>
+          <p class="mb-4 text-sm text-muted">
+            Assign {{ selectedCount }} guest{{ selectedCount === 1 ? '' : 's' }} to a role.
+          </p>
+          <div
+            v-if="roleOptions.length > 0"
+            class="mb-4 flex gap-2"
+          >
+            <UButton
+              label="Existing role"
+              :color="roleAssignmentMode === 'existing' ? 'orange' : 'neutral'"
+              :variant="roleAssignmentMode === 'existing' ? 'solid' : 'outline'"
+              class="flex-1"
+              :disabled="isRoleTableActionLoading"
+              @click="roleAssignmentMode = 'existing'"
+            />
+            <UButton
+              label="Create new"
+              :color="roleAssignmentMode === 'new' ? 'orange' : 'neutral'"
+              :variant="roleAssignmentMode === 'new' ? 'solid' : 'outline'"
+              class="flex-1"
+              :disabled="isRoleTableActionLoading"
+              @click="roleAssignmentMode = 'new'"
+            />
+          </div>
+          <UFormField
+            v-if="roleAssignmentMode === 'existing'"
+            label="Role"
+            name="targetRole"
+            required
+          >
+            <USelect
+              v-model="targetRoleId"
+              :items="roleOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              :disabled="isRoleTableActionLoading"
+            />
+          </UFormField>
+          <UFormField
+            v-else
+            label="Role name"
+            name="createRoleName"
+            required
+          >
+            <UInput
+              v-model="createRoleName"
+              class="w-full"
+              placeholder="Ring Bearer"
+              :disabled="isRoleTableActionLoading"
+            />
+          </UFormField>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isRoleTableActionLoading"
+              @click="isRoleAssignmentModalOpen = false"
+            />
+            <UButton
+              label="Assign role"
+              color="orange"
+              :loading="isRoleTableActionLoading"
+              :disabled="roleAssignmentMode === 'existing' && !targetRoleId"
+              @click="handleRoleAssignment"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isRoleUnassignmentModalOpen"
+        title="Unassign role"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+        :dismissible="!isRoleTableActionLoading"
+      >
+        <template #body>
+          <p class="mb-4 text-sm text-muted">
+            Remove {{ selectedCount }} guest{{ selectedCount === 1 ? '' : 's' }} from a role.
+            Guests who do not have the selected role are skipped.
+          </p>
+          <UFormField label="Role" name="unassignRole" required>
+            <USelect
+              v-model="targetUnassignRoleId"
+              :items="unassignRoleOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              :disabled="isRoleTableActionLoading"
+            />
+          </UFormField>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isRoleTableActionLoading"
+              @click="isRoleUnassignmentModalOpen = false"
+            />
+            <UButton
+              label="Remove role"
+              color="orange"
+              :loading="isRoleTableActionLoading"
+              :disabled="!targetUnassignRoleId"
+              @click="handleRoleUnassignment"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isTableAssignmentModalOpen"
+        title="Assign table"
+        :ui="{ content: 'border-none ring-transparent max-w-md' }"
+        :dismissible="!isRoleTableActionLoading"
+      >
+        <template #body>
+          <p class="mb-4 text-sm text-muted">
+            Place {{ selectedCount }} guest{{ selectedCount === 1 ? '' : 's' }} at a table.
+          </p>
+          <UFormField label="Table" name="targetTable" required>
+            <USelect
+              v-model="targetTableValue"
+              :items="tableOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              :disabled="isRoleTableActionLoading"
+            />
+          </UFormField>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isRoleTableActionLoading"
+              @click="isTableAssignmentModalOpen = false"
+            />
+            <UButton
+              label="Assign table"
+              color="orange"
+              :loading="isRoleTableActionLoading"
+              :disabled="targetTableValue === undefined"
+              @click="handleTableAssignment"
+            />
+          </div>
         </template>
       </UModal>
 

@@ -42,3 +42,17 @@ export interface DeleteGuestResponse {
   status: number
   message: string
 }
+
+export interface EventTablesResponse {
+  success: boolean
+  status: number
+  tableCodes: string[]
+}
+
+export interface BulkAssignTableResponse {
+  success: boolean
+  status: number
+  message: string
+  tableCode: string | null
+  guests: GuestRecord[]
+}

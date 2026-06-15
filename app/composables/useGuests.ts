@@ -1,13 +1,16 @@
 import type {
+  BulkAssignTableResponse,
   CreateGuestResponse,
   CreateGuestsBulkResponse,
   DeleteGuestResponse,
+  EventTablesResponse,
   GuestEntryInput,
   GuestsListResponse,
   SendInviteResponse
 } from '~/types/guest'
 import type { GuestRecord } from '~/types/event'
 import { findMockSubEventRsvpByEmail } from '~/composables/useSubEventRsvps'
+import type { TableAssignmentValue } from '~/utils/tableCode'
 
 export function useGuests() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
@@ -171,6 +174,41 @@ export function useGuests() {
     })
   }
 
+  async function fetchEventTables(eventId: string): Promise<string[]> {
+    if (isUiOnlyMode.value) {
+      return ['A', 'B']
+    }
+
+    const response = await apiRequest<EventTablesResponse>(
+      `/user/guests/event/${eventId}/tables`
+    )
+    return response.tableCodes ?? []
+  }
+
+  async function assignGuestsTableBulk(
+    eventId: string,
+    guestIds: string[],
+    tableCode: TableAssignmentValue
+  ): Promise<BulkAssignTableResponse> {
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        message: 'Guests assigned to table.',
+        tableCode: tableCode === '__new__' ? 'C' : tableCode,
+        guests: [],
+      }
+    }
+
+    return apiRequest<BulkAssignTableResponse>(
+      `/user/guests/event/${eventId}/bulk/table`,
+      {
+        method: 'PATCH',
+        body: { guestIds, tableCode },
+      }
+    )
+  }
+
   return {
     createGuest,
     createGuestsBulk,
@@ -178,5 +216,7 @@ export function useGuests() {
     sendGuestInvite,
     sendAllGuestInvites,
     deleteGuest,
+    fetchEventTables,
+    assignGuestsTableBulk,
   }
 }

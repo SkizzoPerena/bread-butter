@@ -1,7 +1,9 @@
 import type { Ref, ComputedRef } from 'vue'
 import type { GuestGroupRecord } from '~/types/guest_group'
+import type { GuestRoleRecord } from '~/types/guest_role'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { reportApiError } from '~/types/auth'
+import { formatTableLabel } from '~/utils/tableCode'
 
 export type EnrichedGuestTableRow = GuestTableRow
 
@@ -10,6 +12,7 @@ export interface UseEventGuestGroupsManagerOptions {
   tableRows: ComputedRef<GuestTableRow[]>
   mutationsDisabled: ComputedRef<boolean>
   isUiOnlyMode: ComputedRef<boolean>
+  guestRoles?: Ref<GuestRoleRecord[]>
 }
 
 function buildGuestIdToGroup(groups: GuestGroupRecord[]): Map<string, GuestGroupRecord> {
@@ -49,7 +52,8 @@ function applySearchFilter(
   rows: EnrichedGuestTableRow[],
   query: string,
   guestIdToGroup: Map<string, GuestGroupRecord>,
-  guestGroups: GuestGroupRecord[]
+  guestGroups: GuestGroupRecord[],
+  guestRoles: GuestRoleRecord[] = []
 ): EnrichedGuestTableRow[] {
   const trimmed = query.trim().toLowerCase()
   if (!trimmed) {
@@ -67,9 +71,33 @@ function applySearchFilter(
     }
   }
 
+  for (const role of guestRoles) {
+    if (role.name.toLowerCase().includes(trimmed)) {
+      for (const guest of role.guests ?? []) {
+        visibleIds.add(guest._id)
+      }
+    }
+  }
+
+  const tableCodesSeen = new Set<string>()
+  for (const row of rows) {
+    if (!row.tableCode) continue
+    if (tableCodesSeen.has(row.tableCode)) continue
+    tableCodesSeen.add(row.tableCode)
+    const label = (row.tableLabel ?? formatTableLabel(row.tableCode) ?? '').toLowerCase()
+    const code = row.tableCode.toLowerCase()
+    if (label.includes(trimmed) || code === trimmed || `table ${code}` === trimmed) {
+      for (const match of rows.filter((item) => item.tableCode === row.tableCode)) {
+        visibleIds.add(match.guestId)
+      }
+    }
+  }
+
   const matches = rows.filter(
     (row) =>
-      row.name.toLowerCase().includes(trimmed) || row.email.toLowerCase().includes(trimmed)
+      row.name.toLowerCase().includes(trimmed) ||
+      row.email.toLowerCase().includes(trimmed) ||
+      (row.roleNames ?? []).some((roleName) => roleName.toLowerCase().includes(trimmed))
   )
 
   for (const match of matches) {
@@ -172,7 +200,8 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
       enrichedRows.value,
       searchQuery.value,
       guestIdToGroup.value,
-      guestGroups.value
+      guestGroups.value,
+      options.guestRoles?.value ?? []
     )
   )
 
