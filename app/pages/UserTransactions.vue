@@ -34,6 +34,7 @@ interface PaymentEntry {
   expectedAmount: number
   isOverpaid: boolean
   isUnderpaid: boolean
+  proofOfPaymentURL?: string
   date?: string
 }
 
@@ -70,6 +71,7 @@ const transactions = computed<TransactionEntry[]>(() => {
       expectedAmount: p.amount,
       isOverpaid,
       isUnderpaid,
+      proofOfPaymentURL: p.proofOfPaymentURL,
       date: p.createdAt
     })
 
@@ -149,6 +151,10 @@ onMounted(async () => {
                 Partial payment — Php {{ (entry.expectedAmount - entry.amount).toLocaleString() }}
                 remaining. Submit another payment to settle the balance.
               </div>
+              <PaymentProofPreview
+                :url="entry.proofOfPaymentURL"
+                :label="entry.eventName"
+              />
             </template>
 
             <template v-else>

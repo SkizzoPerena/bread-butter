@@ -4,6 +4,7 @@ import type {
   PaymentsListResponse,
   SubmitEventPaymentPayload
 } from '~/types/payment'
+import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 
 export function usePayments() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
@@ -41,7 +42,7 @@ export function usePayments() {
           type: 'EVENT_CREATION_FEE',
           amount: 10000,
           transactionId: payload.transactionId,
-          proofOfPaymentURL: 'mock-proof-url',
+          proofOfPaymentURL: demoCoverImage,
           status: 'PENDING'
         }
       }

@@ -8,7 +8,7 @@ import {
   needsPaymentSubmission
 } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
-import { usePayments } from '~/composables/usePayments'
+import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import { useEvents } from '~/composables/useEvents'
 
 definePageMeta({
@@ -94,7 +94,14 @@ async function loadEventData() {
           eventDate: '2026-05-18T00:00:00.000Z',
           status: 'ONGOING',
           coverImageURL: null,
-          latestPayment: null,
+          latestPayment: {
+            _id: 'mock-payment-id',
+            type: 'EVENT_CREATION_FEE',
+            amount: 10000,
+            transactionId: 'GCASH-123456',
+            proofOfPaymentURL: demoCoverImage,
+            status: 'PENDING',
+          },
         } as EventRecord
       }),
       fetch: async () => fetchEvent(eventId.value),
@@ -277,6 +284,10 @@ async function handleSubmitPaymentProof() {
                 <div v-if="payment.denialReason" class="text-xs text-error mt-2">
                   Reason: {{ payment.denialReason }}
                 </div>
+                <PaymentProofPreview
+                  :url="payment.proofOfPaymentURL"
+                  :label="`Ref: ${payment.transactionId || 'N/A'}`"
+                />
               </div>
               <UIcon name="i-lucide-receipt" class="size-5 bg-teal-500 opacity-50" />
             </div>
