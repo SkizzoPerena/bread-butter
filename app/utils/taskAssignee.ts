@@ -1,7 +1,7 @@
 import type { AssigneeRecord } from '~/types/assignee'
-import type { TaskRecord } from '~/types/task'
+import type { TaskAssigneeRef, TaskRecord } from '~/types/task'
 
-export function getAssigneeLabel(task: TaskRecord): string {
+export function getAssigneeLabel(task: { assignee?: TaskAssigneeRef | null }): string {
   return task.assignee?.name?.trim() || 'Me'
 }
 

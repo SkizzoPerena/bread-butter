@@ -3,7 +3,7 @@ import type { EventRecord, TaskPreview, TasksSummary } from '~/types/event'
 import type { TaskStatus } from '~/types/task'
 import { reportApiError } from '~/types/auth'
 import { mapTaskPriority } from '~/utils/taskPriority'
-import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
+import { formatTaskDate } from '~/utils/taskFormat'
 
 const props = defineProps<{
   eventId: string
@@ -172,22 +172,12 @@ function goToTasksDashboard() {
             </p>
 
             <div
-              v-if="dateLabel(task) || task.budget"
+              v-if="dateLabel(task)"
               class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
             >
-              <div
-                v-if="dateLabel(task)"
-                class="flex items-center gap-1.5 text-muted"
-              >
+              <div class="flex items-center gap-1.5 text-muted">
                 <UIcon name="i-lucide-calendar-clock" />
                 <span>{{ dateLabel(task) }}</span>
-              </div>
-              <div
-                v-if="task.budget"
-                class="flex items-center gap-1.5 text-muted"
-              >
-                <UIcon name="i-lucide-wallet" />
-                <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
               </div>
             </div>
 
@@ -236,22 +226,12 @@ function goToTasksDashboard() {
             </p>
 
             <div
-              v-if="dateLabel(task) || task.budget"
+              v-if="dateLabel(task)"
               class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
             >
-              <div
-                v-if="dateLabel(task)"
-                class="flex items-center gap-1.5 text-muted"
-              >
+              <div class="flex items-center gap-1.5 text-muted">
                 <UIcon name="i-lucide-calendar-clock" />
                 <span>{{ dateLabel(task) }}</span>
-              </div>
-              <div
-                v-if="task.budget"
-                class="flex items-center gap-1.5 text-muted"
-              >
-                <UIcon name="i-lucide-wallet" />
-                <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
               </div>
             </div>
 
@@ -327,22 +307,12 @@ function goToTasksDashboard() {
             </p>
 
             <div
-              v-if="dateLabel(task) || task.budget"
+              v-if="dateLabel(task)"
               class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
             >
-              <div
-                v-if="dateLabel(task)"
-                class="flex items-center gap-1.5 text-muted"
-              >
+              <div class="flex items-center gap-1.5 text-muted">
                 <UIcon name="i-lucide-calendar-clock" />
                 <span>{{ dateLabel(task) }}</span>
-              </div>
-              <div
-                v-if="task.budget"
-                class="flex items-center gap-1.5 text-muted"
-              >
-                <UIcon name="i-lucide-wallet" />
-                <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
               </div>
             </div>
 

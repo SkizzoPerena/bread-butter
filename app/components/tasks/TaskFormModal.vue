@@ -30,7 +30,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
-const { createTask, updateTaskDetails, updateTaskBudget, updateTaskPriority, updateTaskAssignee } = useTasks()
+const { createTask, updateTaskDetails, updateTaskPriority, updateTaskAssignee } = useTasks()
 
 const isEditMode = computed(() => Boolean(props.task))
 const isSubmitting = ref(false)
@@ -41,7 +41,6 @@ const minDeadline = today(getLocalTimeZone())
 const taskSchema = z.object({
   title: z.string().min(1, 'Task name is required'),
   details: z.string().min(1, 'Description is required'),
-  budget: z.coerce.number().min(0, 'Budget must be zero or greater'),
   priority: z.coerce.number().int().min(1).max(5),
 })
 
@@ -50,7 +49,6 @@ type TaskSchema = z.output<typeof taskSchema>
 const formState = reactive<TaskSchema>({
   title: '',
   details: '',
-  budget: 0,
   priority: 3,
 })
 
@@ -64,7 +62,6 @@ const modalTitle = computed(() => (isEditMode.value ? 'Edit Task' : 'Add New Tas
 function resetForm() {
   formState.title = ''
   formState.details = ''
-  formState.budget = 0
   formState.priority = 3
   deadlineDate.value = null
   imageFiles.value = []
@@ -75,7 +72,6 @@ function resetForm() {
 function loadTask(task: TaskRecord) {
   formState.title = task.title
   formState.details = task.details
-  formState.budget = task.budget
   formState.priority = task.priority
   deadlineDate.value = parseIsoToCalendarDate(task.deadline)
   keptImageUrls.value = (task.attachedFileURLs ?? [])
@@ -152,9 +148,6 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
         imageFiles.value
       )
 
-      if (props.task.budget !== event.data.budget) {
-        await updateTaskBudget(props.task._id, event.data.budget)
-      }
       if (props.task.priority !== event.data.priority) {
         await updateTaskPriority(props.task._id, event.data.priority)
       }
@@ -168,7 +161,6 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
           eventId: props.eventId || (isUiOnlyMode.value ? 'mock-event-id' : ''),
           title: event.data.title,
           details: event.data.details,
-          budget: event.data.budget,
           priority: event.data.priority,
           deadline: deadlineIso!,
           assigneeId: assigneeId.value,
@@ -231,22 +223,13 @@ function removeKeptImage(url: string) {
           />
         </UFormField>
 
-        <div class="grid gap-2 sm:grid-cols-3">
+        <div class="grid gap-2 sm:grid-cols-2">
           <UFormField label="Priority" name="priority" required>
             <USelect
               v-model="formState.priority"
               :items="TASK_PRIORITY_OPTIONS"
               value-key="value"
               label-key="label"
-              class="w-full"
-              :disabled="disabled"
-            />
-          </UFormField>
-          <UFormField label="Budget (PHP)" name="budget" required>
-            <UInputNumber
-              v-model="formState.budget"
-              :increment="false"
-              :decrement="false"
               class="w-full"
               :disabled="disabled"
             />

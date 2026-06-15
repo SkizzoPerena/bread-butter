@@ -7,6 +7,7 @@ import { getTaskTrackerMetrics } from '~/utils/taskListUpdates'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import type { TaskStatus } from '~/types/task'
+import { getAssigneeLabel } from '~/utils/taskAssignee'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -102,25 +103,6 @@ const taskTracker = computed(() => {
     return { label: '2 / 4', percent: 50, isEmpty: false }
   }
   return { label: 'No Tasks Yet', percent: 0, isEmpty: true }
-})
-
-const DEMO_TASK_BUDGET_TOTAL = 20000 + 15000 + 10000 + 5000 + 30000 + 8000 + 100000 + 200000 + 0 + 12000
-
-function formatPesoAmount(amount: number): string {
-  return `${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pesos`
-}
-
-const currentBudgetLabel = computed(() => {
-  if (tasksSummary.value) {
-    if (tasksSummary.value.totalTasks === 0 || tasksSummary.value.totalAllocatedBudget === 0) {
-      return 'No Budget Yet'
-    }
-    return formatPesoAmount(tasksSummary.value.totalAllocatedBudget)
-  }
-  if (useDemoFallbacks.value) {
-    return formatPesoAmount(DEMO_TASK_BUDGET_TOTAL)
-  }
-  return 'No Budget Yet'
 })
 
 const tabItems = computed(() => {
@@ -229,7 +211,6 @@ async function loadEventData() {
         rsvpSummary: null,
         tasks: {
           totalTasks: 4,
-          totalAllocatedBudget: 95000,
           byStatus: { TODO: 1, ONGOING: 2, COMPLETED: 1 },
           preview: {
             page: 1,
@@ -240,7 +221,6 @@ async function loadEventData() {
                 _id: 'mock-task-0',
                 title: 'Book a live band',
                 details: 'Find and book a live band for the reception.',
-                budget: 50000,
                 status: 'TODO',
                 priority: 2,
                 deadline: '2026-08-15T00:00:00.000Z',
@@ -249,25 +229,24 @@ async function loadEventData() {
                 _id: 'mock-task-1',
                 title: 'Book a photo booth',
                 details: 'Find and book a photo booth service for the reception.',
-                budget: 20000,
                 status: 'ONGOING',
                 priority: 1,
                 deadline: '2026-06-15T00:00:00.000Z',
+                assignee: { _id: 'mock-assignee-1', name: 'Florist' },
               },
               {
                 _id: 'mock-task-2',
                 title: 'Finalize catering menu',
                 details: 'Confirm final menu choices with the caterer.',
-                budget: 15000,
                 status: 'ONGOING',
                 priority: 3,
                 deadline: '2026-07-01T00:00:00.000Z',
+                assignee: { _id: 'mock-assignee-2', name: 'Caterer' },
               },
               {
                 _id: 'mock-task-3',
                 title: 'Send wedding invitations',
                 details: 'Design, print, and mail invitations.',
-                budget: 10000,
                 status: 'COMPLETED',
                 priority: 2,
                 deadline: '2026-05-01T00:00:00.000Z',
@@ -514,13 +493,10 @@ const dashboardItems: DashboardItem[] = [
                       <UTextarea class="w-full" placeholder="Drop your notes here" />
                     </UFormField>
                     <UFieldGroup class="w-full gap-2">
-                      <UFormField label="Priority" name="priority" required class="w-1/3">
+                      <UFormField label="Priority" name="priority" required class="w-1/2">
                         <USelect :items="taskPriorities" placeholder="Select priority" class="w-full" />
                       </UFormField>
-                      <UFormField label="Budget" name="budget" required class="w-1/3">
-                        <UInputNumber :increment="false" :decrement="false" class="w-full" placeholder="in Php" />
-                      </UFormField>
-                      <UFormField label="Event Date" name="date" required class="w-1/3">
+                      <UFormField label="Event Date" name="date" required class="w-1/2">
                         <UPopover>
                           <UButton color="neutral" variant="outline" class="w-full">
                             {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
@@ -556,14 +532,16 @@ const dashboardItems: DashboardItem[] = [
                 <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
               </div>
               <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+              <div class="mt-2">
+                <UBadge color="neutral" variant="outline" size="sm">
+                  <UIcon name="i-lucide-user" class="mr-1 size-3" />
+                  {{ getAssigneeLabel(task) }}
+                </UBadge>
+              </div>
               <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
                 <div class="flex items-center gap-1.5" v-if="task.deadline">
                   <UIcon name="i-lucide-calendar-clock" class="text-muted" />
                   <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
-                </div>
-                <div class="flex items-center gap-1.5" v-if="task.budget">
-                  <UIcon name="i-lucide-wallet" class="text-muted" />
-                  <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
                 </div>
               </div>
               <UButton
@@ -586,14 +564,16 @@ const dashboardItems: DashboardItem[] = [
                 <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
               </div>
               <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+              <div class="mt-2">
+                <UBadge color="neutral" variant="outline" size="sm">
+                  <UIcon name="i-lucide-user" class="mr-1 size-3" />
+                  {{ getAssigneeLabel(task) }}
+                </UBadge>
+              </div>
               <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
                 <div class="flex items-center gap-1.5" v-if="task.deadline">
                   <UIcon name="i-lucide-calendar-clock" class="text-muted" />
                   <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
-                </div>
-                <div class="flex items-center gap-1.5" v-if="task.budget">
-                  <UIcon name="i-lucide-wallet" class="text-muted" />
-                  <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
                 </div>
               </div>
               <UButton
@@ -616,14 +596,16 @@ const dashboardItems: DashboardItem[] = [
                 <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
               </div>
               <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+              <div class="mt-2">
+                <UBadge color="neutral" variant="outline" size="sm">
+                  <UIcon name="i-lucide-user" class="mr-1 size-3" />
+                  {{ getAssigneeLabel(task) }}
+                </UBadge>
+              </div>
               <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
                 <div class="flex items-center gap-1.5" v-if="task.deadline">
                   <UIcon name="i-lucide-calendar-clock" class="text-muted" />
                   <span>Completed: {{ df.format(new Date(task.deadline)) }}</span>
-                </div>
-                <div class="flex items-center gap-1.5" v-if="task.budget">
-                  <UIcon name="i-lucide-wallet" class="text-muted" />
-                  <span>Budget: Php {{ task.budget.toLocaleString() }}</span>
                 </div>
               </div>
               <UButton

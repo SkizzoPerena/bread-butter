@@ -2,7 +2,7 @@
 import type { TaskRecord, TaskStatus } from '~/types/task'
 import { groupTasksByStatus } from '~/utils/taskListUpdates'
 import { TASK_PRIORITY_OPTIONS } from '~/utils/taskPriority'
-import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
+import { formatTaskDate } from '~/utils/taskFormat'
 
 const props = defineProps<{
   tasks: TaskRecord[]
@@ -84,13 +84,12 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
     v-else
     class="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-default bg-white shadow-sm [-webkit-overflow-scrolling:touch]"
   >
-    <table class="w-full min-w-[52rem] text-left text-sm lg:min-w-full">
+    <table class="w-full min-w-[44rem] text-left text-sm lg:min-w-full">
       <thead>
         <tr class="border-b border-default bg-muted/30 text-[11px] font-semibold uppercase tracking-wide text-muted">
           <th class="min-w-[16rem] px-4 py-2 lg:min-w-[18rem]">Work</th>
           <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Priority</th>
           <th class="min-w-[8rem] whitespace-nowrap px-4 py-2">Status</th>
-          <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Budget</th>
           <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Deadline</th>
           <th class="min-w-[6rem] whitespace-nowrap px-4 py-2">Actions</th>
         </tr>
@@ -98,7 +97,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
       <tbody>
         <template v-for="section in statusSections" :key="section.status">
           <tr class="border-y border-default bg-muted/40">
-            <td colspan="6" class="px-4 py-2">
+            <td colspan="5" class="px-4 py-2">
               <button
                 type="button"
                 class="inline-flex items-center gap-1.5 text-xs font-bold text-default hover:text-highlighted"
@@ -183,9 +182,6 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                 />
               </td>
               <td class="whitespace-nowrap px-4 py-2 align-middle text-muted">
-                {{ formatTaskBudget(task.budget) }}
-              </td>
-              <td class="whitespace-nowrap px-4 py-2 align-middle text-muted">
                 {{ formatTaskDate(task.deadline) ?? '—' }}
               </td>
               <td class="px-4 py-2 align-middle" data-row-action>
@@ -219,7 +215,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
               </td>
             </tr>
             <tr v-if="grouped[section.status].length === 0">
-              <td colspan="6" class="px-4 py-2 text-xs italic text-muted">
+              <td colspan="5" class="px-4 py-2 text-xs italic text-muted">
                 No tasks
               </td>
             </tr>

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { TaskRecord } from '~/types/task'
 import { mapTaskPriority } from '~/utils/taskPriority'
-import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
+import { formatTaskDate } from '~/utils/taskFormat'
 
 const props = defineProps<{
   task: TaskRecord
@@ -90,19 +90,12 @@ function onDeleteClick(event: MouseEvent) {
     </p>
 
     <div
-      v-if="formatTaskDate(task.deadline) || task.budget"
+      v-if="formatTaskDate(task.deadline)"
       class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
     >
-      <div
-        v-if="formatTaskDate(task.deadline)"
-        class="flex items-center gap-1.5 text-muted"
-      >
+      <div class="flex items-center gap-1.5 text-muted">
         <UIcon name="i-lucide-calendar-clock" />
         <span>Due: {{ formatTaskDate(task.deadline) }}</span>
-      </div>
-      <div class="flex items-center gap-1.5 text-muted">
-        <UIcon name="i-lucide-wallet" />
-        <span>{{ formatTaskBudget(task.budget) }}</span>
       </div>
     </div>
   </UPageCard>

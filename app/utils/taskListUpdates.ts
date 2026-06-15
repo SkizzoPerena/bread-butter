@@ -69,20 +69,18 @@ function buildStatusCounts(tasks: TaskRecord[]) {
     acc[task.status] = (acc[task.status] ?? 0) + 1
     return acc
   }, {})
-  const totalAllocatedBudget = parents.reduce((sum, task) => sum + (task.budget ?? 0), 0)
-  return { parents, byStatus, totalAllocatedBudget }
+  return { parents, byStatus }
 }
 
 export function patchTaskSummaryCounts(
   summary: TasksSummary | null,
   tasks: TaskRecord[]
 ): TasksSummary | null {
-  const { parents, byStatus, totalAllocatedBudget } = buildStatusCounts(tasks)
+  const { parents, byStatus } = buildStatusCounts(tasks)
 
   if (!summary) {
     return {
       totalTasks: parents.length,
-      totalAllocatedBudget,
       byStatus,
       preview: {
         page: 1,
@@ -92,10 +90,10 @@ export function patchTaskSummaryCounts(
           _id: task._id,
           title: task.title,
           details: task.details,
-          budget: task.budget,
           status: task.status,
           priority: task.priority,
           deadline: task.deadline,
+          assignee: task.assignee ?? null,
         })),
       },
     }
@@ -104,7 +102,6 @@ export function patchTaskSummaryCounts(
   return {
     ...summary,
     totalTasks: parents.length,
-    totalAllocatedBudget,
     byStatus,
     preview: {
       ...summary.preview,

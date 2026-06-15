@@ -18,7 +18,6 @@ const MOCK_TASKS: TaskRecord[] = [
     event: 'mock-event-id',
     title: 'Book a live band',
     details: 'Find and book a live band for the reception.',
-    budget: 50000,
     status: 'TODO',
     priority: 1,
     deadline: '2026-08-15T00:00:00.000Z',
@@ -31,7 +30,6 @@ const MOCK_TASKS: TaskRecord[] = [
     event: 'mock-event-id',
     title: 'Book a photo booth',
     details: 'Find and book a photo booth service for the reception.',
-    budget: 20000,
     status: 'ONGOING',
     priority: 1,
     deadline: '2026-06-15T00:00:00.000Z',
@@ -44,7 +42,6 @@ const MOCK_TASKS: TaskRecord[] = [
     event: 'mock-event-id',
     title: 'Finalize catering menu',
     details: 'Confirm final menu choices with the caterer.',
-    budget: 15000,
     status: 'ONGOING',
     priority: 3,
     deadline: '2026-07-01T00:00:00.000Z',
@@ -57,7 +54,6 @@ const MOCK_TASKS: TaskRecord[] = [
     event: 'mock-event-id',
     title: 'Send wedding invitations',
     details: 'Design, print, and mail invitations.',
-    budget: 10000,
     status: 'COMPLETED',
     priority: 2,
     deadline: '2026-05-01T00:00:00.000Z',
@@ -102,7 +98,6 @@ export function useTasks() {
         event: payload.eventId,
         title: payload.title,
         details: payload.details,
-        budget: payload.budget,
         priority: payload.priority,
         deadline: payload.deadline,
         status: 'TODO',
@@ -125,7 +120,6 @@ export function useTasks() {
     formData.append('eventId', payload.eventId)
     formData.append('title', payload.title)
     formData.append('details', payload.details)
-    formData.append('budget', String(payload.budget))
     formData.append('priority', String(payload.priority))
     formData.append('deadline', payload.deadline)
     if (payload.assigneeId) {
@@ -177,24 +171,6 @@ export function useTasks() {
     return apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/priority`, {
       method: 'PATCH',
       body: { priority },
-    })
-  }
-
-  async function updateTaskBudget(
-    taskId: string,
-    budget: number
-  ): Promise<UpdateTaskMessageResponse> {
-    if (isUiOnlyMode.value) {
-      return {
-        success: true,
-        status: 200,
-        message: 'Task budget updated successfully.',
-      }
-    }
-
-    return apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/budget`, {
-      method: 'PATCH',
-      body: { budget },
     })
   }
 
@@ -281,7 +257,6 @@ export function useTasks() {
     createTask,
     updateTaskStatus,
     updateTaskPriority,
-    updateTaskBudget,
     updateTaskAssignee,
     updateTaskDetails,
     hardDeleteTask,

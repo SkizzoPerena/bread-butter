@@ -1,4 +1,5 @@
 import type { EventPaymentSummary, PaymentRecord } from '~/types/payment'
+import type { TaskAssigneeRef } from '~/types/task'
 
 export interface EventQuestion {
   question: string
@@ -76,16 +77,15 @@ export interface TaskPreview {
   _id: string
   title: string
   details: string
-  budget: number
   status: string
   priority: number
   deadline?: string | null
+  assignee?: TaskAssigneeRef | null
   subtasks?: TaskPreview[]
 }
 
 export interface TasksSummary {
   totalTasks: number
-  totalAllocatedBudget: number
   byStatus: Record<string, number>
   preview: {
     page: number

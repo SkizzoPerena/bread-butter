@@ -2,7 +2,7 @@
 import type { TaskRecord, TaskStatus } from '~/types/task'
 import { getAssigneeLabel } from '~/utils/taskAssignee'
 import { mapTaskPriority } from '~/utils/taskPriority'
-import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
+import { formatTaskDate } from '~/utils/taskFormat'
 
 const props = defineProps<{
   task: TaskRecord
@@ -115,22 +115,12 @@ function onPrimaryAction() {
     </div>
 
     <div
-      v-if="dateLabel || task.budget"
+      v-if="dateLabel"
       class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm"
     >
-      <div
-        v-if="dateLabel"
-        class="flex items-center gap-1.5 text-muted"
-      >
+      <div class="flex items-center gap-1.5 text-muted">
         <UIcon name="i-lucide-calendar-clock" />
         <span>{{ dateLabel }}</span>
-      </div>
-      <div
-        v-if="task.budget"
-        class="flex items-center gap-1.5 text-muted"
-      >
-        <UIcon name="i-lucide-wallet" />
-        <span>Budget: {{ formatTaskBudget(task.budget) }}</span>
       </div>
     </div>
 

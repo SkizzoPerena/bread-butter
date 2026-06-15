@@ -2,7 +2,7 @@
 import type { TaskRecord } from '~/types/task'
 import { getAssigneeLabel } from '~/utils/taskAssignee'
 import { mapTaskPriority } from '~/utils/taskPriority'
-import { formatTaskBudget, formatTaskDate } from '~/utils/taskFormat'
+import { formatTaskDate } from '~/utils/taskFormat'
 
 const props = defineProps<{
   task: TaskRecord | null
@@ -75,10 +75,6 @@ const subtasks = computed(() => props.task?.subtasks ?? [])
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Assigned to</p>
             <p class="mt-1 text-sm">{{ assigneeLabel }}</p>
-          </div>
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-muted">Budget</p>
-            <p class="mt-1 text-sm">{{ formatTaskBudget(task.budget) }}</p>
           </div>
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Deadline</p>

@@ -85,7 +85,6 @@ async function loadEventData() {
         rsvpSummary: null,
         tasks: {
           totalTasks: 0,
-          totalAllocatedBudget: 0,
           byStatus: { TODO: 0, ONGOING: 0, COMPLETED: 0 },
           preview: { page: 1, limit: 5, subtasksLimit: 2, tasks: [] },
         },

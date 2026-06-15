@@ -17,7 +17,6 @@ export interface TaskRecord {
   event: string
   title: string
   details: string
-  budget: number
   status: TaskStatus
   priority: number
   deadline?: string | null
@@ -64,7 +63,6 @@ export interface CreateTaskPayload {
   eventId: string
   title: string
   details: string
-  budget: number
   priority: number
   deadline: string
   assigneeId?: string | null
