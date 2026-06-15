@@ -57,8 +57,22 @@ const proofOfPaymentFile = ref<File | null>(null)
 const coverImageInput = ref<HTMLInputElement | null>(null)
 const proofOfPaymentInput = ref<HTMLInputElement | null>(null)
 
-const minEventDate = today(getLocalTimeZone()).add({ months: 1 })
-const modelValue = shallowRef(new CalendarDate(minEventDate.year, minEventDate.month, minEventDate.day))
+const minEventDate = computed(() =>
+  isWeddingEvent.value
+    ? today(getLocalTimeZone()).add({ years: 1 })
+    : today(getLocalTimeZone()).add({ months: 1 })
+)
+
+const modelValue = shallowRef(
+  new CalendarDate(minEventDate.value.year, minEventDate.value.month, minEventDate.value.day)
+)
+
+watch(minEventDate, (nextMin) => {
+  const current = modelValue.value
+  if (current.compare(nextMin) < 0) {
+    modelValue.value = new CalendarDate(nextMin.year, nextMin.month, nextMin.day)
+  }
+})
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'

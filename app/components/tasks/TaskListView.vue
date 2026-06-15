@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { TaskRecord, TaskStatus } from '~/types/task'
 import { groupTasksByStatus } from '~/utils/taskListUpdates'
+import { groupTasksByDeadlineMonth } from '~/utils/taskDeadlineGroups'
 import { TASK_PRIORITY_OPTIONS } from '~/utils/taskPriority'
 import { formatTaskDate } from '~/utils/taskFormat'
 
@@ -119,101 +120,116 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
           </tr>
 
           <template v-if="!isGroupCollapsed(section.status)">
-            <tr
-              v-for="task in grouped[section.status]"
-              :key="task._id"
-              class="cursor-pointer border-b border-default/40 transition-colors duration-100 hover:bg-primary/10 hover:shadow-[inset_3px_0_0_0_var(--ui-primary)]"
-              :class="[
-                updatingTaskId === task._id ? 'opacity-60' : '',
-                selectedTaskId === task._id ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : '',
-              ]"
-              @click="onRowClick(task, $event)"
+            <template
+              v-for="deadlineGroup in groupTasksByDeadlineMonth(grouped[section.status])"
+              :key="`${section.status}-${deadlineGroup.key}`"
             >
-              <td class="max-w-[20rem] px-4 py-2 align-middle sm:max-w-none">
-                <div class="flex min-w-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    data-row-action
-                    class="shrink-0 text-[11px] font-medium text-primary hover:underline"
-                    @click.stop="emit('edit', task)"
+              <tr class="border-b border-default/30 bg-muted/20">
+                <td colspan="5" class="px-4 py-1.5">
+                  <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
+                    {{ deadlineGroup.label }}
+                    <span class="font-normal normal-case">({{ deadlineGroup.tasks.length }})</span>
+                  </h3>
+                </td>
+              </tr>
+
+              <tr
+                v-for="task in deadlineGroup.tasks"
+                :key="task._id"
+                class="cursor-pointer border-b border-default/40 transition-colors duration-100 hover:bg-primary/10 hover:shadow-[inset_3px_0_0_0_var(--ui-primary)]"
+                :class="[
+                  updatingTaskId === task._id ? 'opacity-60' : '',
+                  selectedTaskId === task._id ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : '',
+                ]"
+                @click="onRowClick(task, $event)"
+              >
+                <td class="max-w-[20rem] px-4 py-2 align-middle sm:max-w-none">
+                  <div class="flex min-w-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      data-row-action
+                      class="shrink-0 text-[11px] font-medium text-primary hover:underline"
+                      @click.stop="emit('edit', task)"
+                    >
+                      {{ task._id.slice(-6) }}
+                    </button>
+                    <button
+                      type="button"
+                      data-row-action
+                      class="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-primary"
+                      @click.stop="emit('edit', task)"
+                    >
+                      {{ task.title }}
+                    </button>
+                  </div>
+                  <p
+                    v-if="task.details"
+                    class="mt-0.5 truncate text-[11px] text-muted"
                   >
-                    {{ task._id.slice(-6) }}
-                  </button>
-                  <button
-                    type="button"
-                    data-row-action
-                    class="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-primary"
-                    @click.stop="emit('edit', task)"
-                  >
-                    {{ task.title }}
-                  </button>
-                </div>
-                <p
-                  v-if="task.details"
-                  class="mt-0.5 truncate text-[11px] text-muted"
-                >
-                  {{ task.details }}
-                </p>
-              </td>
-              <td class="whitespace-nowrap px-4 py-2 align-middle">
-                <USelect
-                  :model-value="task.priority"
-                  :items="TASK_PRIORITY_OPTIONS"
-                  value-key="value"
-                  label-key="label"
-                  size="sm"
-                  class="min-w-[8.5rem]"
-                  :disabled="disabled || updatingTaskId === task._id"
-                  @update:model-value="emit('priority-change', { taskId: task._id, priority: Number($event) })"
-                  @click.stop
-                />
-              </td>
-              <td class="whitespace-nowrap px-4 py-2 align-middle">
-                <USelect
-                  :model-value="task.status"
-                  :items="statusOptions"
-                  value-key="value"
-                  label-key="label"
-                  size="sm"
-                  class="min-w-[8.5rem]"
-                  :disabled="disabled || updatingTaskId === task._id"
-                  @update:model-value="emit('status-change', { taskId: task._id, status: $event as TaskStatus })"
-                  @click.stop
-                />
-              </td>
-              <td class="whitespace-nowrap px-4 py-2 align-middle text-muted">
-                {{ formatTaskDate(task.deadline) ?? '—' }}
-              </td>
-              <td class="px-4 py-2 align-middle" data-row-action>
-                <div class="flex items-center gap-1">
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    icon="i-lucide-pencil"
-                    aria-label="Edit task"
-                    :disabled="disabled"
-                    @click.stop="emit('edit', task)"
+                    {{ task.details }}
+                  </p>
+                </td>
+                <td class="whitespace-nowrap px-4 py-2 align-middle">
+                  <USelect
+                    :model-value="task.priority"
+                    :items="TASK_PRIORITY_OPTIONS"
+                    value-key="value"
+                    label-key="label"
+                    size="sm"
+                    class="min-w-[8.5rem]"
+                    :disabled="disabled || updatingTaskId === task._id"
+                    @update:model-value="emit('priority-change', { taskId: task._id, priority: Number($event) })"
+                    @click.stop
                   />
-                  <UButton
-                    v-if="canMoveToTodo(task)"
-                    size="xs"
-                    variant="ghost"
-                    icon="i-lucide-list-todo"
-                    aria-label="Move to To Do"
-                    @click.stop="emit('move-to-todo', task)"
+                </td>
+                <td class="whitespace-nowrap px-4 py-2 align-middle">
+                  <USelect
+                    :model-value="task.status"
+                    :items="statusOptions"
+                    value-key="value"
+                    label-key="label"
+                    size="sm"
+                    class="min-w-[8.5rem]"
+                    :disabled="disabled || updatingTaskId === task._id"
+                    @update:model-value="emit('status-change', { taskId: task._id, status: $event as TaskStatus })"
+                    @click.stop
                   />
-                  <UButton
-                    v-if="canDeleteTask(task)"
-                    size="xs"
-                    variant="ghost"
-                    color="error"
-                    icon="i-lucide-trash-2"
-                    aria-label="Delete task"
-                    @click.stop="emit('remove', task)"
-                  />
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td class="whitespace-nowrap px-4 py-2 align-middle text-muted">
+                  {{ formatTaskDate(task.deadline) ?? '—' }}
+                </td>
+                <td class="px-4 py-2 align-middle" data-row-action>
+                  <div class="flex items-center gap-1">
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      aria-label="Edit task"
+                      :disabled="disabled"
+                      @click.stop="emit('edit', task)"
+                    />
+                    <UButton
+                      v-if="canMoveToTodo(task)"
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-list-todo"
+                      aria-label="Move to To Do"
+                      @click.stop="emit('move-to-todo', task)"
+                    />
+                    <UButton
+                      v-if="canDeleteTask(task)"
+                      size="xs"
+                      variant="ghost"
+                      color="error"
+                      icon="i-lucide-trash-2"
+                      aria-label="Delete task"
+                      @click.stop="emit('remove', task)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </template>
+
             <tr v-if="grouped[section.status].length === 0">
               <td colspan="5" class="px-4 py-2 text-xs italic text-muted">
                 No tasks
