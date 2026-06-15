@@ -385,10 +385,23 @@ function openSchedulesDashboard() {
   navigateTo({ path: '/EventSchedulesDashboard', query: { eventId: id } })
 }
 
+function openWishlistDashboard() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventWishlistDashboard', query: { eventId: id } })
+}
+
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments'
+  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments' | 'wishlist'
   bgClass: string
   hoverClass: string
   ringClass: string
@@ -411,6 +424,8 @@ function handleDashboardItemClick(item: DashboardItem) {
     openPayments()
   } else if (item.action === 'schedules') {
     openSchedulesDashboard()
+  } else if (item.action === 'wishlist') {
+    openWishlistDashboard()
   }
 }
 
@@ -426,7 +441,7 @@ const dashboardItems: DashboardItem[] = [
   { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
   { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-rose-500', hoverClass: 'group-hover:bg-rose-600', ringClass: 'group-focus-visible:ring-rose-500' },
   { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
-  { label: 'Gifts', icon: 'i-lucide-gift', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
+  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
   { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
