@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import type { EventRecord, TasksSummary } from '~/types/event'
-import type { TaskStatus } from '~/types/task'
 
 const props = defineProps<{
   eventId: string
@@ -26,8 +25,7 @@ const {
   searchQuery,
   priorityFilter,
   sortBy,
-  selectedTab,
-  tabItems,
+  collapsedGroups,
   isFormOpen,
   editingTask,
   isDetailsOpen,
@@ -37,7 +35,7 @@ const {
   isRemoveSubmitting,
   isManageAssigneesOpen,
   mutationsDisabled,
-  tasksForTab,
+  filteredTasks,
   openCreateModal,
   openDetailsModal,
   openEditModal,
@@ -46,9 +44,11 @@ const {
   closeRemoveModal,
   handleStatusChange,
   handleMoveToTodo,
+  handlePriorityChange,
   handleFormSaved,
   handleAssigneesChanged,
   confirmRemoveTask,
+  toggleGroup,
 } = useEventTasksManager({
   eventId: eventIdRef,
   isEventCancelled: isEventCancelledRef,
@@ -57,44 +57,10 @@ const {
 })
 
 defineExpose({ openCreateModal })
-
-const tabSlots = ['todo', 'ongoing', 'completed'] as const
-
-function emptyLabel(status: TaskStatus): string {
-  if (status === 'TODO') return 'No tasks to do.'
-  if (status === 'ONGOING') return 'No ongoing tasks.'
-  return 'No completed tasks.'
-}
-
-function tabStatus(index: number): TaskStatus {
-  const statuses: TaskStatus[] = ['TODO', 'ONGOING', 'COMPLETED']
-  return statuses[index] ?? 'TODO'
-}
 </script>
 
 <template>
-  <UPageCard class="white-bread-container space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="text-xl font-semibold text-muted">Tasks Checklist</div>
-      <div class="flex flex-wrap items-center gap-2">
-        <UButton
-          icon="i-lucide-users"
-          variant="outline"
-          :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
-          @click="openManageAssigneesModal"
-        >
-          Manage Assignees
-        </UButton>
-        <UButton
-          icon="i-lucide-list-plus"
-          :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
-          @click="openCreateModal"
-        >
-          Add New Task
-        </UButton>
-      </div>
-    </div>
-
+  <div class="space-y-4">
     <UAlert
       v-if="mutationsDisabled"
       color="warning"
@@ -102,6 +68,17 @@ function tabStatus(index: number): TaskStatus {
       title="Event cancelled"
       description="Tasks cannot be added or edited while this event is cancelled."
     />
+
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <UButton
+        icon="i-lucide-users"
+        variant="outline"
+        :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
+        @click="openManageAssigneesModal"
+      >
+        Manage Assignees
+      </UButton>
+    </div>
 
     <TaskToolbar
       v-model:search-query="searchQuery"
@@ -117,41 +94,22 @@ function tabStatus(index: number): TaskStatus {
       <span class="ml-2 text-sm">Loading tasks...</span>
     </div>
 
-    <UTabs
+    <TaskListView
       v-else
-      v-model="selectedTab"
-      :items="tabItems"
-      variant="link"
-    >
-      <template
-        v-for="(slot, index) in tabSlots"
-        :key="slot"
-        #[slot]
-      >
-        <div class="mt-4">
-          <UPageColumns v-if="tasksForTab(index).length > 0">
-            <EventTaskChecklistCard
-              v-for="task in tasksForTab(index)"
-              :key="task._id"
-              :task="task"
-              :disabled="mutationsDisabled"
-              :updating-task-id="updatingTaskId"
-              @select="openDetailsModal"
-              @edit="openEditModal"
-              @remove="openRemoveModal"
-              @move-to-todo="handleMoveToTodo"
-              @status-change="handleStatusChange"
-            />
-          </UPageColumns>
-          <p
-            v-else
-            class="text-sm text-muted"
-          >
-            {{ emptyLabel(tabStatus(index)) }}
-          </p>
-        </div>
-      </template>
-    </UTabs>
+      :tasks="filteredTasks"
+      :disabled="mutationsDisabled"
+      :selected-task-id="selectedTask?._id"
+      :collapsed-groups="collapsedGroups"
+      :updating-task-id="updatingTaskId"
+      @toggle-group="toggleGroup"
+      @status-change="handleStatusChange"
+      @priority-change="handlePriorityChange"
+      @select="openDetailsModal"
+      @edit="openEditModal"
+      @remove="openRemoveModal"
+      @move-to-todo="handleMoveToTodo"
+      @add-task="openCreateModal"
+    />
 
     <TaskDetailsModal
       v-model:open="isDetailsOpen"
@@ -206,5 +164,5 @@ function tabStatus(index: number): TaskStatus {
         </div>
       </template>
     </UModal>
-  </UPageCard>
+  </div>
 </template>

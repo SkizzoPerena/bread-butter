@@ -63,21 +63,43 @@ export function getTaskTrackerMetrics(byStatus: Record<string, number>) {
   return { ongoing, completed, activeTotal }
 }
 
-export function patchTaskSummaryCounts(
-  summary: TasksSummary | null,
-  tasks: TaskRecord[]
-): TasksSummary | null {
-  if (!summary) {
-    return summary
-  }
-
+function buildStatusCounts(tasks: TaskRecord[]) {
   const parents = tasks.filter(isParentTask).filter((task) => isActiveTaskStatus(task.status))
   const byStatus = parents.reduce<Record<string, number>>((acc, task) => {
     acc[task.status] = (acc[task.status] ?? 0) + 1
     return acc
   }, {})
-
   const totalAllocatedBudget = parents.reduce((sum, task) => sum + (task.budget ?? 0), 0)
+  return { parents, byStatus, totalAllocatedBudget }
+}
+
+export function patchTaskSummaryCounts(
+  summary: TasksSummary | null,
+  tasks: TaskRecord[]
+): TasksSummary | null {
+  const { parents, byStatus, totalAllocatedBudget } = buildStatusCounts(tasks)
+
+  if (!summary) {
+    return {
+      totalTasks: parents.length,
+      totalAllocatedBudget,
+      byStatus,
+      preview: {
+        page: 1,
+        limit: 5,
+        subtasksLimit: 2,
+        tasks: parents.slice(0, 5).map((task) => ({
+          _id: task._id,
+          title: task.title,
+          details: task.details,
+          budget: task.budget,
+          status: task.status,
+          priority: task.priority,
+          deadline: task.deadline,
+        })),
+      },
+    }
+  }
 
   return {
     ...summary,
