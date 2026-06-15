@@ -43,6 +43,7 @@ export function useEvents() {
         venue: payload.venue,
         eventDate: payload.eventDate,
         status: 'ONGOING',
+        isCatholicWedding: payload.isCatholicWedding ?? false,
         coverImageURL: payload.coverImageURL ?? null,
         latestPayment: payload.payLater
           ? null
@@ -63,6 +64,10 @@ export function useEvents() {
     formData.append('description', payload.description)
     formData.append('venue', payload.venue)
     formData.append('eventDate', payload.eventDate)
+
+    if (payload.isCatholicWedding !== undefined) {
+      formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
+    }
 
     if (payload.coverImage) {
       formData.append('coverImage', payload.coverImage)
@@ -96,6 +101,10 @@ export function useEvents() {
 
     if (payload.eventDate) {
       formData.append('eventDate', payload.eventDate)
+    }
+
+    if (payload.isCatholicWedding !== undefined) {
+      formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
     }
 
     if (payload.coverImage) {

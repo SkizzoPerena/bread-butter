@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
-import { mapEventTypeToApi } from '~/types/event'
+import { mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType } from '~/types/event'
 import { EVENT_CREATION_FEE_PHP, getEventBalanceDue, isEventFullyPaid } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
@@ -21,7 +21,7 @@ const { loadPageData } = useApiMode()
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
 
-const eventTypes = ['Wedding', 'Engagement', 'Baptism', 'Birthday Party', 'Family Reunion', 'Gender Reveal Party']
+const eventTypes = EVENT_TYPE_OPTIONS
 
 const form = reactive({
   eventName: '',
@@ -30,7 +30,19 @@ const form = reactive({
   venue: '',
   payLater: false,
   transactionId: '',
+  isCatholicWedding: false,
 })
+
+const isWeddingEvent = computed(() => isWeddingEventType(form.eventType))
+
+watch(
+  () => form.eventType,
+  (nextType) => {
+    if (!isWeddingEventType(nextType)) {
+      form.isCatholicWedding = false
+    }
+  }
+)
 
 const coverImageFile = ref<File | null>(null)
 const proofOfPaymentFile = ref<File | null>(null)
@@ -175,6 +187,7 @@ async function handleCreateEvent() {
       payLater: form.payLater,
       transactionId: form.payLater ? undefined : form.transactionId.trim(),
       proofOfPayment: form.payLater ? undefined : proofOfPaymentFile.value ?? undefined,
+      isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
     })
 
     toast.add({
@@ -267,6 +280,11 @@ async function handleCreateEvent() {
                     class="w-full"
                   />
                 </UFormField>
+                <UCheckbox
+                  v-if="isWeddingEvent"
+                  v-model="form.isCatholicWedding"
+                  label="Is this a Catholic Wedding?"
+                />
                 <UFormField
                   label="Event Date"
                   name="date"

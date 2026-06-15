@@ -16,6 +16,7 @@ export interface EventRecord {
   eventDate: string
   status: string
   coverImageURL?: string | null
+  isCatholicWedding?: boolean
   latestPayment?: PaymentRecord | null
   paymentSummary?: EventPaymentSummary | null
   questions?: EventQuestion[]
@@ -122,6 +123,7 @@ export interface CreateEventPayload {
   transactionId?: string
   proofOfPayment?: File
   payLater?: boolean
+  isCatholicWedding?: boolean
 }
 
 export interface UpdateEventPayload {
@@ -132,6 +134,7 @@ export interface UpdateEventPayload {
   eventDate?: string
   coverImage?: File
   coverImageURL?: string
+  isCatholicWedding?: boolean
 }
 
 export interface UpdateEventResponse {
@@ -144,19 +147,31 @@ export function mapEventTypeToApi(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, '_')
 }
 
+export function isWeddingEventType(eventType: string): boolean {
+  return mapEventTypeToApi(eventType) === 'WEDDING'
+}
+
 const EVENT_TYPE_LABELS = [
   'Wedding',
-  'Engagement',
-  'Baptism',
+  'Christening',
   'Birthday Party',
   'Family Reunion',
-  'Gender Reveal Party',
+  'Other Events',
 ] as const
 
 export const EVENT_TYPE_OPTIONS = [...EVENT_TYPE_LABELS]
 
+const LEGACY_EVENT_TYPE_TO_LABEL: Record<string, (typeof EVENT_TYPE_LABELS)[number]> = {
+  BAPTISM: 'Christening',
+  GENDER_REVEAL_PARTY: 'Other Events',
+  ENGAGEMENT: 'Other Events',
+}
+
 export function mapApiToEventTypeLabel(apiValue: string): string {
   const normalized = apiValue.trim().toUpperCase().replace(/\s+/g, '_')
+  if (LEGACY_EVENT_TYPE_TO_LABEL[normalized]) {
+    return LEGACY_EVENT_TYPE_TO_LABEL[normalized]
+  }
   const match = EVENT_TYPE_LABELS.find(
     (label) => mapEventTypeToApi(label) === normalized
   )

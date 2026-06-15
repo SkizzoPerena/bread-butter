@@ -37,6 +37,7 @@ const {
   coverImageInput,
   isSubmitting,
   isEventCancelled,
+  isWeddingEvent,
   onCoverImageChange,
   submit,
 } = useEventSettingsForm({
@@ -187,6 +188,12 @@ watch(eventId, () => {
               <UFormField label="Event Type" name="eventType" required>
                 <USelect v-model="form.eventType" :items="EVENT_TYPE_OPTIONS" class="w-full" />
               </UFormField>
+
+              <UCheckbox
+                v-if="isWeddingEvent"
+                v-model="form.isCatholicWedding"
+                label="Is this a Catholic Wedding?"
+              />
 
               <UFormField label="Venue" name="venue" required>
                 <UInput v-model="form.venue" class="w-full" placeholder="Manila Cathedral" />

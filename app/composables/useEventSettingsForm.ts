@@ -1,5 +1,5 @@
 import type { EventRecord } from '~/types/event'
-import { mapApiToEventTypeLabel, mapEventTypeToApi, EVENT_TYPE_OPTIONS } from '~/types/event'
+import { mapApiToEventTypeLabel, mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 
@@ -23,12 +23,16 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     eventType: EventTypeLabel
     description: string
     venue: string
+    isCatholicWedding: boolean
   }>({
     eventName: '',
     eventType: 'Wedding',
     description: '',
     venue: '',
+    isCatholicWedding: false,
   })
+
+  const isWeddingEvent = computed(() => isWeddingEventType(form.eventType))
 
   const coverImageFile = ref<File | null>(null)
   const coverImageInput = ref<HTMLInputElement | null>(null)
@@ -47,11 +51,21 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     form.eventType = mapApiToEventTypeLabel(record.eventType) as EventTypeLabel
     form.description = record.description
     form.venue = record.venue
+    form.isCatholicWedding = Boolean(record.isCatholicWedding)
     coverImageFile.value = null
     if (coverImageInput.value) {
       coverImageInput.value.value = ''
     }
   }
+
+  watch(
+    () => form.eventType,
+    (nextType) => {
+      if (!isWeddingEventType(nextType)) {
+        form.isCatholicWedding = false
+      }
+    }
+  )
 
   watch(
     () => options.eventRecord.value,
@@ -106,6 +120,7 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
           venue: form.venue.trim(),
           coverImage: coverImageFile.value ?? undefined,
           coverImageURL: coverImageFile.value ? undefined : existingCoverUrl,
+          isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
         })
 
         if (coverImageFile.value && options.eventId.value) {
@@ -119,6 +134,7 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
             eventName: form.eventName.trim(),
             description: form.description.trim(),
             venue: form.venue.trim(),
+            isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
           }
           options.eventRecord.value = updated
           setActiveEvent(updated)
@@ -130,6 +146,7 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
           eventName: form.eventName.trim(),
           description: form.description.trim(),
           venue: form.venue.trim(),
+          isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
         }
         options.eventRecord.value = updated
         setActiveEvent(updated)
@@ -153,6 +170,7 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     coverImageInput,
     isSubmitting,
     isEventCancelled,
+    isWeddingEvent,
     resetFormFromEvent,
     onCoverImageChange,
     submit,
