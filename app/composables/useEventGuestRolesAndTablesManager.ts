@@ -128,6 +128,7 @@ export function useEventGuestRolesAndTablesManager(
   const targetUnassignRoleId = ref<string | undefined>(undefined)
   const createRoleName = ref('')
   const targetTableValue = ref<TableAssignmentValue | undefined>(undefined)
+  const pendingTableGuestIds = ref<string[] | null>(null)
 
   const selectedGuestIdList = computed(() => [...options.selectedGuestIds.value])
 
@@ -201,6 +202,18 @@ export function useEventGuestRolesAndTablesManager(
 
   const canAssignTable = computed(
     () => selectedGuestIdList.value.length > 0 && !options.mutationsDisabled.value
+  )
+
+  const tableAssignmentModalTitle = computed(() =>
+    pendingTableGuestIds.value?.length === 1 ? 'Move to table' : 'Assign table'
+  )
+
+  const tableAssignmentGuestCount = computed(
+    () => pendingTableGuestIds.value?.length ?? selectedGuestIdList.value.length
+  )
+
+  const tableAssignmentSubmitLabel = computed(() =>
+    pendingTableGuestIds.value?.length === 1 ? 'Move guest' : 'Assign table'
   )
 
   const rolesBySection = computed<RoleSection[]>(() => {
@@ -354,8 +367,23 @@ export function useEventGuestRolesAndTablesManager(
 
   function openTableAssignmentModal() {
     if (!canAssignTable.value) return
+    pendingTableGuestIds.value = null
     targetTableValue.value = resolveDefaultTableValue()
     isTableAssignmentModalOpen.value = true
+  }
+
+  function openGuestTableTransferModal(guestId: string) {
+    if (options.mutationsDisabled.value) return
+    const guest = options.guestList.value.find((item) => item._id === guestId)
+    pendingTableGuestIds.value = [guestId]
+    targetTableValue.value =
+      guest?.tableCode ?? eventTableCodes.value[0] ?? NEW_TABLE_CODE_SENTINEL
+    isTableAssignmentModalOpen.value = true
+  }
+
+  function closeTableAssignmentModal() {
+    isTableAssignmentModalOpen.value = false
+    pendingTableGuestIds.value = null
   }
 
   async function handleRoleAssignment() {
@@ -454,10 +482,41 @@ export function useEventGuestRolesAndTablesManager(
     }
   }
 
+  async function handleUnassignGuestFromTable(guestId: string) {
+    if (options.mutationsDisabled.value) return
+
+    isRoleTableActionLoading.value = true
+    try {
+      const response = await assignGuestsTableBulk(
+        options.eventId.value,
+        [guestId],
+        null
+      )
+
+      if (response.guests?.length) {
+        applyGuestUpdates(response.guests)
+      }
+
+      await loadEventTables()
+      await options.onGuestListMutated?.()
+
+      toast.add({
+        title: 'Table cleared',
+        description: 'Guest was removed from their table.',
+      })
+    } catch (error) {
+      reportApiError(toast, { title: 'Could not unassign table', error })
+    } finally {
+      isRoleTableActionLoading.value = false
+    }
+  }
+
   async function handleTableAssignment() {
-    const guestIds = selectedGuestIdList.value
+    const guestIds = pendingTableGuestIds.value ?? selectedGuestIdList.value
     if (guestIds.length === 0) return
     if (targetTableValue.value === undefined) return
+
+    const usedPendingGuests = pendingTableGuestIds.value != null
 
     isRoleTableActionLoading.value = true
     try {
@@ -473,8 +532,10 @@ export function useEventGuestRolesAndTablesManager(
 
       await loadEventTables()
       await options.onGuestListMutated?.()
-      options.clearSelection()
-      isTableAssignmentModalOpen.value = false
+      if (!usedPendingGuests) {
+        options.clearSelection()
+      }
+      closeTableAssignmentModal()
 
       toast.add({
         title: response.tableCode == null ? 'Table cleared' : 'Table assigned',
@@ -502,6 +563,9 @@ export function useEventGuestRolesAndTablesManager(
     roleOptions,
     unassignRoleOptions,
     tableOptions,
+    tableAssignmentModalTitle,
+    tableAssignmentGuestCount,
+    tableAssignmentSubmitLabel,
     canAssignRole,
     canUnassignRole,
     canAssignTable,
@@ -513,9 +577,12 @@ export function useEventGuestRolesAndTablesManager(
     openRoleAssignmentModal,
     openRoleUnassignmentModal,
     openTableAssignmentModal,
+    openGuestTableTransferModal,
+    closeTableAssignmentModal,
     handleRoleAssignment,
     handleRoleUnassignment,
     handleRemoveGuestFromRole,
+    handleUnassignGuestFromTable,
     handleTableAssignment,
   }
 }

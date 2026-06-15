@@ -141,6 +141,9 @@ const {
   roleOptions,
   unassignRoleOptions,
   tableOptions,
+  tableAssignmentModalTitle,
+  tableAssignmentGuestCount,
+  tableAssignmentSubmitLabel,
   canAssignRole,
   canUnassignRole,
   canAssignTable,
@@ -152,9 +155,12 @@ const {
   openRoleAssignmentModal,
   openRoleUnassignmentModal,
   openTableAssignmentModal,
+  openGuestTableTransferModal,
+  closeTableAssignmentModal,
   handleRoleAssignment,
   handleRoleUnassignment,
   handleRemoveGuestFromRole,
+  handleUnassignGuestFromTable,
   handleTableAssignment,
 } = useEventGuestRolesAndTablesManager({
   eventId,
@@ -187,6 +193,14 @@ const isRolesTabEmpty = computed(
 )
 
 const isTablesTabEmpty = computed(() => tablesBySection.value.length === 0)
+
+const showGuestListActionBar = computed(
+  () => showActionBar.value && selectedTab.value === 'guest-list'
+)
+
+const showTablesActionBar = computed(
+  () => showActionBar.value && selectedTab.value === 'tables'
+)
 
 function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
   if (status === 'Attending') return 'success'
@@ -533,7 +547,13 @@ watch(eventId, () => {
       </div>
 
       <template v-else>
-        <UTabs v-model="selectedTab" :items="tabItems" variant="link" class="w-full">
+        <UTabs
+          v-model="selectedTab"
+          :items="tabItems"
+          value-key="slot"
+          variant="link"
+          class="w-full"
+        >
           <template #guest-list>
             <div class="mt-4 space-y-4">
               <UInput
@@ -558,7 +578,7 @@ watch(eventId, () => {
               <div
                 v-else
                 class="relative"
-                :class="showActionBar ? 'pb-24' : ''"
+                :class="showGuestListActionBar ? 'pb-24' : ''"
               >
                 <UTable
                   :data="displayRows"
@@ -638,7 +658,10 @@ watch(eventId, () => {
           </template>
 
           <template #tables>
-            <div class="mt-4 space-y-4">
+            <div
+              class="mt-4 space-y-4"
+              :class="showTablesActionBar ? 'pb-24' : ''"
+            >
               <UInput
                 v-model="searchQuery"
                 type="search"
@@ -654,7 +677,7 @@ watch(eventId, () => {
                 <UIcon name="i-lucide-layout-grid" class="size-10 text-muted" />
                 <p class="mt-4 text-base font-medium">No table assignments yet</p>
                 <p class="mt-1 max-w-sm text-sm text-muted">
-                  Select guests on the Guest List tab and assign them to a table.
+                  Select guests here or on the Guest List tab to assign tables, or use the actions on each row to move or unassign.
                 </p>
               </div>
 
@@ -676,17 +699,47 @@ watch(eventId, () => {
                       :key="`${section.label}-${guest.guestId}`"
                       class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
                     >
-                      <div>
-                        <p class="font-medium">{{ guest.name }}</p>
-                        <p class="text-muted">{{ guest.email }}</p>
+                      <div class="flex min-w-0 flex-1 items-center gap-3">
+                        <UCheckbox
+                          :model-value="selectedGuestIds.has(guest.guestId)"
+                          :disabled="mutationsDisabled"
+                          :aria-label="`Select ${guest.name}`"
+                          @update:model-value="(value) => toggleSelection(guest.guestId, value === true)"
+                        />
+                        <div class="min-w-0">
+                          <p class="font-medium">{{ guest.name }}</p>
+                          <p class="text-muted">{{ guest.email }}</p>
+                        </div>
                       </div>
-                      <UBadge
-                        :color="rsvpStatusColor(guest.rsvpStatus)"
-                        variant="subtle"
-                        class="capitalize"
-                      >
-                        {{ guest.rsvpStatus }}
-                      </UBadge>
+                      <div class="flex items-center gap-2">
+                        <UBadge
+                          :color="rsvpStatusColor(guest.rsvpStatus)"
+                          variant="subtle"
+                          class="capitalize"
+                        >
+                          {{ guest.rsvpStatus }}
+                        </UBadge>
+                        <UButton
+                          v-if="!mutationsDisabled && section.tableCode != null"
+                          size="xs"
+                          variant="ghost"
+                          color="orange"
+                          icon="i-lucide-arrow-right-left"
+                          :loading="isRoleTableActionLoading"
+                          aria-label="Move to another table"
+                          @click="openGuestTableTransferModal(guest.guestId)"
+                        />
+                        <UButton
+                          v-if="!mutationsDisabled && section.tableCode != null"
+                          size="xs"
+                          variant="ghost"
+                          color="neutral"
+                          icon="i-lucide-user-minus"
+                          :loading="isRoleTableActionLoading"
+                          aria-label="Unassign from table"
+                          @click="handleUnassignGuestFromTable(guest.guestId)"
+                        />
+                      </div>
                     </li>
                   </ul>
                 </div>
@@ -696,7 +749,7 @@ watch(eventId, () => {
         </UTabs>
 
         <div
-          v-if="showActionBar"
+          v-if="showGuestListActionBar || showTablesActionBar"
           class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-200 bg-white px-4 py-3 shadow-lg dark:border-orange-800 dark:bg-neutral-900"
         >
           <div class="space-y-1">
@@ -704,35 +757,86 @@ watch(eventId, () => {
               {{ selectedCount }} selected
             </span>
             <p
-              v-if="showCreateGroupHint"
+              v-if="showGuestListActionBar && showCreateGroupHint"
               class="text-xs text-muted"
             >
               Select at least 2 guests to create a new group
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
+            <template v-if="showGuestListActionBar">
+              <UButton
+                v-if="canAssignRole"
+                color="orange"
+                variant="outline"
+                icon="i-lucide-theater"
+                :loading="isRoleTableActionLoading"
+                @click="openRoleAssignmentModal"
+              >
+                Assign role…
+              </UButton>
+              <UButton
+                v-if="canUnassignRole"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-user-minus"
+                :loading="isRoleTableActionLoading"
+                @click="openRoleUnassignmentModal"
+              >
+                Unassign role…
+              </UButton>
+              <UButton
+                v-if="canGroupGuests"
+                color="orange"
+                icon="i-lucide-users-round"
+                :loading="isGroupActionLoading"
+                @click="openGroupAssignmentModal"
+              >
+                Group guests…
+              </UButton>
+              <UButton
+                v-if="canRenameGroup"
+                color="orange"
+                variant="outline"
+                icon="i-lucide-pencil"
+                :loading="isGroupActionLoading"
+                @click="openRenameGroupModal"
+              >
+                Rename group
+              </UButton>
+              <UButton
+                v-if="canAddToExistingGroup"
+                color="orange"
+                variant="outline"
+                icon="i-lucide-user-plus"
+                :loading="isGroupActionLoading"
+                @click="openAddToExistingModal"
+              >
+                Add to existing group
+              </UButton>
+              <UButton
+                v-if="canUngroupSingle"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-user-minus"
+                :loading="isGroupActionLoading"
+                @click="handleUngroupSingle"
+              >
+                Ungroup
+              </UButton>
+              <UButton
+                v-if="canUngroupAll && (selectionContext === 'same_group' || selectionContext === 'mixed')"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-user-minus"
+                :loading="isGroupActionLoading"
+                @click="handleUngroupAll"
+              >
+                Ungroup all
+              </UButton>
+            </template>
             <UButton
-              v-if="canAssignRole"
-              color="orange"
-              variant="outline"
-              icon="i-lucide-theater"
-              :loading="isRoleTableActionLoading"
-              @click="openRoleAssignmentModal"
-            >
-              Assign role…
-            </UButton>
-            <UButton
-              v-if="canUnassignRole"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-user-minus"
-              :loading="isRoleTableActionLoading"
-              @click="openRoleUnassignmentModal"
-            >
-              Unassign role…
-            </UButton>
-            <UButton
-              v-if="canAssignTable"
+              v-if="showTablesActionBar && canAssignTable"
               color="orange"
               variant="outline"
               icon="i-lucide-layout-grid"
@@ -740,55 +844,6 @@ watch(eventId, () => {
               @click="openTableAssignmentModal"
             >
               Assign table…
-            </UButton>
-            <UButton
-              v-if="canGroupGuests"
-              color="orange"
-              icon="i-lucide-users-round"
-              :loading="isGroupActionLoading"
-              @click="openGroupAssignmentModal"
-            >
-              Group guests…
-            </UButton>
-            <UButton
-              v-if="canRenameGroup"
-              color="orange"
-              variant="outline"
-              icon="i-lucide-pencil"
-              :loading="isGroupActionLoading"
-              @click="openRenameGroupModal"
-            >
-              Rename group
-            </UButton>
-            <UButton
-              v-if="canAddToExistingGroup"
-              color="orange"
-              variant="outline"
-              icon="i-lucide-user-plus"
-              :loading="isGroupActionLoading"
-              @click="openAddToExistingModal"
-            >
-              Add to existing group
-            </UButton>
-            <UButton
-              v-if="canUngroupSingle"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-user-minus"
-              :loading="isGroupActionLoading"
-              @click="handleUngroupSingle"
-            >
-              Ungroup
-            </UButton>
-            <UButton
-              v-if="canUngroupAll && (selectionContext === 'same_group' || selectionContext === 'mixed')"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-user-minus"
-              :loading="isGroupActionLoading"
-              @click="handleUngroupAll"
-            >
-              Ungroup all
             </UButton>
             <UButton
               color="neutral"
@@ -967,13 +1022,14 @@ watch(eventId, () => {
 
       <UModal
         v-model:open="isTableAssignmentModalOpen"
-        title="Assign table"
+        :title="tableAssignmentModalTitle"
         :ui="{ content: 'border-none ring-transparent max-w-md' }"
         :dismissible="!isRoleTableActionLoading"
       >
         <template #body>
           <p class="mb-4 text-sm text-muted">
-            Place {{ selectedCount }} guest{{ selectedCount === 1 ? '' : 's' }} at a table.
+            Place {{ tableAssignmentGuestCount }} guest{{ tableAssignmentGuestCount === 1 ? '' : 's' }} at a table.
+            Choose <span class="font-medium">Unassigned</span> to remove table seating.
           </p>
           <UFormField label="Table" name="targetTable" required>
             <USelect
@@ -991,10 +1047,10 @@ watch(eventId, () => {
               color="neutral"
               variant="outline"
               :disabled="isRoleTableActionLoading"
-              @click="isTableAssignmentModalOpen = false"
+              @click="closeTableAssignmentModal"
             />
             <UButton
-              label="Assign table"
+              :label="tableAssignmentSubmitLabel"
               color="orange"
               :loading="isRoleTableActionLoading"
               :disabled="targetTableValue === undefined"
