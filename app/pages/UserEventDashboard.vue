@@ -398,10 +398,23 @@ function openWishlistDashboard() {
   navigateTo({ path: '/EventWishlistDashboard', query: { eventId: id } })
 }
 
+function openEventPlaylist() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventPlaylistDashboard', query: { eventId: id } })
+}
+
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments' | 'wishlist'
+  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments' | 'wishlist' | 'playlist'
   bgClass: string
   hoverClass: string
   ringClass: string
@@ -426,6 +439,8 @@ function handleDashboardItemClick(item: DashboardItem) {
     openSchedulesDashboard()
   } else if (item.action === 'wishlist') {
     openWishlistDashboard()
+  } else if (item.action === 'playlist') {
+    openEventPlaylist()
   }
 }
 
@@ -444,6 +459,7 @@ const dashboardItems: DashboardItem[] = [
   { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
   { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
+  { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
 ]
 

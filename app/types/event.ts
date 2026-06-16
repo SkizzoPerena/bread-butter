@@ -17,6 +17,7 @@ export interface EventRecord {
   status: string
   coverImageURL?: string | null
   isCatholicWedding?: boolean
+  playlist?: string
   latestPayment?: PaymentRecord | null
   paymentSummary?: EventPaymentSummary | null
   questions?: EventQuestion[]
