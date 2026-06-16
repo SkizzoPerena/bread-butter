@@ -1,6 +1,7 @@
 ﻿<script lang="ts" setup>
 import { DateFormatter, CalendarDate, getLocalTimeZone } from '@internationalized/date'
 import type { EventRecord, TasksSummary } from '~/types/event'
+import { isWeddingEventType } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { getTaskTrackerMetrics } from '~/utils/taskListUpdates'
@@ -34,6 +35,10 @@ const tasksSummary = ref<TasksSummary | null>(null)
 const isLoadingEvent = ref(false)
 
 const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
+
+const isWeddingEvent = computed(() =>
+  isWeddingEventType(eventRecord.value?.eventType ?? (useDemoFallbacks.value ? 'WEDDING' : ''))
+)
 
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
 
@@ -411,10 +416,24 @@ function openEventPlaylist() {
   navigateTo({ path: '/EventPlaylistDashboard', query: { eventId: id } })
 }
 
+function openChurchRequirementsDashboard() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  navigateTo({ path: '/EventChurchRequirementsDashboard', query: { eventId: id } })
+}
+
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments' | 'wishlist' | 'playlist'
+  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments' | 'wishlist' | 'playlist' | 'churchRequirements'
+  weddingOnly?: boolean
   bgClass: string
   hoverClass: string
   ringClass: string
@@ -441,6 +460,8 @@ function handleDashboardItemClick(item: DashboardItem) {
     openWishlistDashboard()
   } else if (item.action === 'playlist') {
     openEventPlaylist()
+  } else if (item.action === 'churchRequirements') {
+    openChurchRequirementsDashboard()
   }
 }
 
@@ -460,8 +481,13 @@ const dashboardItems: DashboardItem[] = [
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
   { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
   { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
+  { label: 'Church Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-amber-500', hoverClass: 'group-hover:bg-amber-600', ringClass: 'group-focus-visible:ring-amber-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
 ]
+
+const visibleDashboardItems = computed(() =>
+  dashboardItems.filter((item) => !item.weddingOnly || isWeddingEvent.value)
+)
 
 </script>
 
@@ -475,7 +501,7 @@ const dashboardItems: DashboardItem[] = [
         <UPageColumns :ui="{base: 'gap-25 space-y-3'}">
           
           <div
-            v-for="item in dashboardItems"
+            v-for="item in visibleDashboardItems"
             :key="item.label"
             role="button"
             tabindex="0"
