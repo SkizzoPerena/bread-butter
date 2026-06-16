@@ -54,7 +54,13 @@ export default defineNuxtConfig({
         'indigo',
         'slate',
         'rose',
-        'monochrome'
+        'monochrome',
+        'violet',
+        'red',
+        'cyan',
+        'lime',
+        'yellow',
+        'fuchsia'
       ]
     }
   },

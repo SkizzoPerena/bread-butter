@@ -9,7 +9,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Tasks',
-  bgClass: 'bg-rose-50',
+  bgClass: 'bg-red-50',
 })
 
 const df = new DateFormatter('en-US', { dateStyle: 'medium' })
@@ -124,7 +124,7 @@ watch(eventId, () => {
       <Teleport to="#navbar-actions">
         <UButton
           icon="i-lucide-plus"
-          color="rose"
+          color="red"
           :disabled="isEventCancelled"
           @click="openAddTask"
         >
@@ -149,7 +149,7 @@ watch(eventId, () => {
               <h1 class="text-xl font-bold text-highlighted md:text-2xl">
                 {{ eventTitle }}
               </h1>
-              <UBadge color="rose" variant="subtle">
+              <UBadge color="red" variant="subtle">
                 {{ taskCount }} {{ taskCount === 1 ? 'task' : 'tasks' }}
               </UBadge>
             </div>
@@ -179,7 +179,7 @@ watch(eventId, () => {
           </div>
           <UButton
             icon="i-lucide-list-plus"
-            color="rose"
+            color="red"
             class="w-full shrink-0 md:w-auto"
             :disabled="isEventCancelled"
             @click="openAddTask"
@@ -228,8 +228,8 @@ watch(eventId, () => {
 
         <UPageCard class="white-bread-container">
           <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-rose-100 p-2.5 dark:bg-rose-950/40">
-              <UIcon name="i-lucide-percent" class="size-5 text-rose-600 dark:text-rose-400" />
+            <div class="rounded-lg bg-red-100 p-2.5 dark:bg-red-950/40">
+              <UIcon name="i-lucide-percent" class="size-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
               <p class="text-sm font-medium text-muted">Completion</p>

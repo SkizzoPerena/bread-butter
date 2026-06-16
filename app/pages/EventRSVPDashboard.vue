@@ -15,17 +15,17 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'RSVP',
-  bgClass: 'bg-emerald-50',
+  bgClass: 'bg-teal-50',
 })
 
-const RSVP_CHART_COLORS = ['#10b981', '#f43f5e', '#f59e0b']
+const RSVP_CHART_COLORS = ['#14b8a6', '#f43f5e', '#f59e0b']
 const QUESTION_CHART_COLORS = [
-  '#10b981',
+  '#14b8a6',
   '#3b82f6',
   '#8b5cf6',
   '#f59e0b',
   '#f43f5e',
-  '#14b8a6',
+  '#10b981',
 ]
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
@@ -48,7 +48,7 @@ const eventId = computed(() => {
 
 const eventRecord = ref<EventRecord | null>(null)
 const rsvpSummary = ref<RsvpSummary | null>(null)
-const isLoadingEvent = ref(false)
+const isLoadingEvent = ref(true)
 const isLoadingRsvps = ref(false)
 const allRsvps = ref<RsvpRecord[]>([])
 const isQuestionsModalOpen = ref(false)
@@ -62,7 +62,7 @@ const chartData = computed(() =>
 
 const questions = computed(() => eventRecord.value?.questions ?? [])
 
-const selectedTab = ref('questions')
+const selectedTab = ref(0)
 
 const tabItems = computed(() => [
   { label: `Questions (${questions.value.length})`, slot: 'questions' },
@@ -73,8 +73,8 @@ function questionTypeLabel(type: string): string {
   return QUESTION_TYPE_LABELS[type] ?? type
 }
 
-function questionTypeColor(type: string): 'emerald' | 'secondary' | 'info' {
-  if (type === 'TEXT') return 'emerald'
+function questionTypeColor(type: string): 'teal' | 'secondary' | 'info' {
+  if (type === 'TEXT') return 'teal'
   if (type === 'OPTIONS') return 'info'
   return 'secondary'
 }
@@ -96,6 +96,7 @@ async function loadEventData() {
     eventRecord.value = null
     rsvpSummary.value = null
     allRsvps.value = []
+    isLoadingEvent.value = false
     return
   }
 
@@ -174,9 +175,9 @@ watch(eventId, () => {
     <ClientOnly>
       <Teleport to="#navbar-actions">
         <UButton
-          v-if="selectedTab === 'questions'"
+          v-if="selectedTab === 0 && questions.length > 0"
           icon="i-lucide-pencil"
-          color="emerald"
+          color="teal"
           :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
           @click="isQuestionsModalOpen = true"
         >
@@ -202,13 +203,13 @@ watch(eventId, () => {
         description="RSVP questions cannot be edited for a cancelled event."
       />
 
-      <UPageCard class="bg-emerald-50 dark:bg-emerald-900/20 ring ring-inset ring-emerald-500/25">
+      <UPageCard class="bg-teal-50 dark:bg-teal-900/20 ring ring-inset ring-teal-500/25">
         <div class="grid gap-6 sm:grid-cols-2 sm:items-center">
           <div class="space-y-1">
-            <p class="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
+            <p class="text-sm font-medium text-teal-600/70 dark:text-teal-400/70">
               RSVPs Sent
             </p>
-            <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+            <p class="text-3xl font-bold text-teal-600 dark:text-teal-400">
               {{ rsvpSummary?.totalSent?.toLocaleString() ?? 0 }}
             </p>
           </div>
@@ -219,13 +220,8 @@ watch(eventId, () => {
           />
         </div>
       </UPageCard>
-
-      <UTabs
-        v-model="selectedTab"
-        :items="tabItems"
-        variant="link"
-      >
-        <template #questions>
+      <UTabs v-model="selectedTab" :items="tabItems" color="teal" :unmount="false" :ui="{ list: { background: 'bg-teal-100 dark:bg-teal-800' } }">
+        <template #questions="{ item }">
           <div class="mt-4 space-y-4">
             <div
               v-if="!questions.length"
@@ -239,7 +235,7 @@ watch(eventId, () => {
               <UButton
                 v-if="!isEventCancelled"
                 class="mt-6"
-                color="emerald"
+                color="teal"
                 icon="i-lucide-pencil"
                 @click="isQuestionsModalOpen = true"
               >
@@ -295,7 +291,7 @@ watch(eventId, () => {
           </div>
         </template>
 
-        <template #responses>
+        <template #responses="{ item }">
           <div class="mt-4">
             <EventRsvpResponsesList
               v-if="eventId || isUiOnlyMode"

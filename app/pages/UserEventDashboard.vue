@@ -487,20 +487,19 @@ function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
 }
 
 const dashboardItems: DashboardItem[] = [
-  { label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
-  { label: 'Invitation', icon: 'i-lucide-send', action: 'invitation', bgClass: 'bg-purple-500', hoverClass: 'group-hover:bg-purple-600', ringClass: 'group-focus-visible:ring-purple-500' },
-  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
-  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-rose-500', hoverClass: 'group-hover:bg-rose-600', ringClass: 'group-focus-visible:ring-rose-500' },
-  { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
-  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-indigo-500', hoverClass: 'group-hover:bg-indigo-600', ringClass: 'group-focus-visible:ring-indigo-500' },
+{ label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
+  { label: 'Invitation', icon: 'i-lucide-send', action: 'invitation', bgClass: 'bg-violet-500', hoverClass: 'group-hover:bg-violet-600', ringClass: 'group-focus-visible:ring-violet-500' },
+  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
+  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-red-500', hoverClass: 'group-hover:bg-red-600', ringClass: 'group-focus-visible:ring-red-500' },
+  { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
+  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
-  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
-  { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
-  { label: 'Church Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-amber-500', hoverClass: 'group-hover:bg-amber-600', ringClass: 'group-focus-visible:ring-amber-500' },
-  { label: 'Suppliers', icon: 'i-lucide-briefcase', action: 'suppliers', bgClass: 'bg-violet-500', hoverClass: 'group-hover:bg-violet-600', ringClass: 'group-focus-visible:ring-violet-500' },
+  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
+  { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-lime-500', hoverClass: 'group-hover:bg-lime-600', ringClass: 'group-focus-visible:ring-lime-500' },
+  { label: 'Church Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-yellow-500', hoverClass: 'group-hover:bg-yellow-600', ringClass: 'group-focus-visible:ring-yellow-500' },
+  { label: 'Suppliers', icon: 'i-lucide-briefcase', action: 'suppliers', bgClass: 'bg-fuchsia-500', hoverClass: 'group-hover:bg-fuchsia-600', ringClass: 'group-focus-visible:ring-fuchsia-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
 ]
-
 const visibleDashboardItems = computed(() =>
   dashboardItems.filter((item) => !item.weddingOnly || isWeddingEvent.value)
 )
@@ -521,7 +520,7 @@ const visibleDashboardItems = computed(() =>
             :key="item.label"
             role="button"
             tabindex="0"
-            class="group flex flex-col items-center justify-center aspect-square mx-auto w-fit h-fit p-4 cursor-pointer rounded-xl focus-visible:outline-none text-center"
+            class="group flex flex-col items-center justify-center mx-auto w-fit h-fit p-4 cursor-pointer rounded-xl focus-visible:outline-none text-center"
             :class="{
               'opacity-50 pointer-events-none':
                 (item.action === 'website' || item.action === 'invitation') && (isEventCancelled || (!eventId && !isUiOnlyMode)),
@@ -533,7 +532,7 @@ const visibleDashboardItems = computed(() =>
               class="p-2 aspect-square flex flex-col items-center justify-center rounded-full transition-all duration-200 group-active:scale-95 group-focus-visible:ring-2"
               :class="[item.bgClass, item.hoverClass, item.ringClass]"
             >
-              <UIcon :name="item.icon" class="size-9 m-2 text-white" />
+              <UIcon :name="item.icon" class="size-9 my-2 text-white" />
             </div>
             <div class="font-medium mt-3 text-center">{{ item.label }}</div>
           </div>

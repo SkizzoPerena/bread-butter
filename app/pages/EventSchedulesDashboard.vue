@@ -20,7 +20,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Schedules',
-  bgClass: 'bg-pink-50',
+  bgClass: 'bg-cyan-50',
 })
 
 const EMOJI_RE = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/u
@@ -255,7 +255,7 @@ watch(eventId, () => {
       <Teleport to="#navbar-actions">
         <UButton
           icon="i-lucide-plus"
-          color="pink"
+          color="cyan"
           :disabled="mutationsDisabled"
           @click="openAddModal"
         >
@@ -301,7 +301,7 @@ watch(eventId, () => {
         <UButton
           v-if="!mutationsDisabled"
           class="mt-6"
-          color="pink"
+          color="cyan"
           icon="i-lucide-plus"
           @click="openAddModal"
         >
@@ -313,7 +313,7 @@ watch(eventId, () => {
         <UPageCard
           v-for="subEvent in subEvents"
           :key="subEvent._id"
-          class="cursor-pointer bg-pink-50/50 transition-colors hover:bg-pink-50 dark:bg-pink-900/10 dark:hover:bg-pink-900/20 ring ring-inset ring-pink-500/20"
+          class="cursor-pointer bg-cyan-50/50 transition-colors hover:bg-cyan-50 dark:bg-cyan-900/10 dark:hover:bg-cyan-900/20 ring ring-inset ring-cyan-500/20"
           @click="navigateToSubEvent(subEvent)"
         >
           <div class="space-y-2">
@@ -322,7 +322,7 @@ watch(eventId, () => {
                 {{ subEvent.name }}
               </p>
               <div class="flex items-center gap-2">
-                <UBadge color="pink" variant="subtle">
+                <UBadge color="cyan" variant="subtle">
                   {{ formatSubEventDate(subEvent.eventDate) }}
                 </UBadge>
                 <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
@@ -413,7 +413,7 @@ watch(eventId, () => {
             </UButton>
             <UButton
               type="submit"
-              color="pink"
+              color="cyan"
               :loading="isSubmitting"
               :disabled="isSubmitting"
             >

@@ -9,7 +9,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Gifts',
-  bgClass: 'bg-indigo-50',
+  bgClass: 'bg-pink-50',
 })
 
 const df = new DateFormatter('en-US', { dateStyle: 'medium' })
@@ -149,7 +149,7 @@ onMounted(() => {
               <h1 class="text-xl font-bold text-highlighted md:text-2xl">
                 {{ eventTitle }}
               </h1>
-              <UBadge color="indigo" variant="subtle">
+              <UBadge color="pink" variant="subtle">
                 Gifts &amp; Registry
               </UBadge>
             </div>
@@ -184,7 +184,7 @@ onMounted(() => {
           </div>
           <UButton
             icon="i-lucide-plus"
-            color="indigo"
+            color="pink"
             :disabled="mutationsDisabled"
             @click="openCreateQrModal"
           >
@@ -269,7 +269,7 @@ onMounted(() => {
           </div>
           <UButton
             icon="i-lucide-plus"
-            color="indigo"
+            color="pink"
             :disabled="mutationsDisabled"
             @click="openCreateGiftModal"
           >
@@ -382,7 +382,7 @@ onMounted(() => {
               ref="qrImageInput"
               type="file"
               accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-              class="block w-full text-sm text-muted file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+              class="block w-full text-sm text-muted file:mr-4 file:rounded-md file:border-0 file:bg-pink-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-pink-700 hover:file:bg-pink-100"
               :disabled="isSubmitting || mutationsDisabled"
               @change="onQrImageChange"
             >
@@ -416,7 +416,7 @@ onMounted(() => {
             </UButton>
             <UButton
               type="submit"
-              color="indigo"
+              color="pink"
               :loading="isSubmitting"
               :disabled="isSubmitting || mutationsDisabled"
             >
@@ -465,7 +465,7 @@ onMounted(() => {
             </UButton>
             <UButton
               type="submit"
-              color="indigo"
+              color="pink"
               :loading="isSubmitting"
               :disabled="isSubmitting || mutationsDisabled"
             >

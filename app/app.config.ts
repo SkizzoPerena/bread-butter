@@ -13,7 +13,13 @@ export default defineAppConfig({
       indigo: 'indigo',
       slate: 'slate',
       rose: 'rose',
-      monochrome: 'monochrome'
+      monochrome: 'monochrome',
+      violet: 'violet',
+      red: 'red',
+      cyan: 'cyan',
+      lime: 'lime',
+      yellow: 'yellow',
+      fuchsia: 'fuchsia'
     }
   }
 })

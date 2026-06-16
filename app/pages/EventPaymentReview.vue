@@ -16,7 +16,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Payments',
-  bgClass: 'bg-teal-50',
+  bgClass: 'bg-emerald-50',
 })
 
 const toast = useToast()
@@ -230,7 +230,7 @@ async function handleSubmitPaymentProof() {
                 ref="proofOfPaymentInput"
                 type="file"
                 accept="image/*"
-                class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-teal-500 file:px-3 file:py-1.5 file:text-white"
+                class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-white"
                 @change="onProofOfPaymentChange"
               >
               <p v-if="proofOfPaymentFile" class="mt-1 text-xs text-muted">
@@ -244,7 +244,7 @@ async function handleSubmitPaymentProof() {
               class="mt-2"
               label="Submit payment proof"
               icon="i-lucide-upload"
-              color="teal"
+              color="emerald"
               :loading="isSubmittingPayment"
             />
           </UForm>
@@ -289,7 +289,7 @@ async function handleSubmitPaymentProof() {
                   :label="`Ref: ${payment.transactionId || 'N/A'}`"
                 />
               </div>
-              <UIcon name="i-lucide-receipt" class="size-5 bg-teal-500 opacity-50" />
+              <UIcon name="i-lucide-receipt" class="size-5 bg-emerald-500 opacity-50" />
             </div>
           </UPageCard>
         </div>

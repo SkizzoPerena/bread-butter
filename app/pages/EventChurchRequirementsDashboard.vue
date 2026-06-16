@@ -24,7 +24,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Church Requirements',
-  bgClass: 'bg-amber-50',
+  bgClass: 'bg-yellow-50',
 })
 
 const toast = useToast()
@@ -93,10 +93,10 @@ const statusSelectItems = computed(() =>
 )
 
 const churchRequirementModalUi = {
-  header: 'bg-orange-500 border-none',
+  header: 'bg-yellow-500 border-none',
   title: 'text-white font-serif text-xl',
   content: 'border-none ring-transparent w-full max-w-md',
-  overlay: 'bg-orange-900/30',
+  overlay: 'bg-yellow-900/30',
 }
 
 function draftKey(taskKey: string, party: ChurchRequirementParty) {
@@ -331,8 +331,10 @@ async function loadChurchRequirementsData() {
 
   try {
     const response = await fetchChurchRequirements(targetEventId)
-    churchRequirement.value = response.churchRequirement
-    syncDraftsFromRecord(response.churchRequirement)
+    if (response) {
+      churchRequirement.value = response.churchRequirement
+      syncDraftsFromRecord(response.churchRequirement)
+    }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load church requirements', error })
   }
@@ -358,7 +360,9 @@ async function savePartyRequirement(taskKey: string, party: ChurchRequirementPar
       dateRequested: fromDateInputValue(draft.dateRequested),
       dateAcquired: fromDateInputValue(draft.dateAcquired),
     })
-    applySavedRecord(response.churchRequirement)
+    if (response) {
+      applySavedRecord(response.churchRequirement)
+    }
     toast.add({
       title: 'Requirement updated',
       description: `${party === 'groom' ? 'Groom' : 'Bride'} tracking saved.`,
@@ -382,7 +386,9 @@ async function saveAllDirtyParties() {
     const response = await bulkUpdatePartyRequirements(eventId.value || 'mock-event-id', {
       updates,
     })
-    applySavedRecord(response.churchRequirement)
+    if (response) {
+      applySavedRecord(response.churchRequirement)
+    }
     isBulkSaveModalOpen.value = false
     toast.add({
       title: 'Requirements saved',
@@ -472,7 +478,7 @@ watch(eventId, async () => {
             class="space-y-4"
           >
             <div class="flex items-center gap-2">
-              <UBadge color="amber" variant="subtle">
+              <UBadge color="yellow" variant="subtle">
                 {{ timelineSection.timeline }}
               </UBadge>
             </div>
@@ -501,12 +507,12 @@ watch(eventId, async () => {
                 </a>
               </div>
 
-              <div class="grid gap-4 md:grid-cols-2">
+              <div v-if="partyDrafts[item.taskKey]" class="grid gap-4 md:grid-cols-2">
                 <div
                   v-for="party in (['groom', 'bride'] as ChurchRequirementParty[])"
                   :key="`${item.taskKey}-${party}`"
                   class="rounded-lg border border-gray-200 p-4 space-y-3"
-                  :class="{ 'border-amber-300 bg-amber-50/40': isPartyDraftDirty(item.taskKey, party) }"
+                  :class="{ 'border-yellow-300 bg-yellow-50/40': isPartyDraftDirty(item.taskKey, party) }"
                 >
                   <div class="font-medium capitalize">
                     {{ party }}
@@ -514,7 +520,7 @@ watch(eventId, async () => {
 
                   <UFormField :label="`Status`" :name="`${item.taskKey}-${party}-status`">
                     <USelect
-                      v-model="partyDrafts[item.taskKey][party].status"
+                      v-model="partyDrafts[item.taskKey]![party].status"
                       :items="statusSelectItems"
                       class="w-full"
                       :disabled="mutationsDisabled || isSubmitting"
@@ -526,7 +532,7 @@ watch(eventId, async () => {
                     :name="`${item.taskKey}-${party}-date-requested`"
                   >
                     <UInput
-                      v-model="partyDrafts[item.taskKey][party].dateRequested"
+                      v-model="partyDrafts[item.taskKey]![party].dateRequested"
                       type="date"
                       class="w-full"
                       :disabled="mutationsDisabled || isSubmitting"
@@ -538,7 +544,7 @@ watch(eventId, async () => {
                     :name="`${item.taskKey}-${party}-date-acquired`"
                   >
                     <UInput
-                      v-model="partyDrafts[item.taskKey][party].dateAcquired"
+                      v-model="partyDrafts[item.taskKey]![party].dateAcquired"
                       type="date"
                       class="w-full"
                       :disabled="mutationsDisabled || isSubmitting"
@@ -566,14 +572,14 @@ watch(eventId, async () => {
         class="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none"
       >
         <div
-          class="pointer-events-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-200 bg-white px-4 py-3 shadow-lg dark:border-orange-800 dark:bg-neutral-900"
+          class="pointer-events-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-200 bg-white px-4 py-3 shadow-lg dark:border-yellow-800 dark:bg-neutral-900"
         >
           <span class="text-sm font-medium text-highlighted">
             You have {{ changedFieldCount }} changed field{{ changedFieldCount === 1 ? '' : 's' }}.
           </span>
           <UButton
             icon="i-lucide-save"
-            color="orange"
+            color="yellow"
             :disabled="mutationsDisabled || isSubmitting"
             @click="isBulkSaveModalOpen = true"
           >
@@ -618,7 +624,7 @@ watch(eventId, async () => {
           />
           <UButton
             label="Save All"
-            color="orange"
+            color="yellow"
             :loading="isSubmitting"
             :disabled="mutationsDisabled || changedFieldCount === 0"
             @click="saveAllDirtyParties"

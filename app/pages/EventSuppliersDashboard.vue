@@ -24,7 +24,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Suppliers',
-  bgClass: 'bg-violet-50',
+  bgClass: 'bg-fuchsia-50',
 })
 
 const toast = useToast()
@@ -92,10 +92,10 @@ const supplierDrafts = ref<Record<string, SupplierDraft>>({})
 const savedSupplierDrafts = ref<Record<string, SupplierDraft>>({})
 
 const supplierModalUi = {
-  header: 'bg-orange-500 border-none',
+  header: 'bg-fuchsia-500 border-none',
   title: 'text-white font-serif text-xl',
   content: 'border-none ring-transparent w-full max-w-md',
-  overlay: 'bg-orange-900/30',
+  overlay: 'bg-fuchsia-900/30',
 }
 
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
@@ -198,22 +198,27 @@ function buildUpdatePayload(draft: SupplierDraft, saved: SupplierDraft): UpdateS
 async function loadEventData() {
   isLoadingEvent.value = true
   try {
-    const result = await loadPageData({
+    const detail = await loadPageData({
       fetch: () => fetchEvent(eventId.value),
       mock: () => ({
-        _id: eventId.value || 'mock-event-id',
-        eventType: 'WEDDING',
-        eventName: 'Sample Wedding',
-        description: 'UI-only preview',
-        venue: 'Sample Venue',
-        eventDate: new Date().toISOString(),
-        status: 'ONGOING',
+        event: {
+          _id: eventId.value || 'mock-event-id',
+          eventType: 'WEDDING',
+          eventName: 'Sample Wedding',
+          description: 'UI-only preview',
+          venue: 'Sample Venue',
+          eventDate: new Date().toISOString(),
+          status: 'ONGOING',
+        } satisfies EventRecord,
+        guestList: [],
+        rsvpSummary: null,
+        tasks: null,
       }),
     })
-    eventRecord.value = result as EventRecord
+    eventRecord.value = detail.event
     setActiveEvent(eventRecord.value)
   } catch (error) {
-    reportApiError(toast, error, 'Failed to load event')
+    reportApiError(toast, { title: 'Failed to load event', error })
   } finally {
     isLoadingEvent.value = false
   }
@@ -240,7 +245,7 @@ async function loadSuppliersData() {
       summary.value = summaryResponse.summary
     }
   } catch (error) {
-    reportApiError(toast, error, 'Failed to load suppliers')
+    reportApiError(toast, { title: 'Failed to load suppliers', error })
   }
 }
 
@@ -280,7 +285,7 @@ async function saveSupplier(supplierId: string) {
       await refreshAfterMutation()
     }
   } catch (error) {
-    reportApiError(toast, error, 'Failed to save supplier')
+    reportApiError(toast, { title: 'Failed to save supplier', error })
   } finally {
     savingSupplierId.value = null
   }
@@ -305,7 +310,7 @@ async function confirmDeleteSupplier() {
       await refreshAfterMutation()
     }
   } catch (error) {
-    reportApiError(toast, error, 'Failed to delete supplier')
+    reportApiError(toast, { title: 'Failed to delete supplier', error })
   } finally {
     deletingSupplierId.value = null
   }
@@ -355,7 +360,7 @@ async function handleCreateSupplier() {
       await refreshAfterMutation()
     }
   } catch (error) {
-    reportApiError(toast, error, 'Failed to add supplier')
+    reportApiError(toast, { title: 'Failed to add supplier', error })
   }
 }
 
@@ -386,7 +391,7 @@ watch(eventId, async () => {
       <Teleport to="#navbar-actions">
         <UButton
           icon="i-lucide-plus"
-          color="orange"
+          color="fuchsia"
           :disabled="mutationsDisabled || isSubmitting"
           @click="openAddSupplierModal"
         >
@@ -414,27 +419,27 @@ watch(eventId, async () => {
 
       <UPageGrid v-if="summary">
         <UPageCard
-          class="bg-orange-50 dark:bg-orange-900/20 ring ring-inset ring-orange-500/25"
+          class="bg-fuchsia-50 dark:bg-fuchsia-900/20 ring ring-inset ring-fuchsia-500/25"
           description="Total budget"
-          :ui="{ title: 'text-orange-600 dark:text-orange-400', description: 'text-orange-600/70 dark:text-orange-400/70' }"
+          :ui="{ title: 'text-fuchsia-600 dark:text-fuchsia-400', description: 'text-fuchsia-600/70 dark:text-fuchsia-400/70' }"
         >
           <template #title>
             <div class="text-2xl font-bold">{{ formatCurrency(summary.totalBudget) }}</div>
           </template>
         </UPageCard>
         <UPageCard
-          class="bg-orange-50 dark:bg-orange-900/20 ring ring-inset ring-orange-500/25"
+          class="bg-fuchsia-50 dark:bg-fuchsia-900/20 ring ring-inset ring-fuchsia-500/25"
           description="Paid"
-          :ui="{ title: 'text-orange-600 dark:text-orange-400', description: 'text-orange-600/70 dark:text-orange-400/70' }"
+          :ui="{ title: 'text-fuchsia-600 dark:text-fuchsia-400', description: 'text-fuchsia-600/70 dark:text-fuchsia-400/70' }"
         >
           <template #title>
             <div class="text-2xl font-bold">{{ formatCurrency(summary.totalPaid) }}</div>
           </template>
         </UPageCard>
         <UPageCard
-          class="bg-orange-50 dark:bg-orange-900/20 ring ring-inset ring-orange-500/25"
+          class="bg-fuchsia-50 dark:bg-fuchsia-900/20 ring ring-inset ring-fuchsia-500/25"
           description="Remaining"
-          :ui="{ title: 'text-orange-600 dark:text-orange-400', description: 'text-orange-600/70 dark:text-orange-400/70' }"
+          :ui="{ title: 'text-fuchsia-600 dark:text-fuchsia-400', description: 'text-fuchsia-600/70 dark:text-fuchsia-400/70' }"
         >
           <template #title>
             <div class="text-2xl font-bold">{{ formatCurrency(summary.totalRemaining) }}</div>
@@ -455,7 +460,7 @@ watch(eventId, async () => {
           v-if="!mutationsDisabled"
           class="mt-6"
           icon="i-lucide-plus"
-          color="orange"
+          color="fuchsia"
           :disabled="isSubmitting"
           @click="openAddSupplierModal"
         >
@@ -569,7 +574,7 @@ watch(eventId, async () => {
               <div class="flex justify-end">
                 <UButton
                   icon="i-lucide-save"
-                  color="orange"
+                  color="fuchsia"
                   :loading="isSavingSupplier(supplier._id)"
                   :disabled="mutationsDisabled || isSubmitting || !isSupplierDraftDirty(supplier._id)"
                   @click="saveSupplier(supplier._id)"
@@ -692,7 +697,7 @@ watch(eventId, async () => {
           />
           <UButton
             label="Add supplier"
-            color="orange"
+            color="fuchsia"
             :loading="isSubmitting"
             :disabled="mutationsDisabled"
             @click="handleCreateSupplier"

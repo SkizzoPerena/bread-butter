@@ -8,7 +8,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Playlist',
-  bgClass: 'bg-teal-50',
+  bgClass: 'bg-lime-50',
 })
 
 const toast = useToast()
@@ -180,7 +180,7 @@ watch(eventId, () => {
               <UButton
                 type="submit"
                 icon="i-lucide-save"
-                color="slate"
+                color="lime"
                 :loading="isSubmitting"
                 :disabled="mutationsDisabled"
               >
