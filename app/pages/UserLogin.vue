@@ -37,15 +37,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   isSubmitting.value = true
   try {
-    const result = await login({
+    await login({
       email: payload.data.email.trim(),
       password: payload.data.password,
       remember: payload.data.remember
     })
-
-    if (!result) {
-      return
-    }
 
     toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
     await navigateTo('/UserDashboard')
