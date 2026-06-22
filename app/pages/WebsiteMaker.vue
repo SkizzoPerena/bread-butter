@@ -675,8 +675,8 @@ async function handleSaveWebsite() {
                                         @click="websiteData.colorPalette = palette.name">
 
                                         <div class="h-20 flex">
-                                            <div v-for="(color, key) in palette.colors" :key="key" class="w-full h-full"
-                                                :style="{ backgroundColor: color }"></div>
+                                            <div class="w-full h-full" :style="{ backgroundColor: palette.colors.primary }"></div>
+                                            <div class="w-full h-full" :style="{ backgroundColor: palette.colors.heading }"></div>
                                         </div>
 
                                         <div
