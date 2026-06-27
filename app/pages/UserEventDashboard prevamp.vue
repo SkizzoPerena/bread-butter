@@ -76,13 +76,14 @@ const prefix = ref(['Mr.', 'Mrs.', 'Ms.', 'Mx.'])
 const taskPriorities = ['Urgent', 'Medium', 'Low']
 
 
-import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
+import { DateFormatter, getLocalTimeZone } from '@internationalized/date'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
 })
 
-const modelValue = shallowRef(new CalendarDate(2015, 7, 23))
+const editEventDate = ref()
+const newTaskDate = ref()
 
 const tabItems = [
   {
@@ -127,12 +128,12 @@ const tabItems = [
                 <UFieldGroup class="w-full space-x-3">
                   <UFormField label="Event Date" name="date" required class="w-1/2">
                     <UPopover>
-                      <UButton color="neutral" variant="outline" class="w-full">
-                        Select a date
+                      <UButton color="neutral" variant="outline" class="w-full" icon="i-heroicons-calendar-days-20-solid">
+                        {{ editEventDate ? df.format(editEventDate) : 'Select a date' }}
                       </UButton>
 
                       <template #content="{ close }">
-                        <UCalendar class="p-2" @update:model-value="close" />
+                        <UCalendar v-model="editEventDate" @update:model-value="close" />
                       </template>
                     </UPopover>
                   </UFormField>
@@ -259,7 +260,7 @@ const tabItems = [
     <!-- Tasks Container -->
     <UPageCard class="white-bread-container space-y-4">
       <div class="flex justify-between">
-        <div class="text-xl font-semibold text-muted">Tasks Checklist</div>
+        <div class="text-xl text-pretty font-semibold text-muted uppercase">Tasks Checklist</div>
 
         <!-- Add Task Modal Start -->
 
@@ -289,12 +290,12 @@ const tabItems = [
                 </UFormField>
                 <UFormField label="Event Date" name="date" required class="w-1/3">
                   <UPopover>
-                    <UButton color="neutral" variant="outline" class="w-full">
-                      {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
+                    <UButton color="neutral" variant="outline" class="w-full" icon="i-heroicons-calendar-days-20-solid">
+                      {{ newTaskDate ? df.format(newTaskDate) : 'Select a date' }}
                     </UButton>
 
                     <template #content="{ close }">
-                      <UCalendar v-model="modelValue" class="p-2" @update:model-value="close" />
+                      <UCalendar v-model="newTaskDate" class="p-2" @update:model-value="close" />
                     </template>
                   </UPopover>
                 </UFormField>

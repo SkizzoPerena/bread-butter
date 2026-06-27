@@ -62,7 +62,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 <template>
   <div class="flex items-center justify-center p-4 login-bg h-screen">
-    <div class="flex justify-center items-center bg-toast-500/70 bread-container  w-2/3 ">
+    <div class="flex justify-center items-center bg-toast-500/70 bread-container  w-2/3 h-2/3 ">
       <UPageCard class=" bg-transparent w-full text-center flex flex-col justify-center mx-15" variant="ghost">
         <img src="../assets/bpb-icons/logo-white.svg" class="w-50 mx-auto">
         <div class="text-3xl font-serif text-white mt-5">Today is the day!</div>
@@ -82,7 +82,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       </UPageCard>
 
       <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
-        <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+        <div class="my-auto"><UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
           <div class="text-left text-sm">
             <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
             Sign in to continue planning your perfect day
@@ -108,7 +108,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <p class="text-sm text-center">
             New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
           </p>
-        </UForm>
+        </UForm></div>
       </UPageCard>
     </div>
   </div>
