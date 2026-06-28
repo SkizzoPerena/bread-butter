@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { EventRecord } from '~/types/event'
+import type { CreatePlaylistPayload, PlaylistRecord } from '~/types/playlist'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 
@@ -16,7 +17,14 @@ const route = useRoute()
 const { fetchEvent } = useEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
-const { isSubmitting, updateEventPlaylist } = useEventPlaylist()
+const {
+  isLoading: isLoadingPlaylists,
+  isSubmitting,
+  fetchPlaylists,
+  createPlaylist,
+  updatePlaylist,
+  deletePlaylist,
+} = useEventPlaylists()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -24,24 +32,48 @@ const eventId = computed(() => {
 })
 
 const eventRecord = ref<EventRecord | null>(null)
+const playlists = ref<PlaylistRecord[]>([])
 const isLoadingEvent = ref(false)
-const playlistInput = ref('')
+const deletingPlaylistId = ref<string | null>(null)
+const playlistToDelete = ref<PlaylistRecord | null>(null)
+const isDeleteModalOpen = ref(false)
+const isAddModalOpen = ref(false)
+const isEditModalOpen = ref(false)
+const editingPlaylist = ref<PlaylistRecord | null>(null)
+
+type PlaylistForm = {
+  label: string
+  spotifyURL: string
+}
+
+function createEmptyForm(): PlaylistForm {
+  return {
+    label: '',
+    spotifyURL: '',
+  }
+}
+
+const newPlaylistForm = ref<PlaylistForm>(createEmptyForm())
+const editPlaylistForm = ref<PlaylistForm>(createEmptyForm())
+
+const playlistModalUi = {
+  header: 'bg-lime-500 border-none',
+  title: 'text-white font-serif text-xl',
+  content: 'border-none ring-transparent w-full max-w-md',
+  overlay: 'bg-lime-900/30',
+}
 
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
 const mutationsDisabled = computed(
-  () => isEventCancelled.value || (!eventId.value && !isUiOnlyMode.value)
+  () => isEventCancelled.value || (!eventId.value && !isUiOnlyMode.value),
 )
 
-const hasSavedPlaylist = computed(() => Boolean(eventRecord.value?.playlist?.trim()))
-
-function syncInputFromEvent() {
-  playlistInput.value = eventRecord.value?.playlist?.trim() ?? ''
-}
+const isPageLoading = computed(() => isLoadingEvent.value || isLoadingPlaylists.value)
+const isPlaylistListEmpty = computed(() => playlists.value.length === 0)
 
 async function loadEventData() {
   if (!eventId.value && !isUiOnlyMode.value) {
     eventRecord.value = null
-    playlistInput.value = ''
     return
   }
 
@@ -61,7 +93,6 @@ async function loadEventData() {
           eventDate: '2026-05-18T00:00:00.000Z',
           status: 'ONGOING',
           coverImageURL: null,
-          playlist: '',
         } satisfies EventRecord,
         guestList: [],
         rsvpSummary: null,
@@ -70,7 +101,6 @@ async function loadEventData() {
     })
     eventRecord.value = detail.event
     setActiveEvent(detail.event)
-    syncInputFromEvent()
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -78,43 +108,157 @@ async function loadEventData() {
   }
 }
 
-async function savePlaylist() {
-  if (!eventRecord.value || mutationsDisabled.value) {
+async function loadPlaylistsData() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    playlists.value = []
     return
   }
 
   const targetEventId = eventId.value || 'mock-event-id'
 
   try {
-    const response = await updateEventPlaylist(targetEventId, playlistInput.value.trim())
-    if (response?.event) {
-      eventRecord.value = response.event
-      setActiveEvent(response.event)
-    } else {
-      eventRecord.value = {
-        ...eventRecord.value,
-        playlist: playlistInput.value.trim(),
-      }
-      setActiveEvent(eventRecord.value)
+    const response = await fetchPlaylists(targetEventId)
+    if (response?.playlists) {
+      playlists.value = response.playlists
     }
-    syncInputFromEvent()
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not load playlists', error })
+  }
+}
+
+async function refreshAfterMutation() {
+  await loadPlaylistsData()
+}
+
+function validateForm(form: PlaylistForm): string | null {
+  const label = form.label.trim()
+  const spotifyURL = form.spotifyURL.trim()
+
+  if (!label) {
+    return 'Enter a label for this playlist (e.g. Ceremony, Reception).'
+  }
+  if (!spotifyURL) {
+    return 'Paste a public Spotify playlist URL.'
+  }
+  return null
+}
+
+function openAddModal() {
+  newPlaylistForm.value = createEmptyForm()
+  isAddModalOpen.value = true
+}
+
+function openEditModal(playlist: PlaylistRecord) {
+  editingPlaylist.value = playlist
+  editPlaylistForm.value = {
+    label: playlist.label,
+    spotifyURL: playlist.spotifyURL,
+  }
+  isEditModalOpen.value = true
+}
+
+function openDeleteModal(playlist: PlaylistRecord) {
+  playlistToDelete.value = playlist
+  isDeleteModalOpen.value = true
+}
+
+async function handleCreatePlaylist() {
+  const validationError = validateForm(newPlaylistForm.value)
+  if (validationError) {
     toast.add({
-      title: 'Playlist saved',
-      description: playlistInput.value.trim()
-        ? 'Your Spotify playlist has been linked.'
-        : 'Playlist removed.',
+      title: 'Missing information',
+      description: validationError,
+      color: 'error',
     })
+    return
+  }
+
+  const targetEventId = eventId.value || 'mock-event-id'
+  const payload: CreatePlaylistPayload = {
+    label: newPlaylistForm.value.label.trim(),
+    spotifyURL: newPlaylistForm.value.spotifyURL.trim(),
+  }
+
+  try {
+    const response = await createPlaylist(targetEventId, payload)
+    if (response?.success) {
+      toast.add({
+        title: 'Playlist added',
+        description: `"${payload.label}" has been linked.`,
+        color: 'success',
+      })
+      isAddModalOpen.value = false
+      await refreshAfterMutation()
+    }
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not add playlist', error })
+  }
+}
+
+async function handleUpdatePlaylist() {
+  const playlist = editingPlaylist.value
+  if (!playlist) {
+    return
+  }
+
+  const validationError = validateForm(editPlaylistForm.value)
+  if (validationError) {
+    toast.add({
+      title: 'Missing information',
+      description: validationError,
+      color: 'error',
+    })
+    return
+  }
+
+  const payload: CreatePlaylistPayload = {
+    label: editPlaylistForm.value.label.trim(),
+    spotifyURL: editPlaylistForm.value.spotifyURL.trim(),
+  }
+
+  try {
+    const response = await updatePlaylist(playlist._id, payload)
+    if (response?.success) {
+      toast.add({
+        title: 'Playlist updated',
+        description: `"${payload.label}" has been saved.`,
+        color: 'success',
+      })
+      isEditModalOpen.value = false
+      editingPlaylist.value = null
+      await refreshAfterMutation()
+    }
   } catch (error) {
     reportApiError(toast, { title: 'Could not update playlist', error })
   }
 }
 
-async function clearPlaylist() {
-  playlistInput.value = ''
-  await savePlaylist()
+async function confirmDeletePlaylist() {
+  const playlist = playlistToDelete.value
+  if (!playlist) {
+    return
+  }
+
+  deletingPlaylistId.value = playlist._id
+  try {
+    const response = await deletePlaylist(playlist._id)
+    if (response?.success) {
+      toast.add({
+        title: 'Playlist removed',
+        color: 'success',
+      })
+      isDeleteModalOpen.value = false
+      playlistToDelete.value = null
+      await refreshAfterMutation()
+    }
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not delete playlist', error })
+  } finally {
+    deletingPlaylistId.value = null
+  }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!eventId.value && !isUiOnlyMode.value) {
     toast.add({
       title: 'Missing event',
@@ -124,25 +268,50 @@ onMounted(() => {
     navigateTo('/UserDashboard')
     return
   }
-  loadEventData()
+
+  await loadEventData()
+  await loadPlaylistsData()
 })
 
-watch(eventId, () => {
-  loadEventData()
+watch(eventId, async () => {
+  await loadEventData()
+  await loadPlaylistsData()
 })
 </script>
 
 <template>
   <UContainer class="space-y-6 py-8 pb-12">
+    <ClientOnly>
+      <Teleport to="#navbar-actions">
+        <UButton
+          icon="i-lucide-plus"
+          color="lime"
+          :disabled="mutationsDisabled || isSubmitting"
+          @click="openAddModal"
+        >
+          Add playlist
+        </UButton>
+      </Teleport>
+    </ClientOnly>
+
     <div
-      v-if="isLoadingEvent"
+      v-if="isPageLoading"
       class="flex items-center justify-center py-16 text-muted"
     >
       <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
-      <span class="ml-2 text-sm">Loading event...</span>
+      <span class="ml-2 text-sm">Loading playlists...</span>
     </div>
 
     <div v-else class="space-y-6">
+      <div>
+        <h2 class="text-xl font-semibold font-serif text-muted">
+          Event playlists
+        </h2>
+        <p class="mt-1 text-sm text-muted">
+          Add multiple Spotify playlists for different moments — ceremony, cocktail hour, reception, and more. Each playlist includes playback controls and a scrollable track list.
+        </p>
+      </div>
+
       <UAlert
         v-if="isEventCancelled"
         color="warning"
@@ -151,78 +320,207 @@ watch(eventId, () => {
         description="This event is cancelled. Playlist changes are disabled."
       />
 
-      <UPageGrid class="md:grid-cols-2 items-start gap-6">
-        <UPageCard class="white-bread-container space-y-4">
-          <div>
-            <h2 class="text-xl font-semibold font-serif text-muted">
-              Spotify playlist
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              Paste a public Spotify playlist link. Guests will be able to listen from your event page when this is shared.
-            </p>
-          </div>
+      <div
+        v-if="isPlaylistListEmpty"
+        class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+      >
+        <UIcon name="i-lucide-music" class="size-10 text-muted" />
+        <p class="mt-4 text-base font-medium">No playlists yet</p>
+        <p class="mt-1 max-w-sm text-sm text-muted">
+          Link public Spotify playlists so you can preview and manage music for each part of your event.
+        </p>
+        <UButton
+          v-if="!mutationsDisabled"
+          class="mt-6"
+          icon="i-lucide-plus"
+          color="lime"
+          :disabled="isSubmitting"
+          @click="openAddModal"
+        >
+          Add playlist
+        </UButton>
+      </div>
 
-          <UForm class="space-y-4" @submit.prevent="savePlaylist">
-            <UFormField
-              label="Playlist URL"
-              name="playlist"
-              hint="Example: https://open.spotify.com/playlist/..."
-            >
-              <UInput
-                v-model="playlistInput"
-                class="w-full"
-                placeholder="https://open.spotify.com/playlist/..."
-                :disabled="mutationsDisabled || isSubmitting"
-              />
-            </UFormField>
+      <div v-else class="space-y-6">
+        <UPageCard
+          v-for="playlist in playlists"
+          :key="playlist._id"
+          class="white-bread-container space-y-4"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-semibold font-serif text-muted">
+                {{ playlist.label }}
+              </h3>
+              <p class="mt-1 text-xs text-muted break-all">
+                {{ playlist.spotifyURL }}
+              </p>
+            </div>
 
             <div class="flex flex-wrap gap-2">
               <UButton
-                type="submit"
-                icon="i-lucide-save"
+                icon="i-lucide-pencil"
                 color="lime"
-                :loading="isSubmitting"
-                :disabled="mutationsDisabled"
+                variant="outline"
+                size="sm"
+                :disabled="mutationsDisabled || isSubmitting"
+                @click="openEditModal(playlist)"
               >
-                Save playlist
+                Edit
               </UButton>
               <UButton
-                variant="outline"
-                color="neutral"
                 icon="i-lucide-trash-2"
-                :loading="isSubmitting"
-                :disabled="mutationsDisabled || !hasSavedPlaylist"
-                @click="clearPlaylist"
+                color="error"
+                variant="outline"
+                size="sm"
+                :loading="deletingPlaylistId === playlist._id"
+                :disabled="mutationsDisabled || isSubmitting"
+                @click="openDeleteModal(playlist)"
               >
-                Clear
+                Remove
               </UButton>
             </div>
-          </UForm>
-        </UPageCard>
-
-        <UPageCard class="white-bread-container space-y-4">
-          <div>
-            <h2 class="text-xl font-semibold font-serif text-muted">
-              Preview
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              Saved playlists appear here with Spotify playback controls.
-            </p>
           </div>
 
-          <SpotifyPlaylistEmbed
-            v-if="hasSavedPlaylist && eventRecord?.playlist"
-            :playlist-url="eventRecord.playlist"
-          />
-          <div
-            v-else
-            class="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-muted/20 px-6 py-16 text-center text-sm text-muted"
-          >
-            <UIcon name="i-lucide-music" class="mb-3 size-10 opacity-50" />
-            <p>No playlist linked yet.</p>
-          </div>
+          <SpotifyPlaylistEmbed :playlist-url="playlist.spotifyURL" />
         </UPageCard>
-      </UPageGrid>
+      </div>
     </div>
+
+    <UModal
+      v-model:open="isDeleteModalOpen"
+      title="Remove playlist"
+      :ui="playlistModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }"
+      :dismissible="!isSubmitting"
+    >
+      <template #body>
+        <p class="text-sm text-muted">
+          Remove
+          <span class="font-medium text-highlighted">{{ playlistToDelete?.label }}</span>
+          from your event? This cannot be undone.
+        </p>
+        <div class="mt-4 flex justify-end gap-2">
+          <UButton
+            label="Cancel"
+            color="neutral"
+            variant="outline"
+            :disabled="isSubmitting"
+            @click="isDeleteModalOpen = false"
+          />
+          <UButton
+            label="Remove"
+            color="error"
+            :loading="Boolean(deletingPlaylistId)"
+            :disabled="mutationsDisabled"
+            @click="confirmDeletePlaylist"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isAddModalOpen"
+      title="Add playlist"
+      :ui="playlistModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }"
+      :dismissible="!isSubmitting"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <UFormField label="Label" name="new-playlist-label" required>
+            <UInput
+              v-model="newPlaylistForm.label"
+              class="w-full"
+              placeholder="e.g. Ceremony, Reception"
+              :disabled="mutationsDisabled || isSubmitting"
+            />
+          </UFormField>
+
+          <UFormField
+            label="Spotify playlist URL"
+            name="new-playlist-url"
+            required
+            hint="Example: https://open.spotify.com/playlist/..."
+          >
+            <UInput
+              v-model="newPlaylistForm.spotifyURL"
+              class="w-full"
+              placeholder="https://open.spotify.com/playlist/..."
+              :disabled="mutationsDisabled || isSubmitting"
+            />
+          </UFormField>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-2">
+          <UButton
+            label="Cancel"
+            color="neutral"
+            variant="outline"
+            :disabled="isSubmitting"
+            @click="isAddModalOpen = false"
+          />
+          <UButton
+            label="Add playlist"
+            color="lime"
+            :loading="isSubmitting"
+            :disabled="mutationsDisabled"
+            @click="handleCreatePlaylist"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isEditModalOpen"
+      title="Edit playlist"
+      :ui="playlistModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }"
+      :dismissible="!isSubmitting"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <UFormField label="Label" name="edit-playlist-label" required>
+            <UInput
+              v-model="editPlaylistForm.label"
+              class="w-full"
+              placeholder="e.g. Ceremony, Reception"
+              :disabled="mutationsDisabled || isSubmitting"
+            />
+          </UFormField>
+
+          <UFormField
+            label="Spotify playlist URL"
+            name="edit-playlist-url"
+            required
+            hint="Example: https://open.spotify.com/playlist/..."
+          >
+            <UInput
+              v-model="editPlaylistForm.spotifyURL"
+              class="w-full"
+              placeholder="https://open.spotify.com/playlist/..."
+              :disabled="mutationsDisabled || isSubmitting"
+            />
+          </UFormField>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-2">
+          <UButton
+            label="Cancel"
+            color="neutral"
+            variant="outline"
+            :disabled="isSubmitting"
+            @click="isEditModalOpen = false"
+          />
+          <UButton
+            label="Save changes"
+            color="lime"
+            :loading="isSubmitting"
+            :disabled="mutationsDisabled"
+            @click="handleUpdatePlaylist"
+          />
+        </div>
+      </template>
+    </UModal>
   </UContainer>
 </template>

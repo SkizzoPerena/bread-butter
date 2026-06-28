@@ -22,5 +22,5 @@ export function getSpotifyEmbedUrl(playlistUrl: string): string | null {
     return null
   }
 
-  return `https://open.spotify.com/embed/playlist/${match[1]}`
+  return `https://open.spotify.com/embed/playlist/${match[1]}?utm_source=generator`
 }
