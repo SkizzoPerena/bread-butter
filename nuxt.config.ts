@@ -21,7 +21,8 @@ export default defineNuxtConfig({
 
   modules: [['@nuxt/eslint', {
     stylistic: false
-  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image'],
+  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image' ,   'motion-v/nuxt'
+],
 
   devtools: {
     enabled: true

@@ -1,6 +1,5 @@
 ﻿<script lang="ts" setup>
-import { DateFormatter, CalendarDate, getLocalTimeZone } from '@internationalized/date'
-import type { EventRecord, TasksSummary } from '~/types/event'
+import { DateFormatter } from '@internationalized/date'
 import { isWeddingEventType } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
@@ -9,6 +8,7 @@ import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import type { TaskStatus } from '~/types/task'
 import { getAssigneeLabel } from '~/utils/taskAssignee'
+import type { EventRecord, TasksSummary } from '~/types/event'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -183,7 +183,7 @@ async function changeTaskStatus(
 }
 
 const taskPriorities = ['Urgent', 'Medium', 'Low']
-const modelValue = shallowRef(new CalendarDate(2025, 5, 18))
+const modelValue = ref()
 
 function onCoverImageError(event: Event) {
   const img = event.target as HTMLImageElement
@@ -571,7 +571,7 @@ const visibleDashboardItems = computed(() =>
                       <UFormField label="Event Date" name="date" required class="w-1/2">
                         <UPopover>
                           <UButton color="neutral" variant="outline" class="w-full">
-                            {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
+                            {{ modelValue ? df.format(modelValue) : 'Select a date' }}
                           </UButton>
 
                           <template #content="{ close }">
@@ -702,3 +702,4 @@ const visibleDashboardItems = computed(() =>
 </template>
 
 <style></style>
+I want a balanced color palette across all dashboard items, can you check on all dashboard items and check if there are any colors that are very close to each other? give 
