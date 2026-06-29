@@ -4,6 +4,7 @@ import type { InvitationRecord } from '~/types/invitation'
 export interface RsvpAnswer {
   question: string
   answer: string | boolean | number | null
+  notes: string
 }
 
 export interface RsvpRecord {

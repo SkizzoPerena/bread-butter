@@ -4,6 +4,7 @@ import type { RsvpRecord, RsvpStatusFilter } from '~/types/rsvp'
 import { reportApiError } from '~/types/auth'
 import {
   formatRsvpAnswerValue,
+  formatRsvpAnswerNotes,
   formatRsvpDate,
   isRetiredQuestion,
   mapRsvpStatusToBadgeColor,
@@ -204,6 +205,12 @@ defineExpose({ reload: loadRsvps })
             </div>
             <p class="mt-2 text-sm text-muted">
               {{ formatRsvpAnswerValue(answer.answer) }}
+            </p>
+            <p
+              v-if="formatRsvpAnswerNotes(answer.notes)"
+              class="mt-2 text-sm text-muted italic"
+            >
+              Notes: {{ formatRsvpAnswerNotes(answer.notes) }}
             </p>
           </div>
         </div>

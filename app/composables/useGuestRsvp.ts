@@ -43,11 +43,16 @@ const MOCK_FORM: GuestRsvpFormResponse = {
   },
   subEvent: null,
   questions: [
-    { question: 'Will you attend the ceremony?', type: 'YES/NO' },
+    {
+      question: 'Will you attend the ceremony?',
+      type: 'YES/NO',
+      notes: 'Let us know if you need any accommodations.',
+    },
     {
       question: 'Meal preference?',
       type: 'OPTIONS',
       options: ['Chicken', 'Fish', 'Vegetarian'],
+      notes: 'Add any allergy details (optional).',
     },
     { question: 'Any dietary restrictions?', type: 'TEXT' },
   ],
@@ -63,9 +68,13 @@ const MOCK_RESPONDED_FORM: GuestRsvpFormResponse = {
     status: 'GOING',
     respondedAt: '2026-04-01T10:00:00.000Z',
     answers: [
-      { question: 'Will you attend the ceremony?', answer: true },
-      { question: 'Meal preference?', answer: 'Chicken' },
-      { question: 'Any dietary restrictions?', answer: 'None' },
+      { question: 'Will you attend the ceremony?', answer: true, notes: '' },
+      {
+        question: 'Meal preference?',
+        answer: 'Chicken',
+        notes: 'No shellfish, please.',
+      },
+      { question: 'Any dietary restrictions?', answer: 'None', notes: '' },
     ],
     subEventId: null,
   },

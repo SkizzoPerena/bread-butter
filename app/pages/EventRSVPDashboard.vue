@@ -10,6 +10,7 @@ import {
   countQuestionAnswers,
   isChartableQuestionType,
   formatRsvpAnswerValue,
+  formatRsvpAnswerNotes,
   formatRsvpDate,
   isRetiredQuestion,
   mapRsvpStatusToBadgeColor,
@@ -515,6 +516,12 @@ watch(eventId, () => {
                       <div class="mt-2 text-sm text-muted">
                         {{ formatRsvpAnswerValue(answer.answer) }}
                       </div>
+                      <p
+                        v-if="formatRsvpAnswerNotes(answer.notes)"
+                        class="mt-2 text-sm text-muted italic"
+                      >
+                        Notes: {{ formatRsvpAnswerNotes(answer.notes) }}
+                      </p>
                     </div>
                   </div>
 

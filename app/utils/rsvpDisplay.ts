@@ -45,6 +45,17 @@ export function formatRsvpAnswerValue(
   return String(answer)
 }
 
+export function hasRsvpAnswerNotes(notes?: string | null): boolean {
+  return typeof notes === 'string' && notes.trim().length > 0
+}
+
+export function formatRsvpAnswerNotes(notes?: string | null): string | null {
+  if (!hasRsvpAnswerNotes(notes)) {
+    return null
+  }
+  return notes!.trim()
+}
+
 export function isRetiredQuestion(
   questionText: string,
   currentQuestions: EventQuestion[]

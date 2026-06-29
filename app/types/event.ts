@@ -5,6 +5,7 @@ export interface EventQuestion {
   question: string
   type: string
   options?: string[]
+  notes?: string
 }
 
 export interface EventRecord {

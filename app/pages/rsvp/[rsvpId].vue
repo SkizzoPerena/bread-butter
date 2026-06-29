@@ -3,12 +3,13 @@ import type { GuestRsvpFormResponse } from '~/types/rsvp'
 import { GuestRsvpError, isValidRsvpObjectId } from '~/types/rsvp'
 import { reportApiError } from '~/types/auth'
 import {
-  guestAnswerMapFromRsvp,
   validateGuestRsvpSubmission,
   type GuestAnswerMap,
+  type GuestNotesMap,
 } from '~/utils/guestRsvpValidation'
 import {
   formatRsvpAnswerValue,
+  formatRsvpAnswerNotes,
   mapRsvpStatusToLabel,
 } from '~/utils/rsvpDisplay'
 
@@ -36,6 +37,7 @@ const pageState = ref<PageState>('loading')
 const formData = ref<GuestRsvpFormResponse | null>(null)
 const attendanceStatus = ref<'GOING' | 'NOT_GOING' | null>(null)
 const answerMap = ref<GuestAnswerMap>({})
+const notesMap = ref<GuestNotesMap>({})
 const formError = ref('')
 const isSubmitting = ref(false)
 
@@ -60,6 +62,7 @@ async function loadForm() {
 
     attendanceStatus.value = null
     answerMap.value = {}
+    notesMap.value = {}
     pageState.value = 'form'
   } catch (error) {
     if (error instanceof GuestRsvpError && error.notFound) {
@@ -80,7 +83,8 @@ async function handleSubmit() {
   const validation = validateGuestRsvpSubmission(
     formData.value.questions,
     attendanceStatus.value,
-    answerMap.value
+    answerMap.value,
+    notesMap.value
   )
 
   if (validation.error || !validation.payload) {
@@ -181,6 +185,12 @@ watch(rsvpId, () => {
             <p class="mt-1 text-sm text-muted">
               {{ formatRsvpAnswerValue(entry.answer) }}
             </p>
+            <p
+              v-if="formatRsvpAnswerNotes(entry.notes)"
+              class="mt-2 text-sm text-muted italic"
+            >
+              Notes: {{ formatRsvpAnswerNotes(entry.notes) }}
+            </p>
           </div>
         </UPageCard>
       </div>
@@ -198,6 +208,7 @@ watch(rsvpId, () => {
         <GuestRsvpQuestionForm
           v-model:attendance-status="attendanceStatus"
           v-model:answer-map="answerMap"
+          v-model:notes-map="notesMap"
           :questions="formData.questions"
         />
 

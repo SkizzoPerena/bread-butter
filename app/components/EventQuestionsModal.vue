@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import type { EventQuestion } from '~/types/event'
 import { reportApiError } from '~/types/auth'
+import { validateOrganizerQuestionNotes } from '~/utils/guestRsvpValidation'
 
 type DraftQuestion = {
   id: number
   question: string
   type: string
   options: string[]
+  notes: string
 }
 
 const QUESTION_TYPES = [
@@ -35,7 +37,7 @@ const isSubmitting = ref(false)
 const questions = ref<DraftQuestion[]>([])
 
 function makeBlankQuestion(): DraftQuestion {
-  return { id: Date.now() + Math.random(), question: '', type: '', options: ['', ''] }
+  return { id: Date.now() + Math.random(), question: '', type: '', options: ['', ''], notes: '' }
 }
 
 function seedFromProps() {
@@ -45,6 +47,7 @@ function seedFromProps() {
       question: q.question,
       type: q.type,
       options: q.type === 'OPTIONS' && q.options?.length ? [...q.options] : ['', ''],
+      notes: q.notes ?? '',
     }))
   } else {
     questions.value = [makeBlankQuestion()]
@@ -90,18 +93,31 @@ function validate(): string | null {
         if (o.trim() && EMOJI_RE.test(o)) return `Question ${n}: option text must not contain emojis.`
       }
     }
+    if (q.type === 'OPTIONS' || q.type === 'YES/NO') {
+      const notesError = validateOrganizerQuestionNotes(q.notes)
+      if (notesError) return `Question ${n}: ${notesError}`
+    }
   }
   return null
 }
 
 function buildPayload(): EventQuestion[] {
-  return questions.value.map((q) => ({
-    question: q.question.trim(),
-    type: q.type,
-    ...(q.type === 'OPTIONS'
-      ? { options: q.options.map((o) => o.trim()).filter(Boolean) }
-      : {}),
-  }))
+  return questions.value.map((q) => {
+    const base: EventQuestion = {
+      question: q.question.trim(),
+      type: q.type,
+    }
+    if (q.type === 'OPTIONS') {
+      base.options = q.options.map((o) => o.trim()).filter(Boolean)
+    }
+    if (q.type === 'OPTIONS' || q.type === 'YES/NO') {
+      const notes = q.notes.trim()
+      if (notes) {
+        base.notes = notes
+      }
+    }
+    return base
+  })
 }
 
 async function handleSave() {
@@ -186,6 +202,7 @@ const previewQuestions = computed(() =>
                 <li>Choose <strong>Text</strong> for open-ended answers.</li>
                 <li>Choose <strong>Multiple choice</strong> and provide at least two options.</li>
                 <li>Choose <strong>Yes / No</strong> for simple confirmations.</li>
+                <li>For multiple choice and yes/no questions, you can add an optional notes prompt for guests.</li>
                 <li>No emojis are allowed in any field.</li>
               </ul>
               <p class="text-xs text-muted mt-4">
@@ -268,13 +285,38 @@ const previewQuestions = computed(() =>
                   >
                     Add option
                   </UButton>
+                  <UFormField
+                    label="Notes prompt (optional)"
+                    :name="`q_${index}_notes`"
+                    class="mt-3"
+                    hint="Shown below the choices so guests can add optional details."
+                  >
+                    <UInput
+                      v-model="q.notes"
+                      class="w-full"
+                      placeholder="e.g. Add any details (optional)"
+                      maxlength="200"
+                    />
+                  </UFormField>
                 </div>
 
                 <!-- YES/NO helper -->
-                <div v-else-if="q.type === 'YES/NO'" class="pt-1">
+                <div v-else-if="q.type === 'YES/NO'" class="pt-1 space-y-3">
                   <p class="text-sm text-muted">
                     Guests will choose between <strong>Yes</strong> and <strong>No</strong>.
                   </p>
+                  <UFormField
+                    label="Notes prompt (optional)"
+                    :name="`q_${index}_notes`"
+                    hint="Shown below the choices so guests can add optional details."
+                  >
+                    <UInput
+                      v-model="q.notes"
+                      class="w-full"
+                      placeholder="e.g. Add any details (optional)"
+                      maxlength="200"
+                    />
+                  </UFormField>
                 </div>
 
                 <!-- TEXT helper -->
@@ -322,32 +364,46 @@ const previewQuestions = computed(() =>
             />
 
             <!-- OPTIONS preview -->
-            <div v-else-if="q.type === 'OPTIONS'" class="space-y-2">
-              <label
-                v-for="(opt, oi) in q.options.filter(o => o.trim())"
-                :key="oi"
-                class="flex items-center gap-3 cursor-not-allowed opacity-70"
-              >
-                <span class="w-4 h-4 rounded-full border-2 border-muted shrink-0 flex items-center justify-center">
-                  <span class="w-2 h-2 rounded-full bg-transparent" />
-                </span>
-                <span class="text-sm">{{ opt }}</span>
-              </label>
-              <p v-if="!q.options.filter(o => o.trim()).length" class="text-xs text-muted italic">
-                No options added yet.
-              </p>
+            <div v-else-if="q.type === 'OPTIONS'" class="space-y-3">
+              <div class="space-y-2">
+                <label
+                  v-for="(opt, oi) in q.options.filter(o => o.trim())"
+                  :key="oi"
+                  class="flex items-center gap-3 cursor-not-allowed opacity-70"
+                >
+                  <span class="w-4 h-4 rounded-full border-2 border-muted shrink-0 flex items-center justify-center">
+                    <span class="w-2 h-2 rounded-full bg-transparent" />
+                  </span>
+                  <span class="text-sm">{{ opt }}</span>
+                </label>
+                <p v-if="!q.options.filter(o => o.trim()).length" class="text-xs text-muted italic">
+                  No options added yet.
+                </p>
+              </div>
+              <UTextarea
+                disabled
+                class="w-full opacity-60"
+                :placeholder="q.notes.trim() || 'Notes (optional)'"
+              />
             </div>
 
             <!-- YES/NO preview -->
-            <div v-else-if="q.type === 'YES/NO'" class="flex gap-6">
-              <label class="flex items-center gap-2 cursor-not-allowed opacity-70">
-                <span class="w-4 h-4 rounded-full border-2 border-muted shrink-0" />
-                <span class="text-sm">Yes</span>
-              </label>
-              <label class="flex items-center gap-2 cursor-not-allowed opacity-70">
-                <span class="w-4 h-4 rounded-full border-2 border-muted shrink-0" />
-                <span class="text-sm">No</span>
-              </label>
+            <div v-else-if="q.type === 'YES/NO'" class="space-y-3">
+              <div class="flex gap-6">
+                <label class="flex items-center gap-2 cursor-not-allowed opacity-70">
+                  <span class="w-4 h-4 rounded-full border-2 border-muted shrink-0" />
+                  <span class="text-sm">Yes</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-not-allowed opacity-70">
+                  <span class="w-4 h-4 rounded-full border-2 border-muted shrink-0" />
+                  <span class="text-sm">No</span>
+                </label>
+              </div>
+              <UTextarea
+                disabled
+                class="w-full opacity-60"
+                :placeholder="q.notes.trim() || 'Notes (optional)'"
+              />
             </div>
           </UPageCard>
         </div>
