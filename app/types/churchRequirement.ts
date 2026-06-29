@@ -22,15 +22,23 @@ export const CHURCH_REQUIREMENT_CATEGORY_ORDER = [
   'Foreigner-Specific Requirements',
 ] as const
 
-export interface PartyTracking {
-  status: RequirementStatus
-  dateRequested?: string | null
-  dateAcquired?: string | null
-  notes?: string
+export interface RequirementAttachedFile {
+  fileName: string
+  fileType: string
+  fileURL: string
 }
 
-export interface RequirementItem {
-  taskKey: string
+export interface PartyTracking {
+  status: RequirementStatus
+  dateAcquired?: string | null
+  notes?: string
+  attachedFile?: RequirementAttachedFile | null
+}
+
+export interface ChurchRequirementRecord {
+  _id: string
+  event: string
+  templateKey?: string | null
   displayName: string
   category: string
   timeline: string
@@ -38,38 +46,58 @@ export interface RequirementItem {
   description: string
   groom: PartyTracking
   bride: PartyTracking
+  createdAt?: string
+  updatedAt?: string
 }
 
-export interface ChurchRequirementRecord {
-  _id: string
-  event: string
-  requirements: RequirementItem[]
-}
+/** @deprecated Use ChurchRequirementRecord */
+export type RequirementItem = ChurchRequirementRecord
 
-export interface ChurchRequirementResponse {
+export interface RequirementsByEventResponse {
   success: boolean
   status: number
-  churchRequirement: ChurchRequirementRecord
+  requirements: ChurchRequirementRecord[]
+}
+
+export interface RequirementResponse {
+  success: boolean
+  status: number
+  message?: string
+  requirement: ChurchRequirementRecord
+}
+
+export interface DeleteRequirementResponse {
+  success: boolean
+  status: number
+  message: string
+}
+
+export interface CreateRequirementPayload {
+  eventId: string
+  displayName: string
+  category?: string
+  timeline?: string
+  sourceUrl?: string
+  description?: string
+}
+
+export interface UpdateRequirementDetailsPayload {
+  displayName?: string
+  category?: string
+  timeline?: string
+  sourceUrl?: string
+  description?: string
 }
 
 export interface UpdatePartyRequirementPayload {
   status?: RequirementStatus
-  dateRequested?: string | null
   dateAcquired?: string | null
-}
-
-export interface BulkPartyRequirementUpdate extends UpdatePartyRequirementPayload {
-  taskKey: string
-  party: ChurchRequirementParty
-}
-
-export interface BulkUpdatePartyRequirementsPayload {
-  updates: BulkPartyRequirementUpdate[]
+  notes?: string
 }
 
 export interface GroupedTimelineSection {
   timeline: string
-  items: RequirementItem[]
+  items: ChurchRequirementRecord[]
 }
 
 export interface GroupedCategorySection {
@@ -78,9 +106,9 @@ export interface GroupedCategorySection {
 }
 
 export function groupRequirementsByCategoryAndTimeline(
-  requirements: RequirementItem[]
+  requirements: ChurchRequirementRecord[]
 ): GroupedCategorySection[] {
-  const categoryMap = new Map<string, Map<string, RequirementItem[]>>()
+  const categoryMap = new Map<string, Map<string, ChurchRequirementRecord[]>>()
 
   for (const item of requirements) {
     if (!categoryMap.has(item.category)) {
@@ -96,7 +124,10 @@ export function groupRequirementsByCategoryAndTimeline(
   const orderedCategories = [
     ...CHURCH_REQUIREMENT_CATEGORY_ORDER.filter((category) => categoryMap.has(category)),
     ...[...categoryMap.keys()].filter(
-      (category) => !CHURCH_REQUIREMENT_CATEGORY_ORDER.includes(category as typeof CHURCH_REQUIREMENT_CATEGORY_ORDER[number])
+      (category) =>
+        !CHURCH_REQUIREMENT_CATEGORY_ORDER.includes(
+          category as (typeof CHURCH_REQUIREMENT_CATEGORY_ORDER)[number]
+        )
     ),
   ]
 

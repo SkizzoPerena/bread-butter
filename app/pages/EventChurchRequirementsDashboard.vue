@@ -2,11 +2,9 @@
 import type { EventRecord } from '~/types/event'
 import { isWeddingEventType } from '~/types/event'
 import type {
-  BulkPartyRequirementUpdate,
   ChurchRequirementParty,
   ChurchRequirementRecord,
   PartyTracking,
-  RequirementItem,
   RequirementStatus,
 } from '~/types/churchRequirement'
 import {
@@ -35,9 +33,12 @@ const { setActiveEvent } = useActiveEvent()
 const {
   isLoading: isLoadingRequirements,
   isSubmitting,
-  fetchChurchRequirements,
+  fetchRequirementsByEvent,
+  createRequirement,
+  updateRequirementDetails,
   updatePartyRequirement,
-  bulkUpdatePartyRequirements,
+  deletePartyFile,
+  deleteRequirement,
 } = useEventChurchRequirements()
 
 const eventId = computed(() => {
@@ -46,15 +47,37 @@ const eventId = computed(() => {
 })
 
 const eventRecord = ref<EventRecord | null>(null)
-const churchRequirement = ref<ChurchRequirementRecord | null>(null)
+const requirements = ref<ChurchRequirementRecord[]>([])
 const isLoadingEvent = ref(false)
 const savingKey = ref<string | null>(null)
-const isBulkSaveModalOpen = ref(false)
+
+const isCreateModalOpen = ref(false)
+const isEditModalOpen = ref(false)
+const isDeleteModalOpen = ref(false)
+const editingRequirement = ref<ChurchRequirementRecord | null>(null)
+const deletingRequirement = ref<ChurchRequirementRecord | null>(null)
+
+const createForm = ref({
+  displayName: '',
+  category: '',
+  timeline: '',
+  sourceUrl: '',
+  description: '',
+})
+
+const editForm = ref({
+  displayName: '',
+  category: '',
+  timeline: '',
+  sourceUrl: '',
+  description: '',
+})
 
 type PartyDraft = {
   status: RequirementStatus
-  dateRequested: string
   dateAcquired: string
+  notes: string
+  pendingFile: File | null
 }
 
 const partyDrafts = ref<Record<string, { groom: PartyDraft; bride: PartyDraft }>>({})
@@ -73,17 +96,7 @@ const mutationsDisabled = computed(
 
 const isPageLoading = computed(() => isLoadingEvent.value || isLoadingRequirements.value)
 
-const requirementByTaskKey = computed(() => {
-  const map = new Map<string, RequirementItem>()
-  for (const item of churchRequirement.value?.requirements ?? []) {
-    map.set(item.taskKey, item)
-  }
-  return map
-})
-
-const groupedRequirements = computed(() =>
-  groupRequirementsByCategoryAndTimeline(churchRequirement.value?.requirements ?? [])
-)
+const groupedRequirements = computed(() => groupRequirementsByCategoryAndTimeline(requirements.value))
 
 const statusSelectItems = computed(() =>
   REQUIREMENT_STATUS_OPTIONS.map((status) => ({
@@ -99,15 +112,16 @@ const churchRequirementModalUi = {
   overlay: 'bg-yellow-900/30',
 }
 
-function draftKey(taskKey: string, party: ChurchRequirementParty) {
-  return `${taskKey}:${party}`
+function draftKey(requirementId: string, party: ChurchRequirementParty) {
+  return `${requirementId}:${party}`
 }
 
 function buildPartyDraft(tracking: PartyTracking): PartyDraft {
   return {
     status: tracking.status,
-    dateRequested: toDateInputValue(tracking.dateRequested),
     dateAcquired: toDateInputValue(tracking.dateAcquired),
+    notes: tracking.notes ?? '',
+    pendingFile: null,
   }
 }
 
@@ -115,8 +129,8 @@ function clonePartyDrafts(
   source: Record<string, { groom: PartyDraft; bride: PartyDraft }>
 ): Record<string, { groom: PartyDraft; bride: PartyDraft }> {
   const next: Record<string, { groom: PartyDraft; bride: PartyDraft }> = {}
-  for (const [taskKey, parties] of Object.entries(source)) {
-    next[taskKey] = {
+  for (const [id, parties] of Object.entries(source)) {
+    next[id] = {
       groom: { ...parties.groom },
       bride: { ...parties.bride },
     }
@@ -124,10 +138,10 @@ function clonePartyDrafts(
   return next
 }
 
-function syncDraftsFromRecord(record: ChurchRequirementRecord) {
+function syncDraftsFromRequirements(items: ChurchRequirementRecord[]) {
   const next: Record<string, { groom: PartyDraft; bride: PartyDraft }> = {}
-  for (const item of record.requirements) {
-    next[item.taskKey] = {
+  for (const item of items) {
+    next[item._id] = {
       groom: buildPartyDraft(item.groom),
       bride: buildPartyDraft(item.bride),
     }
@@ -136,150 +150,59 @@ function syncDraftsFromRecord(record: ChurchRequirementRecord) {
   savedPartyDrafts.value = clonePartyDrafts(next)
 }
 
-function getPartyDraft(taskKey: string, party: ChurchRequirementParty): PartyDraft {
-  return partyDrafts.value[taskKey]?.[party] ?? {
+function getPartyDraft(requirementId: string, party: ChurchRequirementParty): PartyDraft {
+  return partyDrafts.value[requirementId]?.[party] ?? {
     status: 'required',
-    dateRequested: '',
     dateAcquired: '',
+    notes: '',
+    pendingFile: null,
   }
 }
 
-function isPartyDraftDirty(taskKey: string, party: ChurchRequirementParty): boolean {
-  const current = partyDrafts.value[taskKey]?.[party]
-  const saved = savedPartyDrafts.value[taskKey]?.[party]
+function getSavedTracking(requirementId: string, party: ChurchRequirementParty): PartyTracking | null {
+  const item = requirements.value.find((entry) => entry._id === requirementId)
+  return item?.[party] ?? null
+}
+
+function isPartyDraftDirty(requirementId: string, party: ChurchRequirementParty): boolean {
+  const current = partyDrafts.value[requirementId]?.[party]
+  const saved = savedPartyDrafts.value[requirementId]?.[party]
   if (!current || !saved) {
     return false
   }
   return (
     current.status !== saved.status ||
-    current.dateRequested !== saved.dateRequested ||
-    current.dateAcquired !== saved.dateAcquired
+    current.dateAcquired !== saved.dateAcquired ||
+    current.notes !== saved.notes ||
+    current.pendingFile !== null
   )
 }
 
-type ChangedFieldKey = 'status' | 'dateRequested' | 'dateAcquired'
-
-interface ChangedFieldEntry {
-  id: string
-  taskKey: string
-  party: ChurchRequirementParty
-  displayName: string
-  field: ChangedFieldKey
-  fieldLabel: string
-  valueLabel: string
+function replaceRequirementInList(updated: ChurchRequirementRecord) {
+  requirements.value = requirements.value.map((item) =>
+    item._id === updated._id ? updated : item
+  )
+  const nextDrafts = { ...partyDrafts.value }
+  nextDrafts[updated._id] = {
+    groom: buildPartyDraft(updated.groom),
+    bride: buildPartyDraft(updated.bride),
+  }
+  partyDrafts.value = nextDrafts
+  savedPartyDrafts.value = clonePartyDrafts(nextDrafts)
 }
 
-const FIELD_LABELS: Record<ChangedFieldKey, string> = {
-  status: 'Status',
-  dateRequested: 'Date requested',
-  dateAcquired: 'Date acquired',
-}
-
-function formatDraftFieldValue(field: ChangedFieldKey, draft: PartyDraft): string {
-  if (field === 'status') {
-    return formatRequirementStatusLabel(draft.status)
-  }
-  if (field === 'dateRequested') {
-    return draft.dateRequested || 'Cleared'
-  }
-  if (field === 'dateAcquired') {
-    return draft.dateAcquired || 'Cleared'
-  }
-  return ''
-}
-
-function getChangedFieldsForParty(
-  taskKey: string,
+function onPartyFileSelected(
+  requirementId: string,
   party: ChurchRequirementParty,
-  displayName: string
-): ChangedFieldEntry[] {
-  const current = partyDrafts.value[taskKey]?.[party]
-  const saved = savedPartyDrafts.value[taskKey]?.[party]
-  if (!current || !saved) {
-    return []
+  event: Event
+) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  if (!partyDrafts.value[requirementId]) {
+    return
   }
-
-  const fields: ChangedFieldKey[] = ['status', 'dateRequested', 'dateAcquired']
-  return fields
-    .filter((field) => current[field] !== saved[field])
-    .map((field) => ({
-      id: `${taskKey}:${party}:${field}`,
-      taskKey,
-      party,
-      displayName,
-      field,
-      fieldLabel: FIELD_LABELS[field],
-      valueLabel: formatDraftFieldValue(field, current),
-    }))
-}
-
-interface DirtyPartyEntry {
-  taskKey: string
-  party: ChurchRequirementParty
-  displayName: string
-  draft: PartyDraft
-}
-
-const changedFields = computed<ChangedFieldEntry[]>(() => {
-  const entries: ChangedFieldEntry[] = []
-  for (const [taskKey, parties] of Object.entries(partyDrafts.value)) {
-    const displayName = requirementByTaskKey.value.get(taskKey)?.displayName ?? taskKey
-    for (const party of ['groom', 'bride'] as ChurchRequirementParty[]) {
-      entries.push(...getChangedFieldsForParty(taskKey, party, displayName))
-    }
-  }
-  return entries
-})
-
-const changedFieldCount = computed(() => changedFields.value.length)
-
-const dirtyParties = computed<DirtyPartyEntry[]>(() => {
-  const entries: DirtyPartyEntry[] = []
-  const seen = new Set<string>()
-
-  for (const [taskKey, parties] of Object.entries(partyDrafts.value)) {
-    const displayName = requirementByTaskKey.value.get(taskKey)?.displayName ?? taskKey
-    for (const party of ['groom', 'bride'] as ChurchRequirementParty[]) {
-      if (!isPartyDraftDirty(taskKey, party)) {
-        continue
-      }
-      const key = draftKey(taskKey, party)
-      if (seen.has(key)) {
-        continue
-      }
-      seen.add(key)
-      entries.push({
-        taskKey,
-        party,
-        displayName,
-        draft: { ...parties[party] },
-      })
-    }
-  }
-  return entries
-})
-
-const hasUnsavedChanges = computed(() => changedFieldCount.value > 0)
-
-function draftToUpdate(entry: DirtyPartyEntry): BulkPartyRequirementUpdate {
-  return {
-    taskKey: entry.taskKey,
-    party: entry.party,
-    status: entry.draft.status,
-    dateRequested: fromDateInputValue(entry.draft.dateRequested),
-    dateAcquired: fromDateInputValue(entry.draft.dateAcquired),
-  }
-}
-
-watch(changedFieldCount, (count) => {
-  if (count === 0) {
-    isBulkSaveModalOpen.value = false
-  }
-})
-
-function formatChangedFieldSummary(entry: ChangedFieldEntry) {
-  const partyLabel = entry.party === 'groom' ? 'Groom' : 'Bride'
-  return `${entry.displayName} — ${partyLabel}`
+  partyDrafts.value[requirementId]![party].pendingFile = file
+  input.value = ''
 }
 
 async function loadEventData() {
@@ -321,7 +244,7 @@ async function loadEventData() {
 
 async function loadChurchRequirementsData() {
   if (!eventId.value && !isUiOnlyMode.value) {
-    churchRequirement.value = null
+    requirements.value = []
     partyDrafts.value = {}
     savedPartyDrafts.value = {}
     return
@@ -330,38 +253,38 @@ async function loadChurchRequirementsData() {
   const targetEventId = eventId.value || 'mock-event-id'
 
   try {
-    const response = await fetchChurchRequirements(targetEventId)
+    const response = await fetchRequirementsByEvent(targetEventId)
     if (response) {
-      churchRequirement.value = response.churchRequirement
-      syncDraftsFromRecord(response.churchRequirement)
+      requirements.value = response.requirements ?? []
+      syncDraftsFromRequirements(requirements.value)
     }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load church requirements', error })
   }
 }
 
-function applySavedRecord(record: ChurchRequirementRecord) {
-  churchRequirement.value = record
-  syncDraftsFromRecord(record)
-}
-
-async function savePartyRequirement(taskKey: string, party: ChurchRequirementParty) {
-  if (mutationsDisabled.value || !isPartyDraftDirty(taskKey, party)) {
+async function savePartyRequirement(requirementId: string, party: ChurchRequirementParty) {
+  if (mutationsDisabled.value || !isPartyDraftDirty(requirementId, party)) {
     return
   }
 
-  const draft = getPartyDraft(taskKey, party)
-  const key = draftKey(taskKey, party)
+  const draft = getPartyDraft(requirementId, party)
+  const key = draftKey(requirementId, party)
   savingKey.value = key
 
   try {
-    const response = await updatePartyRequirement(eventId.value || 'mock-event-id', taskKey, party, {
-      status: draft.status,
-      dateRequested: fromDateInputValue(draft.dateRequested),
-      dateAcquired: fromDateInputValue(draft.dateAcquired),
-    })
-    if (response) {
-      applySavedRecord(response.churchRequirement)
+    const response = await updatePartyRequirement(
+      requirementId,
+      party,
+      {
+        status: draft.status,
+        dateAcquired: fromDateInputValue(draft.dateAcquired),
+        notes: draft.notes,
+      },
+      draft.pendingFile ?? undefined
+    )
+    if (response?.requirement) {
+      replaceRequirementInList(response.requirement)
     }
     toast.add({
       title: 'Requirement updated',
@@ -374,33 +297,131 @@ async function savePartyRequirement(taskKey: string, party: ChurchRequirementPar
   }
 }
 
-async function saveAllDirtyParties() {
-  if (mutationsDisabled.value || dirtyParties.value.length === 0) {
+async function removePartyFile(requirementId: string, party: ChurchRequirementParty) {
+  if (mutationsDisabled.value) {
     return
   }
 
-  const fieldCount = changedFieldCount.value
-  const updates = dirtyParties.value.map(draftToUpdate)
+  const key = draftKey(requirementId, party)
+  savingKey.value = key
 
   try {
-    const response = await bulkUpdatePartyRequirements(eventId.value || 'mock-event-id', {
-      updates,
-    })
-    if (response) {
-      applySavedRecord(response.churchRequirement)
+    const response = await deletePartyFile(requirementId, party)
+    if (response?.requirement) {
+      replaceRequirementInList(response.requirement)
     }
-    isBulkSaveModalOpen.value = false
     toast.add({
-      title: 'Requirements saved',
-      description: `${fieldCount} changed field${fieldCount === 1 ? '' : 's'} saved.`,
+      title: 'File removed',
+      description: `${party === 'groom' ? 'Groom' : 'Bride'} file removed.`,
     })
   } catch (error) {
-    reportApiError(toast, { title: 'Could not save requirements', error })
+    reportApiError(toast, { title: 'Could not remove file', error })
+  } finally {
+    savingKey.value = null
   }
 }
 
-function isSavingParty(taskKey: string, party: ChurchRequirementParty) {
-  return savingKey.value === draftKey(taskKey, party)
+function openCreateModal() {
+  createForm.value = {
+    displayName: '',
+    category: '',
+    timeline: '',
+    sourceUrl: '',
+    description: '',
+  }
+  isCreateModalOpen.value = true
+}
+
+async function submitCreateRequirement() {
+  if (mutationsDisabled.value || !createForm.value.displayName.trim()) {
+    return
+  }
+
+  try {
+    const response = await createRequirement({
+      eventId: eventId.value || 'mock-event-id',
+      displayName: createForm.value.displayName.trim(),
+      category: createForm.value.category.trim(),
+      timeline: createForm.value.timeline.trim(),
+      sourceUrl: createForm.value.sourceUrl.trim(),
+      description: createForm.value.description.trim(),
+    })
+    if (response?.requirement) {
+      requirements.value = [...requirements.value, response.requirement]
+      syncDraftsFromRequirements(requirements.value)
+    }
+    isCreateModalOpen.value = false
+    toast.add({ title: 'Requirement created' })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not create requirement', error })
+  }
+}
+
+function openEditModal(item: ChurchRequirementRecord) {
+  editingRequirement.value = item
+  editForm.value = {
+    displayName: item.displayName,
+    category: item.category,
+    timeline: item.timeline,
+    sourceUrl: item.sourceUrl,
+    description: item.description,
+  }
+  isEditModalOpen.value = true
+}
+
+async function submitEditRequirement() {
+  if (mutationsDisabled.value || !editingRequirement.value || !editForm.value.displayName.trim()) {
+    return
+  }
+
+  try {
+    const response = await updateRequirementDetails(editingRequirement.value._id, {
+      displayName: editForm.value.displayName.trim(),
+      category: editForm.value.category.trim(),
+      timeline: editForm.value.timeline.trim(),
+      sourceUrl: editForm.value.sourceUrl.trim(),
+      description: editForm.value.description.trim(),
+    })
+    if (response?.requirement) {
+      replaceRequirementInList(response.requirement)
+    }
+    isEditModalOpen.value = false
+    editingRequirement.value = null
+    toast.add({ title: 'Requirement updated' })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not update requirement', error })
+  }
+}
+
+function openDeleteModal(item: ChurchRequirementRecord) {
+  deletingRequirement.value = item
+  isDeleteModalOpen.value = true
+}
+
+async function confirmDeleteRequirement() {
+  if (mutationsDisabled.value || !deletingRequirement.value) {
+    return
+  }
+
+  const targetId = deletingRequirement.value._id
+
+  try {
+    await deleteRequirement(targetId)
+    requirements.value = requirements.value.filter((item) => item._id !== targetId)
+    const nextDrafts = { ...partyDrafts.value }
+    delete nextDrafts[targetId]
+    partyDrafts.value = nextDrafts
+    savedPartyDrafts.value = clonePartyDrafts(nextDrafts)
+    isDeleteModalOpen.value = false
+    deletingRequirement.value = null
+    toast.add({ title: 'Requirement deleted' })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not delete requirement', error })
+  }
+}
+
+function isSavingParty(requirementId: string, party: ChurchRequirementParty) {
+  return savingKey.value === draftKey(requirementId, party)
 }
 
 onMounted(async () => {
@@ -441,10 +462,7 @@ watch(eventId, async () => {
 </script>
 
 <template>
-  <UContainer
-    class="space-y-6 py-8"
-    :class="hasUnsavedChanges ? 'pb-28' : 'pb-12'"
-  >
+  <UContainer class="space-y-6 py-8 pb-12">
     <div
       v-if="isPageLoading"
       class="flex items-center justify-center py-16 text-muted"
@@ -454,6 +472,20 @@ watch(eventId, async () => {
     </div>
 
     <div v-else class="space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-muted">
+          Track church and civil documents for the groom and bride.
+        </p>
+        <UButton
+          icon="i-lucide-plus"
+          color="yellow"
+          :disabled="mutationsDisabled || isSubmitting"
+          @click="openCreateModal"
+        >
+          Add requirement
+        </UButton>
+      </div>
+
       <UAlert
         v-if="isEventCancelled"
         color="warning"
@@ -461,6 +493,10 @@ watch(eventId, async () => {
         title="Event cancelled"
         description="This event is cancelled. Church requirement updates are disabled."
       />
+
+      <div v-if="requirements.length === 0" class="rounded-lg border border-dashed border-gray-300 p-8 text-center text-muted">
+        No church requirements yet. Add one or wait for default templates to be seeded.
+      </div>
 
       <div class="space-y-8">
         <section
@@ -485,42 +521,62 @@ watch(eventId, async () => {
 
             <UPageCard
               v-for="item in timelineSection.items"
-              :key="item.taskKey"
+              :key="item._id"
               class="white-bread-container space-y-4"
             >
-              <div class="space-y-2">
-                <h3 class="text-lg font-semibold">
-                  {{ item.displayName }}
-                </h3>
-                <p class="text-sm text-muted whitespace-pre-wrap">
-                  {{ item.description }}
-                </p>
-                <a
-                  v-if="item.sourceUrl"
-                  :href="item.sourceUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
-                >
-                  <UIcon name="i-lucide-external-link" class="size-4" />
-                  Source link
-                </a>
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="space-y-2 min-w-0 flex-1">
+                  <h3 class="text-lg font-semibold">
+                    {{ item.displayName }}
+                  </h3>
+                  <p class="text-sm text-muted whitespace-pre-wrap">
+                    {{ item.description }}
+                  </p>
+                  <a
+                    v-if="item.sourceUrl"
+                    :href="item.sourceUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                  >
+                    <UIcon name="i-lucide-external-link" class="size-4" />
+                    Source link
+                  </a>
+                </div>
+                <div class="flex shrink-0 gap-2">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="outline"
+                    size="sm"
+                    :disabled="mutationsDisabled || isSubmitting"
+                    @click="openEditModal(item)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="outline"
+                    size="sm"
+                    :disabled="mutationsDisabled || isSubmitting"
+                    @click="openDeleteModal(item)"
+                  />
+                </div>
               </div>
 
-              <div v-if="partyDrafts[item.taskKey]" class="grid gap-4 md:grid-cols-2">
+              <div v-if="partyDrafts[item._id]" class="grid gap-4 md:grid-cols-2">
                 <div
                   v-for="party in (['groom', 'bride'] as ChurchRequirementParty[])"
-                  :key="`${item.taskKey}-${party}`"
+                  :key="`${item._id}-${party}`"
                   class="rounded-lg border border-gray-200 p-4 space-y-3"
-                  :class="{ 'border-yellow-300 bg-yellow-50/40': isPartyDraftDirty(item.taskKey, party) }"
+                  :class="{ 'border-yellow-300 bg-yellow-50/40': isPartyDraftDirty(item._id, party) }"
                 >
                   <div class="font-medium capitalize">
                     {{ party }}
                   </div>
 
-                  <UFormField :label="`Status`" :name="`${item.taskKey}-${party}-status`">
+                  <UFormField :label="`Status`" :name="`${item._id}-${party}-status`">
                     <USelect
-                      v-model="partyDrafts[item.taskKey]![party].status"
+                      v-model="partyDrafts[item._id]![party].status"
                       :items="statusSelectItems"
                       class="w-full"
                       :disabled="mutationsDisabled || isSubmitting"
@@ -528,11 +584,11 @@ watch(eventId, async () => {
                   </UFormField>
 
                   <UFormField
-                    :label="`Date requested`"
-                    :name="`${item.taskKey}-${party}-date-requested`"
+                    :label="`Date acquired`"
+                    :name="`${item._id}-${party}-date-acquired`"
                   >
                     <UInput
-                      v-model="partyDrafts[item.taskKey]![party].dateRequested"
+                      v-model="partyDrafts[item._id]![party].dateAcquired"
                       type="date"
                       class="w-full"
                       :disabled="mutationsDisabled || isSubmitting"
@@ -540,23 +596,63 @@ watch(eventId, async () => {
                   </UFormField>
 
                   <UFormField
-                    :label="`Date acquired`"
-                    :name="`${item.taskKey}-${party}-date-acquired`"
+                    :label="`Notes`"
+                    :name="`${item._id}-${party}-notes`"
                   >
-                    <UInput
-                      v-model="partyDrafts[item.taskKey]![party].dateAcquired"
-                      type="date"
+                    <UTextarea
+                      v-model="partyDrafts[item._id]![party].notes"
+                      :rows="2"
                       class="w-full"
                       :disabled="mutationsDisabled || isSubmitting"
                     />
                   </UFormField>
 
+                  <UFormField :label="`Document`" :name="`${item._id}-${party}-file`">
+                    <div class="space-y-2">
+                      <a
+                        v-if="getSavedTracking(item._id, party)?.attachedFile?.fileURL && !partyDrafts[item._id]![party].pendingFile"
+                        :href="getSavedTracking(item._id, party)!.attachedFile!.fileURL"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                      >
+                        <UIcon name="i-lucide-file-text" class="size-4" />
+                        {{ getSavedTracking(item._id, party)!.attachedFile!.fileName }}
+                      </a>
+                      <p
+                        v-if="partyDrafts[item._id]![party].pendingFile"
+                        class="text-sm text-muted"
+                      >
+                        Selected: {{ partyDrafts[item._id]![party].pendingFile!.name }}
+                      </p>
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                        class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-yellow-900"
+                        :disabled="mutationsDisabled || isSubmitting"
+                        @change="onPartyFileSelected(item._id, party, $event)"
+                      />
+                      <UButton
+                        v-if="getSavedTracking(item._id, party)?.attachedFile?.fileURL"
+                        icon="i-lucide-trash-2"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        :loading="isSavingParty(item._id, party)"
+                        :disabled="mutationsDisabled || isSubmitting"
+                        @click="removePartyFile(item._id, party)"
+                      >
+                        Remove file
+                      </UButton>
+                    </div>
+                  </UFormField>
+
                   <UButton
                     icon="i-lucide-save"
                     color="slate"
-                    :loading="isSavingParty(item.taskKey, party)"
-                    :disabled="mutationsDisabled || isSubmitting || !isPartyDraftDirty(item.taskKey, party)"
-                    @click="savePartyRequirement(item.taskKey, party)"
+                    :loading="isSavingParty(item._id, party)"
+                    :disabled="mutationsDisabled || isSubmitting || !isPartyDraftDirty(item._id, party)"
+                    @click="savePartyRequirement(item._id, party)"
                   >
                     Save {{ party }}
                   </UButton>
@@ -566,68 +662,122 @@ watch(eventId, async () => {
           </div>
         </section>
       </div>
-
-      <div
-        v-if="hasUnsavedChanges"
-        class="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none"
-      >
-        <div
-          class="pointer-events-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-200 bg-white px-4 py-3 shadow-lg dark:border-yellow-800 dark:bg-neutral-900"
-        >
-          <span class="text-sm font-medium text-highlighted">
-            You have {{ changedFieldCount }} changed field{{ changedFieldCount === 1 ? '' : 's' }}.
-          </span>
-          <UButton
-            icon="i-lucide-save"
-            color="yellow"
-            :disabled="mutationsDisabled || isSubmitting"
-            @click="isBulkSaveModalOpen = true"
-          >
-            Review &amp; Save All
-          </UButton>
-        </div>
-      </div>
     </div>
 
     <UModal
-      v-model:open="isBulkSaveModalOpen"
-      title="Save changes"
+      v-model:open="isCreateModalOpen"
+      title="Add requirement"
+      :ui="churchRequirementModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }"
+      :dismissible="!isSubmitting"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <UFormField label="Display name" required>
+            <UInput v-model="createForm.displayName" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Category">
+            <UInput v-model="createForm.category" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Timeline">
+            <UInput v-model="createForm.timeline" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Source URL">
+            <UInput v-model="createForm.sourceUrl" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Description">
+            <UTextarea v-model="createForm.description" :rows="3" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <div class="flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isSubmitting"
+              @click="isCreateModalOpen = false"
+            />
+            <UButton
+              label="Create"
+              color="yellow"
+              :loading="isSubmitting"
+              :disabled="!createForm.displayName.trim()"
+              @click="submitCreateRequirement"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isEditModalOpen"
+      title="Edit requirement"
+      :ui="churchRequirementModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }"
+      :dismissible="!isSubmitting"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <UFormField label="Display name" required>
+            <UInput v-model="editForm.displayName" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Category">
+            <UInput v-model="editForm.category" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Timeline">
+            <UInput v-model="editForm.timeline" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Source URL">
+            <UInput v-model="editForm.sourceUrl" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <UFormField label="Description">
+            <UTextarea v-model="editForm.description" :rows="3" class="w-full" :disabled="isSubmitting" />
+          </UFormField>
+          <div class="flex justify-end gap-2">
+            <UButton
+              label="Cancel"
+              color="neutral"
+              variant="outline"
+              :disabled="isSubmitting"
+              @click="isEditModalOpen = false"
+            />
+            <UButton
+              label="Save"
+              color="yellow"
+              :loading="isSubmitting"
+              :disabled="!editForm.displayName.trim()"
+              @click="submitEditRequirement"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isDeleteModalOpen"
+      title="Delete requirement"
       :ui="churchRequirementModalUi"
       :close="{ variant: 'link', class: 'rounded-full text-white' }"
       :dismissible="!isSubmitting"
     >
       <template #body>
         <p class="mb-4 text-sm text-muted">
-          You have {{ changedFieldCount }} changed field{{ changedFieldCount === 1 ? '' : 's' }}.
+          Delete
+          <span class="font-medium text-highlighted">{{ deletingRequirement?.displayName }}</span>?
+          This cannot be undone.
         </p>
-        <ul class="mb-4 max-h-64 space-y-2 overflow-y-auto text-sm">
-          <li
-            v-for="entry in changedFields"
-            :key="entry.id"
-            class="rounded-md border border-gray-200 px-3 py-2"
-          >
-            <div class="font-medium">
-              {{ formatChangedFieldSummary(entry) }}
-            </div>
-            <div class="mt-1 text-muted">
-              {{ entry.fieldLabel }}: {{ entry.valueLabel }}
-            </div>
-          </li>
-        </ul>
         <div class="flex justify-end gap-2">
           <UButton
             label="Cancel"
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isBulkSaveModalOpen = false"
+            @click="isDeleteModalOpen = false"
           />
           <UButton
-            label="Save All"
-            color="yellow"
+            label="Delete"
+            color="error"
             :loading="isSubmitting"
-            :disabled="mutationsDisabled || changedFieldCount === 0"
-            @click="saveAllDirtyParties"
+            @click="confirmDeleteRequirement"
           />
         </div>
       </template>

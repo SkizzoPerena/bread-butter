@@ -1,136 +1,251 @@
 import type {
-  BulkPartyRequirementUpdate,
-  BulkUpdatePartyRequirementsPayload,
   ChurchRequirementParty,
   ChurchRequirementRecord,
-  ChurchRequirementResponse,
+  CreateRequirementPayload,
+  DeleteRequirementResponse,
+  RequirementResponse,
+  RequirementsByEventResponse,
   UpdatePartyRequirementPayload,
+  UpdateRequirementDetailsPayload,
 } from '~/types/churchRequirement'
 import churchRequirementsSeed from '~/data/church_requirements.json'
 
-function applyUpdatesToMockRequirements(
-  requirements: ChurchRequirementRecord['requirements'],
-  updates: BulkPartyRequirementUpdate[]
-) {
-  return requirements.map((item) => {
-    const itemUpdates = updates.filter((update) => update.taskKey === item.taskKey)
-    if (itemUpdates.length === 0) {
-      return item
-    }
+let mockRequirements: ChurchRequirementRecord[] = []
 
-    let groom = item.groom
-    let bride = item.bride
+function buildMockRequirements(eventId: string): ChurchRequirementRecord[] {
+  return (churchRequirementsSeed as Omit<ChurchRequirementRecord, '_id' | 'event'>[]).map(
+    (item, index) => ({
+      ...item,
+      _id: `mock-requirement-${index}`,
+      event: eventId,
+      templateKey: item.templateKey ?? (item as { taskKey?: string }).taskKey ?? null,
+      groom: { ...item.groom, attachedFile: item.groom?.attachedFile ?? null },
+      bride: { ...item.bride, attachedFile: item.bride?.attachedFile ?? null },
+    })
+  )
+}
 
-    for (const update of itemUpdates) {
-      const next = {
-        ...(update.party === 'groom' ? groom : bride),
-        ...(update.status !== undefined ? { status: update.status } : {}),
-        ...(update.dateRequested !== undefined ? { dateRequested: update.dateRequested } : {}),
-        ...(update.dateAcquired !== undefined ? { dateAcquired: update.dateAcquired } : {}),
-      }
-      if (update.party === 'groom') {
-        groom = next
-      } else {
-        bride = next
-      }
-    }
+function getMockRequirements(eventId: string): ChurchRequirementRecord[] {
+  if (mockRequirements.length === 0 || mockRequirements[0]?.event !== eventId) {
+    mockRequirements = buildMockRequirements(eventId)
+  }
+  return mockRequirements
+}
 
-    return { ...item, groom, bride }
-  })
+function replaceMockRequirement(updated: ChurchRequirementRecord) {
+  mockRequirements = mockRequirements.map((item) =>
+    item._id === updated._id ? updated : item
+  )
 }
 
 export function useEventChurchRequirements() {
-  const { apiRequest, executeAction } = useApiMode()
+  const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
 
   const isLoading = ref(false)
   const isSubmitting = ref(false)
 
-  async function fetchChurchRequirements(eventId: string) {
+  async function fetchRequirementsByEvent(eventId: string) {
     isLoading.value = true
     try {
-      return await executeAction({
-        api: () =>
-          apiRequest<ChurchRequirementResponse>(
-            `/user/church-requirements/event/${eventId}`
-          ),
-        uiOnly: () => ({
+      if (isUiOnlyMode.value) {
+        return {
           success: true,
           status: 200,
-          churchRequirement: {
-            _id: 'mock-church-requirement',
-            event: eventId,
-            requirements: churchRequirementsSeed as ChurchRequirementRecord['requirements'],
-          },
-        }),
-      })
+          requirements: getMockRequirements(eventId),
+        } satisfies RequirementsByEventResponse
+      }
+
+      return await apiRequest<RequirementsByEventResponse>(
+        `/user/church-requirements/event/${eventId}`
+      )
     } finally {
       isLoading.value = false
     }
   }
 
-  async function updatePartyRequirement(
-    eventId: string,
-    taskKey: string,
-    party: ChurchRequirementParty,
-    payload: UpdatePartyRequirementPayload
-  ) {
+  async function createRequirement(payload: CreateRequirementPayload) {
     isSubmitting.value = true
     try {
-      return await executeAction({
-        api: () =>
-          apiRequest<ChurchRequirementResponse>(
-            `/user/church-requirements/event/${eventId}/items/${encodeURIComponent(taskKey)}/${party}`,
-            {
-              method: 'PATCH',
-              body: payload,
-            }
-          ),
-        uiOnly: () => ({
+      if (isUiOnlyMode.value) {
+        const requirement: ChurchRequirementRecord = {
+          _id: `mock-requirement-${Date.now()}`,
+          event: payload.eventId,
+          templateKey: null,
+          displayName: payload.displayName,
+          category: payload.category ?? '',
+          timeline: payload.timeline ?? '',
+          sourceUrl: payload.sourceUrl ?? '',
+          description: payload.description ?? '',
+          groom: { status: 'required', dateAcquired: null, notes: '', attachedFile: null },
+          bride: { status: 'required', dateAcquired: null, notes: '', attachedFile: null },
+        }
+        mockRequirements = [...getMockRequirements(payload.eventId), requirement]
+        return {
           success: true,
-          status: 200,
-          churchRequirement: {
-            _id: 'mock-church-requirement',
-            event: eventId,
-            requirements: applyUpdatesToMockRequirements(
-              churchRequirementsSeed as ChurchRequirementRecord['requirements'],
-              [{ taskKey, party, ...payload }]
-            ),
-          },
-        }),
+          status: 201,
+          message: 'Church requirement created successfully.',
+          requirement,
+        } satisfies RequirementResponse
+      }
+
+      return await apiRequest<RequirementResponse>('/user/church-requirements', {
+        method: 'POST',
+        body: payload,
       })
     } finally {
       isSubmitting.value = false
     }
   }
 
-  async function bulkUpdatePartyRequirements(
-    eventId: string,
-    payload: BulkUpdatePartyRequirementsPayload
+  async function updateRequirementDetails(
+    requirementId: string,
+    payload: UpdateRequirementDetailsPayload
   ) {
     isSubmitting.value = true
     try {
-      return await executeAction({
-        api: () =>
-          apiRequest<ChurchRequirementResponse>(
-            `/user/church-requirements/event/${eventId}/items/bulk`,
-            {
-              method: 'PATCH',
-              body: payload,
-            }
-          ),
-        uiOnly: () => ({
+      if (isUiOnlyMode.value) {
+        const existing = mockRequirements.find((item) => item._id === requirementId)
+        if (!existing) {
+          throw new Error('Requirement not found')
+        }
+        const requirement = { ...existing, ...payload }
+        replaceMockRequirement(requirement)
+        return {
           success: true,
           status: 200,
-          churchRequirement: {
-            _id: 'mock-church-requirement',
-            event: eventId,
-            requirements: applyUpdatesToMockRequirements(
-              churchRequirementsSeed as ChurchRequirementRecord['requirements'],
-              payload.updates
-            ),
-          },
-        }),
-      })
+          message: 'Church requirement updated successfully.',
+          requirement,
+        } satisfies RequirementResponse
+      }
+
+      return await apiRequest<RequirementResponse>(
+        `/user/church-requirements/${requirementId}/details`,
+        {
+          method: 'PATCH',
+          body: payload,
+        }
+      )
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+
+  async function updatePartyRequirement(
+    requirementId: string,
+    party: ChurchRequirementParty,
+    payload: UpdatePartyRequirementPayload,
+    file?: File
+  ) {
+    isSubmitting.value = true
+    try {
+      if (isUiOnlyMode.value) {
+        const existing = mockRequirements.find((item) => item._id === requirementId)
+        if (!existing) {
+          throw new Error('Requirement not found')
+        }
+        const nextParty = {
+          ...existing[party],
+          ...(payload.status !== undefined ? { status: payload.status } : {}),
+          ...(payload.dateAcquired !== undefined ? { dateAcquired: payload.dateAcquired } : {}),
+          ...(payload.notes !== undefined ? { notes: payload.notes } : {}),
+          ...(file
+            ? {
+                attachedFile: {
+                  fileName: file.name,
+                  fileType: file.type,
+                  fileURL: URL.createObjectURL(file),
+                },
+              }
+            : {}),
+        }
+        const requirement = { ...existing, [party]: nextParty }
+        replaceMockRequirement(requirement)
+        return {
+          success: true,
+          status: 200,
+          message: 'Church requirement updated successfully.',
+          requirement,
+        } satisfies RequirementResponse
+      }
+
+      if (file) {
+        const formData = new FormData()
+        if (payload.status !== undefined) {
+          formData.append('status', payload.status)
+        }
+        if (payload.dateAcquired !== undefined) {
+          formData.append('dateAcquired', payload.dateAcquired ?? '')
+        }
+        if (payload.notes !== undefined) {
+          formData.append('notes', payload.notes)
+        }
+        formData.append('file', file)
+
+        return await apiUpload<RequirementResponse>(
+          `/user/church-requirements/${requirementId}/party/${party}`,
+          formData,
+          { method: 'PATCH' }
+        )
+      }
+
+      return await apiRequest<RequirementResponse>(
+        `/user/church-requirements/${requirementId}/party/${party}`,
+        {
+          method: 'PATCH',
+          body: payload,
+        }
+      )
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+
+  async function deletePartyFile(requirementId: string, party: ChurchRequirementParty) {
+    isSubmitting.value = true
+    try {
+      if (isUiOnlyMode.value) {
+        const existing = mockRequirements.find((item) => item._id === requirementId)
+        if (!existing) {
+          throw new Error('Requirement not found')
+        }
+        const requirement = {
+          ...existing,
+          [party]: { ...existing[party], attachedFile: null },
+        }
+        replaceMockRequirement(requirement)
+        return {
+          success: true,
+          status: 200,
+          message: 'Church requirement file removed successfully.',
+          requirement,
+        } satisfies RequirementResponse
+      }
+
+      return await apiRequest<RequirementResponse>(
+        `/user/church-requirements/${requirementId}/party/${party}/file`,
+        { method: 'DELETE' }
+      )
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+
+  async function deleteRequirement(requirementId: string) {
+    isSubmitting.value = true
+    try {
+      if (isUiOnlyMode.value) {
+        mockRequirements = mockRequirements.filter((item) => item._id !== requirementId)
+        return {
+          success: true,
+          status: 200,
+          message: 'Church requirement deleted successfully.',
+        } satisfies DeleteRequirementResponse
+      }
+
+      return await apiRequest<DeleteRequirementResponse>(
+        `/user/church-requirements/${requirementId}`,
+        { method: 'DELETE' }
+      )
     } finally {
       isSubmitting.value = false
     }
@@ -139,8 +254,11 @@ export function useEventChurchRequirements() {
   return {
     isLoading,
     isSubmitting,
-    fetchChurchRequirements,
+    fetchRequirementsByEvent,
+    createRequirement,
+    updateRequirementDetails,
     updatePartyRequirement,
-    bulkUpdatePartyRequirements,
+    deletePartyFile,
+    deleteRequirement,
   }
 }
