@@ -6,11 +6,24 @@ import type {
   EventTablesResponse,
   GuestEntryInput,
   GuestsListResponse,
-  SendInviteResponse
+  SendInviteResponse,
+  UpdateGuestInput,
+  UpdateGuestResponse,
 } from '~/types/guest'
 import type { GuestRecord } from '~/types/event'
 import { findMockSubEventRsvpByEmail } from '~/composables/useSubEventRsvps'
 import type { TableAssignmentValue } from '~/utils/tableCode'
+
+function normalizeGuestEntry(entry: GuestEntryInput) {
+  return {
+    firstName: entry.firstName.trim(),
+    lastName: entry.lastName.trim(),
+    email: entry.email.trim().toLowerCase(),
+    mailingAddress: entry.mailingAddress?.trim() ?? '',
+    contactNumber: entry.contactNumber?.trim() ?? '',
+    envelopeName: entry.envelopeName?.trim() ?? '',
+  }
+}
 
 export function useGuests() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
@@ -19,8 +32,7 @@ export function useGuests() {
     eventId: string,
     entry: GuestEntryInput
   ): Promise<CreateGuestResponse> {
-    const name = entry.name.trim()
-    const email = entry.email.trim().toLowerCase()
+    const normalized = normalizeGuestEntry(entry)
 
     if (isUiOnlyMode.value) {
       return {
@@ -29,8 +41,7 @@ export function useGuests() {
         message: 'Guest added to the list.',
         guest: {
           _id: `mock-guest-${Date.now()}`,
-          name,
-          email,
+          ...normalized,
           rsvp: null,
         },
       }
@@ -38,7 +49,7 @@ export function useGuests() {
 
     return apiRequest<CreateGuestResponse>('/user/guests', {
       method: 'POST',
-      body: { eventId, name, email },
+      body: { eventId, ...normalized },
     })
   }
 
@@ -46,10 +57,7 @@ export function useGuests() {
     eventId: string,
     guests: GuestEntryInput[]
   ): Promise<CreateGuestsBulkResponse> {
-    const normalized = guests.map((entry) => ({
-      name: entry.name.trim(),
-      email: entry.email.trim().toLowerCase(),
-    }))
+    const normalized = guests.map((entry) => normalizeGuestEntry(entry))
 
     if (isUiOnlyMode.value) {
       return {
@@ -68,6 +76,43 @@ export function useGuests() {
     })
   }
 
+  async function updateGuest(
+    guestId: string,
+    fields: UpdateGuestInput
+  ): Promise<UpdateGuestResponse> {
+    const body: UpdateGuestInput = {}
+    if (fields.firstName !== undefined) body.firstName = fields.firstName.trim()
+    if (fields.lastName !== undefined) body.lastName = fields.lastName.trim()
+    if (fields.email !== undefined) body.email = fields.email.trim().toLowerCase()
+    if (fields.mailingAddress !== undefined) body.mailingAddress = fields.mailingAddress.trim()
+    if (fields.contactNumber !== undefined) body.contactNumber = fields.contactNumber.trim()
+    if (fields.envelopeName !== undefined) body.envelopeName = fields.envelopeName.trim()
+    if (fields.tableCode !== undefined) body.tableCode = fields.tableCode
+
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        message: 'Guest updated successfully.',
+        guest: {
+          _id: guestId,
+          firstName: body.firstName ?? 'Maria',
+          lastName: body.lastName ?? 'Santos',
+          email: body.email ?? 'maria.santos@example.com',
+          mailingAddress: body.mailingAddress ?? '',
+          contactNumber: body.contactNumber ?? '',
+          envelopeName: body.envelopeName ?? '',
+          rsvp: null,
+        },
+      }
+    }
+
+    return apiRequest<UpdateGuestResponse>(`/user/guests/${guestId}`, {
+      method: 'PATCH',
+      body,
+    })
+  }
+
   async function fetchGuestsByEvent(
     eventId: string,
     subEventId?: string
@@ -76,19 +121,31 @@ export function useGuests() {
       const mockGuests: GuestRecord[] = [
         {
           _id: 'mock-guest-1',
-          name: 'maria santos',
+          firstName: 'Maria',
+          lastName: 'Santos',
+          mailingAddress: '123 Rizal St, Manila',
+          contactNumber: '+63 912 345 6789',
+          envelopeName: 'Mr. & Mrs. Maria Santos',
           email: 'maria.santos@example.com',
           rsvp: null,
         },
         {
           _id: 'mock-guest-2',
-          name: 'juan dela cruz',
+          firstName: 'Juan',
+          lastName: 'Dela Cruz',
+          mailingAddress: '',
+          contactNumber: '',
+          envelopeName: 'Juan Dela Cruz',
           email: 'juan.delacruz@example.com',
           rsvp: null,
         },
         {
           _id: 'mock-guest-3',
-          name: 'ana reyes',
+          firstName: 'Ana',
+          lastName: 'Reyes',
+          mailingAddress: '45 Mabini Ave, Quezon City',
+          contactNumber: '',
+          envelopeName: 'Ana Reyes',
           email: 'ana.reyes@example.com',
           rsvp: null,
         },
@@ -212,6 +269,7 @@ export function useGuests() {
   return {
     createGuest,
     createGuestsBulk,
+    updateGuest,
     fetchGuestsByEvent,
     sendGuestInvite,
     sendAllGuestInvites,

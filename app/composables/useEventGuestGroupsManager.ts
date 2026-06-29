@@ -4,8 +4,34 @@ import type { GuestRoleRecord } from '~/types/guest_role'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { reportApiError } from '~/types/auth'
 import { formatTableLabel } from '~/utils/tableCode'
+import { guestRowMatchesDirectSearch, mapGuestTableRowToSearchable } from '~/utils/guestSearch'
 
 export type EnrichedGuestTableRow = GuestTableRow
+
+export interface GroupSection {
+  groupId: string | null
+  groupName: string
+  guests: EnrichedGuestTableRow[]
+}
+
+function applyGroupSectionSearch(sections: GroupSection[], query: string): GroupSection[] {
+  const trimmed = query.trim().toLowerCase()
+  if (!trimmed) {
+    return sections
+  }
+
+  return sections
+    .map((section) => {
+      if (section.groupName.toLowerCase().includes(trimmed)) {
+        return section
+      }
+      const filteredGuests = section.guests.filter((row) =>
+        guestRowMatchesDirectSearch(mapGuestTableRowToSearchable(row), trimmed)
+      )
+      return { ...section, guests: filteredGuests }
+    })
+    .filter((section) => section.guests.length > 0)
+}
 
 export interface UseEventGuestGroupsManagerOptions {
   eventId: Ref<string>
@@ -93,11 +119,8 @@ function applySearchFilter(
     }
   }
 
-  const matches = rows.filter(
-    (row) =>
-      row.name.toLowerCase().includes(trimmed) ||
-      row.email.toLowerCase().includes(trimmed) ||
-      (row.roleNames ?? []).some((roleName) => roleName.toLowerCase().includes(trimmed))
+  const matches = rows.filter((row) =>
+    guestRowMatchesDirectSearch(mapGuestTableRowToSearchable(row), trimmed)
   )
 
   for (const match of matches) {
@@ -181,6 +204,7 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
   const createGroupName = ref('')
   const renameGroupName = ref('')
   const targetGroupId = ref<string | undefined>(undefined)
+  const pendingAssignGuestIds = ref<string[] | null>(null)
 
   const guestIdToGroup = computed(() => buildGuestIdToGroup(guestGroups.value))
 
@@ -209,6 +233,47 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
 
   const isSearchEmpty = computed(
     () => isSearchActive.value && displayRows.value.length === 0 && !isLoadingGroups.value
+  )
+
+  const groupsBySection = computed<GroupSection[]>(() => {
+    const guestIdToRow = new Map(
+      options.tableRows.value.map((row) => [row.guestId, row] as const)
+    )
+
+    const sections: GroupSection[] = guestGroups.value
+      .map((group) => {
+        const guests = (group.guests ?? [])
+          .map((guest) => {
+            const row = guestIdToRow.get(guest._id)
+            if (!row) return null
+            return enrichRow(row, guestIdToGroup.value)
+          })
+          .filter((row): row is EnrichedGuestTableRow => row != null)
+
+        return {
+          groupId: group._id,
+          groupName: group.name?.trim() || 'Unnamed group',
+          guests,
+        }
+      })
+      .filter((section) => section.guests.length > 0)
+      .sort((a, b) => a.groupName.localeCompare(b.groupName))
+
+    const groupedIds = new Set(guestIdToGroup.value.keys())
+    const ungrouped = enrichedRows.value.filter((row) => !groupedIds.has(row.guestId))
+    if (ungrouped.length > 0) {
+      sections.push({
+        groupId: null,
+        groupName: 'Ungrouped',
+        guests: ungrouped,
+      })
+    }
+
+    return applyGroupSectionSearch(sections, searchQuery.value)
+  })
+
+  const isGroupsTabEmpty = computed(
+    () => groupsBySection.value.length === 0 && !isLoadingGroups.value
   )
 
   const selectedCount = computed(() => selectedGuestIds.value.size)
@@ -256,7 +321,34 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
     if (options.mutationsDisabled.value || groupOptions.value.length === 0) {
       return false
     }
-    return selectionContext.value === 'single_ungrouped'
+    if (selectedCount.value === 0) {
+      return false
+    }
+    return selectedGuestIdList.value.every((id) => !guestIdToGroup.value.has(id))
+  })
+
+  const assignModalGuestCount = computed(
+    () => pendingAssignGuestIds.value?.length ?? selectedCount.value
+  )
+
+  const ungroupedGuests = computed(() => {
+    const section = groupsBySection.value.find((item) => item.groupId === null)
+    return section?.guests ?? []
+  })
+
+  const hasUngroupedGuests = computed(() => ungroupedGuests.value.length > 0)
+
+  const allUngroupedVisibleSelected = computed(() => {
+    const visible = ungroupedGuests.value
+    if (visible.length === 0) return false
+    return visible.every((row) => selectedGuestIds.value.has(row.guestId))
+  })
+
+  const someUngroupedVisibleSelected = computed(() => {
+    const visible = ungroupedGuests.value
+    if (visible.length === 0) return false
+    const selected = visible.filter((row) => selectedGuestIds.value.has(row.guestId))
+    return selected.length > 0 && selected.length < visible.length
   })
 
   const assignableGroupOptions = computed(() => {
@@ -359,8 +451,36 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
   }
 
   function openAddToExistingModal() {
+    pendingAssignGuestIds.value = null
     targetGroupId.value = groupOptions.value[0]?.value
     isAddToExistingModalOpen.value = true
+  }
+
+  function openAssignGuestsToGroupModal(guestIds: string[]) {
+    const ungroupedIds = guestIds.filter((id) => !guestIdToGroup.value.has(id))
+    if (ungroupedIds.length === 0 || groupOptions.value.length === 0) {
+      return
+    }
+    pendingAssignGuestIds.value = ungroupedIds
+    targetGroupId.value = groupOptions.value[0]?.value
+    isAddToExistingModalOpen.value = true
+  }
+
+  function closeAddToExistingModal() {
+    isAddToExistingModalOpen.value = false
+    pendingAssignGuestIds.value = null
+  }
+
+  function toggleSelectAllUngrouped(selected: boolean) {
+    const next = new Set(selectedGuestIds.value)
+    for (const row of ungroupedGuests.value) {
+      if (selected) {
+        next.add(row.guestId)
+      } else {
+        next.delete(row.guestId)
+      }
+    }
+    selectedGuestIds.value = next
   }
 
   function openRenameGroupModal() {
@@ -444,15 +564,23 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
   }
 
   async function handleAddToExistingGroup() {
-    if (!canAddToExistingGroup.value || !targetGroupId.value) return
+    const guestIds = pendingAssignGuestIds.value ?? selectedGuestIdList.value
+    if (guestIds.length === 0 || !targetGroupId.value) return
 
-    const guestIds = selectedGuestIdList.value
-    if (guestIds.length === 0) return
+    const allUngrouped = guestIds.every((id) => !guestIdToGroup.value.has(id))
+    if (!allUngrouped) {
+      toast.add({
+        title: 'Cannot add to group',
+        description: 'Only ungrouped guests can be added to an existing group.',
+        color: 'error',
+      })
+      return
+    }
 
     isGroupActionLoading.value = true
     try {
       await assignGuestsToExistingGroup(guestIds)
-      isAddToExistingModalOpen.value = false
+      closeAddToExistingModal()
     } catch (error) {
       reportApiError(toast, { title: 'Could not add to group', error })
     } finally {
@@ -485,6 +613,32 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
     } finally {
       isGroupActionLoading.value = false
     }
+  }
+
+  async function handleRemoveGuestFromGroup(groupId: string, guestId: string) {
+    if (options.mutationsDisabled.value || !groupId || !guestId) return
+
+    isGroupActionLoading.value = true
+    try {
+      const response = await removeGuestFromGroup(groupId, guestId)
+      await loadGuestGroups()
+      toast.add({
+        title: response.dissolved ? 'Group dissolved' : 'Guest ungrouped',
+        description: response.message,
+      })
+    } catch (error) {
+      reportApiError(toast, { title: 'Could not ungroup guest', error })
+    } finally {
+      isGroupActionLoading.value = false
+    }
+  }
+
+  function openRenameGroupModalForGroup(groupId: string) {
+    const group = guestGroups.value.find((item) => item._id === groupId)
+    if (!group) return
+    renameGroupName.value = group.name?.trim() ?? ''
+    selectedGuestIds.value = new Set((group.guests ?? []).map((guest) => guest._id))
+    isRenameGroupModalOpen.value = true
   }
 
   async function handleUngroupSingle() {
@@ -576,6 +730,8 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
     groupOptions,
     assignableGroupOptions,
     displayRows,
+    groupsBySection,
+    isGroupsTabEmpty,
     isSearchActive,
     isSearchEmpty,
     showActionBar,
@@ -586,6 +742,11 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
     canRenameGroup,
     canUngroupAll,
     canAddToExistingGroup,
+    assignModalGuestCount,
+    ungroupedGuests,
+    hasUngroupedGuests,
+    allUngroupedVisibleSelected,
+    someUngroupedVisibleSelected,
     canAssignToExistingInModal,
     canUngroupSingle,
     allVisibleSelected,
@@ -596,10 +757,15 @@ export function useEventGuestGroupsManager(options: UseEventGuestGroupsManagerOp
     toggleSelectAllVisible,
     openGroupAssignmentModal,
     openAddToExistingModal,
+    openAssignGuestsToGroupModal,
+    closeAddToExistingModal,
+    toggleSelectAllUngrouped,
     openRenameGroupModal,
     handleGroupAssignment,
     handleAddToExistingGroup,
     handleRenameGroup,
+    handleRemoveGuestFromGroup,
+    openRenameGroupModalForGroup,
     handleUngroupSingle,
     handleUngroupAll,
   }

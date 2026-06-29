@@ -1,11 +1,32 @@
 import type { GuestRecord } from '~/types/event'
 
 export interface GuestEntryInput {
-  name: string
+  firstName: string
+  lastName: string
   email: string
+  mailingAddress?: string
+  contactNumber?: string
+  envelopeName?: string
+}
+
+export interface UpdateGuestInput {
+  firstName?: string
+  lastName?: string
+  email?: string
+  mailingAddress?: string
+  contactNumber?: string
+  envelopeName?: string
+  tableCode?: string | null
 }
 
 export interface CreateGuestResponse {
+  success: boolean
+  status: number
+  message: string
+  guest: GuestRecord
+}
+
+export interface UpdateGuestResponse {
   success: boolean
   status: number
   message: string

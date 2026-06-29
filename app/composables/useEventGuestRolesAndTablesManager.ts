@@ -9,6 +9,8 @@ import {
   sortTableCodes,
   type TableAssignmentValue,
 } from '~/utils/tableCode'
+import { formatGuestDisplayName } from '~/utils/guestName'
+import { guestRowMatchesDirectSearch, mapGuestTableRowToSearchable } from '~/utils/guestSearch'
 
 export type RoleAssignmentMode = 'existing' | 'new'
 
@@ -41,7 +43,12 @@ function mapGuestRecordToTableRow(guest: GuestRecord): GuestTableRow {
   const roleNames = (guest.roles ?? []).map((role) => role.name)
   return {
     guestId: guest._id,
-    name: guest.name,
+    firstName: guest.firstName,
+    lastName: guest.lastName,
+    displayName: formatGuestDisplayName(guest.firstName, guest.lastName),
+    mailingAddress: guest.mailingAddress ?? '',
+    contactNumber: guest.contactNumber ?? '',
+    envelopeName: guest.envelopeName ?? '',
     email: guest.email,
     guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
     rsvpStatus:
@@ -89,11 +96,8 @@ function applyRowSearchFilter(
     }
   }
 
-  const matches = rows.filter(
-    (row) =>
-      row.name.toLowerCase().includes(trimmed) ||
-      row.email.toLowerCase().includes(trimmed) ||
-      (row.roleNames ?? []).some((roleName) => roleName.toLowerCase().includes(trimmed))
+  const matches = rows.filter((row) =>
+    guestRowMatchesDirectSearch(mapGuestTableRowToSearchable(row), trimmed)
   )
 
   for (const match of matches) {

@@ -213,10 +213,10 @@ async function confirmUninvite() {
 
 const columns: TableColumn<SubEventGuestTableRow>[] = [
   {
-    accessorKey: 'name',
+    accessorKey: 'displayName',
     header: 'Name',
     cell: ({ row }) =>
-      h('span', { class: 'font-medium' }, row.getValue('name') as string),
+      h('span', { class: 'font-medium' }, row.getValue('displayName') as string),
   },
   { accessorKey: 'email', header: 'Email' },
   {
@@ -737,11 +737,11 @@ watch([eventId, subEventId], () => {
                   <UCheckbox
                     :model-value="selectedInviteGuestIds.has(guest._id)"
                     :disabled="isSendingInvites"
-                    :aria-label="`Select ${guest.name}`"
+                    :aria-label="`Select ${guest.displayName}`"
                     @update:model-value="(value) => toggleInviteSelection(guest._id, value === true)"
                   />
                 </td>
-                <td class="px-3 py-2 font-medium">{{ guest.name }}</td>
+                <td class="px-3 py-2 font-medium">{{ guest.displayName }}</td>
                 <td class="px-3 py-2 text-muted">{{ guest.email }}</td>
               </tr>
             </tbody>
@@ -779,7 +779,7 @@ watch([eventId, subEventId], () => {
       <template #body>
         <p class="text-sm text-muted">
           Remove
-          <span class="font-medium text-highlighted">{{ guestToUninvite?.name }}</span>
+          <span class="font-medium text-highlighted">{{ guestToUninvite?.displayName }}</span>
           from this schedule?
         </p>
         <p

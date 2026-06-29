@@ -4,6 +4,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { reportApiError, getApiErrorMessage } from '~/types/auth'
 import { useGuests } from '~/composables/useGuests'
 import { formatGuestValidationErrors } from '~/utils/guestListUpdates'
+import { formatGuestDisplayName } from '~/utils/guestName'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -25,17 +26,32 @@ const eventId = computed(() => {
 
 type GuestRow = {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   email: string
+  mailingAddress: string
+  contactNumber: string
+  envelopeName: string
 }
 
 const stagedGuests = ref<GuestRow[]>([])
-const currentGuest = reactive({ name: '', email: '' })
+const currentGuest = reactive({
+  firstName: '',
+  lastName: '',
+  email: '',
+  mailingAddress: '',
+  contactNumber: '',
+  envelopeName: '',
+})
 const isSubmitting = ref(false)
 
 const rowSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email'),
+  mailingAddress: z.string().optional(),
+  contactNumber: z.string().optional(),
+  envelopeName: z.string().optional(),
 })
 
 onMounted(() => {
@@ -50,16 +66,20 @@ onMounted(() => {
 
 function addStagedGuest() {
   const parsed = rowSchema.safeParse({
-    name: currentGuest.name.trim(),
+    firstName: currentGuest.firstName.trim(),
+    lastName: currentGuest.lastName.trim(),
     email: currentGuest.email.trim().toLowerCase(),
+    mailingAddress: currentGuest.mailingAddress.trim(),
+    contactNumber: currentGuest.contactNumber.trim(),
+    envelopeName: currentGuest.envelopeName.trim(),
   })
 
   if (!parsed.success) {
-    toast.add({ title: 'Please provide a valid name and email', color: 'error' })
+    toast.add({ title: 'Please provide valid guest details', color: 'error' })
     return
   }
 
-  const isDuplicate = stagedGuests.value.some(g => g.email === parsed.data.email)
+  const isDuplicate = stagedGuests.value.some((g) => g.email === parsed.data.email)
   if (isDuplicate) {
     toast.add({ title: 'Guest with this email is already staged', color: 'error' })
     return
@@ -67,31 +87,62 @@ function addStagedGuest() {
 
   stagedGuests.value.unshift({
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    name: parsed.data.name,
+    firstName: parsed.data.firstName,
+    lastName: parsed.data.lastName,
     email: parsed.data.email,
+    mailingAddress: parsed.data.mailingAddress ?? '',
+    contactNumber: parsed.data.contactNumber ?? '',
+    envelopeName: parsed.data.envelopeName ?? '',
   })
 
-  currentGuest.name = ''
+  currentGuest.firstName = ''
+  currentGuest.lastName = ''
   currentGuest.email = ''
+  currentGuest.mailingAddress = ''
+  currentGuest.contactNumber = ''
+  currentGuest.envelopeName = ''
 }
 
 function removeStagedGuest(rowId: string) {
   stagedGuests.value = stagedGuests.value.filter((row) => row.id !== rowId)
 }
 
-function getValidRows(): { name: string; email: string }[] {
-  const valid: { name: string; email: string }[] = []
+function getValidRows() {
+  const valid: {
+    firstName: string
+    lastName: string
+    email: string
+    mailingAddress?: string
+    contactNumber?: string
+    envelopeName?: string
+  }[] = []
   const seenEmails = new Set<string>()
 
   const allRows = [...stagedGuests.value]
-  if (currentGuest.name.trim() || currentGuest.email.trim()) {
-    allRows.push({ id: 'temp', name: currentGuest.name, email: currentGuest.email })
+  if (
+    currentGuest.firstName.trim()
+    || currentGuest.lastName.trim()
+    || currentGuest.email.trim()
+  ) {
+    allRows.push({
+      id: 'temp',
+      firstName: currentGuest.firstName,
+      lastName: currentGuest.lastName,
+      email: currentGuest.email,
+      mailingAddress: currentGuest.mailingAddress,
+      contactNumber: currentGuest.contactNumber,
+      envelopeName: currentGuest.envelopeName,
+    })
   }
 
   for (const row of allRows) {
     const parsed = rowSchema.safeParse({
-      name: row.name.trim(),
+      firstName: row.firstName.trim(),
+      lastName: row.lastName.trim(),
       email: row.email.trim().toLowerCase(),
+      mailingAddress: row.mailingAddress.trim(),
+      contactNumber: row.contactNumber.trim(),
+      envelopeName: row.envelopeName.trim(),
     })
     if (!parsed.success) {
       continue
@@ -113,7 +164,7 @@ async function handleSubmit() {
   if (validRows.length === 0) {
     toast.add({
       title: 'No valid guests',
-      description: 'Stage at least one guest with a name and valid email.',
+      description: 'Stage at least one guest with first name, last name, and a valid email.',
       color: 'error',
     })
     return
@@ -168,14 +219,22 @@ function handleFormSubmit(event: FormSubmitEvent<Record<string, never>>) {
       <div class="col-span-1 flex flex-col gap-4">
         <UPageCard class="white-bread-container">
           <p class="text-sm text-muted mb-4">
-            Enter name and email for each guest you want to add.
+            Enter guest details for each person you want to add.
           </p>
           <UForm class="space-y-4" :state="currentGuest" @submit="handleFormSubmit">
-            <UFormField label="Name" name="name" required>
+            <UFormField label="First name" name="firstName" required>
               <UInput
-                v-model="currentGuest.name"
+                v-model="currentGuest.firstName"
                 class="w-full"
-                placeholder="Juan Dela Cruz"
+                placeholder="Juan"
+              />
+            </UFormField>
+
+            <UFormField label="Last name" name="lastName" required>
+              <UInput
+                v-model="currentGuest.lastName"
+                class="w-full"
+                placeholder="Dela Cruz"
               />
             </UFormField>
 
@@ -185,6 +244,31 @@ function handleFormSubmit(event: FormSubmitEvent<Record<string, never>>) {
                 type="email"
                 class="w-full"
                 placeholder="jdelacruz@example.com"
+              />
+            </UFormField>
+
+            <UFormField label="Mailing address" name="mailingAddress">
+              <UTextarea
+                v-model="currentGuest.mailingAddress"
+                class="w-full"
+                placeholder="123 Rizal St, Manila"
+                :rows="2"
+              />
+            </UFormField>
+
+            <UFormField label="Contact number" name="contactNumber">
+              <UInput
+                v-model="currentGuest.contactNumber"
+                class="w-full"
+                placeholder="+63 912 345 6789"
+              />
+            </UFormField>
+
+            <UFormField label="Envelope name" name="envelopeName">
+              <UInput
+                v-model="currentGuest.envelopeName"
+                class="w-full"
+                placeholder="Mr. & Mrs. Juan Dela Cruz"
               />
             </UFormField>
             
@@ -206,7 +290,7 @@ function handleFormSubmit(event: FormSubmitEvent<Record<string, never>>) {
           block
           size="lg"
           :loading="isSubmitting"
-          :disabled="(!eventId && !isUiOnlyMode) || (stagedGuests.length === 0 && !currentGuest.name)"
+          :disabled="(!eventId && !isUiOnlyMode) || (stagedGuests.length === 0 && !currentGuest.firstName)"
           @click="handleSubmit"
         >
           Submit to Guest List
@@ -224,8 +308,16 @@ function handleFormSubmit(event: FormSubmitEvent<Record<string, never>>) {
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <div class="font-medium truncate text-default">{{ row.name }}</div>
+                <div class="font-medium truncate text-default">
+                  {{ formatGuestDisplayName(row.firstName, row.lastName) }}
+                </div>
                 <div class="text-sm text-muted truncate">{{ row.email }}</div>
+                <div
+                  v-if="row.envelopeName"
+                  class="text-xs text-muted truncate mt-1"
+                >
+                  Envelope: {{ row.envelopeName }}
+                </div>
               </div>
               <UButton
                 icon="i-lucide-trash-2"

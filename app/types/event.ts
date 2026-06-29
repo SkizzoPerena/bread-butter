@@ -46,7 +46,11 @@ export interface GuestRsvpSnapshot {
 
 export interface GuestRecord {
   _id: string
-  name: string
+  firstName: string
+  lastName: string
+  mailingAddress?: string
+  contactNumber?: string
+  envelopeName?: string
   email: string
   roles?: { _id: string; name: string }[]
   tableCode?: string | null

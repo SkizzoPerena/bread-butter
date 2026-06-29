@@ -4,7 +4,7 @@ import type { EventRecord, GuestRecord, RsvpSummary } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { useGuests } from '~/composables/useGuests'
-import { useEventGuestsManager, addGuestSchema } from '~/composables/useEventGuestsManager'
+import { useEventGuestsManager, addGuestSchema, editGuestSchema } from '~/composables/useEventGuestsManager'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { useEventGuestGroupsManager } from '~/composables/useEventGuestGroupsManager'
 import { useEventGuestRolesAndTablesManager } from '~/composables/useEventGuestRolesAndTablesManager'
@@ -47,7 +47,9 @@ const selectedTab = ref('guest-list')
 
 const {
   isAddGuestModalOpen,
+  isEditGuestModalOpen,
   isSubmittingGuest,
+  isUpdatingGuest,
   sendingGuestId,
   isInvitingAll,
   deletingGuestId,
@@ -55,6 +57,7 @@ const {
   guestToRemove,
   isNoQuestionsWarningOpen,
   addGuestState,
+  editGuestState,
   mutationsDisabled,
   tableRows,
   isGuestListEmpty,
@@ -63,6 +66,9 @@ const {
   canInviteAll,
   rsvpStats,
   handleAddGuest,
+  openEditGuestModal,
+  closeEditGuestModal,
+  handleEditGuest,
   openRemoveGuestModal,
   closeRemoveGuestModal,
   handleRemoveGuest,
@@ -91,8 +97,11 @@ const {
   createGroupName,
   renameGroupName,
   targetGroupId,
+  groupOptions,
   assignableGroupOptions,
   displayRows,
+  groupsBySection,
+  isGroupsTabEmpty,
   isSearchEmpty,
   showActionBar,
   selectedCount,
@@ -103,20 +112,28 @@ const {
   canRenameGroup,
   canUngroupAll,
   canAddToExistingGroup,
-  canAssignToExistingInModal,
+  assignModalGuestCount,
+  allUngroupedVisibleSelected,
+  someUngroupedVisibleSelected,
   canUngroupSingle,
   allVisibleSelected,
   someVisibleSelected,
+  guestGroups,
   loadGuestGroups,
   clearSelection,
   toggleSelection,
   toggleSelectAllVisible,
   openGroupAssignmentModal,
   openAddToExistingModal,
+  openAssignGuestsToGroupModal,
+  closeAddToExistingModal,
+  toggleSelectAllUngrouped,
   openRenameGroupModal,
   handleGroupAssignment,
   handleAddToExistingGroup,
   handleRenameGroup,
+  handleRemoveGuestFromGroup,
+  openRenameGroupModalForGroup,
   handleUngroupSingle,
   handleUngroupAll,
 } = useEventGuestGroupsManager({
@@ -184,6 +201,7 @@ const guestModalUi = {
 
 const tabItems = computed(() => [
   { label: `Guest List (${guestListSize.value})`, slot: 'guest-list' },
+  { label: `Groups (${guestGroups.value.length})`, slot: 'groups' },
   { label: `Roles (${guestRoles.value.length})`, slot: 'roles' },
   { label: 'Tables', slot: 'tables' },
 ])
@@ -200,6 +218,14 @@ const showGuestListActionBar = computed(
 
 const showTablesActionBar = computed(
   () => showActionBar.value && selectedTab.value === 'tables'
+)
+
+const showGroupsActionBar = computed(
+  () => showActionBar.value && selectedTab.value === 'groups' && canAddToExistingGroup.value
+)
+
+const canAssignUngroupedToGroup = computed(
+  () => !mutationsDisabled.value && guestGroups.value.length > 0
 )
 
 function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
@@ -236,7 +262,7 @@ const columns: TableColumn<GuestTableRow>[] = [
       return h(UCheckbox, {
         modelValue: selectedGuestIds.value.has(person.guestId),
         disabled: mutationsDisabled.value,
-        'aria-label': `Select ${person.name}`,
+        'aria-label': `Select ${person.displayName}`,
         'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
           toggleSelection(person.guestId, value === true)
         },
@@ -244,12 +270,19 @@ const columns: TableColumn<GuestTableRow>[] = [
     },
   },
   {
-    accessorKey: 'name',
+    accessorKey: 'displayName',
     header: 'Name',
     cell: ({ row }) => {
       const person = row.original
+      const showEnvelope =
+        person.envelopeName.trim()
+        && person.envelopeName.trim().toLowerCase()
+          !== person.displayName.trim().toLowerCase()
       return h('div', { class: 'space-y-1' }, [
-        h('span', { class: 'font-medium' }, person.name),
+        h('span', { class: 'font-medium' }, person.displayName),
+        showEnvelope
+          ? h('p', { class: 'text-xs text-muted' }, `Envelope: ${person.envelopeName}`)
+          : null,
         h('div', { class: 'flex flex-wrap gap-1' }, [
           person.groupName
             ? h(
@@ -275,7 +308,6 @@ const columns: TableColumn<GuestTableRow>[] = [
     header: 'Table',
     cell: ({ row }) => row.original.tableLabel ?? '—',
   },
-  { accessorKey: 'guests', header: 'Attendants' },
   {
     accessorKey: 'rsvpStatus',
     header: 'RSVP Status',
@@ -301,11 +333,22 @@ const columns: TableColumn<GuestTableRow>[] = [
     header: '',
     cell: ({ row }) => {
       const person = row.original
+      const canEdit = !mutationsDisabled.value
       const canSendInvite =
         !person.invitationSent && !mutationsDisabled.value
       const canRemove = !mutationsDisabled.value
 
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        canEdit
+          ? h(resolveComponent('UButton'), {
+              size: 'xs',
+              variant: 'ghost',
+              color: 'neutral',
+              icon: 'i-lucide-pencil',
+              'aria-label': 'Edit guest',
+              onClick: () => openEditGuestModal(person),
+            })
+          : null,
         canSendInvite
           ? h(resolveComponent('UButton'), {
               size: 'xs',
@@ -559,7 +602,7 @@ watch(eventId, () => {
               <UInput
                 v-model="searchQuery"
                 type="search"
-                placeholder="Search by name, email, group, role, or table..."
+                placeholder="Search by name, address, envelope, email, group, role, or table..."
                 icon="i-lucide-search"
                 class="w-full sm:w-72"
               />
@@ -571,7 +614,7 @@ watch(eventId, () => {
                 <UIcon name="i-lucide-search-x" class="size-10 text-muted" />
                 <p class="mt-4 text-base font-medium">No guests match your search</p>
                 <p class="mt-1 max-w-sm text-sm text-muted">
-                  Try a different name, email, group, role, or table. Matching a grouped guest shows their whole group.
+                  Try a different name, address, envelope name, email, group, role, or table. Matching a grouped guest shows their whole group.
                 </p>
               </div>
 
@@ -588,12 +631,128 @@ watch(eventId, () => {
             </div>
           </template>
 
+          <template #groups>
+            <div
+              class="mt-4 space-y-4"
+              :class="showGroupsActionBar ? 'pb-24' : ''"
+            >
+              <UInput
+                v-model="searchQuery"
+                type="search"
+                placeholder="Search by name, address, envelope, email, or group..."
+                icon="i-lucide-search"
+                class="w-full sm:w-72"
+              />
+
+              <div
+                v-if="isGroupsTabEmpty"
+                class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
+              >
+                <UIcon name="i-lucide-users-round" class="size-10 text-muted" />
+                <p class="mt-4 text-base font-medium">No guest groups yet</p>
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                  Select two or more guests on the Guest List tab and create a group to see them here.
+                </p>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div
+                  v-for="section in groupsBySection"
+                  :key="section.groupId ?? 'ungrouped'"
+                  class="rounded-lg border border-default bg-muted/10"
+                >
+                  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-default px-4 py-3">
+                    <div class="flex min-w-0 items-center gap-3">
+                      <UCheckbox
+                        v-if="!section.groupId && !mutationsDisabled && section.guests.length > 0"
+                        :model-value="allUngroupedVisibleSelected"
+                        :indeterminate="someUngroupedVisibleSelected"
+                        aria-label="Select all ungrouped guests"
+                        @update:model-value="(value) => toggleSelectAllUngrouped(value === true)"
+                      />
+                      <h3 class="font-medium text-highlighted">
+                        {{ section.groupName }}
+                        <span class="text-sm font-normal text-muted">({{ section.guests.length }})</span>
+                      </h3>
+                    </div>
+                    <UButton
+                      v-if="!mutationsDisabled && section.groupId"
+                      size="xs"
+                      variant="ghost"
+                      color="neutral"
+                      icon="i-lucide-pencil"
+                      :loading="isGroupActionLoading"
+                      @click="openRenameGroupModalForGroup(section.groupId!)"
+                    >
+                      Rename
+                    </UButton>
+                  </div>
+                  <ul class="divide-y divide-default">
+                    <li
+                      v-for="guest in section.guests"
+                      :key="`${section.groupId ?? 'ungrouped'}-${guest.guestId}`"
+                      class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
+                    >
+                      <div class="flex min-w-0 flex-1 items-center gap-3">
+                        <UCheckbox
+                          v-if="!section.groupId && !mutationsDisabled"
+                          :model-value="selectedGuestIds.has(guest.guestId)"
+                          :aria-label="`Select ${guest.displayName}`"
+                          @update:model-value="(value) => toggleSelection(guest.guestId, value === true)"
+                        />
+                        <div class="min-w-0">
+                          <p class="font-medium">{{ guest.displayName }}</p>
+                          <p class="text-muted">{{ guest.email }}</p>
+                          <p
+                            v-if="guest.envelopeName.trim() && guest.envelopeName.trim().toLowerCase() !== guest.displayName.trim().toLowerCase()"
+                            class="text-xs text-muted mt-0.5"
+                          >
+                            Envelope: {{ guest.envelopeName }}
+                          </p>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <UBadge
+                          :color="rsvpStatusColor(guest.rsvpStatus)"
+                          variant="subtle"
+                          class="capitalize"
+                        >
+                          {{ guest.rsvpStatus }}
+                        </UBadge>
+                        <UButton
+                          v-if="!mutationsDisabled && !section.groupId && canAssignUngroupedToGroup"
+                          size="xs"
+                          variant="ghost"
+                          color="orange"
+                          icon="i-lucide-user-plus"
+                          :loading="isGroupActionLoading"
+                          aria-label="Add to group"
+                          @click="openAssignGuestsToGroupModal([guest.guestId])"
+                        />
+                        <UButton
+                          v-if="!mutationsDisabled && section.groupId"
+                          size="xs"
+                          variant="ghost"
+                          color="neutral"
+                          icon="i-lucide-user-minus"
+                          :loading="isGroupActionLoading"
+                          aria-label="Remove from group"
+                          @click="handleRemoveGuestFromGroup(section.groupId!, guest.guestId)"
+                        />
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <template #roles>
             <div class="mt-4 space-y-4">
               <UInput
                 v-model="searchQuery"
                 type="search"
-                placeholder="Search by name, email, group, role, or table..."
+                placeholder="Search by name, address, envelope, email, group, role, or table..."
                 icon="i-lucide-search"
                 class="w-full sm:w-72"
               />
@@ -628,7 +787,7 @@ watch(eventId, () => {
                       class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
                     >
                       <div>
-                        <p class="font-medium">{{ guest.name }}</p>
+                        <p class="font-medium">{{ guest.displayName }}</p>
                         <p class="text-muted">{{ guest.email }}</p>
                       </div>
                       <div class="flex items-center gap-2">
@@ -665,7 +824,7 @@ watch(eventId, () => {
               <UInput
                 v-model="searchQuery"
                 type="search"
-                placeholder="Search by name, email, group, role, or table..."
+                placeholder="Search by name, address, envelope, email, group, role, or table..."
                 icon="i-lucide-search"
                 class="w-full sm:w-72"
               />
@@ -703,11 +862,11 @@ watch(eventId, () => {
                         <UCheckbox
                           :model-value="selectedGuestIds.has(guest.guestId)"
                           :disabled="mutationsDisabled"
-                          :aria-label="`Select ${guest.name}`"
+                          :aria-label="`Select ${guest.displayName}`"
                           @update:model-value="(value) => toggleSelection(guest.guestId, value === true)"
                         />
                         <div class="min-w-0">
-                          <p class="font-medium">{{ guest.name }}</p>
+                          <p class="font-medium">{{ guest.displayName }}</p>
                           <p class="text-muted">{{ guest.email }}</p>
                         </div>
                       </div>
@@ -749,7 +908,7 @@ watch(eventId, () => {
         </UTabs>
 
         <div
-          v-if="showGuestListActionBar || showTablesActionBar"
+          v-if="showGuestListActionBar || showTablesActionBar || showGroupsActionBar"
           class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-200 bg-white px-4 py-3 shadow-lg dark:border-orange-800 dark:bg-neutral-900"
         >
           <div class="space-y-1">
@@ -835,6 +994,16 @@ watch(eventId, () => {
                 Ungroup all
               </UButton>
             </template>
+            <template v-if="showGroupsActionBar">
+              <UButton
+                color="orange"
+                icon="i-lucide-user-plus"
+                :loading="isGroupActionLoading"
+                @click="openAddToExistingModal"
+              >
+                Add to existing group
+              </UButton>
+            </template>
             <UButton
               v-if="showTablesActionBar && canAssignTable"
               color="orange"
@@ -871,11 +1040,19 @@ watch(eventId, () => {
             class="space-y-4"
             @submit="handleAddGuest"
           >
-            <UFormField label="Name" name="name" required>
+            <UFormField label="First name" name="firstName" required>
               <UInput
-                v-model="addGuestState.name"
+                v-model="addGuestState.firstName"
                 class="w-full"
-                placeholder="Juan Dela Cruz"
+                placeholder="Juan"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Last name" name="lastName" required>
+              <UInput
+                v-model="addGuestState.lastName"
+                class="w-full"
+                placeholder="Dela Cruz"
                 :disabled="mutationsDisabled"
               />
             </UFormField>
@@ -885,6 +1062,31 @@ watch(eventId, () => {
                 type="email"
                 class="w-full"
                 placeholder="jdelacruz@example.com"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Mailing address" name="mailingAddress">
+              <UTextarea
+                v-model="addGuestState.mailingAddress"
+                class="w-full"
+                placeholder="123 Rizal St, Manila"
+                :disabled="mutationsDisabled"
+                :rows="2"
+              />
+            </UFormField>
+            <UFormField label="Contact number" name="contactNumber">
+              <UInput
+                v-model="addGuestState.contactNumber"
+                class="w-full"
+                placeholder="+63 912 345 6789"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Envelope name" name="envelopeName">
+              <UInput
+                v-model="addGuestState.envelopeName"
+                class="w-full"
+                placeholder="Mr. & Mrs. Juan Dela Cruz"
                 :disabled="mutationsDisabled"
               />
             </UFormField>
@@ -898,6 +1100,88 @@ watch(eventId, () => {
             >
               Add Guest
             </UButton>
+          </UForm>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isEditGuestModalOpen"
+        title="Edit Guest"
+        :ui="guestModalUi"
+        :close="{ variant: 'link', class: 'rounded-full text-white' }"
+        :dismissible="!isUpdatingGuest"
+      >
+        <template #body>
+          <UForm
+            :schema="editGuestSchema"
+            :state="editGuestState"
+            class="space-y-4"
+            @submit="handleEditGuest"
+          >
+            <UFormField label="First name" name="firstName" required>
+              <UInput
+                v-model="editGuestState.firstName"
+                class="w-full"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Last name" name="lastName" required>
+              <UInput
+                v-model="editGuestState.lastName"
+                class="w-full"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Email" name="email" required>
+              <UInput
+                v-model="editGuestState.email"
+                type="email"
+                class="w-full"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Mailing address" name="mailingAddress">
+              <UTextarea
+                v-model="editGuestState.mailingAddress"
+                class="w-full"
+                :disabled="mutationsDisabled"
+                :rows="2"
+              />
+            </UFormField>
+            <UFormField label="Contact number" name="contactNumber">
+              <UInput
+                v-model="editGuestState.contactNumber"
+                class="w-full"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <UFormField label="Envelope name" name="envelopeName">
+              <UInput
+                v-model="editGuestState.envelopeName"
+                class="w-full"
+                :disabled="mutationsDisabled"
+              />
+            </UFormField>
+            <div class="flex gap-2 pt-2">
+              <UButton
+                variant="outline"
+                color="neutral"
+                class="flex-1"
+                :disabled="isUpdatingGuest"
+                @click="closeEditGuestModal"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                color="orange"
+                class="flex-1"
+                :loading="isUpdatingGuest"
+                :disabled="mutationsDisabled"
+              >
+                Save changes
+              </UButton>
+            </div>
           </UForm>
         </template>
       </UModal>
@@ -1145,12 +1429,15 @@ watch(eventId, () => {
       >
         <template #body>
           <p class="mb-4 text-sm text-muted">
-            Add the selected guest to an existing group.
+            Add
+            {{ assignModalGuestCount }}
+            guest{{ assignModalGuestCount === 1 ? '' : 's' }}
+            to an existing group.
           </p>
           <UFormField label="Group" name="targetGroup" required>
             <USelect
               v-model="targetGroupId"
-              :items="assignableGroupOptions"
+              :items="groupOptions"
               value-key="value"
               label-key="label"
               class="w-full"
@@ -1163,7 +1450,7 @@ watch(eventId, () => {
               color="neutral"
               variant="outline"
               :disabled="isGroupActionLoading"
-              @click="isAddToExistingModalOpen = false"
+              @click="closeAddToExistingModal"
             />
             <UButton
               label="Add to group"
@@ -1221,7 +1508,7 @@ watch(eventId, () => {
         <template #body>
           <p class="mb-4 text-sm text-muted">
             Remove
-            <span class="font-medium text-highlighted">{{ guestToRemove?.name }}</span>
+            <span class="font-medium text-highlighted">{{ guestToRemove?.displayName }}</span>
             from the guest list?
           </p>
           <div class="flex justify-end gap-2">

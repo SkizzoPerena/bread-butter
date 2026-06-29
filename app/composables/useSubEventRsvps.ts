@@ -1,6 +1,7 @@
 import type { EventRsvpsListResponse, RsvpRecord, RsvpStatusFilter } from '~/types/rsvp'
 import type { SendInviteResponse } from '~/types/guest'
 import type { RsvpSummary } from '~/types/event'
+import { formatGuestDisplayName } from '~/utils/guestName'
 
 const MOCK_SUB_EVENT_RSVPS = new Map<string, RsvpRecord[]>([
   [
@@ -63,7 +64,7 @@ export function findMockSubEventRsvpByEmail(
 
 export function addMockSubEventRsvp(
   subEventId: string,
-  guest: { _id: string; name: string; email: string }
+  guest: { _id: string; firstName: string; lastName: string; email: string }
 ): RsvpRecord {
   const rsvps = getMockSubEventRsvps(subEventId)
   const existing = findMockSubEventRsvpByEmail(subEventId, guest.email)
@@ -73,7 +74,7 @@ export function addMockSubEventRsvp(
 
   const rsvp: RsvpRecord = {
     _id: `mock-sub-rsvp-${guest._id}`,
-    name: guest.name,
+    name: formatGuestDisplayName(guest.firstName, guest.lastName),
     email: guest.email,
     status: 'PENDING',
     invitedAt: new Date().toISOString(),
@@ -187,10 +188,28 @@ export function useSubEventRsvps() {
     guestIds?: string[]
   ): Promise<SendInviteResponse> {
     if (isUiOnlyMode.value) {
-      const mockGuestDirectory: Record<string, { name: string; email: string }> = {
-        'mock-guest-1': { name: 'maria santos', email: 'maria.santos@example.com' },
-        'mock-guest-2': { name: 'juan dela cruz', email: 'juan.delacruz@example.com' },
-        'mock-guest-3': { name: 'ana reyes', email: 'ana.reyes@example.com' },
+      const mockGuestDirectory: Record<
+        string,
+        { _id: string; firstName: string; lastName: string; email: string }
+      > = {
+        'mock-guest-1': {
+          _id: 'mock-guest-1',
+          firstName: 'Maria',
+          lastName: 'Santos',
+          email: 'maria.santos@example.com',
+        },
+        'mock-guest-2': {
+          _id: 'mock-guest-2',
+          firstName: 'Juan',
+          lastName: 'Dela Cruz',
+          email: 'juan.delacruz@example.com',
+        },
+        'mock-guest-3': {
+          _id: 'mock-guest-3',
+          firstName: 'Ana',
+          lastName: 'Reyes',
+          email: 'ana.reyes@example.com',
+        },
       }
 
       const ids = guestIds ?? []
@@ -209,7 +228,7 @@ export function useSubEventRsvps() {
           skippedAlreadyInvited += 1
           continue
         }
-        addMockSubEventRsvp(subEventId, { _id: guestId, ...guest })
+        addMockSubEventRsvp(subEventId, guest)
         created += 1
       }
 

@@ -6,6 +6,8 @@ import {
 } from '~/utils/guestListUpdates'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { mapRsvpStatusToBadgeColor, mapRsvpStatusToLabel } from '~/utils/rsvpDisplay'
+import { formatGuestDisplayName } from '~/utils/guestName'
+import { guestRowMatchesDirectSearch } from '~/utils/guestSearch'
 
 export interface SubEventGuestTableRow extends GuestTableRow {
   rsvpId: string
@@ -47,7 +49,12 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     invitedGuests.value.map((guest) => ({
       guestId: guest._id,
       rsvpId: guest.rsvp!._id,
-      name: guest.name,
+      firstName: guest.firstName,
+      lastName: guest.lastName,
+      displayName: formatGuestDisplayName(guest.firstName, guest.lastName),
+      mailingAddress: guest.mailingAddress ?? '',
+      contactNumber: guest.contactNumber ?? '',
+      envelopeName: guest.envelopeName ?? '',
       email: guest.email,
       guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
@@ -60,10 +67,19 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     if (!query) {
       return uninvitedGuests.value
     }
-    return uninvitedGuests.value.filter(
-      (guest) =>
-        guest.name.toLowerCase().includes(query)
-        || guest.email.toLowerCase().includes(query)
+    return uninvitedGuests.value.filter((guest) =>
+      guestRowMatchesDirectSearch(
+        {
+          firstName: guest.firstName,
+          lastName: guest.lastName,
+          displayName: formatGuestDisplayName(guest.firstName, guest.lastName),
+          email: guest.email,
+          mailingAddress: guest.mailingAddress ?? '',
+          contactNumber: guest.contactNumber ?? '',
+          envelopeName: guest.envelopeName ?? '',
+        },
+        query
+      )
     )
   })
 

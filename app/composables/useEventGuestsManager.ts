@@ -10,12 +10,18 @@ import {
   removeGuestFromList,
 } from '~/utils/guestListUpdates'
 import { formatTableLabel } from '~/utils/tableCode'
+import { formatGuestDisplayName } from '~/utils/guestName'
 
 const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
 
 export type GuestTableRow = {
   guestId: string
-  name: string
+  firstName: string
+  lastName: string
+  displayName: string
+  mailingAddress: string
+  contactNumber: string
+  envelopeName: string
   email: string
   guests: number
   rsvpStatus: typeof rsvpOptions[number]
@@ -30,11 +36,18 @@ export type GuestTableRow = {
 }
 
 export const addGuestSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email'),
+  mailingAddress: z.string().optional(),
+  contactNumber: z.string().optional(),
+  envelopeName: z.string().optional(),
 })
 
+export const editGuestSchema = addGuestSchema
+
 export type AddGuestSchema = z.output<typeof addGuestSchema>
+export type EditGuestSchema = z.output<typeof editGuestSchema>
 
 export interface UseEventGuestsManagerOptions {
   eventId: Ref<string>
@@ -50,14 +63,17 @@ export interface UseEventGuestsManagerOptions {
 export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
   const toast = useToast()
   const { isUiOnlyMode } = useApiMode()
-  const { createGuest, fetchGuestsByEvent, sendGuestInvite, sendAllGuestInvites, deleteGuest } =
+  const { createGuest, updateGuest, fetchGuestsByEvent, sendGuestInvite, sendAllGuestInvites, deleteGuest } =
     useGuests()
 
   const guestList = options.guestList ?? ref<GuestRecord[]>([])
   const isLoadingGuests = options.isLoadingGuests ?? ref(false)
   const autoLoadGuests = options.autoLoadGuests ?? !options.guestList
   const isAddGuestModalOpen = ref(false)
+  const isEditGuestModalOpen = ref(false)
   const isSubmittingGuest = ref(false)
+  const isUpdatingGuest = ref(false)
+  const editingGuestId = ref<string | null>(null)
   const sendingGuestId = ref<string | null>(null)
   const isInvitingAll = ref(false)
   const deletingGuestId = ref<string | null>(null)
@@ -67,8 +83,21 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
   const pendingInviteAction = ref<'all' | string | null>(null)
 
   const addGuestState = reactive<AddGuestSchema>({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
+    mailingAddress: '',
+    contactNumber: '',
+    envelopeName: '',
+  })
+
+  const editGuestState = reactive<EditGuestSchema>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    mailingAddress: '',
+    contactNumber: '',
+    envelopeName: '',
   })
 
   const useDemoData = computed(
@@ -140,7 +169,12 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     const roleNames = (guest.roles ?? []).map((role) => role.name)
     return {
       guestId: guest._id,
-      name: guest.name,
+      firstName: guest.firstName,
+      lastName: guest.lastName,
+      displayName: formatGuestDisplayName(guest.firstName, guest.lastName),
+      mailingAddress: guest.mailingAddress ?? '',
+      contactNumber: guest.contactNumber ?? '',
+      envelopeName: guest.envelopeName ?? '',
       email: guest.email,
       guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
@@ -183,8 +217,38 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
   }
 
   function resetAddGuestForm() {
-    addGuestState.name = ''
+    addGuestState.firstName = ''
+    addGuestState.lastName = ''
     addGuestState.email = ''
+    addGuestState.mailingAddress = ''
+    addGuestState.contactNumber = ''
+    addGuestState.envelopeName = ''
+  }
+
+  function resetEditGuestForm() {
+    editGuestState.firstName = ''
+    editGuestState.lastName = ''
+    editGuestState.email = ''
+    editGuestState.mailingAddress = ''
+    editGuestState.contactNumber = ''
+    editGuestState.envelopeName = ''
+    editingGuestId.value = null
+  }
+
+  function openEditGuestModal(person: GuestTableRow) {
+    editingGuestId.value = person.guestId
+    editGuestState.firstName = person.firstName
+    editGuestState.lastName = person.lastName
+    editGuestState.email = person.email
+    editGuestState.mailingAddress = person.mailingAddress
+    editGuestState.contactNumber = person.contactNumber
+    editGuestState.envelopeName = person.envelopeName
+    isEditGuestModalOpen.value = true
+  }
+
+  function closeEditGuestModal() {
+    isEditGuestModalOpen.value = false
+    resetEditGuestForm()
   }
 
   async function handleAddGuest(payload: FormSubmitEvent<AddGuestSchema>) {
@@ -210,8 +274,12 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     try {
       const targetEventId = options.eventId.value || 'mock-event-id'
       const response = await createGuest(targetEventId, {
-        name: payload.data.name,
+        firstName: payload.data.firstName,
+        lastName: payload.data.lastName,
         email: payload.data.email,
+        mailingAddress: payload.data.mailingAddress,
+        contactNumber: payload.data.contactNumber,
+        envelopeName: payload.data.envelopeName,
       })
 
       guestList.value = appendGuestToList(guestList.value, response.guest)
@@ -239,6 +307,62 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
       })
     } finally {
       isSubmittingGuest.value = false
+    }
+  }
+
+  async function handleEditGuest(payload: FormSubmitEvent<EditGuestSchema>) {
+    const guestId = editingGuestId.value
+    if (!guestId) {
+      return
+    }
+
+    if (mutationsDisabled.value) {
+      toast.add({
+        title: 'Event cancelled',
+        description: 'Cannot modify the guest list for a cancelled event.',
+        color: 'error',
+      })
+      return
+    }
+
+    isUpdatingGuest.value = true
+    try {
+      const response = await updateGuest(guestId, {
+        firstName: payload.data.firstName,
+        lastName: payload.data.lastName,
+        email: payload.data.email,
+        mailingAddress: payload.data.mailingAddress,
+        contactNumber: payload.data.contactNumber,
+        envelopeName: payload.data.envelopeName,
+      })
+
+      guestList.value = guestList.value.map((guest) =>
+        guest._id === guestId ? response.guest : guest
+      )
+
+      toast.add({
+        title: 'Guest updated',
+        description: response.message,
+      })
+      closeEditGuestModal()
+      await options.onGuestListMutated?.()
+    } catch (error) {
+      const validationMessage = formatGuestValidationErrors(error)
+      if (validationMessage) {
+        toast.add({
+          title: 'Validation failed',
+          description: validationMessage,
+          color: 'error',
+        })
+        return
+      }
+      reportApiError(toast, {
+        title: 'Could not update guest',
+        error,
+        fallback: getApiErrorMessage(error),
+      })
+    } finally {
+      isUpdatingGuest.value = false
     }
   }
 
@@ -425,7 +549,10 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     isUiOnlyMode,
     isLoadingGuests,
     isAddGuestModalOpen,
+    isEditGuestModalOpen,
     isSubmittingGuest,
+    isUpdatingGuest,
+    editingGuestId,
     sendingGuestId,
     isInvitingAll,
     deletingGuestId,
@@ -433,6 +560,8 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     guestToRemove,
     isNoQuestionsWarningOpen,
     addGuestState,
+    editGuestState,
+    editGuestSchema,
     mutationsDisabled,
     tableRows,
     guestListSize,
@@ -442,7 +571,11 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     rsvpStats,
     loadGuests,
     resetAddGuestForm,
+    resetEditGuestForm,
     handleAddGuest,
+    openEditGuestModal,
+    closeEditGuestModal,
+    handleEditGuest,
     openRemoveGuestModal,
     closeRemoveGuestModal,
     handleRemoveGuest,
