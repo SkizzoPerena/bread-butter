@@ -539,7 +539,6 @@ async function handleCreateEvent() {
       No events yet — create one above.
     </p>
 
-    <div class="h-1000" />
   </UContainer>
 </template>
 

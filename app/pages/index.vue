@@ -62,10 +62,11 @@ const features = [
 ]
 
 
-function enterMotion(delay: number = 0) {
+function scrollMotion(delay: number = 0) {
   return {
     initial: { opacity: 0, y: 16 },
-    animate: { opacity: 1, y: 0 },
+    whileInView: { opacity: 1, y: 0 },
+    inViewOptions: { once: true, amount: 1 },
     transition: { duration: 0.6, delay }
   }
 }
@@ -95,13 +96,13 @@ function enterMotion(delay: number = 0) {
     <UPageSection class="">
       <UContainer class="font-medium text-xl text-center text-toast-400">
 
-        <Motion v-bind="enterMotion(0.35)">
+        <Motion v-bind="scrollMotion(0.1)">
           <div class="font-bold text-5xl font-serif">
             What's in the oven?
           </div>
         </Motion>
 <div class=" mb-12"/>
-          <Motion v-bind="enterMotion(0.65)">
+          <Motion v-bind="scrollMotion(0.2)">
             <div>
               Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
               <p /> From custom websites and digital invitations to seamless guest management—everything you need is
@@ -139,19 +140,28 @@ function enterMotion(delay: number = 0) {
 
       <UContainer class="font-regular text-xl text-center text-white">
         <img class="max-h-4/5 mb-12" src="~/assets/bpb-images/dashboard.png" />
+                  <Motion v-bind="scrollMotion(0.1)">
+
         <div class="font-bold text-5xl font-serif mb-6">Powerful tools, baked right in.</div>
+       </Motion>
+                 <Motion v-bind="scrollMotion(0.2)">
+
         <div>Say goodbye to half-baked plans. The Bread + Butter dashboard gives you a centralized hub for your entire
           event. Track tasks, manage suppliers, and monitor RSVPs with a visual, intuitive interface that keeps your big
           day from going stale.</div>
+          </Motion>
       </UContainer>
     </UPageSection>
 
     <UPageSection class="bg-bread-400">
 
       <UContainer class="font-regular text-xl text-center">
+                  <Motion v-bind="scrollMotion(0.1)">
+
         <div class="font-bold text-5xl font-serif mb-12">Everything you <a class="text-toast-400">knead</a> for a
           <p />Flawless Celebration
         </div>
+        </Motion>
         <UPageGrid>
           <div v-for="(feature, index) in features" :key="index" class="bread-container p-6 px-8 bg-white text-left">
             <UIcon :name="feature.icon" class="size-9 my-2" />
