@@ -9,6 +9,7 @@ import type { EventRecord } from '~/types/event'
 import type { SubEventRecord } from '~/types/subEvent'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { EVENT_FEATURE } from '~/utils/eventTierFeatures'
 import {
   isSubEventDateBeforeParent,
   parentEventMaxSubEventDate,
@@ -28,6 +29,7 @@ const EMOJI_RE = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/u
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
+const { requireEventFeature } = useEventFeatureGate()
 const { fetchSubEventsByEvent, createSubEvent } = useSubEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
@@ -231,7 +233,7 @@ async function handleAddSubEvent() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!eventId.value && !isUiOnlyMode.value) {
     toast.add({
       title: 'Missing event',
@@ -241,6 +243,12 @@ onMounted(() => {
     navigateTo('/UserDashboard')
     return
   }
+
+  const allowed = await requireEventFeature(EVENT_FEATURE.SCHEDULES)
+  if (!allowed) {
+    return
+  }
+
   loadEventData()
 })
 

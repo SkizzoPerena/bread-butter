@@ -24,6 +24,7 @@ export interface EventRecord {
   paymentSummary?: EventPaymentSummary | null
   priceTier?: PriceTierRecord | string | null
   tierPricePhp?: number | null
+  allowedFeatures?: string[]
   questions?: EventQuestion[]
 }
 

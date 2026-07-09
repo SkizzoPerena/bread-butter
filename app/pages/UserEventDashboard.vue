@@ -9,6 +9,13 @@ import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import type { TaskStatus } from '~/types/task'
 import { getAssigneeLabel } from '~/utils/taskAssignee'
 import type { EventRecord, TasksSummary } from '~/types/event'
+import {
+  EVENT_FEATURE,
+  type DashboardAction,
+  getAllowedFeaturesForEvent,
+  isDashboardActionAllowed,
+  isEventFeatureAllowed,
+} from '~/utils/eventTierFeatures'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -219,6 +226,16 @@ async function loadEventData() {
             isEnabled: true,
           },
           tierPricePhp: 10000,
+          allowedFeatures: getAllowedFeaturesForEvent({
+            priceTier: {
+              _id: 'mock-tier-id',
+              code: 'bread_butter',
+              name: 'Bread + Butter',
+              pricePhp: 10000,
+              isEnabled: true,
+            },
+            tierPricePhp: 10000,
+          }),
         },
         guestList: [],
         rsvpSummary: null,
@@ -453,14 +470,59 @@ function openSuppliersDashboard() {
 type DashboardItem = {
   label: string
   icon: string
-  action?: 'website' | 'invitation' | 'guestList' | 'tasks' | 'rsvp' | 'schedules' | 'settings' | 'payments' | 'wishlist' | 'playlist' | 'churchRequirements' | 'suppliers'
+  action: DashboardAction
   weddingOnly?: boolean
   bgClass: string
   hoverClass: string
   ringClass: string
 }
 
+const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
+  { label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
+  { label: 'Invitation', icon: 'i-lucide-send', action: 'invitation', bgClass: 'bg-violet-500', hoverClass: 'group-hover:bg-violet-600', ringClass: 'group-focus-visible:ring-violet-500' },
+  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
+  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-red-500', hoverClass: 'group-hover:bg-red-600', ringClass: 'group-focus-visible:ring-red-500' },
+  { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
+  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
+  { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
+  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
+  { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-lime-500', hoverClass: 'group-hover:bg-lime-600', ringClass: 'group-focus-visible:ring-lime-500' },
+  { label: 'Church Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-yellow-500', hoverClass: 'group-hover:bg-yellow-600', ringClass: 'group-focus-visible:ring-yellow-500' },
+  { label: 'Suppliers', icon: 'i-lucide-briefcase', action: 'suppliers', bgClass: 'bg-fuchsia-500', hoverClass: 'group-hover:bg-fuchsia-600', ringClass: 'group-focus-visible:ring-fuchsia-500' },
+  { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
+]
+
+const dashboardItems = computed(() =>
+  DASHBOARD_ITEM_CATALOG.filter((item) => {
+    if (item.weddingOnly && !isWeddingEvent.value) {
+      return false
+    }
+    return true
+  })
+)
+
+function isDashboardItemDisabled(item: DashboardItem): boolean {
+  if (item.action !== 'settings' && !isDashboardActionAllowed(eventRecord.value, item.action)) {
+    return true
+  }
+  if (
+    (item.action === 'website' || item.action === 'invitation') &&
+    (isEventCancelled.value || (!eventId.value && !isUiOnlyMode.value))
+  ) {
+    return true
+  }
+  return false
+}
+
+const showTasksChecklist = computed(() =>
+  isEventFeatureAllowed(eventRecord.value, EVENT_FEATURE.TASKS)
+)
+
 function handleDashboardItemClick(item: DashboardItem) {
+  if (isDashboardItemDisabled(item)) {
+    return
+  }
+
   if (item.action === 'website') {
     openWebsiteMaker()
   } else if (item.action === 'invitation') {
@@ -489,56 +551,57 @@ function handleDashboardItemClick(item: DashboardItem) {
 }
 
 function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
-  if (event.key === 'Enter') {
+  if (event.key === 'Enter' && !isDashboardItemDisabled(item)) {
     handleDashboardItemClick(item)
   }
 }
 
-const dashboardItems: DashboardItem[] = [
-{ label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
-  { label: 'Invitation', icon: 'i-lucide-send', action: 'invitation', bgClass: 'bg-violet-500', hoverClass: 'group-hover:bg-violet-600', ringClass: 'group-focus-visible:ring-violet-500' },
-  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
-  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-red-500', hoverClass: 'group-hover:bg-red-600', ringClass: 'group-focus-visible:ring-red-500' },
-  { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
-  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
-  { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
-  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
-  { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-lime-500', hoverClass: 'group-hover:bg-lime-600', ringClass: 'group-focus-visible:ring-lime-500' },
-  { label: 'Church Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-yellow-500', hoverClass: 'group-hover:bg-yellow-600', ringClass: 'group-focus-visible:ring-yellow-500' },
-  { label: 'Suppliers', icon: 'i-lucide-briefcase', action: 'suppliers', bgClass: 'bg-fuchsia-500', hoverClass: 'group-hover:bg-fuchsia-600', ringClass: 'group-focus-visible:ring-fuchsia-500' },
-  { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
-]
-const visibleDashboardItems = computed(() =>
-  dashboardItems.filter((item) => !item.weddingOnly || isWeddingEvent.value)
-)
-
 </script>
 
 <template>
-  <UMain class="bg-toast-50">
+  <UMain :class="showTasksChecklist ? 'bg-toast-50' : 'bg-white'">
 
     <UPageGrid>
-      <UContainer class="col-span-2 space-y-6 white-bread-container" style="border-radius: 0;">
+      <UContainer
+        class="space-y-6 white-bread-container min-h-[calc(100vh-64px)] flex flex-col"
+        :class="showTasksChecklist ? 'col-span-2' : 'col-span-full'"
+        style="border-radius: 0;"
+      >
 
-<div class="flex items-center justify-center h-full">
+        <UPageCard v-if="eventRecord" class="white-bread-container">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-sm font-medium text-muted uppercase tracking-wide">
+              Current plan
+            </div>
+            <UBadge color="neutral" variant="subtle">
+              {{ formatEventPriceTier(eventRecord) }}
+            </UBadge>
+          </div>
+        </UPageCard>
+
+<div class="flex flex-1 items-center justify-center min-h-0 py-6">
         <UPageColumns :ui="{base: 'gap-25 space-y-3'}">
           
           <div
-            v-for="item in visibleDashboardItems"
+            v-for="item in dashboardItems"
             :key="item.label"
-            role="button"
-            tabindex="0"
-            class="group flex flex-col items-center justify-center mx-auto w-fit h-fit p-4 cursor-pointer rounded-xl focus-visible:outline-none text-center"
-            :class="{
-              'opacity-50 pointer-events-none':
-                (item.action === 'website' || item.action === 'invitation') && (isEventCancelled || (!eventId && !isUiOnlyMode)),
-            }"
+            :role="isDashboardItemDisabled(item) ? undefined : 'button'"
+            :tabindex="isDashboardItemDisabled(item) ? -1 : 0"
+            :aria-disabled="isDashboardItemDisabled(item) ? 'true' : undefined"
+            class="group flex flex-col items-center justify-center mx-auto w-fit h-fit p-4 rounded-xl focus-visible:outline-none text-center"
+            :class="isDashboardItemDisabled(item)
+              ? 'opacity-50 pointer-events-none cursor-not-allowed select-none'
+              : 'cursor-pointer'"
             @click="handleDashboardItemClick(item)"
             @keydown.enter="handleDashboardItemKeydown($event, item)"
           >
             <div
-              class="p-2 aspect-square flex flex-col items-center justify-center rounded-full transition-all duration-200 group-active:scale-95 group-focus-visible:ring-2"
-              :class="[item.bgClass, item.hoverClass, item.ringClass]"
+              class="p-2 aspect-square flex flex-col items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2"
+              :class="[
+                item.bgClass,
+                item.ringClass,
+                isDashboardItemDisabled(item) ? '' : [item.hoverClass, 'group-active:scale-95'],
+              ]"
             >
               <UIcon :name="item.icon" class="size-9 my-2 text-white" />
             </div>
@@ -549,22 +612,8 @@ const visibleDashboardItems = computed(() =>
       </UContainer>
 
       <!-- Tasks Container -->
-      <UScrollArea class="h-[calc(100vh-64px)] py-6 pr-8">
+      <UScrollArea v-if="showTasksChecklist" class="h-[calc(100vh-64px)] py-6 pr-8">
         <UContainer class="space-y-4">
-          <UPageCard
-            v-if="eventRecord"
-            class="white-bread-container"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="text-sm font-medium text-muted uppercase tracking-wide">
-                Current plan
-              </div>
-              <UBadge color="neutral" variant="subtle">
-                {{ formatEventPriceTier(eventRecord) }}
-              </UBadge>
-            </div>
-          </UPageCard>
-
           <UPageCard class="white-bread-container space-y-4 ">
             <div class="flex justify-between items-center">
               <div class="text-xl text-pretty font-semibold text-muted uppercase">Tasks Checklist</div>

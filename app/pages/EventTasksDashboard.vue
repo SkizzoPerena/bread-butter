@@ -4,6 +4,7 @@ import type { EventRecord, TasksSummary } from '~/types/event'
 import { formatEventPriceTier } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { EVENT_FEATURE } from '~/utils/eventTierFeatures'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -18,6 +19,7 @@ const df = new DateFormatter('en-US', { dateStyle: 'medium' })
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
+const { requireEventFeature } = useEventFeatureGate()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 
@@ -109,7 +111,7 @@ async function loadEventData() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!eventId.value && !isUiOnlyMode.value) {
     toast.add({
       title: 'Missing event',
@@ -119,6 +121,12 @@ onMounted(() => {
     navigateTo('/UserDashboard')
     return
   }
+
+  const allowed = await requireEventFeature(EVENT_FEATURE.TASKS)
+  if (!allowed) {
+    return
+  }
+
   loadEventData()
 })
 

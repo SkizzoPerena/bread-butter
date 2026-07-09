@@ -18,6 +18,7 @@ import {
 } from '~/types/supplier'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { EVENT_FEATURE } from '~/utils/eventTierFeatures'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -30,6 +31,7 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
+const { requireEventFeature } = useEventFeatureGate()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const {
@@ -372,6 +374,11 @@ onMounted(async () => {
       color: 'error',
     })
     navigateTo('/UserDashboard')
+    return
+  }
+
+  const allowed = await requireEventFeature(EVENT_FEATURE.SUPPLIERS)
+  if (!allowed) {
     return
   }
 
