@@ -51,6 +51,12 @@ export interface PaymentsListResponse {
   }
 }
 
+export interface EventPaymentsListResponse {
+  success: boolean
+  status: number
+  payments: PaymentRecord[]
+}
+
 export interface PaymentMessageResponse {
   success: boolean
   status: number
@@ -93,11 +99,24 @@ export function isEventFullyPaid(event?: EventPaymentContext | null): boolean {
   return event?.latestPayment?.status === 'APPROVED'
 }
 
+export function getEventCreationFee(event?: EventPaymentContext | null): number {
+  if (event?.paymentSummary?.fee != null) {
+    return event.paymentSummary.fee
+  }
+  if (typeof event?.latestPayment?.amount === 'number') {
+    return event.latestPayment.amount
+  }
+  return EVENT_CREATION_FEE_PHP
+}
+
 export function getEventBalanceDue(event?: EventPaymentContext | null): number {
   if (event?.paymentSummary) {
     return event.paymentSummary.balanceDue
   }
-  return event?.latestPayment?.status === 'APPROVED' ? 0 : EVENT_CREATION_FEE_PHP
+  if (event?.latestPayment?.status === 'APPROVED') {
+    return 0
+  }
+  return getEventCreationFee(event)
 }
 
 export function needsPaymentSubmission(event?: EventPaymentContext | null): boolean {

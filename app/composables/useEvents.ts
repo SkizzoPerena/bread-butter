@@ -45,6 +45,7 @@ export function useEvents() {
         status: 'ONGOING',
         isCatholicWedding: payload.isCatholicWedding ?? false,
         coverImageURL: payload.coverImageURL ?? null,
+        tierPricePhp: 10000,
         latestPayment: payload.payLater
           ? null
           : {
@@ -64,6 +65,7 @@ export function useEvents() {
     formData.append('description', payload.description)
     formData.append('venue', payload.venue)
     formData.append('eventDate', payload.eventDate)
+    formData.append('priceTierId', payload.priceTierId)
 
     if (payload.isCatholicWedding !== undefined) {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))

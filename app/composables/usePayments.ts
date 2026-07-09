@@ -1,5 +1,6 @@
 import type { EventRecord } from '~/types/event'
 import type {
+  EventPaymentsListResponse,
   PaymentMessageResponse,
   PaymentsListResponse,
   SubmitEventPaymentPayload
@@ -22,6 +23,18 @@ export function usePayments() {
     return apiRequest<PaymentsListResponse>('/user/payments', {
       query: { page, limit }
     })
+  }
+
+  async function getEventPayments(eventId: string): Promise<EventPaymentsListResponse> {
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        payments: [],
+      }
+    }
+
+    return apiRequest<EventPaymentsListResponse>(`/user/events/${eventId}/payments`)
   }
 
   async function submitEventPaymentProof(
@@ -75,6 +88,7 @@ export function usePayments() {
 
   return {
     getMyPayments,
+    getEventPayments,
     submitEventPaymentProof
   }
 }

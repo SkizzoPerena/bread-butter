@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { DateFormatter } from '@internationalized/date'
 import type { EventRecord, TasksSummary } from '~/types/event'
+import { formatEventPriceTier } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 
@@ -80,6 +81,14 @@ async function loadEventData() {
           venue: 'Manila Cathedral',
           eventDate: '2026-05-18T00:00:00.000Z',
           status: 'ONGOING',
+          priceTier: {
+            _id: 'mock-tier-id',
+            code: 'bread_butter',
+            name: 'Bread + Butter',
+            pricePhp: 10000,
+            isEnabled: true,
+          },
+          tierPricePhp: 10000,
         } satisfies EventRecord,
         guestList: [],
         rsvpSummary: null,
@@ -160,6 +169,14 @@ watch(eventId, () => {
               {{ eventRecord.description }}
             </p>
             <div class="flex flex-wrap items-center gap-2 text-sm text-muted md:gap-4">
+              <span
+                v-if="eventRecord"
+                class="inline-flex items-center gap-1.5"
+              >
+                <UIcon name="i-lucide-tag" class="size-4" />
+                {{ formatEventPriceTier(eventRecord) }}
+              </span>
+              <span v-if="eventRecord && eventDateLabel">•</span>
               <span
                 v-if="eventDateLabel"
                 class="inline-flex items-center gap-1.5"

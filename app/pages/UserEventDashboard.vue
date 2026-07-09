@@ -1,6 +1,6 @@
 ﻿<script lang="ts" setup>
 import { DateFormatter } from '@internationalized/date'
-import { isWeddingEventType } from '~/types/event'
+import { isWeddingEventType, formatEventPriceTier } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { getTaskTrackerMetrics } from '~/utils/taskListUpdates'
@@ -211,6 +211,14 @@ async function loadEventData() {
           status: 'ONGOING',
           coverImageURL: null,
           latestPayment: null,
+          priceTier: {
+            _id: 'mock-tier-id',
+            code: 'bread_butter',
+            name: 'Bread + Butter',
+            pricePhp: 10000,
+            isEnabled: true,
+          },
+          tierPricePhp: 10000,
         },
         guestList: [],
         rsvpSummary: null,
@@ -543,6 +551,20 @@ const visibleDashboardItems = computed(() =>
       <!-- Tasks Container -->
       <UScrollArea class="h-[calc(100vh-64px)] py-6 pr-8">
         <UContainer class="space-y-4">
+          <UPageCard
+            v-if="eventRecord"
+            class="white-bread-container"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-sm font-medium text-muted uppercase tracking-wide">
+                Current plan
+              </div>
+              <UBadge color="neutral" variant="subtle">
+                {{ formatEventPriceTier(eventRecord) }}
+              </UBadge>
+            </div>
+          </UPageCard>
+
           <UPageCard class="white-bread-container space-y-4 ">
             <div class="flex justify-between items-center">
               <div class="text-xl text-pretty font-semibold text-muted uppercase">Tasks Checklist</div>

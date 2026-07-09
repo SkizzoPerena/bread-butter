@@ -1,4 +1,5 @@
 import type { EventPaymentSummary, PaymentRecord } from '~/types/payment'
+import type { PriceTierRecord } from '~/types/priceTier'
 import type { TaskAssigneeRef } from '~/types/task'
 
 export interface EventQuestion {
@@ -21,6 +22,8 @@ export interface EventRecord {
   playlist?: string
   latestPayment?: PaymentRecord | null
   paymentSummary?: EventPaymentSummary | null
+  priceTier?: PriceTierRecord | string | null
+  tierPricePhp?: number | null
   questions?: EventQuestion[]
 }
 
@@ -126,6 +129,7 @@ export interface CreateEventPayload {
   description: string
   venue: string
   eventDate: string
+  priceTierId: string
   coverImage?: File
   coverImageURL?: string
   transactionId?: string
@@ -186,4 +190,31 @@ export function mapApiToEventTypeLabel(apiValue: string): string {
     (label) => mapEventTypeToApi(label) === normalized
   )
   return match ?? EVENT_TYPE_LABELS[0]
+}
+
+export function formatEventPriceTier(
+  event: Pick<EventRecord, 'priceTier' | 'tierPricePhp'>
+): string {
+  const tier = event.priceTier
+  const snapshotPrice =
+    typeof event.tierPricePhp === 'number' && event.tierPricePhp > 0
+      ? event.tierPricePhp
+      : null
+  const tierPrice =
+    tier && typeof tier === 'object' && typeof tier.pricePhp === 'number'
+      ? tier.pricePhp
+      : null
+  const pricePhp = snapshotPrice ?? tierPrice
+
+  if (tier && typeof tier === 'object' && tier.name) {
+    const priceLabel =
+      typeof pricePhp === 'number' && pricePhp > 0
+        ? ` · Php ${pricePhp.toLocaleString()}`
+        : ''
+    return `${tier.name}${priceLabel}`
+  }
+  if (typeof pricePhp === 'number' && pricePhp > 0) {
+    return `Php ${pricePhp.toLocaleString()}`
+  }
+  return '—'
 }

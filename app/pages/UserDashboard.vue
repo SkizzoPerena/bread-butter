@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
-import { mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType, type EventTypeLabel } from '~/types/event'
+import { mapEventTypeToApi, EVENT_TYPE_OPTIONS, isWeddingEventType, formatEventPriceTier, type EventTypeLabel } from '~/types/event'
+import type { PriceTierRecord } from '~/types/priceTier'
 import { EVENT_CREATION_FEE_PHP, getEventBalanceDue, isEventFullyPaid } from '~/types/payment'
-import { reportApiError } from '~/types/auth'
+import { reportApiError, getApiErrorMessage } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { usePriceTiers } from '~/composables/usePriceTiers'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
-import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 
 definePageMeta({
   layout: 'user-navbar',
@@ -16,10 +17,14 @@ const toast = useToast()
 const router = useRouter()
 const { user } = useAuth()
 const { createEvent, fetchUserEvents } = useEvents()
+const { fetchAvailablePriceTiers } = usePriceTiers()
 const { loadPageData } = useApiMode()
 
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
+const isLoadingTiers = ref(false)
+const availableTiers = ref<PriceTierRecord[]>([])
+const selectedTierId = ref('')
 
 const eventTypes = EVENT_TYPE_OPTIONS
 
@@ -43,6 +48,12 @@ const form = reactive<{
 
 const isWeddingEvent = computed(() => isWeddingEventType(form.eventType))
 
+const selectedTier = computed(() =>
+  availableTiers.value.find((tier) => tier._id === selectedTierId.value) ?? null
+)
+
+const selectedTierPrice = computed(() => selectedTier.value?.pricePhp ?? EVENT_CREATION_FEE_PHP)
+
 watch(
   () => form.eventType,
   (nextType) => {
@@ -51,6 +62,34 @@ watch(
     }
   }
 )
+
+async function loadPriceTiers() {
+  isLoadingTiers.value = true
+  try {
+    const tiers = await fetchAvailablePriceTiers()
+    availableTiers.value = tiers
+    if (tiers.length > 0) {
+      const stillValid = tiers.some((tier) => tier._id === selectedTierId.value)
+      if (!stillValid) {
+        selectedTierId.value = tiers[0]._id
+      }
+    } else {
+      selectedTierId.value = ''
+    }
+  } catch (error) {
+    availableTiers.value = []
+    selectedTierId.value = ''
+    reportApiError(toast, { title: 'Could not load price tiers', error })
+  } finally {
+    isLoadingTiers.value = false
+  }
+}
+
+watch(isModalOpen, (open) => {
+  if (open) {
+    loadPriceTiers()
+  }
+})
 
 const coverImageFile = ref<File | null>(null)
 const proofOfPaymentFile = ref<File | null>(null)
@@ -186,6 +225,10 @@ async function handleCreateEvent() {
     toast.add({ title: 'Cover image required', description: 'Please upload a cover image for your event.', color: 'error' })
     return
   }
+  if (!selectedTierId.value) {
+    toast.add({ title: 'Price tier required', description: 'Please select a price tier for your event.', color: 'error' })
+    return
+  }
   if (!form.payLater) {
     if (!form.transactionId.trim()) {
       toast.add({ title: 'Transaction ID required', description: 'Please enter your payment transaction ID.', color: 'error' })
@@ -205,6 +248,7 @@ async function handleCreateEvent() {
       description: form.description.trim(),
       venue: form.venue.trim(),
       eventDate: calendarDateToUtcIso(modelValue.value),
+      priceTierId: selectedTierId.value,
       coverImage: coverImageFile.value,
       payLater: form.payLater,
       transactionId: form.payLater ? undefined : form.transactionId.trim(),
@@ -225,7 +269,16 @@ async function handleCreateEvent() {
       query: { eventId: event._id },
     })
   } catch (error) {
+    const message = getApiErrorMessage(error)
     reportApiError(toast, { title: 'Could not create event', error })
+    if (message.toLowerCase().includes('disabled')) {
+      const previousSelection = selectedTierId.value
+      await loadPriceTiers()
+      const stillEnabled = availableTiers.value.some((tier) => tier._id === previousSelection)
+      if (!stillEnabled) {
+        selectedTierId.value = availableTiers.value[0]?._id ?? ''
+      }
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -377,7 +430,41 @@ async function handleCreateEvent() {
 
                 <div class="rounded-lg border border-default p-3 space-y-3">
                   <div class="text-sm font-medium">
-                    Event creation fee: Php {{ EVENT_CREATION_FEE_PHP.toLocaleString() }}
+                    Choose your plan
+                  </div>
+                  <div v-if="isLoadingTiers" class="text-sm text-muted">
+                    Loading price tiers...
+                  </div>
+                  <div v-else-if="availableTiers.length === 0" class="text-sm text-muted">
+                    No price tiers are available right now.
+                  </div>
+                  <div v-else class="space-y-2">
+                    <label
+                      v-for="tier in availableTiers"
+                      :key="tier._id"
+                      class="flex cursor-pointer items-center justify-between rounded-md border border-default px-3 py-2"
+                      :class="selectedTierId === tier._id ? 'border-primary bg-primary/5' : ''"
+                    >
+                      <div class="flex items-center gap-2">
+                        <input
+                          v-model="selectedTierId"
+                          type="radio"
+                          name="priceTier"
+                          :value="tier._id"
+                          class="accent-primary"
+                        >
+                        <span class="text-sm font-medium">{{ tier.name }}</span>
+                      </div>
+                      <span class="text-sm text-muted">
+                        Php {{ tier.pricePhp.toLocaleString() }}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-default p-3 space-y-3">
+                  <div class="text-sm font-medium">
+                    Event creation fee: Php {{ selectedTierPrice.toLocaleString() }}
                   </div>
                   <UCheckbox
                     v-model="form.payLater"
@@ -434,40 +521,7 @@ async function handleCreateEvent() {
       </div>
     </UPageCard>
 
-    <UPageGrid class="">
-      <!-- Demo card (hardcoded visualization) -->
-      <div class="white-bread-container rounded-lg">
-        <div class="aspect-[3/2] w-full overflow-hidden rounded-t-lg">
-          <img
-            :src="demoCoverImage"
-            alt="Jane & John's Wedding"
-            class="h-full w-full object-cover"
-          >
-        </div>
-        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-          <div class="text-lg font-semibold pb-1 truncate">
-            Jane & John's Wedding
-          </div>
-          <UPageFeature
-            icon="i-lucide-map-pin"
-            title="Manila Cathedral"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-calendar-heart"
-            title="May 03, 2026"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UButton
-            block
-            class="mt-6"
-            to="/UserEventDashboard"
-          >
-            Open Dashboard
-          </UButton>
-        </div>
-      </div>
-
+    <UPageGrid>
       <template v-if="isLoadingEvents">
         <div
           v-for="n in 2"
@@ -484,12 +538,12 @@ async function handleCreateEvent() {
         </div>
       </template>
 
-      <div
-        v-for="event in userEvents"
-        v-else
-        :key="event._id"
-        class="white-bread-container rounded-lg"
-      >
+      <template v-else>
+        <div
+          v-for="event in userEvents"
+          :key="event._id"
+          class="white-bread-container rounded-lg"
+        >
         <div class="aspect-[3/2] w-full overflow-hidden rounded-t-lg">
           <img
             :src="resolveEventCoverImageUrl(event.coverImageURL)"
@@ -512,6 +566,11 @@ async function handleCreateEvent() {
             </UBadge>
           </div>
           <UPageFeature
+            icon="i-lucide-tag"
+            :title="formatEventPriceTier(event)"
+            :ui="{ title: 'font-normal' }"
+          />
+          <UPageFeature
             icon="i-lucide-map-pin"
             :title="event.venue"
             :ui="{ title: 'font-normal' }"
@@ -529,7 +588,8 @@ async function handleCreateEvent() {
             Open Dashboard
           </UButton>
         </div>
-      </div>
+        </div>
+      </template>
     </UPageGrid>
 
     <p
