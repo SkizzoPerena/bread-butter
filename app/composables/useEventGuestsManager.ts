@@ -129,13 +129,37 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     guestList.value.filter((guest) => !guest.rsvp?.invitedAt).length
   )
 
+  const remainingEmails = computed(() => {
+    const value = options.eventRecord.value?.remainingEmails
+    return typeof value === 'number' ? value : null
+  })
+
+  const hasEmailCredits = computed(() => {
+    if (remainingEmails.value == null) {
+      return true
+    }
+    return remainingEmails.value > 0
+  })
+
   const canInviteAll = computed(
     () =>
       uninvitedGuestsCount.value > 0
       && !mutationsDisabled.value
       && Boolean(options.eventId.value || isUiOnlyMode.value)
       && guestListSize.value > 0
+      && hasEmailCredits.value
+      && (remainingEmails.value == null || remainingEmails.value >= uninvitedGuestsCount.value)
   )
+
+  function canSendGuestInvite(person: GuestTableRow): boolean {
+    if (person.invitationSent || mutationsDisabled.value) {
+      return false
+    }
+    if (remainingEmails.value == null) {
+      return true
+    }
+    return remainingEmails.value > 0
+  }
 
   const rsvpStats = computed(() => {
     if (options.rsvpSummary?.value) {
@@ -433,6 +457,15 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
       if (options.rsvpSummary) {
         options.rsvpSummary.value = updated.rsvpSummary
       }
+      if (
+        options.eventRecord.value &&
+        typeof response.remainingEmails === 'number'
+      ) {
+        options.eventRecord.value = {
+          ...options.eventRecord.value,
+          remainingEmails: response.remainingEmails,
+        }
+      }
 
       const skipped = response.skippedAlreadyInvited ?? 0
       let description = response.message
@@ -466,6 +499,15 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
       guestList.value = updated.guestList
       if (options.rsvpSummary) {
         options.rsvpSummary.value = updated.rsvpSummary
+      }
+      if (
+        options.eventRecord.value &&
+        typeof response.remainingEmails === 'number'
+      ) {
+        options.eventRecord.value = {
+          ...options.eventRecord.value,
+          remainingEmails: response.remainingEmails,
+        }
       }
 
       toast.add({ title: 'Invitation sent', description: response.message })
@@ -568,6 +610,9 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     isGuestListEmpty,
     invitationsSentCount,
     canInviteAll,
+    canSendGuestInvite,
+    remainingEmails,
+    hasEmailCredits,
     rsvpStats,
     loadGuests,
     resetAddGuestForm,

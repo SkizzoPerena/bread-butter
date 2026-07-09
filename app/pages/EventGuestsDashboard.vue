@@ -64,6 +64,9 @@ const {
   guestListSize,
   invitationsSentCount,
   canInviteAll,
+  canSendGuestInvite,
+  remainingEmails,
+  hasEmailCredits,
   rsvpStats,
   handleAddGuest,
   openEditGuestModal,
@@ -334,8 +337,7 @@ const columns: TableColumn<GuestTableRow>[] = [
     cell: ({ row }) => {
       const person = row.original
       const canEdit = !mutationsDisabled.value
-      const canSendInvite =
-        !person.invitationSent && !mutationsDisabled.value
+      const canSendInvite = canSendGuestInvite(person)
       const canRemove = !mutationsDisabled.value
 
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
@@ -522,7 +524,25 @@ watch(eventId, () => {
         description="The guest list cannot be modified for a cancelled event."
       />
 
+      <UAlert
+        v-if="!hasEmailCredits && !isUiOnlyMode"
+        color="warning"
+        variant="subtle"
+        title="No email credits remaining"
+        description="You have used all invitation emails included in your event plan."
+        class="mb-4"
+      />
+
       <UPageGrid>
+        <UPageCard
+          class="bg-orange-50 dark:bg-orange-900/20 ring ring-inset ring-orange-500/25"
+          description="Emails remaining"
+          :ui="{ title: 'text-orange-600 dark:text-orange-400', description: 'text-orange-600/70 dark:text-orange-400/70' }"
+        >
+          <template #title>
+            <div class="text-2xl font-bold">{{ remainingEmails?.toLocaleString() ?? '—' }}</div>
+          </template>
+        </UPageCard>
         <UPageCard
           class="bg-orange-50 dark:bg-orange-900/20 ring ring-inset ring-orange-500/25"
           description="Total Invitations Sent"

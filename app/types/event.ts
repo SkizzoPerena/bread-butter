@@ -24,6 +24,7 @@ export interface EventRecord {
   paymentSummary?: EventPaymentSummary | null
   priceTier?: PriceTierRecord | string | null
   tierPricePhp?: number | null
+  remainingEmails?: number | null
   allowedFeatures?: string[]
   questions?: EventQuestion[]
 }
@@ -63,6 +64,7 @@ export interface GuestRecord {
 
 export interface RsvpSummary {
   totalSent: number
+  emailsSent?: number
   going: number
   notGoing: number
   pending: number
@@ -197,25 +199,8 @@ export function formatEventPriceTier(
   event: Pick<EventRecord, 'priceTier' | 'tierPricePhp'>
 ): string {
   const tier = event.priceTier
-  const snapshotPrice =
-    typeof event.tierPricePhp === 'number' && event.tierPricePhp > 0
-      ? event.tierPricePhp
-      : null
-  const tierPrice =
-    tier && typeof tier === 'object' && typeof tier.pricePhp === 'number'
-      ? tier.pricePhp
-      : null
-  const pricePhp = snapshotPrice ?? tierPrice
-
   if (tier && typeof tier === 'object' && tier.name) {
-    const priceLabel =
-      typeof pricePhp === 'number' && pricePhp > 0
-        ? ` · Php ${pricePhp.toLocaleString()}`
-        : ''
-    return `${tier.name}${priceLabel}`
-  }
-  if (typeof pricePhp === 'number' && pricePhp > 0) {
-    return `Php ${pricePhp.toLocaleString()}`
+    return tier.name
   }
   return '—'
 }

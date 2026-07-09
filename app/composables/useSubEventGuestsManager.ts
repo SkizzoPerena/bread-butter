@@ -35,6 +35,29 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
   const selectedInviteGuestIds = ref<Set<string>>(new Set())
   const inviteSearchQuery = ref('')
 
+  const remainingEmails = computed(() => {
+    const value = options.eventRecord.value?.remainingEmails
+    return typeof value === 'number' ? value : null
+  })
+
+  const hasEmailCredits = computed(() => {
+    if (remainingEmails.value == null) {
+      return true
+    }
+    return remainingEmails.value > 0
+  })
+
+  const canBulkInvite = computed(() => {
+    const count = selectedInviteGuestIds.value.size
+    if (count === 0 || mutationsDisabled.value) {
+      return false
+    }
+    if (remainingEmails.value == null) {
+      return true
+    }
+    return remainingEmails.value >= count
+  })
+
   const mutationsDisabled = computed(() => Boolean(options.isEventCancelled?.value))
 
   const invitedGuests = computed(() =>
@@ -91,6 +114,7 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     () =>
       uninvitedGuests.value.length > 0
       && !mutationsDisabled.value
+      && hasEmailCredits.value
       && Boolean(options.subEventId.value || isUiOnlyMode.value)
   )
 
@@ -168,6 +192,22 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     if (isSendingInvites.value || guestIds.length === 0) {
       return
     }
+    if (!hasEmailCredits.value) {
+      toast.add({
+        title: 'No email credits remaining',
+        description: 'You have used all invitation emails included in your event plan.',
+        color: 'error',
+      })
+      return
+    }
+    if (remainingEmails.value != null && guestIds.length > remainingEmails.value) {
+      toast.add({
+        title: 'Not enough email credits',
+        description: `You need ${guestIds.length} credits but only ${remainingEmails.value} remain.`,
+        color: 'error',
+      })
+      return
+    }
     if (mutationsDisabled.value) {
       toast.add({
         title: 'Event cancelled',
@@ -191,6 +231,15 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
       )
       guestList.value = updated.guestList
       options.rsvpSummary.value = updated.rsvpSummary
+      if (
+        options.eventRecord.value &&
+        typeof response.remainingEmails === 'number'
+      ) {
+        options.eventRecord.value = {
+          ...options.eventRecord.value,
+          remainingEmails: response.remainingEmails,
+        }
+      }
       await loadGuests()
       await options.onInvitesSent?.()
       toast.add({
@@ -245,6 +294,9 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     isLoadingGuests,
     uninvitingGuestId,
     isSendingInvites,
+    remainingEmails,
+    hasEmailCredits,
+    canBulkInvite,
     mutationsDisabled,
     invitedGuests,
     uninvitedGuests,

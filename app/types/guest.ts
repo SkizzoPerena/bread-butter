@@ -56,6 +56,9 @@ export interface SendInviteResponse {
   created: number
   skippedAlreadyInvited: number
   notFound: number
+  remainingEmails?: number
+  /** Number of invitation emails successfully sent via EmailJS (0 when email is not configured). */
+  emailsSent?: number
 }
 
 export interface DeleteGuestResponse {

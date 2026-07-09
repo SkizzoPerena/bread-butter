@@ -1,6 +1,18 @@
 import type { GuestRecord, RsvpSummary } from '~/types/event'
 import type { SendInviteResponse } from '~/types/guest'
 
+function incrementRsvpSummaryForInvites(
+  rsvpSummary: RsvpSummary,
+  created: number
+): RsvpSummary {
+  return {
+    ...rsvpSummary,
+    totalSent: rsvpSummary.totalSent + created,
+    emailsSent: (rsvpSummary.emailsSent ?? rsvpSummary.totalSent) + created,
+    pending: rsvpSummary.pending + created,
+  }
+}
+
 export function appendGuestToList(
   guestList: GuestRecord[],
   guest: GuestRecord
@@ -44,11 +56,7 @@ export function applySendInviteToGuestList(
 
   let updatedRsvpSummary = rsvpSummary
   if (rsvpSummary && response.created > 0) {
-    updatedRsvpSummary = {
-      ...rsvpSummary,
-      totalSent: rsvpSummary.totalSent + response.created,
-      pending: rsvpSummary.pending + response.created,
-    }
+    updatedRsvpSummary = incrementRsvpSummaryForInvites(rsvpSummary, response.created)
   }
 
   return { guestList: updatedGuestList, rsvpSummary: updatedRsvpSummary }
@@ -82,11 +90,7 @@ export function applySendAllInvitesToGuestList(
 
   let updatedRsvpSummary = rsvpSummary
   if (rsvpSummary && response.created > 0) {
-    updatedRsvpSummary = {
-      ...rsvpSummary,
-      totalSent: rsvpSummary.totalSent + response.created,
-      pending: rsvpSummary.pending + response.created,
-    }
+    updatedRsvpSummary = incrementRsvpSummaryForInvites(rsvpSummary, response.created)
   }
 
   return { guestList: updatedGuestList, rsvpSummary: updatedRsvpSummary }
@@ -162,11 +166,7 @@ export function applyBulkSendInvitesToGuestList(
 
   let updatedRsvpSummary = rsvpSummary
   if (rsvpSummary && response.created > 0) {
-    updatedRsvpSummary = {
-      ...rsvpSummary,
-      totalSent: rsvpSummary.totalSent + response.created,
-      pending: rsvpSummary.pending + response.created,
-    }
+    updatedRsvpSummary = incrementRsvpSummaryForInvites(rsvpSummary, response.created)
   }
 
   return { guestList: updatedGuestList, rsvpSummary: updatedRsvpSummary }

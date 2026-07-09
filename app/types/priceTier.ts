@@ -5,6 +5,7 @@ export interface PriceTierRecord {
   code: PriceTierCode
   name: string
   pricePhp: number
+  emailAllocation?: number
   isEnabled: boolean
 }
 

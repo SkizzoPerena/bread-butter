@@ -135,6 +135,8 @@ const {
   isLoadingGuests,
   uninvitingGuestId,
   isSendingInvites,
+  canBulkInvite,
+  hasEmailCredits,
   tableRows,
   isGuestListEmpty,
   canInviteGuests,
@@ -761,7 +763,7 @@ watch([eventId, subEventId], () => {
             color="pink"
             icon="i-lucide-send"
             :loading="isSendingInvites"
-            :disabled="selectedInviteCount === 0 || isSendingInvites"
+            :disabled="selectedInviteCount === 0 || isSendingInvites || !canBulkInvite"
             @click="confirmBulkInvite"
           >
             Send Invitations{{ selectedInviteCount > 0 ? ` (${selectedInviteCount})` : '' }}

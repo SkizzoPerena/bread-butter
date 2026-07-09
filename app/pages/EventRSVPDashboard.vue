@@ -218,6 +218,7 @@ async function loadEventData() {
         guestList: [],
         rsvpSummary: {
           totalSent: 12,
+          emailsSent: 14,
           going: 5,
           notGoing: 2,
           pending: 5,
@@ -375,10 +376,26 @@ watch(eventId, () => {
 
     <div v-else>
       <UPageCard class="white-bread-container mb-8">
-        <div class="grid gap-6 sm:grid-cols-2 sm:items-center">
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 sm:items-center">
           <div class="space-y-1">
             <div class="text-sm font-medium text-teal-600/70 dark:text-teal-400/70">
-              RSVPs Sent
+              Emails sent
+            </div>
+            <div class="text-3xl font-bold text-teal-600 dark:text-teal-400">
+              {{ (rsvpSummary?.emailsSent ?? rsvpSummary?.totalSent ?? 0).toLocaleString() }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-sm font-medium text-teal-600/70 dark:text-teal-400/70">
+              Emails remaining
+            </div>
+            <div class="text-3xl font-bold text-teal-600 dark:text-teal-400">
+              {{ eventRecord?.remainingEmails?.toLocaleString() ?? '—' }}
+            </div>
+          </div>
+          <div class="space-y-1 sm:col-span-2 lg:col-span-1">
+            <div class="text-sm font-medium text-teal-600/70 dark:text-teal-400/70">
+              Main event RSVPs sent
             </div>
             <div class="text-3xl font-bold text-teal-600 dark:text-teal-400">
               {{ rsvpSummary?.totalSent?.toLocaleString() ?? 0 }}
