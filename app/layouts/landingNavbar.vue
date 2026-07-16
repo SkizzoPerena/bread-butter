@@ -25,7 +25,7 @@ const links = [
 </script>
 
 <template>
-  <UHeader title=""
+  <UHeader 
     :class="[
       'fixed top-0 w-full transition-all duration-300 z-50 border-none',
       isScrolled ? 'bg-toast-500/70 backdrop-blur-lg' : 'bg-transparent backdrop-blur-none'
@@ -33,17 +33,18 @@ const links = [
   >
     <template #left>
       <!-- Left empty to allow center content to be truly centered -->
+       <div></div>
     </template>
 
 
       <div class="flex items-center gap-x-8">
-        <UButton to="/features" variant="link" color="bread" class="font-semibold text-base text-white">Features</UButton>
-        <UButton to="/pricing" variant="link" color="bread" class="font-semibold text-base text-white">Pricing</UButton>
+        <UButton to="/features" variant="link" color="bread" disabled class="font-semibold text-base text-white">Features</UButton>
+        <UButton to="/pricing" variant="link" color="bread" disabled class="font-semibold text-base text-white">Pricing</UButton>
         <NuxtLink to="/" class="mx-4">
           <img src="..\assets\bpb-icons\logo-white.svg" class="h-8" />
         </NuxtLink>
-        <UButton to="/about" variant="link" color="bread" class="font-semibold text-base text-white">About</UButton>
-        <UButton to="/contact" variant="link" color="bread" class="font-semibold text-base text-white">Contact</UButton>
+        <UButton to="/about" variant="link" color="bread" disabled class="font-semibold text-base text-white">About</UButton>
+        <UButton to="/contact" variant="link" color="bread" disabled class="font-semibold text-base text-white">Contact</UButton>
       </div>
 
     <template #right>

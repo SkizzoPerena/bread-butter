@@ -14,17 +14,24 @@ definePageMeta({
   layout: 'landing-navbar',
 })
 
-const marqueeImages = [
-  { title: 'Weddings', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209258/groom-putting-ring-bride-s-finger_u5pxeg.jpg' },
-  { title: 'Baptisms', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209478/christening-vs-baptism-scaled_spbsws.jpg' },
-  { title: 'Debuts', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209754/commitment-cake-fireworks_kglewt.jpg' },
-  { title: 'Anniversaries', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209759/lovely-adult-couple-with-colorful-balloons-stands-tree_euwabh.jpg' },
-  { title: 'Birthdays', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209761/sparklers-birthday-cake_u2icdh.jpg' },
-  { title: 'Baby Showers', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784210013/objects-showing-its-girl-expectancy_1_ufylym.jpg' },
-  { title: 'Engagement Parties', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784210015/young-man-bringing-ring-box-his-girlfriend-his-home_1_n2xrzb.jpg' },
-  { title: 'All other parties!', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209889/friends-celebrating-new-year-that-s-coming_vr5lpf.jpg' },
+// Eagerly import all images from the directory
+const imageModules: Record<string, string> = import.meta.glob('~/assets/bpb-images/*.jpg', { eager: true, import: 'default' })
 
+const marqueeImageDefs = [
+  { title: 'Weddings', file: 'wedding.jpg' },
+  { title: 'Baptisms', file: 'baptism.jpg' },
+  { title: 'Debuts', file: 'debut.jpg' },
+  { title: 'Anniversaries', file: 'anniversary.jpg' },
+  { title: 'Birthdays', file: 'birthday.jpg' },
+  { title: 'Baby Showers', file: 'baby-shower.jpg' },
+  { title: 'Engagement Parties', file: 'engagement.jpg' },
+  { title: 'All other parties!', file: 'nyceleb.jpg' },
 ]
+
+const marqueeImages = marqueeImageDefs.map(def => ({
+  title: def.title,
+  src: imageModules[`/assets/bpb-images/${def.file}`]
+}))
 
 const features = [
   {
@@ -192,7 +199,7 @@ function scrollMotion(delay: number = 0) {
             :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'"
             :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
-              <NuxtImg width="200" height="300" class="w-full h-full object-cover" fit="cover" v-bind="img" />
+              <NuxtImg width="200" height="300" class="w-full h-full object-cover" fit="cover" :src="img.src" />
             </div>
             <div class="text-center font-medium la-belle-aurore-regular text-3xl -mt-2 text-black"
               :class="index % 2 === 0 ? 'rotate-2' : '-rotate-3'">{{ img.title }}</div>
@@ -250,7 +257,7 @@ function scrollMotion(delay: number = 0) {
 
       <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white   h-[85vh]">
         <NuxtImg
-          src="https://www.brides.com/thmb/lTIg3B7yNZEL6ttm_j8ZDlfnUlI=/750x0/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/RYP_W_TinaMatt-836-f0c8c03fd44e469da17b9e93637174b1.jpg"
+          src="~/assets/bpb-images/landing-celebrants.webp"
           alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
 
         <div>
@@ -283,7 +290,7 @@ function scrollMotion(delay: number = 0) {
           <div class="text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored to their
             specific event.</div>
         </div>
-        <NuxtImg src="https://www.theknot.com/tk-media/images/7c8d329b-9c6c-4e86-a34a-95172619a6a1" alt="Illustration"
+        <NuxtImg src="~/assets/bpb-images/landing-planning.webp" alt="Illustration"
           class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
       </UPageCard>
 
