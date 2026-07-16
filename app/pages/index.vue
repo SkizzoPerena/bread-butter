@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PricingPlanProps } from '@nuxt/ui'
 
 
 useHead({
@@ -14,12 +15,15 @@ definePageMeta({
 })
 
 const marqueeImages = [
-  { src: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=800', alt: 'A beautifully decorated wedding reception table with flowers and candles.', title: 'Elegant Receptions' },
-  { src: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=800', alt: 'A bride and groom walking down the aisle after their ceremony.', title: 'Unforgettable Moments' },
-  { src: 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?q=80&w=800', alt: 'A person writing on a calendar to plan an event.', title: 'Meticulous Planning' },
-  { src: 'https://images.unsplash.com/photo-1505944357431-27579db47558?q=80&w=800', alt: 'Close-up of a wedding invitation suite with calligraphy.', title: 'Custom Invitations' },
-  { src: 'https://images.unsplash.com/photo-1587590227264-0ac64ce63ce8?q=80&w=800', alt: 'A multi-tiered wedding cake decorated with white flowers.', title: 'Stunning Cakes' },
-  { src: 'https://assets.website-files.com/63177d78c6b7b970195ad37c/6319e9f351fd6f1ad731517c_home-03.jpg', alt: 'Wedding rings nestled in a bouquet of white flowers.', title: 'Cherished Vows' }
+  { title: 'Weddings', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209258/groom-putting-ring-bride-s-finger_u5pxeg.jpg' },
+  { title: 'Baptisms', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209478/christening-vs-baptism-scaled_spbsws.jpg' },
+  { title: 'Debuts', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209754/commitment-cake-fireworks_kglewt.jpg' },
+  { title: 'Anniversaries', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209759/lovely-adult-couple-with-colorful-balloons-stands-tree_euwabh.jpg' },
+  { title: 'Birthdays', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209761/sparklers-birthday-cake_u2icdh.jpg' },
+  { title: 'Baby Showers', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784210013/objects-showing-its-girl-expectancy_1_ufylym.jpg' },
+  { title: 'Engagement Parties', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784210015/young-man-bringing-ring-box-his-girlfriend-his-home_1_n2xrzb.jpg' },
+  { title: 'All other parties!', src: 'https://res.cloudinary.com/gonob5dj/image/upload/v1784209889/friends-celebrating-new-year-that-s-coming_vr5lpf.jpg' },
+
 ]
 
 const features = [
@@ -61,6 +65,56 @@ const features = [
   }
 ]
 
+const plans = ref<PricingPlanProps[]>([
+  {
+    title: 'Bread',
+    description: 'Essential tools for your website and guests.',
+    price: 'Php 5,000',
+    features: [
+      'Website Builder',
+      'Guest List',
+      'RSVP',
+      'Invitations',
+      'Playlist',
+      'Gifts',
+      'Payments Management',
+      '100 emails'
+    ],
+    button: {
+      label: "Let's get baking!"
+    }
+  },
+  {
+    title: 'Butter',
+    description: 'Advanced planning tools and supplier management.',
+    price: 'Php 7,000',
+    features: [
+      'All Bread Features',
+      'Tasks',
+      'Suppliers',
+      'Church Requirements',
+      'Schedules (each schedule gets 100 email credits)',
+      '250 emails'
+    ],
+    button: {
+      label: 'Spread the word!'
+    }
+  },
+  {
+    title: 'Bread + Butter',
+    description: 'The ultimate package with full collaborator access.',
+    price: 'Php 10,000',
+    features: [
+      'All Bread Features',
+      'All Butter Features',
+      'Collaborator Access',
+      '250 emails',
+    ],
+    button: {
+      label: 'To butter days!'
+    }
+  }
+])
 
 function scrollMotion(delay: number = 0) {
   return {
@@ -70,12 +124,13 @@ function scrollMotion(delay: number = 0) {
     transition: { duration: 0.6, delay }
   }
 }
+
+
 </script>
 
 <template>
   <div>
-    <UPageSection id="features" title="Your dream celebration, baked to perfection."
-      description="Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to seamless guest management—everything you knead is finally in one place."
+    <UPageSection id="features"
       style="height: 100vh" class=" 100vh landing-bg landing-bg-overlay flex justify-center items-end"
       :ui="{ title: 'font-serif text-white', description: 'text-white' }">
 
@@ -83,8 +138,17 @@ function scrollMotion(delay: number = 0) {
         <source
           src="https://cdn.prod.website-files.com/63177d78c6b7b970195ad37c/631881dada5f467db6f42b29_video-transcode.webm"
           type="video/webm">
-      </video>
-
+      </video><div class="text-white text-center">
+          <div class="font-bold text-5xl font-serif mb-6 text-pretty tracking-tight ">
+           Your dream celebration, baked to perfection.
+          </div>
+            <div class=" text-lg">
+              Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
+              <p /> From custom websites and digital invitations to seamless guest management—everything you need is
+              finally
+              in one place.
+            </div>
+            </div>
       <UContainer class="flex justify-center items-center my-0">
         <div style="width: 250px">
           <UButton to="/UserLogin" size="xl" block color="neutral" variant="soft" class="font-bold">LET'S GET THIS BREAD
@@ -101,7 +165,7 @@ function scrollMotion(delay: number = 0) {
             What's in the oven?
           </div>
         </Motion>
-<div class=" mb-12"/>
+<div class=" mb-6"/>
           <Motion v-bind="scrollMotion(0.2)">
             <div>
               Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
@@ -112,7 +176,7 @@ function scrollMotion(delay: number = 0) {
           </Motion>
       </UContainer>
       <UMarquee class="py-2 -mx-8 sm:-mx-12 lg:-mx-16 [--duration:40s]">
-        <div v-for="(img, index) in marqueeImages" :key="index" :initial="{
+        <div class="py-2"v-for="(img, index) in marqueeImages" :key="index" :initial="{
           scale: 1.1,
           opacity: 0,
           filter: 'blur(20px)'
@@ -122,9 +186,10 @@ function scrollMotion(delay: number = 0) {
           filter: 'blur(0px)'
         }" :transition="{
           duration: 0.6,
-          delay: index * 0.1
+          delay: index * 0.1,
         }"> <!-- Using a simple div as Motion component is not defined -->
-          <UPageCard class="w-80 h-95 bg-bread-400 bread-container" :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'"
+          <UPageCard class="w-80 h-95 bg-bread-400 bread-container transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-2xl hover:z-10"
+            :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'"
             :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
               <NuxtImg width="200" height="300" class="w-full h-full object-cover" fit="cover" v-bind="img" />
@@ -139,7 +204,7 @@ function scrollMotion(delay: number = 0) {
     <UPageSection class="bg-toast-500">
 
       <UContainer class="font-regular text-xl text-center text-white">
-        <img class="max-h-4/5 mb-12" src="~/assets/bpb-images/dashboard.png" />
+        <img class="max-h-4/5 mb-6" src="~/assets/bpb-images/dashboard.png" />
                   <Motion v-bind="scrollMotion(0.1)">
 
         <div class="font-bold text-5xl font-serif mb-6">Powerful tools, baked right in.</div>
@@ -222,6 +287,30 @@ function scrollMotion(delay: number = 0) {
           class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
       </UPageCard>
 
+    </UPageSection>
+
+        <UPageSection class="bg-bread-400">
+      <UContainer class="font-medium text-xl text-center">
+
+        <Motion v-bind="scrollMotion(0.1)">
+          <div class="font-bold text-5xl font-serif">
+            Pick your Portion
+          </div>
+        </Motion>
+<div class=" mb-6"/>
+          <Motion v-bind="scrollMotion(0.2)">
+            <div class="mb-12">
+              Your event, your way. Choose a package tailored to your planning needs and budget.
+            </div>
+          </Motion>
+          <UPricingPlans>
+            <UPricingPlan class="text-left bread-container"
+      v-for="(plan, index) in plans"
+      :key="index"
+      v-bind="plan"
+    />
+          </UPricingPlans>
+      </UContainer>
     </UPageSection>
 
     <UPageSection class="h-screen flex flex-col justify-center 100vh landing-bg landing-bg-overlay">
