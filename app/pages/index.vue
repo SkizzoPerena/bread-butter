@@ -14,24 +14,17 @@ definePageMeta({
   layout: 'landing-navbar',
 })
 
-// Eagerly import all images from the directory
-const imageModules: Record<string, string> = import.meta.glob('~/assets/bpb-images/*.jpg', { eager: true, import: 'default' })
+const marqueeImages = [
+  { title: 'Weddings', src: '~/assets/bpb-images/wedding.jpg' },
+  { title: 'Baptisms', src: '~/assets/bpb-images/baptism.jpg' },
+  { title: 'Debuts', src: '~/assets/bpb-images/debut.jpg' },
+  { title: 'Anniversaries', src: '~/assets/bpb-images/anniversary.jpg' },
+  { title: 'Birthdays', src: '~/assets/bpb-images/birthday.jpg' },
+  { title: 'Baby Showers', src: '~/assets/bpb-images/baby-shower.jpg' },
+  { title: 'Engagement Parties', src: '~/assets/bpb-images/engagement.jpg' },
+  { title: 'All other parties!', src: '~/assets/bpb-images/nyceleb.jpg' },
 
-const marqueeImageDefs = [
-  { title: 'Weddings', file: 'wedding.jpg' },
-  { title: 'Baptisms', file: 'baptism.jpg' },
-  { title: 'Debuts', file: 'debut.jpg' },
-  { title: 'Anniversaries', file: 'anniversary.jpg' },
-  { title: 'Birthdays', file: 'birthday.jpg' },
-  { title: 'Baby Showers', file: 'baby-shower.jpg' },
-  { title: 'Engagement Parties', file: 'engagement.jpg' },
-  { title: 'All other parties!', file: 'nyceleb.jpg' },
 ]
-
-const marqueeImages = marqueeImageDefs.map(def => ({
-  title: def.title,
-  src: imageModules[`/assets/bpb-images/${def.file}`]
-}))
 
 const features = [
   {
@@ -199,7 +192,7 @@ function scrollMotion(delay: number = 0) {
             :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'"
             :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
-              <NuxtImg width="200" height="300" class="w-full h-full object-cover" fit="cover" :src="img.src" />
+              <NuxtImg width="200" height="300" class="w-full h-full object-cover" fit="cover" v-bind="img" />
             </div>
             <div class="text-center font-medium la-belle-aurore-regular text-3xl -mt-2 text-black"
               :class="index % 2 === 0 ? 'rotate-2' : '-rotate-3'">{{ img.title }}</div>
@@ -257,7 +250,7 @@ function scrollMotion(delay: number = 0) {
 
       <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white   h-[85vh]">
         <NuxtImg
-          src="~/assets/bpb-images/landing-celebrants.webp"
+          src="https://www.brides.com/thmb/lTIg3B7yNZEL6ttm_j8ZDlfnUlI=/750x0/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/RYP_W_TinaMatt-836-f0c8c03fd44e469da17b9e93637174b1.jpg"
           alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
 
         <div>
@@ -290,7 +283,7 @@ function scrollMotion(delay: number = 0) {
           <div class="text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored to their
             specific event.</div>
         </div>
-        <NuxtImg src="~/assets/bpb-images/landing-planning.webp" alt="Illustration"
+        <NuxtImg src="https://www.theknot.com/tk-media/images/7c8d329b-9c6c-4e86-a34a-95172619a6a1" alt="Illustration"
           class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
       </UPageCard>
 
