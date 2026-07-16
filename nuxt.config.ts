@@ -21,7 +21,7 @@ export default defineNuxtConfig({
 
   modules: [['@nuxt/eslint', {
     stylistic: false
-  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image' ,   'motion-v/nuxt'
+  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image' ,   'motion-v/nuxt',
 ],
 
   devtools: {
@@ -104,5 +104,6 @@ export default defineNuxtConfig({
         '@nuxt/ui > prosemirror-gapcursor'
       ]
     }
-  }
+  },
+
 })

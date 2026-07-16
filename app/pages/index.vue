@@ -15,16 +15,16 @@ definePageMeta({
 })
 
 const marqueeImages = [
-  { title: 'Weddings', src: '~/assets/bpb-images/wedding.jpg' },
-  { title: 'Baptisms', src: '~/assets/bpb-images/baptism.jpg' },
-  { title: 'Debuts', src: '~/assets/bpb-images/debut.jpg' },
-  { title: 'Anniversaries', src: '~/assets/bpb-images/anniversary.jpg' },
-  { title: 'Birthdays', src: '~/assets/bpb-images/birthday.jpg' },
-  { title: 'Baby Showers', src: '~/assets/bpb-images/baby-shower.jpg' },
-  { title: 'Engagement Parties', src: '~/assets/bpb-images/engagement.jpg' },
-  { title: 'All other parties!', src: '~/assets/bpb-images/nyceleb.jpg' },
-
+  { title: 'Weddings', file: '~/assets/bpb-images/wedding.jpg' },
+  { title: 'Baptisms', file: '~/assets/bpb-images/baptism.jpg' },
+  { title: 'Debuts', file: '~/assets/bpb-images/debut.jpg' },
+  { title: 'Anniversaries', file: '~/assets/bpb-images/anniversary.jpg' },
+  { title: 'Birthdays', file: '~/assets/bpb-images/birthday.jpg' },
+  { title: 'Baby Showers', file: '~/assets/bpb-images/baby-shower.jpg' },
+  { title: 'Engagement Parties', file: '~/assets/bpb-images/engagement.jpg' },
+  { title: 'All other parties!', file: '~/assets/bpb-images/nyceleb.jpg' },
 ]
+
 
 const features = [
   {
@@ -192,7 +192,7 @@ function scrollMotion(delay: number = 0) {
             :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'"
             :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
-              <NuxtImg width="200" height="300" class="w-full h-full object-cover" fit="cover" v-bind="img" />
+              <img width="200" height="300" class="w-full h-full object-cover" :src="img.file" :alt="img.title" />
             </div>
             <div class="text-center font-medium la-belle-aurore-regular text-3xl -mt-2 text-black"
               :class="index % 2 === 0 ? 'rotate-2' : '-rotate-3'">{{ img.title }}</div>
@@ -249,9 +249,9 @@ function scrollMotion(delay: number = 0) {
       </UContainer>
 
       <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white   h-[85vh]">
-        <NuxtImg
+        <img
           src="https://www.brides.com/thmb/lTIg3B7yNZEL6ttm_j8ZDlfnUlI=/750x0/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/RYP_W_TinaMatt-836-f0c8c03fd44e469da17b9e93637174b1.jpg"
-          alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
+          alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
 
         <div>
           <div class="text-4xl font-bold">For Celebrants</div>
@@ -283,8 +283,8 @@ function scrollMotion(delay: number = 0) {
           <div class="text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored to their
             specific event.</div>
         </div>
-        <NuxtImg src="https://www.theknot.com/tk-media/images/7c8d329b-9c6c-4e86-a34a-95172619a6a1" alt="Illustration"
-          class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" />
+        <img src="https://www.theknot.com/tk-media/images/7c8d329b-9c6c-4e86-a34a-95172619a6a1" alt="Illustration"
+          class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
       </UPageCard>
 
     </UPageSection>
