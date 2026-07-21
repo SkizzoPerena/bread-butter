@@ -15,14 +15,14 @@ definePageMeta({
 })
 
 const marqueeImages = [
-  { title: 'Weddings', file: '~/assets/bpb-images/wedding.jpg' },
-  { title: 'Baptisms', file: '~/assets/bpb-images/baptism.jpg' },
-  { title: 'Debuts', file: '~/assets/bpb-images/debut.jpg' },
-  { title: 'Anniversaries', file: '~/assets/bpb-images/anniversary.jpg' },
-  { title: 'Birthdays', file: '~/assets/bpb-images/birthday.jpg' },
-  { title: 'Baby Showers', file: '~/assets/bpb-images/baby-shower.jpg' },
-  { title: 'Engagement Parties', file: '~/assets/bpb-images/engagement.jpg' },
-  { title: 'All other parties!', file: '~/assets/bpb-images/nyceleb.jpg' },
+  { title: 'Weddings', file: 'https://lh3.googleusercontent.com/d/1YUP_0jJgtVtxecPCMGqxRDrgPkIr1AqH' }, // Kept existing ID
+  { title: 'Baptisms', file: 'https://lh3.googleusercontent.com/d/1mWdMWl-t_2rFjl_Z_RGTPiyAIQjrehF7' },
+  { title: 'Debuts', file: 'https://lh3.googleusercontent.com/d/1GWy4spWV256SfiFBbFmdY3AEI5w7UrGQ' },
+  { title: 'Anniversaries', file: 'https://lh3.googleusercontent.com/d/1hjTxoVVBMb_cIiRQ2b38CSeI1atVa1OR' },
+  { title: 'Birthdays', file: 'https://lh3.googleusercontent.com/d/17foBQ42q_cXsGxf_8e98iEMnXGSwv96k' },
+  { title: 'Baby Showers', file: 'https://lh3.googleusercontent.com/d/1f0ElKK9PeiSCl7mkXkq1OCTtBI2iiPcH' },
+  { title: 'Engagement Parties', file: 'https://lh3.googleusercontent.com/d/1viUKMoCnIO7RPebMpx8X7W_cpTaOleAT' },
+  { title: 'All other parties!', file: 'https://lh3.googleusercontent.com/d/1y-9HbQkK4R4u5CnWRXzHGyb0yyxCLKYm' },
 ]
 
 
@@ -204,7 +204,7 @@ function scrollMotion(delay: number = 0) {
     <UPageSection class="bg-toast-500">
 
       <UContainer class="font-regular text-xl text-center text-white">
-        <img class="max-h-4/5 mb-6" src="~/assets/bpb-images/dashboard.png" />
+        <img class="max-h-4/5 mb-6" src="https://lh3.googleusercontent.com/d/1gwoHSTP-QKnTnMOFFMVQuWVRiCnwDz-9" />
                   <Motion v-bind="scrollMotion(0.1)">
 
         <div class="font-bold text-5xl font-serif mb-6">Powerful tools, baked right in.</div>
@@ -250,7 +250,7 @@ function scrollMotion(delay: number = 0) {
 
       <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white   h-[85vh]">
         <img
-          src="https://www.brides.com/thmb/lTIg3B7yNZEL6ttm_j8ZDlfnUlI=/750x0/filters:no_upscale():max_bytes(150000):strip_icc():format(webp)/RYP_W_TinaMatt-836-f0c8c03fd44e469da17b9e93637174b1.jpg"
+          src="https://lh3.googleusercontent.com/d/1O3k6v9_IQQkybM5HLpMXIOa7YXdr4QiU"
           alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
 
         <div>
@@ -283,7 +283,7 @@ function scrollMotion(delay: number = 0) {
           <div class="text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored to their
             specific event.</div>
         </div>
-        <img src="https://www.theknot.com/tk-media/images/7c8d329b-9c6c-4e86-a34a-95172619a6a1" alt="Illustration"
+        <img src="https://lh3.googleusercontent.com/d/1p4o3uWyTXtF8g05BL9_XpPDR6zETkygU" alt="Illustration"
           class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
       </UPageCard>
 
@@ -315,7 +315,7 @@ function scrollMotion(delay: number = 0) {
 
     <UPageSection class="h-screen flex flex-col justify-center 100vh landing-bg landing-bg-overlay">
       <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
-        <source src="../assets/CTA-bg.mp4" type="video/mp4">
+        <source src="https://lh3.googleusercontent.com/d/1hM_ZfIciJWWbNqXVqfgsNobClXQBsTQi" type="video/mp4">
       </video>
       <UPageGrid :ui="{ base: 'lg:grid-cols-5' }">
         <div></div>

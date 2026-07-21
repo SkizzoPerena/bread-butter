@@ -36,12 +36,18 @@ export interface WebsiteEditorScheduleItem {
   location: string
 }
 
+export interface WebsiteEditorDiyComponent {
+  id: string
+  name: string
+  header: string
+  description: string
+}
+
 export interface ColorPaletteColors {
-  background: string
-  surface: string
   primary: string
-  text: string
-  heading: string
+  secondary: string
+  text_color: string
+  secondary_text_color: string
 }
 
 export interface TypographySetInput {
@@ -61,6 +67,7 @@ export interface BuildCustomSiteFormInput {
   selectedPalette: ColorPaletteColors
   selectedTypography: TypographySetInput
   selectedHeaderFile?: File
+  diyComponents: WebsiteEditorDiyComponent[]
 }
 
 export interface WebsiteEditorContext {
@@ -69,6 +76,7 @@ export interface WebsiteEditorContext {
   tidbits: { value: WebsiteEditorTidbit[] }
   scheduleItems: { value: WebsiteEditorScheduleItem[] }
   selectedComponents: { value: string[] }
+  diyComponents: { value: WebsiteEditorDiyComponent[] }
   isLive: { value: boolean }
 }
 
@@ -100,6 +108,7 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
     selectedPalette,
     selectedTypography,
     selectedHeaderFile,
+    diyComponents,
   } = input
 
   const formData = new FormData()
@@ -164,6 +173,17 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
       message: websiteData.endingMessage.trim(),
     })
   )
+  formData.append(
+    'diyComponents',
+    JSON.stringify(
+      diyComponents.map(c => ({
+        id: c.id,
+        name: c.name.trim(),
+        header: c.header.trim(),
+        content: c.description.trim(),
+      }))
+    )
+  )
 
   if (selectedHeaderFile) {
     formData.append('headerImage', selectedHeaderFile)
@@ -178,7 +198,7 @@ export function applyCustomSiteToEditor(
   site: CustomSiteRecord,
   ctx: WebsiteEditorContext
 ): void {
-  const { websiteData, sections, tidbits, scheduleItems, selectedComponents, isLive } = ctx
+  const { websiteData, sections, tidbits, scheduleItems, selectedComponents, diyComponents, isLive } = ctx
 
   websiteData.format = site.templateType || 'format1'
   websiteData.siteTitle = site.title ?? ''
@@ -218,6 +238,13 @@ export function applyCustomSiteToEditor(
     title: item.title,
     description: item.description,
     location: item.location ?? '',
+  }))
+
+  diyComponents.value = ((site as any).diyComponents ?? []).map((c: { id: string, name: string, header: string, content: string }, i: number) => ({
+    id: c.id || `diy-${Date.now() + i}`,
+    name: c.name,
+    header: c.header,
+    description: c.content,
   }))
 
   selectedComponents.value = [...(site.enabledComponents ?? [])]
