@@ -248,7 +248,7 @@ function scrollMotion(delay: number = 0) {
 
       </UContainer>
 
-      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white   h-[85vh]">
+      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white  lg:max-2xl:h-[85vh] sm:max-md:min-h-screen">
         <img
           src="https://lh3.googleusercontent.com/d/1O3k6v9_IQQkybM5HLpMXIOa7YXdr4QiU"
           alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
@@ -269,7 +269,7 @@ function scrollMotion(delay: number = 0) {
 
       </UPageCard>
 
-      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white  h-[85vh]">
+      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white  lg:h-[85vh] sm:min-h-screen">
         <div>
           <div class="text-4xl font-bold">For Planners</div>
           <div class="text-xl text-bread-500">Earning your crust</div>
@@ -284,7 +284,7 @@ function scrollMotion(delay: number = 0) {
             specific event.</div>
         </div>
         <img src="https://lh3.googleusercontent.com/d/1p4o3uWyTXtF8g05BL9_XpPDR6zETkygU" alt="Illustration"
-          class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
+          class=" rounded-lg h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
       </UPageCard>
 
     </UPageSection>
@@ -315,7 +315,7 @@ function scrollMotion(delay: number = 0) {
 
     <UPageSection class="h-screen flex flex-col justify-center 100vh landing-bg landing-bg-overlay">
       <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
-        <source src="https://lh3.googleusercontent.com/d/1hM_ZfIciJWWbNqXVqfgsNobClXQBsTQi" type="video/mp4">
+        <source src="../assets/CTA-bg.mp4" type="video/mp4">
       </video>
       <UPageGrid :ui="{ base: 'lg:grid-cols-5' }">
         <div></div>
