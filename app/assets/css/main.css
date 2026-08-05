@@ -136,3 +136,7 @@
   background-size: cover;
   background-color: var(--color-toast-500);
 }
+
+html {
+  scrollbar-gutter: stable;
+}

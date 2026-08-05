@@ -62,7 +62,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 <template>
   <div class="flex items-center justify-center p-4 login-bg h-screen">
-    <div class="flex justify-center items-center bg-toast-500/70 bread-container  w-2/3 h-2/3 ">
+    <div class=" justify-center items-center bg-toast-500/70 bread-container  w-2/3 h-2/3 hidden lg:flex">
       <UPageCard class=" bg-transparent w-full text-center flex flex-col justify-center mx-15" variant="ghost">
         <img src="../assets/bpb-icons/logo-white.svg" class="w-50 mx-auto">
         <div class="text-3xl font-serif text-white mt-5">Today is the day!</div>
@@ -82,8 +82,43 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       </UPageCard>
 
       <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
-        <div class="my-auto"><UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-          <div class="text-left text-sm">
+        <div class="my-auto">
+          <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+            <div class="text-left text-sm">
+              <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
+              Sign in to continue planning your perfect day
+            </div>
+
+            <UFormField label="Email" name="email" required>
+              <UInput v-model="state.email" type="email" class="w-full" placeholder="Enter your email" />
+            </UFormField>
+
+            <UFormField label="Password" name="password" required>
+              <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
+              <template #hint>
+                <ULink to="/UserForgotPassword" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+              </template>
+            </UFormField>
+
+            <UFormField name="remember">
+              <UCheckbox v-model="state.remember" label="Remember me" />
+            </UFormField>
+
+            <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
+
+            <p class="text-sm text-center">
+              New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
+            </p>
+          </UForm>
+        </div>
+      </UPageCard>
+    </div>
+
+    <UPageCard class="w-full max-w-sm ring ring-transparent p-2 sm:p-4 bg-bread-200 lg:hidden">
+      <div class="my-auto">
+        <UForm :schema="schema" :state="state" class="space-y-4 mb-6 mt-4" @submit="onSubmit">
+          <img src="..\assets\bpb-icons\logo.svg" class="h-12 mb-2 mx-auto" />
+          <div class="text-center text-sm mx-2">
             <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
             Sign in to continue planning your perfect day
           </div>
@@ -108,9 +143,9 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <p class="text-sm text-center">
             New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
           </p>
-        </UForm></div>
-      </UPageCard>
-    </div>
+        </UForm>
+      </div>
+    </UPageCard>
   </div>
 </template>
 

@@ -19,4 +19,8 @@ definePageMeta({
 @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap');
 
 /* Add any global styles here */
+
+html {
+  scrollbar-gutter: stable;
+}
 </style>

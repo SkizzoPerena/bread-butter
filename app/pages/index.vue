@@ -69,7 +69,8 @@ const plans = ref<PricingPlanProps[]>([
   {
     title: 'Bread',
     description: 'Essential tools for your website and guests.',
-    price: 'Php 5,000',
+    price: 'P5,000',
+    discount: 'P5,000',
     features: [
       'Website Builder',
       'Guest List',
@@ -87,7 +88,8 @@ const plans = ref<PricingPlanProps[]>([
   {
     title: 'Butter',
     description: 'Advanced planning tools and supplier management.',
-    price: 'Php 7,000',
+    price: 'P7,000',
+    discount: 'P7,000',
     features: [
       'All Bread Features',
       'Tasks',
@@ -103,7 +105,8 @@ const plans = ref<PricingPlanProps[]>([
   {
     title: 'Bread + Butter',
     description: 'The ultimate package with full collaborator access.',
-    price: 'Php 10,000',
+    price: 'P10,000',
+    discount: 'P10,000',
     features: [
       'All Bread Features',
       'All Butter Features',
@@ -308,6 +311,9 @@ function scrollMotion(delay: number = 0) {
       v-for="(plan, index) in plans"
       :key="index"
       v-bind="plan"
+      :ui="{discount: 'text-toast-400 text-lg sm:text-xl', featureIcon: 'text-toast-700',
+        title: 'font-serif font-bold'
+      }"
     />
           </UPricingPlans>
       </UContainer>
