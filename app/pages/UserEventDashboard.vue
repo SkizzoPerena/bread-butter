@@ -1,4 +1,4 @@
-﻿<script lang="ts" setup>
+<script lang="ts" setup>
 import { DateFormatter } from '@internationalized/date'
 import { isWeddingEventType, formatEventPriceTier } from '~/types/event'
 import { reportApiError } from '~/types/auth'
@@ -318,7 +318,7 @@ function openWebsiteMaker() {
     })
     return
   }
-  navigateTo({ path: '/WebsiteMaker', query: { eventId: id } })
+  navigateTo({ path: '/website-maker', query: { eventId: id } })
 }
 
 function openInvitationMaker() {
@@ -334,7 +334,7 @@ function openInvitationMaker() {
     })
     return
   }
-  navigateTo({ path: '/InvitationMaker', query: { eventId: id } })
+  navigateTo({ path: '/invitation-maker', query: { eventId: id } })
 }
 
 function openGuestList() {
@@ -347,7 +347,7 @@ function openGuestList() {
     })
     return
   }
-  navigateTo({ path: '/EventGuestsDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/guests', query: { eventId: id } })
 }
 
 function openTasksDashboard() {
@@ -360,7 +360,7 @@ function openTasksDashboard() {
     })
     return
   }
-  navigateTo({ path: '/EventTasksDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/tasks', query: { eventId: id } })
 }
 
 function openRsvpDashboard() {
@@ -373,7 +373,7 @@ function openRsvpDashboard() {
     })
     return
   }
-  navigateTo({ path: '/EventRSVPDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/rsvp', query: { eventId: id } })
 }
 
 function openEventSettings() {
@@ -386,7 +386,7 @@ function openEventSettings() {
     })
     return
   }
-  navigateTo({ path: '/EventSettingsDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/settings', query: { eventId: id } })
 }
 
 function openPayments() {
@@ -399,7 +399,7 @@ function openPayments() {
     })
     return
   }
-  navigateTo({ path: '/EventPaymentReview', query: { eventId: id } })
+  navigateTo({ path: '/event/payment-review', query: { eventId: id } })
 }
 
 function openSchedulesDashboard() {
@@ -412,7 +412,7 @@ function openSchedulesDashboard() {
     })
     return
   }
-  navigateTo({ path: '/EventSchedulesDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/schedules', query: { eventId: id } })
 }
 
 function openWishlistDashboard() {
@@ -425,7 +425,7 @@ function openWishlistDashboard() {
     })
     return
   }
-  navigateTo({ path: '/EventWishlistDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/wishlist', query: { eventId: id } })
 }
 
 function openEventPlaylist() {
@@ -438,7 +438,7 @@ function openEventPlaylist() {
     })
     return
   }
-  navigateTo({ path: '/EventPlaylistDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/playlist', query: { eventId: id } })
 }
 
 function openChurchRequirementsDashboard() {
@@ -451,7 +451,7 @@ function openChurchRequirementsDashboard() {
     })
     return
   }
-  navigateTo({ path: '/EventChurchRequirementsDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/requirements', query: { eventId: id } })
 }
 
 function openSuppliersDashboard() {
@@ -464,7 +464,7 @@ function openSuppliersDashboard() {
     })
     return
   }
-  navigateTo({ path: '/EventSuppliersDashboard', query: { eventId: id } })
+  navigateTo({ path: '/event/suppliers', query: { eventId: id } })
 }
 
 type DashboardItem = {

@@ -63,7 +63,7 @@ const isPasswordVisible = ref(false)
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   console.log('Submitted', payload)
-  await navigateTo('/UserDashboard')
+  await navigateTo('/user/dashboard')
 }
 
 </script>
@@ -106,7 +106,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
                   :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
-                  @click="isPasswordVisible = !isPasswordVisible" />
+                  @click="() => { isPasswordVisible = !isPasswordVisible }" />
               </template>
             </UInput>
           </UFormField>
@@ -116,7 +116,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
                   :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
-                  @click="isPasswordVisible = !isPasswordVisible" />
+                  @click="() => { isPasswordVisible = !isPasswordVisible }" />
               </template>
             </UInput>
           </UFormField>
@@ -136,7 +136,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </div>
           <UButton type="submit" block>Sign up</UButton>
           <div class="text-sm text-center mt-1">
-            Already have an account? <ULink to="/UserLogin" class="text-primary font-medium">Sign in</ULink> instead.
+            Already have an account? <ULink to="/user/login" class="text-primary font-medium">Sign in</ULink> instead.
           </div>
         </UForm>
       </div>

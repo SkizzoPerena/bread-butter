@@ -98,7 +98,7 @@ function onTaskSaved() {
 
 function goToTasksDashboard() {
   navigateTo({
-    path: '/EventTasksDashboard',
+    path: '/event/tasks',
     query: { eventId: props.eventId },
   })
 }
@@ -121,7 +121,7 @@ function goToTasksDashboard() {
         <UButton
           icon="i-lucide-list-plus"
           :disabled="isEventCancelled || !eventId"
-          @click="isFormOpen = true"
+          @click="() => { isFormOpen = true }"
         >
           Add New Task
         </UButton>

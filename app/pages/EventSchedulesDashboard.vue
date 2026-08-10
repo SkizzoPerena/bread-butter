@@ -90,7 +90,7 @@ const selectedDateLabel = computed(() => {
 function navigateToSubEvent(subEvent: SubEventRecord) {
   const targetEventId = eventId.value || 'mock-event-id'
   navigateTo({
-    path: '/SubEventDashboard',
+    path: '/event/sub-event',
     query: {
       eventId: targetEventId,
       subEventId: subEvent._id,
@@ -240,7 +240,7 @@ onMounted(async () => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
 
@@ -415,7 +415,7 @@ watch(eventId, () => {
               variant="outline"
               color="neutral"
               :disabled="isSubmitting"
-              @click="isAddModalOpen = false"
+              @click="() => { isAddModalOpen = false }"
             >
               Cancel
             </UButton>

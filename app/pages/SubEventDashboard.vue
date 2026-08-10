@@ -114,7 +114,7 @@ const chartData = computed(() =>
 )
 
 const schedulesLink = computed(() => ({
-  path: '/EventSchedulesDashboard',
+  path: '/event/schedules',
   query: eventId.value ? { eventId: eventId.value } : {},
 }))
 
@@ -444,7 +444,7 @@ onMounted(() => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
   if (!subEventId.value && !isUiOnlyMode.value) {

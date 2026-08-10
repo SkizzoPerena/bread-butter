@@ -41,15 +41,15 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Profile',
     icon: 'i-lucide-user-cog',
-    to: '/UserProfile'
+    to: '/user/profile'
   }, {
     label: 'Transactions',
     icon: 'i-lucide-receipt',
-    to: '/UserTransactions'
+    to: '/user/transactions'
   }, {
     label: 'Report Issue',
     icon: 'i-lucide-message-square-warning',
-    to: '/UserReportIssue'
+    to: '/user/report-issue'
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
@@ -59,11 +59,11 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar class="bg-white w-full sticky top-0 z-50 event-navbar">
+  <UDashboardNavbar class="bg-toast-500/70 w-full sticky top-0 z-50 event-navbar text-bread-50">
     <template #left>
       <div class="flex items-center gap-3">
-        <NuxtLink to="/UserDashboard" class="flex items-center">
-          <img src="..\assets\bpb-icons\logo-toast.svg" class="h-7" />
+        <NuxtLink to="/user/dashboard" class="flex items-center">
+          <img src="..\assets\bpb-icons\logo-white.svg" class="h-7" />
         </NuxtLink>
         <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)]">
           {{ headerEventTitle }}

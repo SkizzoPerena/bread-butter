@@ -182,7 +182,7 @@ async function handleSubmit() {
           : `${response.created} guest(s) added to the list.`,
     })
     await navigateTo({
-      path: '/EventGuestsDashboard',
+      path: '/event/guests',
       query: { eventId: targetEventId },
     })
   } catch (error) {

@@ -43,7 +43,7 @@ export function useAuth() {
 
   async function logout() {
     clearSession()
-    await navigateTo('/UserLogin')
+    await navigateTo('/user/login')
   }
 
   async function login(credentials: LoginCredentials) {

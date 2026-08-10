@@ -231,6 +231,10 @@ const canAssignUngroupedToGroup = computed(
   () => !mutationsDisabled.value && guestGroups.value.length > 0
 )
 
+const canAssignToExistingInModal = computed(
+  () => guestGroups.value.length > 0
+)
+
 function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
   if (status === 'Attending') return 'success'
   if (status === 'Not Attending') return 'error'
@@ -238,12 +242,12 @@ function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
 }
 
 const bulkAddLink = computed(() => ({
-  path: '/AddGuestsBulk',
+  path: '/event/add-guests-bulk',
   query: eventId.value ? { eventId: eventId.value } : {},
 }))
 
 const rsvpMakerLink = computed(() => ({
-  path: '/EventRSVPDashboard',
+  path: '/event/rsvp',
   query: eventId.value ? { eventId: eventId.value } : {},
 }))
 
@@ -456,7 +460,7 @@ onMounted(() => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
   loadEventData()
@@ -498,7 +502,7 @@ watch(eventId, () => {
             icon="i-lucide-user-plus"
             color="orange"
             :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
-            @click="isAddGuestModalOpen = true"
+            @click="() => { isAddGuestModalOpen = true }"
           >
             Add Guest
           </UButton>
@@ -596,7 +600,7 @@ watch(eventId, () => {
           <UButton
             icon="i-lucide-user-plus"
             color="orange"
-            @click="isAddGuestModalOpen = true"
+            @click="() => { isAddGuestModalOpen = true }"
           >
             Add Guest
           </UButton>
@@ -688,7 +692,7 @@ watch(eventId, () => {
                         :model-value="allUngroupedVisibleSelected"
                         :indeterminate="someUngroupedVisibleSelected"
                         aria-label="Select all ungrouped guests"
-                        @update:model-value="(value) => toggleSelectAllUngrouped(value === true)"
+                        @update:model-value="(value: boolean | 'indeterminate') => toggleSelectAllUngrouped(value === true)"
                       />
                       <h3 class="font-medium text-highlighted">
                         {{ section.groupName }}
@@ -718,7 +722,7 @@ watch(eventId, () => {
                           v-if="!section.groupId && !mutationsDisabled"
                           :model-value="selectedGuestIds.has(guest.guestId)"
                           :aria-label="`Select ${guest.displayName}`"
-                          @update:model-value="(value) => toggleSelection(guest.guestId, value === true)"
+                          @update:model-value="(value: boolean | 'indeterminate') => toggleSelection(guest.guestId, value === true)"
                         />
                         <div class="min-w-0">
                           <p class="font-medium">{{ guest.displayName }}</p>
@@ -883,7 +887,7 @@ watch(eventId, () => {
                           :model-value="selectedGuestIds.has(guest.guestId)"
                           :disabled="mutationsDisabled"
                           :aria-label="`Select ${guest.displayName}`"
-                          @update:model-value="(value) => toggleSelection(guest.guestId, value === true)"
+                          @update:model-value="(value: boolean | 'indeterminate') => toggleSelection(guest.guestId, value === true)"
                         />
                         <div class="min-w-0">
                           <p class="font-medium">{{ guest.displayName }}</p>
@@ -1226,7 +1230,7 @@ watch(eventId, () => {
               :variant="roleAssignmentMode === 'existing' ? 'solid' : 'outline'"
               class="flex-1"
               :disabled="isRoleTableActionLoading"
-              @click="roleAssignmentMode = 'existing'"
+              @click="() => { roleAssignmentMode = 'existing' }"
             />
             <UButton
               label="Create new"
@@ -1234,7 +1238,7 @@ watch(eventId, () => {
               :variant="roleAssignmentMode === 'new' ? 'solid' : 'outline'"
               class="flex-1"
               :disabled="isRoleTableActionLoading"
-              @click="roleAssignmentMode = 'new'"
+              @click="() => { roleAssignmentMode = 'new' }"
             />
           </div>
           <UFormField
@@ -1271,7 +1275,7 @@ watch(eventId, () => {
               color="neutral"
               variant="outline"
               :disabled="isRoleTableActionLoading"
-              @click="isRoleAssignmentModalOpen = false"
+              @click="() => { isRoleAssignmentModalOpen = false }"
             />
             <UButton
               label="Assign role"
@@ -1311,7 +1315,7 @@ watch(eventId, () => {
               color="neutral"
               variant="outline"
               :disabled="isRoleTableActionLoading"
-              @click="isRoleUnassignmentModalOpen = false"
+              @click="() => { isRoleUnassignmentModalOpen = false }"
             />
             <UButton
               label="Remove role"
@@ -1384,7 +1388,7 @@ watch(eventId, () => {
               :variant="groupAssignmentMode === 'new' ? 'solid' : 'outline'"
               class="flex-1"
               :disabled="isGroupActionLoading"
-              @click="groupAssignmentMode = 'new'"
+              @click="() => { groupAssignmentMode = 'new' }"
             />
             <UButton
               label="Add to existing"
@@ -1392,7 +1396,7 @@ watch(eventId, () => {
               :variant="groupAssignmentMode === 'existing' ? 'solid' : 'outline'"
               class="flex-1"
               :disabled="isGroupActionLoading"
-              @click="groupAssignmentMode = 'existing'"
+              @click="() => { groupAssignmentMode = 'existing' }"
             />
           </div>
           <UFormField
@@ -1428,7 +1432,7 @@ watch(eventId, () => {
               color="neutral"
               variant="outline"
               :disabled="isGroupActionLoading"
-              @click="isGroupAssignmentModalOpen = false"
+              @click="() => { isGroupAssignmentModalOpen = false }"
             />
             <UButton
               :label="groupAssignmentMode === 'new' ? 'Create group' : 'Add to group'"
@@ -1507,7 +1511,7 @@ watch(eventId, () => {
               color="neutral"
               variant="outline"
               :disabled="isGroupActionLoading"
-              @click="isRenameGroupModalOpen = false"
+              @click="() => { isRenameGroupModalOpen = false }"
             />
             <UButton
               label="Save"
@@ -1564,7 +1568,7 @@ watch(eventId, () => {
               label="Cancel"
               color="neutral"
               variant="outline"
-              @click="isNoQuestionsWarningOpen = false"
+              @click="() => { isNoQuestionsWarningOpen = false }"
             />
             <UButton
               label="Send anyway"

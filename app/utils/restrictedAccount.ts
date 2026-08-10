@@ -48,7 +48,7 @@ export async function handleRestrictedAccount(): Promise<never> {
   const toast = useToast()
 
   clearSession()
-  await navigateTo('/UserLogin', { replace: true })
+  await navigateTo('/user/login', { replace: true })
 
   toast.add({
     title: 'Account restricted',

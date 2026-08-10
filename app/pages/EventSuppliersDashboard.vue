@@ -373,7 +373,7 @@ onMounted(async () => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
 
@@ -615,7 +615,7 @@ watch(eventId, async () => {
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isDeleteModalOpen = false"
+            @click="() => { isDeleteModalOpen = false }"
           />
           <UButton
             label="Remove"
@@ -700,7 +700,7 @@ watch(eventId, async () => {
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isAddSupplierModalOpen = false"
+            @click="() => { isAddSupplierModalOpen = false }"
           />
           <UButton
             label="Add supplier"

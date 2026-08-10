@@ -347,7 +347,7 @@ onMounted(() => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
   loadEventData()
@@ -363,7 +363,7 @@ watch(eventId, () => {
     <ClientOnly>
       <Teleport to="#navbar-actions">
         <UButton icon="i-lucide-pencil" color="teal" :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
-          @click="isQuestionsModalOpen = true">
+          @click="() => { isQuestionsModalOpen = true }">
           Edit Questions
         </UButton>
       </Teleport>
@@ -424,7 +424,7 @@ watch(eventId, () => {
                   Add questions for guests to answer when they respond to your RSVP invitation.
                 </div>
                 <UButton v-if="!isEventCancelled" class="mt-6" color="teal" icon="i-lucide-pencil"
-                  @click="isQuestionsModalOpen = true">
+                  @click="() => { isQuestionsModalOpen = true }">
                   Edit Questions
                 </UButton>
               </div>
@@ -571,9 +571,9 @@ watch(eventId, () => {
             <UButton :icon="questionsMode === 'edit' ? 'i-lucide-eye' : 'i-lucide-pencil'"
               :label="questionsMode === 'edit' ? 'Preview' : 'Back to Edit'" size="sm" color="neutral" variant="outline"
               class="text-white border-white/40 hover:bg-white/10" :disabled="isSubmittingQuestions"
-              @click="questionsMode = questionsMode === 'edit' ? 'preview' : 'edit'" />
+              @click="() => { questionsMode = questionsMode === 'edit' ? 'preview' : 'edit' }" />
             <UButton icon="i-lucide-x" variant="ghost" color="neutral" class="text-white hover:bg-white/10"
-              :disabled="isSubmittingQuestions" @click="isQuestionsModalOpen = false" />
+              :disabled="isSubmittingQuestions" @click="() => { isQuestionsModalOpen = false }" />
           </div>
         </div>
       </template>
@@ -710,14 +710,14 @@ watch(eventId, () => {
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton variant="outline" color="neutral" :disabled="isSubmittingQuestions"
-            @click="isQuestionsModalOpen = false">
+            @click="() => { isQuestionsModalOpen = false }">
             Cancel
           </UButton>
           <UButton v-if="questionsMode === 'edit'" :loading="isSubmittingQuestions" :disabled="isSubmittingQuestions"
             @click="handleSaveQuestions">
             Save Questions
           </UButton>
-          <UButton v-else variant="outline" @click="questionsMode = 'edit'">
+          <UButton v-else variant="outline" @click="() => { questionsMode = 'edit' }">
             Back to Edit
           </UButton>
         </div>

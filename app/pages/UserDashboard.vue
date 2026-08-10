@@ -119,6 +119,22 @@ const df = new DateFormatter('en-US', {
 
 const welcomeName = computed(() => user.value?.firstName ?? 'Jane')
 
+const ongoingEvents = computed(() => {
+  const todayDate = today(getLocalTimeZone())
+  return userEvents.value.filter((event) => {
+    const eventDate = new CalendarDate(new Date(event.eventDate).getUTCFullYear(), new Date(event.eventDate).getUTCMonth() + 1, new Date(event.eventDate).getUTCDate())
+    return eventDate.compare(todayDate) >= 0
+  })
+})
+
+const pastEvents = computed(() => {
+  const todayDate = today(getLocalTimeZone())
+  return userEvents.value.filter((event) => {
+    const eventDate = new CalendarDate(new Date(event.eventDate).getUTCFullYear(), new Date(event.eventDate).getUTCMonth() + 1, new Date(event.eventDate).getUTCDate())
+    return eventDate.compare(todayDate) < 0
+  })
+})
+
 const userEvents = ref<EventRecord[]>([])
 const isLoadingEvents = ref(false)
 
@@ -265,7 +281,7 @@ async function handleCreateEvent() {
 
     isModalOpen.value = false
     await router.push({
-      path: '/UserEventDashboard',
+      path: '/user/event-dashboard',
       query: { eventId: event._id },
     })
   } catch (error) {
@@ -324,7 +340,7 @@ async function handleCreateEvent() {
           >
             <UButton
               icon="i-lucide-user-plus"
-              @click="isModalOpen = true"
+              @click="() => { isModalOpen = true }"
             >
               Create New Event
             </UButton>
@@ -521,14 +537,15 @@ async function handleCreateEvent() {
       </div>
     </UPageCard>
 
-    <UPageGrid>
+    <UPageHeader v-if="!isLoadingEvents && ongoingEvents.length > 0" title="Ongoing Events" :ui="{ title: 'font-serif' }" />
+    <UPageGrid v-if="ongoingEvents.length > 0">
       <template v-if="isLoadingEvents">
         <div
           v-for="n in 2"
           :key="`skeleton-${n}`"
           class="white-bread-container rounded-lg overflow-hidden"
         >
-          <USkeleton class="aspect-[3/2] w-full rounded-none" />
+          <USkeleton class="aspect-3/2 w-full rounded-none" />
           <div class="space-y-3 p-4">
             <USkeleton class="h-6 w-3/4" />
             <USkeleton class="h-4 w-1/2" />
@@ -540,11 +557,11 @@ async function handleCreateEvent() {
 
       <template v-else>
         <div
-          v-for="event in userEvents"
+          v-for="event in ongoingEvents"
           :key="event._id"
           class="white-bread-container rounded-lg"
         >
-        <div class="aspect-[3/2] w-full overflow-hidden rounded-t-lg">
+        <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
           <img
             :src="resolveEventCoverImageUrl(event.coverImageURL)"
             :alt="event.eventName"
@@ -583,7 +600,79 @@ async function handleCreateEvent() {
           <UButton
             block
             class="mt-6"
-            :to="{ path: '/UserEventDashboard', query: { eventId: event._id } }"
+            :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }"
+          >
+            Open Dashboard
+          </UButton>
+        </div>
+        </div>
+      </template>
+    </UPageGrid>
+
+    <UPageHeader v-if="!isLoadingEvents && pastEvents.length > 0" title="Past Events" :ui="{ title: 'font-serif' }" />
+    <UPageGrid v-if="pastEvents.length > 0">
+      <template v-if="isLoadingEvents">
+        <div
+          v-for="n in 2"
+          :key="`skeleton-past-${n}`"
+          class="white-bread-container rounded-lg overflow-hidden"
+        >
+          <USkeleton class="aspect-3/2 w-full rounded-none" />
+          <div class="space-y-3 p-4">
+            <USkeleton class="h-6 w-3/4" />
+            <USkeleton class="h-4 w-1/2" />
+            <USkeleton class="h-4 w-1/2" />
+            <USkeleton class="h-10 w-full mt-4" />
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
+        <div
+          v-for="event in pastEvents"
+          :key="event._id"
+          class="white-bread-container rounded-lg"
+        >
+        <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
+          <img
+            :src="resolveEventCoverImageUrl(event.coverImageURL)"
+            :alt="event.eventName"
+            class="h-full w-full object-cover"
+            @error="onCoverImageError"
+          >
+        </div>
+        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+          <div class="flex items-start justify-between gap-2 pb-1 min-w-0">
+            <div class="min-w-0 flex-1 text-lg font-semibold truncate">
+              {{ event.eventName }}
+            </div>
+            <UBadge
+              variant="subtle"
+              size="sm"
+              class="shrink-0"
+            >
+              {{ getPaymentStatusLabel(event) }}
+            </UBadge>
+          </div>
+          <UPageFeature
+            icon="i-lucide-tag"
+            :title="formatEventPriceTier(event)"
+            :ui="{ title: 'font-normal' }"
+          />
+          <UPageFeature
+            icon="i-lucide-map-pin"
+            :title="event.venue"
+            :ui="{ title: 'font-normal' }"
+          />
+          <UPageFeature
+            icon="i-lucide-calendar-heart"
+            :title="formatEventDateLabel(event.eventDate)"
+            :ui="{ title: 'font-normal' }"
+          />
+          <UButton
+            block
+            class="mt-6"
+            :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }"
           >
             Open Dashboard
           </UButton>

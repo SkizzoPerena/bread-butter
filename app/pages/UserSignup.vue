@@ -59,7 +59,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   try {
     await register({ email, password, firstName, lastName, gender })
     toast.add({ title: 'Account created', description: 'Welcome to Bread+Butter!' })
-    await navigateTo('/UserDashboard')
+    await navigateTo('/user/dashboard')
   } catch (error) {
     toast.add({
       title: 'Sign up failed',
@@ -105,7 +105,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
                   :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
-                  @click="isPasswordVisible = !isPasswordVisible" />
+                  @click="() => { isPasswordVisible = !isPasswordVisible }" />
               </template>
             </UInput>
           </UFormField>
@@ -115,7 +115,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
                   :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
-                  @click="isPasswordVisible = !isPasswordVisible" />
+                  @click="() => { isPasswordVisible = !isPasswordVisible }" />
               </template>
             </UInput>
           </UFormField>
@@ -135,7 +135,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </div>
           <UButton type="submit" block :loading="isSubmitting">Sign up</UButton>
           <div class="text-sm text-center mt-1">
-            Already have an account? <ULink to="/UserLogin" class="text-primary font-medium">Sign in</ULink> instead.
+            Already have an account? <ULink to="/user/login" class="text-primary font-medium">Sign in</ULink> instead.
           </div>
         </UForm>
       </div>

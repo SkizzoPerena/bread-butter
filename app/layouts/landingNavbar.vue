@@ -43,8 +43,8 @@ onUnmounted(() => {
 })
 
 const links = [
-  { label: 'Features', to: '/features' },
-  { label: 'Pricing', to: '/pricing' },
+  { label: 'Features', to: '/#introduction' },
+  { label: 'Pricing', to: '/#pricing' },
   { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' }
 ]
@@ -62,26 +62,25 @@ const links = [
     </template>
 
     <div class="flex items-center gap-x-8">
-      <UButton to="/features" variant="link" color="bread" disabled class="font-semibold text-base text-white">Features
+      <UButton to="/#introduction" variant="link" color="bread" class="font-semibold text-base text-white">Features</UButton>
+      <UButton to="/#pricing" variant="link" color="bread" class="font-semibold text-base text-white">Pricing
       </UButton>
-      <UButton to="/pricing" variant="link" color="bread" disabled class="font-semibold text-base text-white">Pricing
-      </UButton>
-      <UButton to="/PartnerLogin" variant="link" color="bread" class="font-semibold text-base text-white">Partners
+      <UButton to="/partners/login" variant="link" color="bread" class="font-semibold text-base text-white">Partners
       </UButton>
       <NuxtLink to="/" class="mx-4">
         <img src="..\assets\bpb-icons\logo-white.svg" class="h-8" />
       </NuxtLink>
       <UButton to="https://www.blinkpunch.com" target="_blank" variant="link" color="bread"
         class="font-semibold text-base text-white">About</UButton>
-      <UButton to="/contact" variant="link" color="bread" disabled class="font-semibold text-base text-white">Contact
+      <UButton to="/contact-us" variant="link" color="bread" class="font-semibold text-base text-white">Contact
       </UButton>
       <UButton variant="link" class="font-semibold text-toast-100/0">Features</UButton>
    </div>
 
     <template #right>
       <div class="flex items-center gap-x-4">
-        <UButton to="/UserLogin" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
-        <UButton to="/UserSignup" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
+        <UButton to="/user/login" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
+        <UButton to="/user/signup" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
       </div>
     </template>
   </UHeader>
@@ -103,8 +102,8 @@ const links = [
 
         <template #body>
           <UButton variant="link" class="w-full mb-1" color="bread" to="https://www.blinkpunch.com">About Us</UButton>
-          <UButton variant="link" class="w-full my-1" color="bread" to="https://www.blinkpunch.com">Contact Us</UButton>
-          <UButton variant="link" class="w-full my-1" color="bread" to="https://www.blinkpunch.com">Partners</UButton>
+          <UButton variant="link" class="w-full my-1" color="bread" to="/contact-us">Contact Us</UButton>
+          <UButton variant="link" class="w-full my-1" color="bread" to="/partners/login">Partners</UButton>
           <UButton variant="link" class="w-full my-1" color="bread" to="https://www.blinkpunch.com">About Us</UButton>
 
         </template>
@@ -114,8 +113,8 @@ const links = [
 
 
     <template #right>
-      <UButton to="/UserLogin" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
-      <UButton to="/UserSignup" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
+      <UButton to="/user/login" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
+      <UButton to="/user/signup" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
     </template>
   </UHeader>
 

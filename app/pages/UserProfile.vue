@@ -209,7 +209,7 @@ async function onEmailNotifToggle(enabled: boolean) {
 
 onMounted(async () => {
   if (!isUiOnlyMode.value && !isAuthenticated.value) {
-    await navigateTo('/UserLogin')
+    await navigateTo('/user/login')
     return
   }
   await loadProfile()
@@ -252,7 +252,7 @@ onMounted(async () => {
               <div class="mb-6 flex w-full justify-center gap-4">
                 <img
                   :src="profileImageSrc"
-                  class="size-[150px] rounded-full object-cover"
+                  class="size-37.5 rounded-full object-cover"
                   :alt="displayName"
                   width="150"
                   height="150"

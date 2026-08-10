@@ -24,7 +24,7 @@ export function useEventFeatureGate() {
         description: 'Open an event from your dashboard first.',
         color: 'error',
       })
-      navigateTo('/UserDashboard')
+      navigateTo('/user/dashboard')
       return false
     }
 
@@ -40,13 +40,13 @@ export function useEventFeatureGate() {
           description: 'This feature is not included in your event plan.',
           color: 'error',
         })
-        await navigateTo({ path: '/UserEventDashboard', query: { eventId: id } })
+        await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
         return false
       }
       return true
     } catch (error) {
       reportApiError(toast, { title: 'Could not verify event access', error })
-      await navigateTo({ path: '/UserEventDashboard', query: { eventId: id } })
+      await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
       return false
     }
   }

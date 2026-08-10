@@ -44,7 +44,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     })
 
     toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
-    await navigateTo('/UserDashboard')
+    await navigateTo('/user/dashboard')
   } catch (error) {
     const isRestricted = isRestrictedAccountError(error)
     toast.add({
@@ -96,7 +96,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <UFormField label="Password" name="password" required>
               <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
               <template #hint>
-                <ULink to="/UserForgotPassword" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+                <ULink to="/user/forgot-password" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
               </template>
             </UFormField>
 
@@ -107,7 +107,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
 
             <p class="text-sm text-center">
-              New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
+              New to Bread+Butter? <ULink to="/user/signup" class="text-primary font-medium">Sign up here.</ULink>
             </p>
           </UForm>
         </div>
@@ -130,7 +130,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UFormField label="Password" name="password" required>
             <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
             <template #hint>
-              <ULink to="/UserForgotPassword" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+              <ULink to="/user/forgot-password" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
             </template>
           </UFormField>
 
@@ -141,7 +141,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
 
           <p class="text-sm text-center">
-            New to Bread+Butter? <ULink to="/UserSignup" class="text-primary font-medium">Sign up here.</ULink>
+            New to Bread+Butter? <ULink to="/user/signup" class="text-primary font-medium">Sign up here.</ULink>
           </p>
         </UForm>
       </div>

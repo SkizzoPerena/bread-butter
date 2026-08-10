@@ -265,7 +265,7 @@ onMounted(async () => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
 
@@ -406,7 +406,7 @@ watch(eventId, async () => {
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isDeleteModalOpen = false"
+            @click="() => { isDeleteModalOpen = false }"
           />
           <UButton
             label="Remove"
@@ -458,7 +458,7 @@ watch(eventId, async () => {
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isAddModalOpen = false"
+            @click="() => { isAddModalOpen = false }"
           />
           <UButton
             label="Add playlist"
@@ -510,7 +510,7 @@ watch(eventId, async () => {
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isEditModalOpen = false"
+            @click="() => { isEditModalOpen = false }"
           />
           <UButton
             label="Save changes"

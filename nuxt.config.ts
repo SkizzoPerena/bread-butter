@@ -106,4 +106,55 @@ export default defineNuxtConfig({
     }
   },
 
+  hooks: {
+    'pages:extend'(pages) {
+      // This function will find a page by its auto-generated name and update its path
+      const setPath = (name: string, path: string) => {
+        const page = pages.find(p => p.name === name)
+        if (page) {
+          page.path = path
+        }
+      }
+
+      // Set paths for /event/* routes
+      setPath('EventChurchRequirementsDashboard', '/event/requirements')
+      setPath('EventGuestsDashboard', '/event/guests')
+      setPath('EventPaymentReview', '/event/payment-review')
+      setPath('EventPlaylistDashboard', '/event/playlist')
+      setPath('EventRSVPDashboard', '/event/rsvp')
+      setPath('EventSchedulesDashboard', '/event/schedules')
+      setPath('EventSettingsDashboard', '/event/settings')
+      setPath('EventSuppliersDashboard', '/event/suppliers')
+      setPath('EventTasksDashboard', '/event/tasks')
+      setPath('EventTasksDashboardPreVamp', '/event/tasks-pre-vamp')
+      setPath('EventWishlistDashboard', '/event/wishlist')
+      setPath('SubEventDashboard', '/event/sub-event')
+      setPath('AddGuestsBulk', '/event/add-guests-bulk')
+
+      // Set paths for /user/* routes
+      setPath('UserDashboard pre-vamp', '/user/dashboard-pre-vamp')
+      setPath('UserDashboard', '/user/dashboard')
+      setPath('UserEventDashboard prevamp', '/user/event-dashboard-prevamp')
+      setPath('UserEventDashboard', '/user/event-dashboard')
+      setPath('UserForgotPassword', '/user/forgot-password')
+      setPath('UserLogin', '/user/login')
+      setPath('UserProfile', '/user/profile')
+      setPath('UserReportIssue', '/user/report-issue')
+      setPath('UserSignup copy', '/user/signup-copy')
+      setPath('UserSignup', '/user/signup')
+      setPath('UserTransactions', '/user/transactions')
+
+      // Set paths for /partners/* routes
+      setPath('PartnerDashboard', '/partners')
+      setPath('PartnerLogin', '/partners/login')
+      setPath('PartnerSignup', '/partners/signup')
+      setPath('PartnerForgotPassword', '/partners/forgot-password')
+
+      // Set paths for standalone pages
+      setPath('ContactUs', '/contact-us')
+      setPath('InvitationMaker', '/invitation-maker')
+      setPath('WebsiteMaker', '/website-maker')
+    }
+  }
+
 })

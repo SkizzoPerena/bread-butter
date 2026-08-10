@@ -144,7 +144,7 @@ async function submitNewPassword(event: FormSubmitEvent<PasswordSchema>) {
     await executeAction({
       uiOnly: async () => {
         toast.add({ title: 'Password updated', description: 'Sign in with your new password.', color: 'success' })
-        await navigateTo('/UserLogin')
+        await navigateTo('/user/login')
       },
       api: () =>
         apiRequest('/otp/change-password/' + otpId.value, {
@@ -161,7 +161,7 @@ async function submitNewPassword(event: FormSubmitEvent<PasswordSchema>) {
           description: res?.message ?? 'Sign in with your new password.',
           color: 'success',
         })
-        await navigateTo('/UserLogin')
+        await navigateTo('/user/login')
       },
     })
   } catch (error: any) {
@@ -200,7 +200,7 @@ async function submitNewPassword(event: FormSubmitEvent<PasswordSchema>) {
                         <UButton type="button" variant="soft" block :loading="isSubmitting" @click="resendOtp">Resend</UButton>
                         <UButton type="submit" block :loading="isSubmitting">Verify</UButton>
                     </div>
-                    <UButton type="button" variant="link" block @click="step = 'email'">Use a different email</UButton>
+                    <UButton type="button" variant="link" block @click="() => { step = 'email' }">Use a different email</UButton>
                 </UForm>
 
                 <UForm v-else :schema="passwordSchema" :state="state" class="space-y-5" @submit="submitNewPassword">
@@ -214,7 +214,7 @@ async function submitNewPassword(event: FormSubmitEvent<PasswordSchema>) {
                 </UForm>
 
                 <div class="text-sm text-center mt-4">
-                    Remembered your password? <ULink to="/UserLogin" class="text-primary font-medium">Sign in</ULink> instead.
+                    Remembered your password? <ULink to="/user/login" class="text-primary font-medium">Sign in</ULink> instead.
                 </div>
             </div>
         </UPageCard>

@@ -433,7 +433,7 @@ onMounted(async () => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
 
@@ -451,7 +451,7 @@ onMounted(async () => {
       color: 'error',
     })
     navigateTo({
-      path: '/UserEventDashboard',
+      path: '/user/event-dashboard',
       query: eventId.value ? { eventId: eventId.value } : undefined,
     })
     return
@@ -701,7 +701,7 @@ watch(eventId, async () => {
               color="neutral"
               variant="outline"
               :disabled="isSubmitting"
-              @click="isCreateModalOpen = false"
+              @click="() => { isCreateModalOpen = false }"
             />
             <UButton
               label="Create"
@@ -745,7 +745,7 @@ watch(eventId, async () => {
               color="neutral"
               variant="outline"
               :disabled="isSubmitting"
-              @click="isEditModalOpen = false"
+              @click="() => { isEditModalOpen = false }"
             />
             <UButton
               label="Save"
@@ -778,7 +778,7 @@ watch(eventId, async () => {
             color="neutral"
             variant="outline"
             :disabled="isSubmitting"
-            @click="isDeleteModalOpen = false"
+            @click="() => { isDeleteModalOpen = false }"
           />
           <UButton
             label="Delete"

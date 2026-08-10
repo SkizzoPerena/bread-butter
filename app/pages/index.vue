@@ -69,7 +69,7 @@ const plans = ref<PricingPlanProps[]>([
   {
     title: 'Bread',
     description: 'Essential tools for your website and guests.',
-    price: 'P5,000',
+    price: 'P10,000',
     discount: 'P5,000',
     features: [
       'Website Builder',
@@ -88,8 +88,8 @@ const plans = ref<PricingPlanProps[]>([
   {
     title: 'Butter',
     description: 'Advanced planning tools and supplier management.',
-    price: 'P7,000',
-    discount: 'P7,000',
+    price: 'P15,000',
+    discount: 'P7,500',
     features: [
       'All Bread Features',
       'Tasks',
@@ -105,7 +105,7 @@ const plans = ref<PricingPlanProps[]>([
   {
     title: 'Bread + Butter',
     description: 'The ultimate package with full collaborator access.',
-    price: 'P10,000',
+    price: 'P20,000',
     discount: 'P10,000',
     features: [
       'All Bread Features',
@@ -133,34 +133,35 @@ function scrollMotion(delay: number = 0) {
 
 <template>
   <div>
-    <UPageSection id="features"
-      style="height: 100vh" class=" 100vh landing-bg landing-bg-overlay flex justify-center items-end"
+    <UPageSection id="features" style="height: 100vh"
+      class=" 100vh landing-bg landing-bg-overlay flex justify-center items-end"
       :ui="{ title: 'font-serif text-white', description: 'text-white' }">
 
       <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
         <source
           src="https://cdn.prod.website-files.com/63177d78c6b7b970195ad37c/631881dada5f467db6f42b29_video-transcode.webm"
           type="video/webm">
-      </video><div class="text-white text-center">
-          <div class="font-bold text-5xl font-serif mb-6 text-pretty tracking-tight ">
-           Your dream celebration, baked to perfection.
-          </div>
-            <div class=" text-lg">
-              Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
-              <p /> From custom websites and digital invitations to seamless guest management—everything you need is
-              finally
-              in one place.
-            </div>
-            </div>
+      </video>
+      <div class="text-white text-center">
+        <div class="font-bold text-5xl font-serif mb-6 text-pretty tracking-tight ">
+          Your dream celebration, baked to perfection.
+        </div>
+        <div class=" text-lg">
+          Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
+          <p /> From custom websites and digital invitations to seamless guest management—everything you need is
+          finally
+          in one place.
+        </div>
+      </div>
       <UContainer class="flex justify-center items-center my-0">
         <div style="width: 250px">
-          <UButton to="/UserLogin" size="xl" block color="neutral" variant="soft" class="font-bold">LET'S GET THIS BREAD
+          <UButton to="/user/login" size="xl" block color="neutral" variant="soft" class="font-bold">LET'S GET THIS BREAD
           </UButton>
         </div>
       </UContainer>
     </UPageSection>
 
-    <UPageSection class="">
+    <UPageSection id="introduction" class="">
       <UContainer class="font-medium text-xl text-center text-toast-400">
 
         <Motion v-bind="scrollMotion(0.1)">
@@ -168,18 +169,18 @@ function scrollMotion(delay: number = 0) {
             What's in the oven?
           </div>
         </Motion>
-<div class=" mb-6"/>
-          <Motion v-bind="scrollMotion(0.2)">
-            <div>
-              Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
-              <p /> From custom websites and digital invitations to seamless guest management—everything you need is
-              finally
-              in one place.
-            </div>
-          </Motion>
+        <div class=" mb-6" />
+        <Motion v-bind="scrollMotion(0.2)">
+          <div>
+            Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
+            <p /> From custom websites and digital invitations to seamless guest management—everything you need is
+            finally
+            in one place.
+          </div>
+        </Motion>
       </UContainer>
       <UMarquee class="py-2 -mx-8 sm:-mx-12 lg:-mx-16 [--duration:40s]">
-        <div class="py-2"v-for="(img, index) in marqueeImages" :key="index" :initial="{
+        <div class="py-2" v-for="(img, index) in marqueeImages" :key="index" :initial="{
           scale: 1.1,
           opacity: 0,
           filter: 'blur(20px)'
@@ -191,9 +192,9 @@ function scrollMotion(delay: number = 0) {
           duration: 0.6,
           delay: index * 0.1,
         }"> <!-- Using a simple div as Motion component is not defined -->
-          <UPageCard class="w-80 h-95 bg-bread-400 bread-container transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-2xl hover:z-10"
-            :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'"
-            :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
+          <UPageCard
+            class="w-80 h-95 bg-bread-400 bread-container transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-2xl hover:z-10"
+            :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'" :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
               <img width="200" height="300" class="w-full h-full object-cover" :src="img.file" :alt="img.title" />
             </div>
@@ -208,27 +209,28 @@ function scrollMotion(delay: number = 0) {
 
       <UContainer class="font-regular text-xl text-center text-white">
         <img class="max-h-4/5 mb-6" src="https://lh3.googleusercontent.com/d/1gwoHSTP-QKnTnMOFFMVQuWVRiCnwDz-9" />
-                  <Motion v-bind="scrollMotion(0.1)">
+        <Motion v-bind="scrollMotion(0.1)">
 
-        <div class="font-bold text-5xl font-serif mb-6">Powerful tools, baked right in.</div>
-       </Motion>
-                 <Motion v-bind="scrollMotion(0.2)">
+          <div class="font-bold text-5xl font-serif mb-6">Powerful tools, baked right in.</div>
+        </Motion>
+        <Motion v-bind="scrollMotion(0.2)">
 
-        <div>Say goodbye to half-baked plans. The Bread + Butter dashboard gives you a centralized hub for your entire
-          event. Track tasks, manage suppliers, and monitor RSVPs with a visual, intuitive interface that keeps your big
-          day from going stale.</div>
-          </Motion>
+          <div>Say goodbye to half-baked plans. The Bread + Butter dashboard gives you a centralized hub for your entire
+            event. Track tasks, manage suppliers, and monitor RSVPs with a visual, intuitive interface that keeps your
+            big
+            day from going stale.</div>
+        </Motion>
       </UContainer>
     </UPageSection>
 
     <UPageSection class="bg-bread-400">
 
       <UContainer class="font-regular text-xl text-center">
-                  <Motion v-bind="scrollMotion(0.1)">
+        <Motion v-bind="scrollMotion(0.1)">
 
-        <div class="font-bold text-5xl font-serif mb-12">Everything you <a class="text-toast-400">knead</a> for a
-          <p />Flawless Celebration
-        </div>
+          <div class="font-bold text-5xl font-serif mb-12">Everything you <a class="text-toast-400">knead</a> for a
+            <p />Flawless Celebration
+          </div>
         </Motion>
         <UPageGrid>
           <div v-for="(feature, index) in features" :key="index" class="bread-container p-6 px-8 bg-white text-left">
@@ -251,10 +253,10 @@ function scrollMotion(delay: number = 0) {
 
       </UContainer>
 
-      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white  lg:max-2xl:h-[85vh] sm:max-md:min-h-screen">
-        <img
-          src="https://lh3.googleusercontent.com/d/1O3k6v9_IQQkybM5HLpMXIOa7YXdr4QiU"
-          alt="Illustration" class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
+      <UPageCard orientation="horizontal"
+        class="bg-transparent border-none ring-0 text-white  lg:max-2xl:h-[85vh] sm:max-md:min-h-screen">
+        <img src="https://lh3.googleusercontent.com/d/1O3k6v9_IQQkybM5HLpMXIOa7YXdr4QiU" alt="Illustration"
+          class=" rounded-lg  h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
 
         <div>
           <div class="text-4xl font-bold">For Celebrants</div>
@@ -272,7 +274,8 @@ function scrollMotion(delay: number = 0) {
 
       </UPageCard>
 
-      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white  lg:h-[85vh] sm:min-h-screen">
+      <UPageCard orientation="horizontal"
+        class="bg-transparent border-none ring-0 text-white  lg:h-[85vh] sm:min-h-screen">
         <div>
           <div class="text-4xl font-bold">For Planners</div>
           <div class="text-xl text-bread-500">Earning your crust</div>
@@ -292,7 +295,7 @@ function scrollMotion(delay: number = 0) {
 
     </UPageSection>
 
-        <UPageSection class="bg-bread-400">
+    <UPageSection class="bg-bread-400"  id="pricing">
       <UContainer class="font-medium text-xl text-center">
 
         <Motion v-bind="scrollMotion(0.1)">
@@ -300,22 +303,18 @@ function scrollMotion(delay: number = 0) {
             Pick your Portion
           </div>
         </Motion>
-<div class=" mb-6"/>
-          <Motion v-bind="scrollMotion(0.2)">
-            <div class="mb-12">
-              Your event, your way. Choose a package tailored to your planning needs and budget.
-            </div>
-          </Motion>
-          <UPricingPlans>
-            <UPricingPlan class="text-left bread-container"
-      v-for="(plan, index) in plans"
-      :key="index"
-      v-bind="plan"
-      :ui="{discount: 'text-toast-400 text-lg sm:text-xl', featureIcon: 'text-toast-700',
-        title: 'font-serif font-bold'
-      }"
-    />
-          </UPricingPlans>
+        <div class=" mb-6" />
+        <Motion v-bind="scrollMotion(0.2)">
+          <div class="mb-12">
+            Your event, your way. Choose a package tailored to your planning needs and budget.
+          </div>
+        </Motion>
+        <UPricingPlans>
+          <UPricingPlan class="text-left bread-container" v-for="(plan, index) in plans" :key="index" v-bind="plan" :ui="{
+            discount: 'text-toast-400 text-lg sm:text-xl', featureIcon: 'text-toast-700',
+            title: 'font-serif font-bold'
+          }" />
+        </UPricingPlans>
       </UContainer>
     </UPageSection>
 
@@ -336,7 +335,7 @@ function scrollMotion(delay: number = 0) {
 
 
           <div style="width: 250px">
-            <UButton to="/UserLogin" size="xl" block color="bread" variant="solid" class="font-bold text-toast-700">
+            <UButton to="/user/login" size="xl" block color="bread" variant="solid" class="font-bold text-toast-700">
               LET'S GET THIS
               BREAD
             </UButton>

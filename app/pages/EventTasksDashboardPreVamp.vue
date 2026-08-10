@@ -227,7 +227,7 @@ onMounted(() => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/UserDashboard')
+    navigateTo('/user/dashboard')
     return
   }
   loadEventData()
@@ -360,7 +360,7 @@ watch(eventId, () => {
               <UFormField label="Budget" name="budget" class="flex-1"><UInputNumber v-model="editingTask.budget" :increment="false" :decrement="false" class="w-full" /></UFormField>
               <UFormField label="Deadline" name="date" class="flex-1"><UPopover><UButton color="neutral" variant="outline" class="w-full justify-between" icon="i-lucide-calendar">{{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select date' }}</UButton><template #content="{ close }"><UCalendar v-model="modelValue" class="p-2" @update:model-value="close" /></template></UPopover></UFormField>
             </div>
-            <div class="flex justify-end pt-4 gap-3"><UButton type="button" color="neutral" variant="ghost" @click="isEditModalOpen = false">Cancel</UButton><UButton type="submit" color="rose" size="lg">Save Changes</UButton></div>
+            <div class="flex justify-end pt-4 gap-3"><UButton type="button" color="neutral" variant="ghost" @click="() => { isEditModalOpen = false }">Cancel</UButton><UButton type="submit" color="rose" size="lg">Save Changes</UButton></div>
           </UForm>
         </template>
       </UModal>

@@ -56,7 +56,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   console.log('Frontend-only registration with:', payload.data)
   toast.add({ title: 'Partner account created', description: 'Welcome to Bread+Butter!' })
-  await navigateTo('/PartnerDashboard')
+  await navigateTo('/partners')
 
   isSubmitting.value = false
 }
@@ -125,7 +125,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </div>
           <UButton type="submit" block :loading="isSubmitting">Sign up</UButton>
           <div class="text-sm text-center mt-1">
-            Already a partner? <ULink to="/PartnerLogin" class="text-bread-400 font-medium">Sign in</ULink> instead.
+            Already a partner? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink> instead.
           </div>
         </UForm>
       </div>

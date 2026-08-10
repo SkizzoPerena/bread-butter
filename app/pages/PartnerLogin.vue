@@ -37,7 +37,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   console.log('Frontend-only login with:', payload.data)
   toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
-  await navigateTo('/PartnerDashboard')
+  await navigateTo('/partners')
 
   isSubmitting.value = false
 }
@@ -66,7 +66,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UFormField label="Password" name="password" required :ui="{label: ' text-white'}">
             <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
             <template #hint>
-              <ULink to="/PartnerForgotPassword" class="text-bread-400 font-medium hover:text-bread-50" tabindex="-1">Forgot password?</ULink>
+              <ULink to="/partners/forgot-password" class="text-bread-400 font-medium hover:text-bread-50" tabindex="-1">Forgot password?</ULink>
             </template>
           </UFormField>
 
@@ -77,7 +77,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
 
           <p class="text-sm text-center mb-2">
-            New Partner? <ULink to="/PartnerSignup" class="text-bread-400 font-medium hover:text-bread-50">Sign up here.</ULink>
+            New Partner? <ULink to="/partners/signup" class="text-bread-400 font-medium hover:text-bread-50">Sign up here.</ULink>
           </p>
         </UForm></div>
       </UPageCard>
