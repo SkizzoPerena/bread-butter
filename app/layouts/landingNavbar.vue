@@ -78,8 +78,8 @@ onUnmounted(() => {
 const links = [
   { label: 'Features', to: '/#introduction' },
   { label: 'Pricing', to: '/#pricing' },
-  { label: 'About', to: '/about' },
-  { label: 'Contact', to: '/contact' }
+  { label: 'About', to: 'https://www.blinkpunch.com' },
+  { label: 'Contact', to: '/contact-us' }
 ]
 </script>
 
