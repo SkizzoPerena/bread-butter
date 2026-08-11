@@ -372,7 +372,7 @@ async function handleCreateEvent() {
                 </UButton>
 
                 <template #content="{ close }">
-                  <UCalendar v-model="(modelValue as any)" class="p-2" :min-value="(minEventDate as any)"
+                  <UCalendar v-model="modelValue" class="p-2" :min-value="minEventDate"
                     @update:model-value="close" />
                 </template>
               </UPopover>
