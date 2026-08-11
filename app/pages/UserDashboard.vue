@@ -71,7 +71,7 @@ async function loadPriceTiers() {
     if (tiers.length > 0) {
       const stillValid = tiers.some((tier) => tier._id === selectedTierId.value)
       if (!stillValid) {
-        selectedTierId.value = tiers[0]._id
+        selectedTierId.value = tiers[0]?._id ?? ''
       }
     } else {
       selectedTierId.value = ''
@@ -119,20 +119,51 @@ const df = new DateFormatter('en-US', {
 
 const welcomeName = computed(() => user.value?.firstName ?? 'Jane')
 
+type SortOption = 'date-asc' | 'date-desc' | 'name-asc' | 'name-desc'
+
+const sortOptions = [
+  { label: 'Date (Earliest First)', value: 'date-asc' },
+  { label: 'Date (Latest First)', value: 'date-desc' },
+  { label: 'Alphabetical (A - Z)', value: 'name-asc' },
+  { label: 'Alphabetical (Z - A)', value: 'name-desc' },
+]
+
+const ongoingSort = ref<SortOption>('date-asc')
+const pastSort = ref<SortOption>('date-desc')
+
+function sortEvents(events: EventRecord[], sortBy: SortOption): EventRecord[] {
+  return [...events].sort((a, b) => {
+    if (sortBy === 'name-asc') {
+      return a.eventName.localeCompare(b.eventName)
+    }
+    if (sortBy === 'name-desc') {
+      return b.eventName.localeCompare(a.eventName)
+    }
+    const timeA = new Date(a.eventDate).getTime()
+    const timeB = new Date(b.eventDate).getTime()
+    if (sortBy === 'date-asc') {
+      return timeA - timeB
+    }
+    return timeB - timeA
+  })
+}
+
 const ongoingEvents = computed(() => {
   const todayDate = today(getLocalTimeZone())
-  return userEvents.value.filter((event) => {
+  const filtered = userEvents.value.filter((event) => {
     const eventDate = new CalendarDate(new Date(event.eventDate).getUTCFullYear(), new Date(event.eventDate).getUTCMonth() + 1, new Date(event.eventDate).getUTCDate())
     return eventDate.compare(todayDate) >= 0
   })
+  return sortEvents(filtered, ongoingSort.value)
 })
 
 const pastEvents = computed(() => {
   const todayDate = today(getLocalTimeZone())
-  return userEvents.value.filter((event) => {
+  const filtered = userEvents.value.filter((event) => {
     const eventDate = new CalendarDate(new Date(event.eventDate).getUTCFullYear(), new Date(event.eventDate).getUTCMonth() + 1, new Date(event.eventDate).getUTCDate())
     return eventDate.compare(todayDate) < 0
   })
+  return sortEvents(filtered, pastSort.value)
 })
 
 const userEvents = ref<EventRecord[]>([])
@@ -302,393 +333,244 @@ async function handleCreateEvent() {
 </script>
 
 <template>
-  <UContainer class="space-y-8">
-    <UPageCard
-      title=""
-      class="bread-container pt-5"
-      :ui="{ title: 'text-3xl text-pretty font-bold text-highlighted font-serif' }"
-    >
-      <template #title>
-        Welcome back, {{ welcomeName }}!
-      </template>
-
-      <div class="flex justify-between items-center">
-        <div class="text-lg text-pretty text-muted">
-          Let's get this bread!
-        </div>
-        <div>
-          <UButton
-            class="mx-3"
-            icon="i-lucide-search"
-            variant="outline"
-          >
+  <div class="w-full bg-bread-400">
+    <UContainer class="space-y-8">
+      <ClientOnly>
+        <Teleport to="#navbar-actions">
+          <UButton icon="i-lucide-search" variant="outline" color="bread"
+            class="text-white border-white/40 hover:bg-white/10">
             Search Events
           </UButton>
-          <UModal
-            v-model="isModalOpen"
-            title="Create New Event"
-            :ui="{
-              header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
-              content: 'border-none ring-transparent w-1/4',
-              overlay: 'bg-toast-900/30'
-            }"
-            :close="{
-              variant: 'link',
-              class: 'rounded-full text-white'
-            }"
-            :dismissible="false"
-          >
-            <UButton
-              icon="i-lucide-user-plus"
-              @click="() => { isModalOpen = true }"
-            >
-              Create New Event
-            </UButton>
-            <template #body>
-              <UForm
-                class="space-y-4"
-                @submit.prevent="handleCreateEvent"
-              >
-                <UFormField
-                  label="Event Name"
-                  name="name"
-                  required
-                >
-                  <UInput
-                    v-model="form.eventName"
-                    class="w-full"
-                    placeholder="Jane & John's Wedding"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Event Type"
-                  name="type"
-                  required
-                >
-                  <USelect
-                    v-model="form.eventType"
-                    :items="eventTypes"
-                    class="w-full"
-                  />
-                </UFormField>
-                <UCheckbox
-                  v-if="isWeddingEvent"
-                  v-model="form.isCatholicWedding"
-                  label="Is this a Catholic Wedding?"
-                />
-                <UFormField
-                  label="Event Date"
-                  name="date"
-                  required
-                >
-                  <UPopover>
-                    <UButton
-                      color="neutral"
-                      variant="outline"
-                      class="w-full"
-                    >
-                      {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
-                    </UButton>
+          <UButton icon="i-lucide-user-plus" color="neutral" variant="solid" class=""
+            @click="() => { isModalOpen = true }">
+            Create New Event
+          </UButton>
+        </Teleport>
+      </ClientOnly>
 
-                    <template #content="{ close }">
-                      <UCalendar
-                        v-model="modelValue"
-                        class="p-2"
-                        :min-value="minEventDate"
-                        @update:model-value="close"
-                      />
-                    </template>
-                  </UPopover>
+      <UModal v-model="isModalOpen" title="Create New Event" :ui="{
+        header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
+        content: 'border-none ring-transparent w-full max-w-md',
+        overlay: 'bg-toast-900/30'
+      }" :close="{
+        variant: 'link',
+        class: 'rounded-full text-white'
+      }" :dismissible="false">
+        <template #body>
+          <UForm class="space-y-4" @submit.prevent="handleCreateEvent">
+            <UFormField label="Event Name" name="name" required>
+              <UInput v-model="form.eventName" class="w-full" placeholder="Jane & John's Wedding" />
+            </UFormField>
+            <UFormField label="Event Type" name="type" required>
+              <USelect v-model="form.eventType" :items="eventTypes" class="w-full" />
+            </UFormField>
+            <UCheckbox v-if="isWeddingEvent" v-model="form.isCatholicWedding" label="Is this a Catholic Wedding?" />
+            <UFormField label="Event Date" name="date" required>
+              <UPopover>
+                <UButton color="neutral" variant="outline" class="w-full">
+                  {{ modelValue ? df.format(modelValue.toDate(getLocalTimeZone())) : 'Select a date' }}
+                </UButton>
+
+                <template #content="{ close }">
+                  <UCalendar v-model="(modelValue as any)" class="p-2" :min-value="(minEventDate as any)"
+                    @update:model-value="close" />
+                </template>
+              </UPopover>
+            </UFormField>
+            <UFormField label="Venue" name="venue" required>
+              <UInput v-model="form.venue" class="w-full" placeholder="Manila Cathedral" />
+            </UFormField>
+            <UFormField label="Description" name="description" required>
+              <UTextarea v-model="form.description" class="w-full" placeholder="Tell us more about your special day" />
+            </UFormField>
+            <UFormField label="Cover Image" name="coverImage" required>
+              <div class="flex items-center gap-3">
+                <UButton variant="solid" @click="coverImageInput?.click()">
+                  Choose file
+                </UButton>
+                <span class="text-sm text-muted truncate">
+                  {{ coverImageFile?.name || 'No file chosen' }}
+                </span>
+                <input ref="coverImageInput" type="file" accept="image/png,image/jpeg,image/jpg" class="hidden"
+                  @change="onCoverImageChange">
+              </div>
+            </UFormField>
+
+            <div class="rounded-lg border border-default p-3 space-y-3">
+              <div class="text-sm font-medium">
+                Choose your plan
+              </div>
+              <div v-if="isLoadingTiers" class="text-sm text-muted">
+                Loading price tiers...
+              </div>
+              <div v-else-if="availableTiers.length === 0" class="text-sm text-muted">
+                No price tiers are available right now.
+              </div>
+              <div v-else class="space-y-2">
+                <label v-for="tier in availableTiers" :key="tier._id"
+                  class="flex cursor-pointer items-center justify-between rounded-md border border-default px-3 py-2"
+                  :class="selectedTierId === tier._id ? 'border-primary bg-primary/5' : ''">
+                  <div class="flex items-center gap-2">
+                    <input v-model="selectedTierId" type="radio" name="priceTier" :value="tier._id"
+                      class="accent-primary">
+                    <span class="text-sm font-medium">{{ tier.name }}</span>
+                  </div>
+                  <span class="text-sm text-muted">
+                    Php {{ tier.pricePhp.toLocaleString() }}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-default p-3 space-y-3">
+              <div class="text-sm font-medium">
+                Event creation fee: Php {{ selectedTierPrice.toLocaleString() }}
+              </div>
+              <UCheckbox v-model="form.payLater" label="Pay later (submit payment proof after creating the event)" />
+              <template v-if="!form.payLater">
+                <UFormField label="Payment Transaction ID" name="transactionId" required>
+                  <UInput v-model="form.transactionId" class="w-full" placeholder="GCash / bank reference number" />
                 </UFormField>
-                <UFormField
-                  label="Venue"
-                  name="venue"
-                  required
-                >
-                  <UInput
-                    v-model="form.venue"
-                    class="w-full"
-                    placeholder="Manila Cathedral"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Description"
-                  name="description"
-                  required
-                >
-                  <UTextarea
-                    v-model="form.description"
-                    class="w-full"
-                    placeholder="Tell us more about your special day"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Cover Image"
-                  name="coverImage"
-                  required
-                >
+                <UFormField label="Proof of Payment" name="proofOfPayment" required>
                   <div class="flex items-center gap-3">
-                    <UButton variant="solid" @click="coverImageInput?.click()">
+                    <UButton variant="solid" @click="proofOfPaymentInput?.click()">
                       Choose file
                     </UButton>
                     <span class="text-sm text-muted truncate">
-                      {{ coverImageFile?.name || 'No file chosen' }}
+                      {{ proofOfPaymentFile?.name || 'No file chosen' }}
                     </span>
-                    <input
-                      ref="coverImageInput"
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg"
-                      class="hidden"
-                      @change="onCoverImageChange"
-                    >
+                    <input ref="proofOfPaymentInput" type="file" accept="image/png,image/jpeg,image/jpg" class="hidden"
+                      @change="onProofOfPaymentChange">
                   </div>
                 </UFormField>
+              </template>
+            </div>
 
-                <div class="rounded-lg border border-default p-3 space-y-3">
-                  <div class="text-sm font-medium">
-                    Choose your plan
-                  </div>
-                  <div v-if="isLoadingTiers" class="text-sm text-muted">
-                    Loading price tiers...
-                  </div>
-                  <div v-else-if="availableTiers.length === 0" class="text-sm text-muted">
-                    No price tiers are available right now.
-                  </div>
-                  <div v-else class="space-y-2">
-                    <label
-                      v-for="tier in availableTiers"
-                      :key="tier._id"
-                      class="flex cursor-pointer items-center justify-between rounded-md border border-default px-3 py-2"
-                      :class="selectedTierId === tier._id ? 'border-primary bg-primary/5' : ''"
-                    >
-                      <div class="flex items-center gap-2">
-                        <input
-                          v-model="selectedTierId"
-                          type="radio"
-                          name="priceTier"
-                          :value="tier._id"
-                          class="accent-primary"
-                        >
-                        <span class="text-sm font-medium">{{ tier.name }}</span>
-                      </div>
-                      <span class="text-sm text-muted">
-                        Php {{ tier.pricePhp.toLocaleString() }}
-                      </span>
-                    </label>
-                  </div>
+            <UButton type="submit" block class="mt-4" :loading="isSubmitting">
+              Create Event
+            </UButton>
+          </UForm>
+        </template>
+      </UModal>
+
+      <!-- Ongoing Events Section -->
+      <div v-if="!isLoadingEvents && ongoingEvents.length > 0" class="space-y-4 mt-6">
+        <div class="bread-container px-3 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2">
+          <h2 class="text-lg sm:text-2xl font-bold font-serif text-highlighted truncate">Ongoing Events</h2>
+          <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span class="hidden sm:inline text-sm text-muted font-medium">Sort by:</span>
+            <USelect v-model="ongoingSort" :items="sortOptions" value-key="value" label-key="label" size="xs"
+              class="w-36 sm:w-52 text-xs sm:text-sm" icon="i-lucide-arrow-up-down" />
+          </div>
+        </div>
+
+        <UPageGrid class="grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
+          <template v-if="isLoadingEvents">
+            <div v-for="n in 2" :key="`skeleton-${n}`" class="white-bread-container rounded-lg overflow-hidden">
+              <USkeleton class="aspect-3/2 w-full rounded-none" />
+              <div class="space-y-2 p-2.5 sm:space-y-3 sm:p-4">
+                <USkeleton class="h-4 sm:h-6 w-3/4" />
+                <USkeleton class="h-3 sm:h-4 w-1/2" />
+                <USkeleton class="h-3 sm:h-4 w-1/2" />
+                <USkeleton class="h-7 sm:h-10 w-full mt-3 sm:mt-4" />
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div v-for="event in ongoingEvents" :key="event._id" class="white-bread-container rounded-lg flex flex-col justify-between">
+              <div>
+                <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
+                  <img :src="resolveEventCoverImageUrl(event.coverImageURL)" :alt="event.eventName"
+                    class="h-full w-full object-cover" @error="onCoverImageError">
                 </div>
-
-                <div class="rounded-lg border border-default p-3 space-y-3">
-                  <div class="text-sm font-medium">
-                    Event creation fee: Php {{ selectedTierPrice.toLocaleString() }}
+                <div class="p-2.5 sm:px-6 sm:pb-4 sm:pt-4 space-y-1 sm:space-y-1.5">
+                  <div class="flex items-start justify-between gap-1.5 pb-1 min-w-0">
+                    <div class="min-w-0 flex-1 text-xs sm:text-lg font-semibold truncate leading-tight">
+                      {{ event.eventName }}
+                    </div>
+                    <UBadge variant="subtle" size="xs" class="shrink-0 text-[10px] sm:text-xs px-1 py-0.5 sm:px-2">
+                      {{ getPaymentStatusLabel(event) }}
+                    </UBadge>
                   </div>
-                  <UCheckbox
-                    v-model="form.payLater"
-                    label="Pay later (submit payment proof after creating the event)"
-                  />
-                  <template v-if="!form.payLater">
-                    <UFormField
-                      label="Payment Transaction ID"
-                      name="transactionId"
-                      required
-                    >
-                      <UInput
-                        v-model="form.transactionId"
-                        class="w-full"
-                        placeholder="GCash / bank reference number"
-                      />
-                    </UFormField>
-                    <UFormField
-                      label="Proof of Payment"
-                      name="proofOfPayment"
-                      required
-                    >
-                      <div class="flex items-center gap-3">
-                        <UButton variant="solid" @click="proofOfPaymentInput?.click()">
-                          Choose file
-                        </UButton>
-                        <span class="text-sm text-muted truncate">
-                          {{ proofOfPaymentFile?.name || 'No file chosen' }}
-                        </span>
-                        <input
-                          ref="proofOfPaymentInput"
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg"
-                          class="hidden"
-                          @change="onProofOfPaymentChange"
-                        >
-                      </div>
-                    </UFormField>
-                  </template>
+                  <UPageFeature icon="i-lucide-tag" :title="formatEventPriceTier(event)" :ui="{ title: 'text-[11px] sm:text-sm font-normal truncate' }" />
+                  <UPageFeature icon="i-lucide-map-pin" :title="event.venue" :ui="{ title: 'text-[11px] sm:text-sm font-normal truncate' }" />
+                  <UPageFeature icon="i-lucide-calendar-heart" :title="formatEventDateLabel(event.eventDate)"
+                    :ui="{ title: 'text-[11px] sm:text-sm font-normal truncate' }" />
                 </div>
-
-                <UButton
-                  type="submit"
-                  block
-                  class="mt-4"
-                  :loading="isSubmitting"
-                >
-                  Create Event
+              </div>
+              <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
+                <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2" :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }">
+                  Open Dashboard
                 </UButton>
-              </UForm>
-            </template>
-          </UModal>
-        </div>
+              </div>
+            </div>
+          </template>
+        </UPageGrid>
       </div>
-    </UPageCard>
 
-    <UPageHeader v-if="!isLoadingEvents && ongoingEvents.length > 0" title="Ongoing Events" :ui="{ title: 'font-serif' }" />
-    <UPageGrid v-if="ongoingEvents.length > 0">
-      <template v-if="isLoadingEvents">
-        <div
-          v-for="n in 2"
-          :key="`skeleton-${n}`"
-          class="white-bread-container rounded-lg overflow-hidden"
-        >
-          <USkeleton class="aspect-3/2 w-full rounded-none" />
-          <div class="space-y-3 p-4">
-            <USkeleton class="h-6 w-3/4" />
-            <USkeleton class="h-4 w-1/2" />
-            <USkeleton class="h-4 w-1/2" />
-            <USkeleton class="h-10 w-full mt-4" />
+      <!-- Past Events Section -->
+      <div v-if="!isLoadingEvents && pastEvents.length > 0" class="space-y-4 mt-8">
+        <div class="bread-container px-3 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2">
+          <h2 class="text-lg sm:text-2xl font-bold font-serif text-highlighted truncate">Past Events</h2>
+          <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span class="hidden sm:inline text-sm text-muted font-medium">Sort by:</span>
+            <USelect v-model="pastSort" :items="sortOptions" value-key="value" label-key="label" size="xs"
+              class="w-36 sm:w-52 text-xs sm:text-sm" icon="i-lucide-arrow-up-down" />
           </div>
         </div>
-      </template>
 
-      <template v-else>
-        <div
-          v-for="event in ongoingEvents"
-          :key="event._id"
-          class="white-bread-container rounded-lg"
-        >
-        <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
-          <img
-            :src="resolveEventCoverImageUrl(event.coverImageURL)"
-            :alt="event.eventName"
-            class="h-full w-full object-cover"
-            @error="onCoverImageError"
-          >
-        </div>
-        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-          <div class="flex items-start justify-between gap-2 pb-1 min-w-0">
-            <div class="min-w-0 flex-1 text-lg font-semibold truncate">
-              {{ event.eventName }}
+        <UPageGrid class="grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
+          <template v-if="isLoadingEvents">
+            <div v-for="n in 2" :key="`skeleton-past-${n}`" class="white-bread-container rounded-lg overflow-hidden">
+              <USkeleton class="aspect-3/2 w-full rounded-none" />
+              <div class="space-y-2 p-2.5 sm:space-y-3 sm:p-4">
+                <USkeleton class="h-4 sm:h-6 w-3/4" />
+                <USkeleton class="h-3 sm:h-4 w-1/2" />
+                <USkeleton class="h-3 sm:h-4 w-1/2" />
+                <USkeleton class="h-7 sm:h-10 w-full mt-3 sm:mt-4" />
+              </div>
             </div>
-            <UBadge
-              variant="subtle"
-              size="sm"
-              class="shrink-0"
-            >
-              {{ getPaymentStatusLabel(event) }}
-            </UBadge>
-          </div>
-          <UPageFeature
-            icon="i-lucide-tag"
-            :title="formatEventPriceTier(event)"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-map-pin"
-            :title="event.venue"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-calendar-heart"
-            :title="formatEventDateLabel(event.eventDate)"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UButton
-            block
-            class="mt-6"
-            :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }"
-          >
-            Open Dashboard
-          </UButton>
-        </div>
-        </div>
-      </template>
-    </UPageGrid>
+          </template>
 
-    <UPageHeader v-if="!isLoadingEvents && pastEvents.length > 0" title="Past Events" :ui="{ title: 'font-serif' }" />
-    <UPageGrid v-if="pastEvents.length > 0">
-      <template v-if="isLoadingEvents">
-        <div
-          v-for="n in 2"
-          :key="`skeleton-past-${n}`"
-          class="white-bread-container rounded-lg overflow-hidden"
-        >
-          <USkeleton class="aspect-3/2 w-full rounded-none" />
-          <div class="space-y-3 p-4">
-            <USkeleton class="h-6 w-3/4" />
-            <USkeleton class="h-4 w-1/2" />
-            <USkeleton class="h-4 w-1/2" />
-            <USkeleton class="h-10 w-full mt-4" />
-          </div>
-        </div>
-      </template>
-
-      <template v-else>
-        <div
-          v-for="event in pastEvents"
-          :key="event._id"
-          class="white-bread-container rounded-lg"
-        >
-        <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
-          <img
-            :src="resolveEventCoverImageUrl(event.coverImageURL)"
-            :alt="event.eventName"
-            class="h-full w-full object-cover"
-            @error="onCoverImageError"
-          >
-        </div>
-        <div class="p-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
-          <div class="flex items-start justify-between gap-2 pb-1 min-w-0">
-            <div class="min-w-0 flex-1 text-lg font-semibold truncate">
-              {{ event.eventName }}
+          <template v-else>
+            <div v-for="event in pastEvents" :key="event._id" class="white-bread-container rounded-lg flex flex-col justify-between">
+              <div>
+                <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
+                  <img :src="resolveEventCoverImageUrl(event.coverImageURL)" :alt="event.eventName"
+                    class="h-full w-full object-cover" @error="onCoverImageError">
+                </div>
+                <div class="p-2.5 sm:px-6 sm:pb-4 sm:pt-4 space-y-1 sm:space-y-1.5">
+                  <div class="flex items-start justify-between gap-1.5 pb-1 min-w-0">
+                    <div class="min-w-0 flex-1 text-xs sm:text-lg font-semibold truncate leading-tight">
+                      {{ event.eventName }}
+                    </div>
+                    <UBadge variant="subtle" size="xs" class="shrink-0 text-[10px] sm:text-xs px-1 py-0.5 sm:px-2">
+                      {{ getPaymentStatusLabel(event) }}
+                    </UBadge>
+                  </div>
+                  <UPageFeature icon="i-lucide-tag" :title="formatEventPriceTier(event)" :ui="{ title: 'text-[11px] sm:text-sm font-normal truncate' }" />
+                  <UPageFeature icon="i-lucide-map-pin" :title="event.venue" :ui="{ title: 'text-[11px] sm:text-sm font-normal truncate' }" />
+                  <UPageFeature icon="i-lucide-calendar-heart" :title="formatEventDateLabel(event.eventDate)"
+                    :ui="{ title: 'text-[11px] sm:text-sm font-normal truncate' }" />
+                </div>
+              </div>
+              <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
+                <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2" :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }">
+                  Open Dashboard
+                </UButton>
+              </div>
             </div>
-            <UBadge
-              variant="subtle"
-              size="sm"
-              class="shrink-0"
-            >
-              {{ getPaymentStatusLabel(event) }}
-            </UBadge>
-          </div>
-          <UPageFeature
-            icon="i-lucide-tag"
-            :title="formatEventPriceTier(event)"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-map-pin"
-            :title="event.venue"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UPageFeature
-            icon="i-lucide-calendar-heart"
-            :title="formatEventDateLabel(event.eventDate)"
-            :ui="{ title: 'font-normal' }"
-          />
-          <UButton
-            block
-            class="mt-6"
-            :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }"
-          >
-            Open Dashboard
-          </UButton>
-        </div>
-        </div>
-      </template>
-    </UPageGrid>
+          </template>
+        </UPageGrid>
+      </div>
 
-    <p
-      v-if="!isLoadingEvents && userEvents.length === 0"
-      class="text-center text-sm text-muted"
-    >
-      No events yet — create one above.
-    </p>
+      <p v-if="!isLoadingEvents && userEvents.length === 0" class="text-center text-sm text-muted py-6">
+        No events yet — create one above.
+      </p>
 
-  </UContainer>
+    </UContainer>
+  </div>
 </template>
 
 <style></style>

@@ -22,7 +22,8 @@
   --color-toast-200: #d7ae99;
   --color-toast-300: #c38566;
   --color-toast-400: #af5d32;
-  --color-toast-500: #9c3500; /* base color */
+  --color-toast-500: #9c3500;
+  /* base color */
   --color-toast-600: #7c2a00;
   --color-toast-700: #5d1f00;
   --color-toast-800: #3e1500;
@@ -34,7 +35,8 @@
   --color-bread-200: #fdf7ef;
   --color-bread-300: #fcf3e7;
   --color-bread-400: #fbefdf;
-  --color-bread-500: #faebd7; /* base color */
+  --color-bread-500: #faebd7;
+  /* base color */
   --color-bread-600: #c8bcac;
   --color-bread-700: #968d81;
   --color-bread-800: #645e56;
@@ -46,7 +48,8 @@
   --color-charcoal-200: #d7ae99;
   --color-charcoal-300: #c38566;
   --color-charcoal-400: #af5d32;
-  --color-charcoal-500: #9c3500; /* base color */
+  --color-charcoal-500: #9c3500;
+  /* base color */
   --color-charcoal-600: #7c2a00;
   --color-charcoal-700: #5d1f00;
   --color-charcoal-800: #3e1500;
@@ -66,7 +69,7 @@
   --color-monochrome-950: oklch(5% 0.0045 219.61);
 
 
- 
+
 }
 
 [title] {
@@ -79,13 +82,10 @@
   /* backdrop-blur-sm */
   backdrop-filter: blur(4px);
   /* rounded-xl */
-  border-radius: 0.75rem; /* 12px */
-  /* px-2 */
-  /* shadow-lg shadow-neutral-950/5 */
-
+  border-radius: 0.75rem;
+  /* 12px */
 
   box-shadow: 0 3px 15px -3px rgba(10, 10, 10, 0.1), 0 0px 6px -4px rgba(10, 10, 10, 0.1);
-  
 }
 
 .bread-container-bordered {
@@ -93,13 +93,14 @@
   /* backdrop-blur-sm */
   backdrop-filter: blur(4px);
   /* rounded-xl */
-  border-radius: 0.75rem; /* 12px */
+  border-radius: 0.75rem;
+  /* 12px */
   /* px-2 */
   /* shadow-lg shadow-neutral-950/5 */
 
 
   box-shadow: 0 3px 15px -3px rgba(10, 10, 10, 0.1), 0 0px 6px -4px rgba(10, 10, 10, 0.1);
-  
+
 }
 
 .white-bread-container {
@@ -109,7 +110,8 @@
   /* backdrop-blur-sm */
   backdrop-filter: blur(4px);
   /* rounded-xl */
-  border-radius: 0.75rem; /* 12px */
+  border-radius: 0.75rem;
+  /* 12px */
   /* px-2 */
   /* shadow-lg shadow-neutral-950/5 */
 
@@ -137,6 +139,27 @@
   background-color: var(--color-toast-500);
 }
 
-html {
-  scrollbar-gutter: stable;
+html, body {
+  overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 767px) {
+  html {
+    scrollbar-gutter: auto !important;
+  }
+}
+
+/* Prevent layout shift, scrollbar hiding, and white space on slideover/modal toggles */
+body[data-scroll-locked],
+html[data-scroll-locked],
+[data-radix-scroll-lock-disabled] {
+  padding-right: 0px !important;
+  margin-right: 0px !important;
+  overflow-x: hidden !important;
 }

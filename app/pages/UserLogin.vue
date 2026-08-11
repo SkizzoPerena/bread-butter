@@ -81,32 +81,32 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         </UPageGrid>
       </UPageCard>
 
-      <UPageCard class=" w-full max-w-sm h-full rounded-l-none ring ring-transparent p-2 sm:p-4 bg-bread-200">
+      <UPageCard class="w-full max-w-sm h-full rounded-l-none ring ring-transparent p-3 sm:p-4 bg-bread-200">
         <div class="my-auto">
-          <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-            <div class="text-left text-sm">
-              <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
+          <UForm :schema="schema" :state="state" class="space-y-3 sm:space-y-4" @submit="onSubmit">
+            <div class="text-left text-xs sm:text-sm">
+              <div class="text-lg sm:text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
               Sign in to continue planning your perfect day
             </div>
 
-            <UFormField label="Email" name="email" required>
-              <UInput v-model="state.email" type="email" class="w-full" placeholder="Enter your email" />
+            <UFormField label="Email" name="email" required :ui="{ label: 'text-xs sm:text-sm' }">
+              <UInput v-model="state.email" type="email" class="w-full text-xs sm:text-sm" placeholder="Enter your email" />
             </UFormField>
 
-            <UFormField label="Password" name="password" required>
-              <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
+            <UFormField label="Password" name="password" required :ui="{ label: 'text-xs sm:text-sm' }">
+              <UInput v-model="state.password" type="password" class="w-full text-xs sm:text-sm" placeholder="Enter your password" />
               <template #hint>
-                <ULink to="/user/forgot-password" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+                <ULink to="/user/forgot-password" class="text-primary font-medium text-xs sm:text-sm" tabindex="-1">Forgot password?</ULink>
               </template>
             </UFormField>
 
             <UFormField name="remember">
-              <UCheckbox v-model="state.remember" label="Remember me" />
+              <UCheckbox v-model="state.remember" label="Remember me" :ui="{ label: 'text-xs sm:text-sm' }" />
             </UFormField>
 
-            <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
+            <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign in</UButton>
 
-            <p class="text-sm text-center">
+            <p class="text-xs sm:text-sm text-center">
               New to Bread+Butter? <ULink to="/user/signup" class="text-primary font-medium">Sign up here.</ULink>
             </p>
           </UForm>
@@ -114,33 +114,33 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       </UPageCard>
     </div>
 
-    <UPageCard class="w-full max-w-sm ring ring-transparent p-2 sm:p-4 bg-bread-200 lg:hidden">
+    <UPageCard class="w-full max-w-sm ring ring-transparent p-3 sm:p-4 bg-bread-200 lg:hidden">
       <div class="my-auto">
-        <UForm :schema="schema" :state="state" class="space-y-4 mb-6 mt-4" @submit="onSubmit">
-          <img src="..\assets\bpb-icons\logo.svg" class="h-12 mb-2 mx-auto" />
-          <div class="text-center text-sm mx-2">
-            <div class="text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
+        <UForm :schema="schema" :state="state" class="space-y-3 sm:space-y-4 mb-4 mt-2 sm:mb-6 sm:mt-4" @submit="onSubmit">
+          <img src="..\assets\bpb-icons\logo.svg" class="h-10 sm:h-12 mb-2 mx-auto" />
+          <div class="text-center text-xs sm:text-sm mx-2">
+            <div class="text-lg sm:text-xl font-serif font-semibold text-toast-700">Welcome back!</div>
             Sign in to continue planning your perfect day
           </div>
 
-          <UFormField label="Email" name="email" required>
-            <UInput v-model="state.email" type="email" class="w-full" placeholder="Enter your email" />
+          <UFormField label="Email" name="email" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.email" type="email" class="w-full text-xs sm:text-sm" placeholder="Enter your email" />
           </UFormField>
 
-          <UFormField label="Password" name="password" required>
-            <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
+          <UFormField label="Password" name="password" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.password" type="password" class="w-full text-xs sm:text-sm" placeholder="Enter your password" />
             <template #hint>
-              <ULink to="/user/forgot-password" class="text-primary font-medium" tabindex="-1">Forgot password?</ULink>
+              <ULink to="/user/forgot-password" class="text-primary font-medium text-xs sm:text-sm" tabindex="-1">Forgot password?</ULink>
             </template>
           </UFormField>
 
           <UFormField name="remember">
-            <UCheckbox v-model="state.remember" label="Remember me" />
+            <UCheckbox v-model="state.remember" label="Remember me" :ui="{ label: 'text-xs sm:text-sm' }" />
           </UFormField>
 
-          <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
+          <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign in</UButton>
 
-          <p class="text-sm text-center">
+          <p class="text-xs sm:text-sm text-center">
             New to Bread+Butter? <ULink to="/user/signup" class="text-primary font-medium">Sign up here.</ULink>
           </p>
         </UForm>

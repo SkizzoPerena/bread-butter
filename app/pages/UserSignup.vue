@@ -76,31 +76,31 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 <template>
   <div class="flex items-center justify-center p-4 bpb-pattern h-screen">
 
-    <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4 bg-bread-200">
+    <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-3 sm:p-4 bg-bread-200">
       <div class="gap-8">
-        <UForm :schema="schema" :state="state" class="space-y-5" @submit="onSubmit">
-          <div class="flex justify-between mt-1 mb-6 items-center">
-            <div class="text-left text-sm text-muted">
-              <div class="text-xl font-serif font-semibold text-toast-700">Warm up the ovens</div>
+        <UForm :schema="schema" :state="state" class="space-y-3 sm:space-y-4" @submit="onSubmit">
+          <div class="flex justify-between mt-1 mb-4 sm:mb-6 items-center">
+            <div class="text-left text-xs sm:text-sm text-muted">
+              <div class="text-lg sm:text-xl font-serif font-semibold text-toast-700">Warm up the ovens</div>
               Create your account and start planning
             </div>
 
-            <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
+            <img src="..\assets\bpb-icons\logomark.svg" class="h-8 sm:h-10" />
           </div>
-          <UFormField label="First name" name="firstName" required>
-            <UInput v-model="state.firstName" class="w-full" placeholder="First name" />
+          <UFormField label="First name" name="firstName" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.firstName" class="w-full text-xs sm:text-sm" placeholder="First name" />
           </UFormField>
-          <UFormField label="Last name" name="lastName" required>
-            <UInput v-model="state.lastName" class="w-full" placeholder="Last name" />
+          <UFormField label="Last name" name="lastName" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.lastName" class="w-full text-xs sm:text-sm" placeholder="Last name" />
           </UFormField>
-          <UFormField label="Email" name="email" required>
-            <UInput v-model="state.email" class="w-full" placeholder="Enter your email" />
+          <UFormField label="Email" name="email" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.email" class="w-full text-xs sm:text-sm" placeholder="Enter your email" />
           </UFormField>
-          <UFormField label="Gender" name="gender" required>
-            <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
+          <UFormField label="Gender" name="gender" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full text-xs sm:text-sm" />
           </UFormField>
-          <UFormField label="Password" name="password" required>
-            <UInput v-model="state.password" :type="isPasswordVisible ? 'text' : 'password'" class="w-full"
+          <UFormField label="Password" name="password" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.password" :type="isPasswordVisible ? 'text' : 'password'" class="w-full text-xs sm:text-sm"
               placeholder="Enter your password">
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
@@ -109,8 +109,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               </template>
             </UInput>
           </UFormField>
-          <UFormField label="Verify password" name="repass" required>
-            <UInput v-model="state.repass" :type="isPasswordVisible ? 'text' : 'password'" class="w-full"
+          <UFormField label="Verify password" name="repass" required :ui="{ label: 'text-xs sm:text-sm' }">
+            <UInput v-model="state.repass" :type="isPasswordVisible ? 'text' : 'password'" class="w-full text-xs sm:text-sm"
               placeholder="Re-enter your password">
               <template #trailing>
                 <UButton color="neutral" variant="link" size="sm"
@@ -121,20 +121,20 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </UFormField>
           <div class="space-y-1">
             <UFormField name="tnc">
-              <UCheckbox v-model="state.tnc" name="tnc">
+              <UCheckbox v-model="state.tnc" name="tnc" :ui="{ label: 'text-xs sm:text-sm' }">
                 <template #label>
-                  <span class="text-sm">I agree to Bread+Butter's <ULink to="/terms" class="text-primary font-medium">
+                  <span class="text-xs sm:text-sm">I agree to Bread+Butter's <ULink to="/terms" class="text-primary font-medium">
                       Terms and
                       Conditions.</ULink></span>
                 </template>
               </UCheckbox>
             </UFormField>
             <UFormField name="updates">
-              <UCheckbox v-model="state.updates" name="updates" label="I want to receive updates from Bread+Butter." />
+              <UCheckbox v-model="state.updates" name="updates" label="I want to receive updates from Bread+Butter." :ui="{ label: 'text-xs sm:text-sm' }" />
             </UFormField>
           </div>
-          <UButton type="submit" block :loading="isSubmitting">Sign up</UButton>
-          <div class="text-sm text-center mt-1">
+          <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign up</UButton>
+          <div class="text-xs sm:text-sm text-center mt-1">
             Already have an account? <ULink to="/user/login" class="text-primary font-medium">Sign in</ULink> instead.
           </div>
         </UForm>

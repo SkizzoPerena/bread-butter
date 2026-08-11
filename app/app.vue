@@ -20,7 +20,9 @@ definePageMeta({
 
 /* Add any global styles here */
 
-html {
-  scrollbar-gutter: stable;
+@media (min-width: 768px) {
+  html {
+    scrollbar-gutter: stable;
+  }
 }
 </style>

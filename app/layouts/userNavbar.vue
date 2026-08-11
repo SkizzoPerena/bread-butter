@@ -44,25 +44,25 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar variant="link" class="bg-toast-500/70 w-full sticky top-0 z-50 event-navbar">
+  <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar">
     <template #leading>
-      <NuxtLink to="/user/dashboard" class="flex items-center">
+      <NuxtLink to="/user/dashboard" class="flex items-center mr-3">
         <img src="..\assets\bpb-icons\logo-white.svg" class="h-7" />
       </NuxtLink>
+      <span v-if="user?.firstName"
+        class="text-white font-serif text-xl font-semibold border-l-2 border-white pl-3 hidden sm:inline">
+        Welcome back, {{ user.firstName }}!
+      </span>
     </template>
     <template #right>
       <div class="flex items-center gap-3">
-        <UDropdownMenu
-          :items="dropitems"
-          :modal="false"
-          :content="{ align: 'end', side: 'bottom' }"
-          :ui="{
-            content: 'bg-toast-500/70 ring ring-transparent mt-1 min-w-40 -mr-4 rounded-xl',
-            label: '',
-            itemLeadingIcon: 'text-white',
-            item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
-          }"
-        >
+        <div id="navbar-actions" class="flex items-center gap-2"></div>
+        <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
+          content: 'bg-toast-600/90 ring ring-transparent mt-1 min-w-40 -mr-4 rounded-xl',
+          label: '',
+          itemLeadingIcon: 'text-white',
+          item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
+        }">
           <UAvatar :src="avatarSrc" :alt="avatarLabel" />
           <template #account>
             <div class="flex items-center gap-2 text-white">
