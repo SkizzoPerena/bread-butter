@@ -132,12 +132,16 @@ export default defineNuxtConfig({
       setPath('AddGuestsBulk', '/event/add-guests-bulk')
 
       // Set paths for /user/* routes
+      setPath('UserCreateEvent', '/user/create-event')
       setPath('UserDashboard pre-vamp', '/user/dashboard-pre-vamp')
       setPath('UserDashboard', '/user/dashboard')
       setPath('UserEventDashboard prevamp', '/user/event-dashboard-prevamp')
       setPath('UserEventDashboard', '/user/event-dashboard')
       setPath('UserForgotPassword', '/user/forgot-password')
       setPath('UserLogin', '/user/login')
+      setPath('UserOtp', '/user/otp')
+      setPath('UserPayment', '/user/payment')
+      setPath('UserPaymentPending', '/user/payment-pending')
       setPath('UserProfile', '/user/profile')
       setPath('UserReportIssue', '/user/report-issue')
       setPath('UserSignup copy', '/user/signup-copy')
@@ -152,6 +156,7 @@ export default defineNuxtConfig({
 
       // Set paths for standalone pages
       setPath('ContactUs', '/contact-us')
+      setPath('faqs', '/faqs')
       setPath('InvitationMaker', '/invitation-maker')
       setPath('WebsiteMaker', '/website-maker')
     }

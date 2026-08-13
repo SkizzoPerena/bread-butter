@@ -63,12 +63,21 @@ function scrollToSection(hash: string) {
 }
 
 function handleScroll() {
-  // 90vh from the top
+  if (route.path !== '/') {
+    isScrolled.value = true
+    return
+  }
+  // On index page (/), transition when scrolled past 50vh
   isScrolled.value = window.scrollY > window.innerHeight * 0.5
 }
 
+watch(() => route.path, () => {
+  handleScroll()
+})
+
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
+  handleScroll()
+  window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 onUnmounted(() => {
@@ -79,13 +88,14 @@ const links = [
   { label: 'Features', to: '/#introduction' },
   { label: 'Pricing', to: '/#pricing' },
   { label: 'About', to: 'https://www.blinkpunch.com' },
+  { label: 'FAQ', to: '/faqs' },
   { label: 'Contact', to: '/contact-us' }
 ]
 </script>
 
 <template>
 
-  <UHeader :class="[
+  <UHeader :ui="{ container: 'max-w-none w-full px-6 sm:px-8 lg:px-12' }" :class="[
     'fixed top-0 w-full transition-all duration-300 z-50 border-none hidden lg:flex',
     isScrolled ? 'bg-toast-500/70 backdrop-blur-lg' : 'bg-transparent backdrop-blur-none'
   ]">
@@ -95,23 +105,25 @@ const links = [
     </template>
 
     <div class="flex items-center gap-x-8">
+      <UButton to="https://www.blinkpunch.com" variant="link" color="bread" class="font-semibold text-base text-white">
+        About
+      </UButton>
       <UButton variant="link" color="bread" class="font-semibold text-base text-white"
         @click="scrollToSection('#introduction')">Features</UButton>
       <UButton variant="link" color="bread" class="font-semibold text-base text-white"
         @click="scrollToSection('#pricing')">
         Pricing
       </UButton>
-      <UButton to="/partners/login" variant="link" color="bread" class="font-semibold text-base text-white">Partners
-      </UButton>
       <NuxtLink to="/" class="mx-4">
         <img src="..\assets\bpb-icons\logo-white.svg" class="h-8" />
       </NuxtLink>
-      <UButton to="https://www.blinkpunch.com" variant="link" color="bread" class="font-semibold text-base text-white">
-        About
+      <UButton to="/faqs" variant="link" color="bread" class="font-semibold text-base text-white">
+        FAQ
       </UButton>
       <UButton to="/contact-us" variant="link" color="bread" class="font-semibold text-base text-white">Contact
       </UButton>
-      <UButton variant="link" class="font-semibold text-toast-100/0">Features</UButton>
+      <UButton to="/partners/login" variant="link" color="bread" class="font-semibold text-base text-white">Partners
+      </UButton>
     </div>
 
     <template #right>
@@ -123,7 +135,8 @@ const links = [
   </UHeader>
 
   <!-- Mobile and Tablet Header (Nuxt UI UHeader + UPopover) -->
-  <UHeader :toggle="false" class="lg:hidden bg-toast-500 text-white border-none">
+  <UHeader :toggle="false" :ui="{ container: 'max-w-none w-full px-4 sm:px-6' }"
+    class="lg:hidden bg-toast-500 text-white border-none">
     <template #title>
 
       <UPopover v-model:open="isMobileMenuOpen"
@@ -141,6 +154,8 @@ const links = [
               @click="scrollToSection('#pricing')">Pricing</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
               to="/partners/login" @click="closeMobileMenu">Partners</UButton>
+            <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
+              to="/faqs" @click="closeMobileMenu">FAQ</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
               to="/contact-us" @click="closeMobileMenu">Contact Us</UButton>
           </div>
