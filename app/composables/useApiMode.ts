@@ -15,7 +15,9 @@ function joinApiUrl(base: string, path: string): string {
 
 function authHeaders(): Record<string, string> {
   const token = useCookie<string | null>(AUTH_TOKEN_COOKIE).value
-  return token ? { Authorization: token } : {}
+  if (!token) return {}
+  const bearerToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+  return { Authorization: bearerToken }
 }
 
 /**
