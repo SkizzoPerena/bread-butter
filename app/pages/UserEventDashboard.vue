@@ -122,13 +122,20 @@ const tabItems = computed(() => {
   const ongoingCount = tasksSummary.value?.byStatus?.ONGOING || 0
   const completedCount = tasksSummary.value?.byStatus?.COMPLETED || 0
   return [
-    { label: `To Do (${todoCount})`, value: 0 },
-    { label: `Ongoing (${ongoingCount})`, value: 1 },
-    { label: `Completed (${completedCount})`, value: 2 }
+    { label: `To Do (${todoCount})`, value: 'TODO' },
+    { label: `Ongoing (${ongoingCount})`, value: 'ONGOING' },
+    { label: `Completed (${completedCount})`, value: 'COMPLETED' },
   ]
 })
 
-const selectedTab = ref(0)
+const activeMainView = ref<'dashboard' | 'tasks'>('dashboard')
+
+const mainViewTabs = [
+  { label: 'Dashboard Items', value: 'dashboard', icon: 'i-lucide-layout-grid' },
+  { label: 'Tasks Checklist', value: 'tasks', icon: 'i-lucide-list-todo' }
+]
+
+const selectedTab = ref<string>('TODO')
 const updatingPreviewTaskId = ref<string | null>(null)
 
 const todoTasks = computed(() => {
@@ -190,7 +197,22 @@ async function changeTaskStatus(
 }
 
 const taskPriorities = ['Urgent', 'Medium', 'Low']
+const assignees = ref<string[]>(['Florist', 'Caterer', 'Photographer', 'Myself'])
+const selectedTaskFilter = ref<'ALL' | 'TODO' | 'ONGOING' | 'COMPLETED'>('ALL')
 const modelValue = ref()
+
+const taskFilters = computed(() => {
+  const todoCount = tasksSummary.value?.byStatus?.TODO || 0
+  const ongoingCount = tasksSummary.value?.byStatus?.ONGOING || 0
+  const completedCount = tasksSummary.value?.byStatus?.COMPLETED || 0
+  const total = todoCount + ongoingCount + completedCount
+  return [
+    { label: `All (${total})`, value: 'ALL' as const },
+    { label: `To Do (${todoCount})`, value: 'TODO' as const },
+    { label: `Ongoing (${ongoingCount})`, value: 'ONGOING' as const },
+    { label: `Completed (${completedCount})`, value: 'COMPLETED' as const },
+  ]
+})
 
 function onCoverImageError(event: Event) {
   const img = event.target as HTMLImageElement
@@ -501,17 +523,14 @@ const dashboardItems = computed(() =>
   })
 )
 
-function isDashboardItemDisabled(item: DashboardItem): boolean {
-  if (item.action !== 'settings' && !isDashboardActionAllowed(eventRecord.value, item.action)) {
-    return true
+const isUpgradeModalOpen = ref(false)
+const selectedLockedFeature = ref<DashboardItem | null>(null)
+
+function isDashboardItemBlocked(item: DashboardItem): boolean {
+  if (item.action === 'settings') {
+    return false
   }
-  if (
-    (item.action === 'website' || item.action === 'invitation') &&
-    (isEventCancelled.value || (!eventId.value && !isUiOnlyMode.value))
-  ) {
-    return true
-  }
-  return false
+  return !isDashboardActionAllowed(eventRecord.value, item.action)
 }
 
 const showTasksChecklist = computed(() =>
@@ -519,7 +538,16 @@ const showTasksChecklist = computed(() =>
 )
 
 function handleDashboardItemClick(item: DashboardItem) {
-  if (isDashboardItemDisabled(item)) {
+  if (isDashboardItemBlocked(item)) {
+    selectedLockedFeature.value = item
+    isUpgradeModalOpen.value = true
+    return
+  }
+
+  if (
+    (item.action === 'website' || item.action === 'invitation') &&
+    (isEventCancelled.value || (!eventId.value && !isUiOnlyMode.value))
+  ) {
     return
   }
 
@@ -551,82 +579,93 @@ function handleDashboardItemClick(item: DashboardItem) {
 }
 
 function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
-  if (event.key === 'Enter' && !isDashboardItemDisabled(item)) {
+  if (event.key === 'Enter') {
     handleDashboardItemClick(item)
   }
 }
+
+const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 'error'>(() => {
+  // Color-coded based on the event package / price tier (warning for all packages for now)
+  const tierName = (typeof eventRecord.value?.priceTier === 'object' ? eventRecord.value?.priceTier?.name : '') || ''
+  if (tierName.toLowerCase().includes('portion 1')) return 'warning'
+  if (tierName.toLowerCase().includes('portion 2')) return 'warning'
+  if (tierName.toLowerCase().includes('portion 3')) return 'warning'
+  return 'warning'
+})
 
 </script>
 
 <template>
   <UMain :class="showTasksChecklist ? 'bg-toast-50' : 'bg-white'">
+    <ClientOnly>
+      <Teleport to="#event-navbar-actions">
+        <UBadge v-if="eventRecord" :color="planBadgeColor" variant="solid" size="lg"
+          class="text-black rounded-full shadow-sm">
+          {{ formatEventPriceTier(eventRecord) }}
+        </UBadge>
+      </Teleport>
+      <Teleport to="#event-mobile-navbar-actions">
+        <UBadge v-if="eventRecord" :color="planBadgeColor" variant="solid" size="sm"
+          class="text-black rounded-full shadow-sm">
+          {{ formatEventPriceTier(eventRecord) }}
+        </UBadge>
+      </Teleport>
+    </ClientOnly>
 
-    <UPageGrid>
-      <UContainer
-        class="space-y-6 white-bread-container min-h-[calc(100vh-64px)] flex flex-col"
-        :class="showTasksChecklist ? 'col-span-2' : 'col-span-full'"
-        style="border-radius: 0;"
-      >
-
-        <UPageCard v-if="eventRecord" class="white-bread-container">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="text-sm font-medium text-muted uppercase tracking-wide">
-              Current plan
-            </div>
-            <UBadge color="neutral" variant="subtle">
-              {{ formatEventPriceTier(eventRecord) }}
-            </UBadge>
-          </div>
-        </UPageCard>
-
-<div class="flex flex-1 items-center justify-center min-h-0 py-6">
-        <UPageColumns :ui="{base: 'gap-25 space-y-3'}">
-          
-          <div
-            v-for="item in dashboardItems"
-            :key="item.label"
-            :role="isDashboardItemDisabled(item) ? undefined : 'button'"
-            :tabindex="isDashboardItemDisabled(item) ? -1 : 0"
-            :aria-disabled="isDashboardItemDisabled(item) ? 'true' : undefined"
-            class="group flex flex-col items-center justify-center mx-auto w-fit h-fit p-4 rounded-xl focus-visible:outline-none text-center"
-            :class="isDashboardItemDisabled(item)
-              ? 'opacity-50 pointer-events-none cursor-not-allowed select-none'
-              : 'cursor-pointer'"
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col w-full min-h-[calc(100vh-130px)]">
+      <!-- Dashboard Items View -->
+      <div v-if="!showTasksChecklist || activeMainView === 'dashboard'" class="flex flex-1 items-center justify-center min-h-[calc(100vh-130px)] py-6 px-4 w-full">
+        <div class="grid grid-cols-3 gap-2.5 sm:gap-6 md:gap-8 max-w-xl mx-auto w-full">
+          <div v-for="item in dashboardItems" :key="item.label"
+            role="button"
+            :tabindex="0"
+            class="group flex flex-col items-center justify-center mx-auto w-full p-1 sm:p-2.5 md:p-3 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
             @click="handleDashboardItemClick(item)"
-            @keydown.enter="handleDashboardItemKeydown($event, item)"
-          >
-            <div
-              class="p-2 aspect-square flex flex-col items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2"
-              :class="[
-                item.bgClass,
-                item.ringClass,
-                isDashboardItemDisabled(item) ? '' : [item.hoverClass, 'group-active:scale-95'],
-              ]"
-            >
-              <UIcon :name="item.icon" class="size-9 my-2 text-white" />
+            @keydown.enter="handleDashboardItemKeydown($event, item)">
+            <div class="relative flex items-center justify-center w-fit mx-auto">
+              <div
+                class="size-12 sm:size-14 md:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+                :class="[
+                  item.bgClass,
+                  item.ringClass,
+                  isDashboardItemBlocked(item)
+                    ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
+                    : 'group-hover:scale-105 group-active:scale-95',
+                ]">
+                <UIcon :name="item.icon" class="size-6 sm:size-7 md:size-8 text-white shrink-0" />
+              </div>
+              <div
+                v-if="isDashboardItemBlocked(item)"
+                class="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-amber-500 text-white rounded-full p-0.5 sm:p-1 shadow-md flex items-center justify-center pointer-events-none"
+                title="Upgrade to unlock"
+              >
+                <UIcon name="i-lucide-lock" class="size-2.5 sm:size-3.5 block" />
+              </div>
             </div>
-            <div class="font-medium mt-3 text-center">{{ item.label }}</div>
+            <div class="font-medium mt-1.5 sm:mt-2.5 text-center flex items-center justify-center text-xs sm:text-sm md:text-base leading-tight">
+              <span class="truncate max-w-[85px] sm:max-w-none">{{ item.label }}</span>
+            </div>
           </div>
-        </UPageColumns>
-</div>
-      </UContainer>
+        </div>
+      </div>
 
-      <!-- Tasks Container -->
-      <UScrollArea v-if="showTasksChecklist" class="h-[calc(100vh-64px)] py-6 pr-8">
-        <UContainer class="space-y-4">
-          <UPageCard class="white-bread-container space-y-4 ">
+      <!-- Tasks Checklist View -->
+      <div v-else-if="showTasksChecklist && activeMainView === 'tasks'" class="flex-1 w-full max-w-3xl mx-auto py-6 px-4">
+        <div class="space-y-4">
+          <UPageCard class="white-bread-container space-y-4">
             <div class="flex justify-between items-center">
-              <div class="text-xl text-pretty font-semibold text-muted uppercase">Tasks Checklist</div>
+              <div class="text-lg sm:text-xl text-pretty font-semibold text-muted uppercase">Tasks Checklist</div>
 
               <UModal title="Add New Task" :ui="{
                 header: 'bg-toast-400 border-none', title: 'text-white font-serif text-xl',
-                content: 'border-none ring-transparent w-1/3',
+                content: 'border-none ring-transparent w-full max-w-md',
                 overlay: 'bg-toast-900/30'
               }" :close="{
                 variant: 'link',
                 class: 'rounded-full text-white'
               }" :dismissible="false">
-                <UButton icon="i-lucide-list-plus">Add New Task</UButton>
+                <UButton icon="i-lucide-list-plus" size="sm">Add New Task</UButton>
                 <template #body>
                   <UForm class="space-y-4">
                     <UFormField label="Task name" name="task-name" required>
@@ -646,131 +685,241 @@ function handleDashboardItemKeydown(event: KeyboardEvent, item: DashboardItem) {
                           </UButton>
 
                           <template #content="{ close }">
-                            <UCalendar v-model="modelValue" class="p-2" @update:model-value="close" />
+                            <UCalendar :model-value="(modelValue as any)" class="p-2" @update:model-value="(val: any) => { modelValue = val; close() }" />
                           </template>
                         </UPopover>
                       </UFormField>
                     </UFieldGroup>
-
-                    <UFormField class="w-full" label="Supplementary File / Photo">
-                      <UFileUpload size="xl" variant="area" label="Drop your image here"
-                        description="SVG, PNG, JPG or GIF (max. 2MB)" />
+                    <UFormField label="Assignee" name="assignee" required>
+                      <USelect :items="assignees" placeholder="Select assignee" class="w-full" />
                     </UFormField>
-                    <UButton type="submit" block class="mt-4">
-                      Add Task
+                    <UButton block class="mt-4">
+                      Create Task
                     </UButton>
                   </UForm>
                 </template>
               </UModal>
             </div>
-
-            <UTabs v-model="selectedTab" :items="tabItems" variant="link" :ui="{ content: 'hidden' }" />
+            <UTabs v-model="selectedTab" :items="tabItems" variant="link" class="w-full" />
           </UPageCard>
 
-          <!-- Content rendering outside the main card container -->
-          <div v-show="selectedTab == 0" class="space-y-4">
-            <UPageCard v-for="task in todoTasks" :key="task._id" class="white-bread-container">
-              <div class="flex justify-between items-start">
-                <div class="font-semibold">{{ task.title }}</div>
-                <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
-              </div>
-              <p class="text-sm text-muted mt-1">{{ task.details }}</p>
-              <div class="mt-2">
-                <UBadge color="neutral" variant="outline" size="sm">
-                  <UIcon name="i-lucide-user" class="mr-1 size-3" />
-                  {{ getAssigneeLabel(task) }}
-                </UBadge>
-              </div>
-              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
-                <div class="flex items-center gap-1.5" v-if="task.deadline">
-                  <UIcon name="i-lucide-calendar-clock" class="text-muted" />
-                  <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
+          <div class="space-y-3">
+            <!-- To Do Tasks -->
+            <template v-if="selectedTab === 'TODO'">
+              <UPageCard v-for="task in todoTasks" :key="task._id" class="white-bread-container">
+                <div class="flex justify-between items-start">
+                  <div class="font-semibold">{{ task.title }}</div>
+                  <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}
+                  </UBadge>
                 </div>
-              </div>
-              <UButton
-                block
-                class="mt-4"
-                :loading="updatingPreviewTaskId === task._id"
-                :disabled="isEventCancelled"
-                @click="changeTaskStatus(task, 'ONGOING')"
-              >
-                Mark as Ongoing
-              </UButton>
-            </UPageCard>
-            <div v-if="todoTasks.length === 0" class="text-sm text-muted text-center py-4">No tasks to do.</div>
+                <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+                <div class="mt-2">
+                  <UBadge color="neutral" variant="outline" size="sm">
+                    <UIcon name="i-lucide-user" class="mr-1 size-3" />
+                    {{ getAssigneeLabel(task) }}
+                  </UBadge>
+                </div>
+                <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                  <div class="flex items-center gap-1.5" v-if="task.deadline">
+                    <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                    <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
+                  </div>
+                </div>
+                <UButton block class="mt-4" :loading="updatingPreviewTaskId === task._id" :disabled="isEventCancelled"
+                  @click="changeTaskStatus(task, 'ONGOING')">
+                  Mark as Ongoing
+                </UButton>
+              </UPageCard>
+              <div v-if="todoTasks.length === 0" class="text-sm text-muted text-center py-4">No tasks to do.</div>
+            </template>
+
+            <!-- Ongoing Tasks -->
+            <template v-else-if="selectedTab === 'ONGOING'">
+              <UPageCard v-for="task in ongoingTasks" :key="task._id" class="white-bread-container">
+                <div class="flex justify-between items-start">
+                  <div class="font-semibold">{{ task.title }}</div>
+                  <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}
+                  </UBadge>
+                </div>
+                <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+                <div class="mt-2">
+                  <UBadge color="neutral" variant="outline" size="sm">
+                    <UIcon name="i-lucide-user" class="mr-1 size-3" />
+                    {{ getAssigneeLabel(task) }}
+                  </UBadge>
+                </div>
+                <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                  <div class="flex items-center gap-1.5" v-if="task.deadline">
+                    <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                    <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
+                  </div>
+                </div>
+                <UButton block class="mt-4" :loading="updatingPreviewTaskId === task._id" :disabled="isEventCancelled"
+                  @click="changeTaskStatus(task, 'COMPLETED')">
+                  Mark as Complete
+                </UButton>
+              </UPageCard>
+              <div v-if="ongoingTasks.length === 0" class="text-sm text-muted text-center py-4">No ongoing tasks.</div>
+            </template>
+
+            <!-- Completed Tasks -->
+            <template v-else-if="selectedTab === 'COMPLETED'">
+              <UPageCard v-for="task in completedTasks" :key="task._id" class="white-bread-container">
+                <div class="flex justify-between items-start">
+                  <div class="font-semibold">{{ task.title }}</div>
+                  <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}
+                  </UBadge>
+                </div>
+                <p class="text-sm text-muted mt-1">{{ task.details }}</p>
+                <div class="mt-2">
+                  <UBadge color="neutral" variant="outline" size="sm">
+                    <UIcon name="i-lucide-user" class="mr-1 size-3" />
+                    {{ getAssigneeLabel(task) }}
+                  </UBadge>
+                </div>
+                <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
+                  <div class="flex items-center gap-1.5" v-if="task.deadline">
+                    <UIcon name="i-lucide-calendar-clock" class="text-muted" />
+                    <span>Completed: {{ df.format(new Date(task.deadline)) }}</span>
+                  </div>
+                </div>
+                <UButton block class="mt-4" variant="outline" color="neutral"
+                  :loading="updatingPreviewTaskId === task._id" :disabled="isEventCancelled"
+                  @click="changeTaskStatus(task, 'ONGOING')">
+                  Mark as Ongoing
+                </UButton>
+              </UPageCard>
+              <div v-if="completedTasks.length === 0" class="text-sm text-muted text-center py-4">No completed tasks.</div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation Tabs (when tasks checklist is available) -->
+    <div v-if="showTasksChecklist" class="sticky bottom-0 z-30 w-full bg-toast-500/95 backdrop-blur border-t border-white/20 py-2.5 px-4 shadow-lg flex items-center justify-center">
+      <UTabs
+        v-model="activeMainView"
+        :items="mainViewTabs"
+        class="max-w-md w-full"
+      />
+    </div>
+
+    <!-- Upgrade Package Modal -->
+    <UModal
+      v-model:open="isUpgradeModalOpen"
+      :ui="{
+        content: 'bg-bread-100 border-none ring-1 ring-toast-600/20 max-w-lg rounded-2xl shadow-2xl p-6 space-y-6',
+        overlay: 'bg-toast-950/40 backdrop-blur-xs'
+      }"
+    >
+      <template #content>
+        <div class="space-y-6 text-toast-900">
+          <!-- Modal Header -->
+          <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-full bg-toast-600/10 text-toast-600 flex items-center justify-center mx-auto">
+              <UIcon :name="selectedLockedFeature?.icon || 'i-lucide-sparkles'" class="size-6 text-toast-600" />
+            </div>
+            <h3 class="text-2xl font-bold font-serif text-toast-800">
+              Upgrade to Unlock {{ selectedLockedFeature?.label }}
+            </h3>
+            <p class="text-sm text-toast-800/80 max-w-sm mx-auto">
+              The <span class="font-bold">{{ selectedLockedFeature?.label }}</span> tool is available on higher tiers. Level up your celebration with more power.
+            </p>
           </div>
 
-          <div v-show="selectedTab == 1" class="space-y-4">
-            <UPageCard v-for="task in ongoingTasks" :key="task._id" class="white-bread-container">
-              <div class="flex justify-between items-start">
-                <div class="font-semibold">{{ task.title }}</div>
-                <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
-              </div>
-              <p class="text-sm text-muted mt-1">{{ task.details }}</p>
-              <div class="mt-2">
-                <UBadge color="neutral" variant="outline" size="sm">
-                  <UIcon name="i-lucide-user" class="mr-1 size-3" />
-                  {{ getAssigneeLabel(task) }}
-                </UBadge>
-              </div>
-              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
-                <div class="flex items-center gap-1.5" v-if="task.deadline">
-                  <UIcon name="i-lucide-calendar-clock" class="text-muted" />
-                  <span>Due: {{ df.format(new Date(task.deadline)) }}</span>
+          <!-- Package Highlights -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <!-- Butter -->
+            <div class="bg-white/90 p-4 rounded-xl border border-toast-300/40 space-y-3 flex flex-col justify-between shadow-xs">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold font-serif text-lg text-toast-900">Butter</span>
+                  <UBadge color="warning" variant="subtle" size="xs">Popular</UBadge>
                 </div>
+                <p class="text-xs text-toast-800/80">
+                  Essential planning tools to manage tasks, schedules, and suppliers.
+                </p>
+                <ul class="text-xs space-y-1.5 pt-1 text-toast-900">
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
+                    <span>Tasks Checklist</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
+                    <span>Event Schedules</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
+                    <span>Suppliers & Budget</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
+                    <span>Church Requirements</span>
+                  </li>
+                </ul>
               </div>
-              <UButton
-                block
-                class="mt-4"
-                :loading="updatingPreviewTaskId === task._id"
-                :disabled="isEventCancelled"
-                @click="changeTaskStatus(task, 'COMPLETED')"
-              >
-                Mark as Complete
-              </UButton>
-            </UPageCard>
-            <div v-if="ongoingTasks.length === 0" class="text-sm text-muted text-center py-4">No ongoing tasks.</div>
+            </div>
+
+            <!-- Bread + Butter -->
+            <div class="bg-toast-600 text-white p-4 rounded-xl shadow-md space-y-3 flex flex-col justify-between ring-2 ring-toast-600">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold font-serif text-lg text-white">Bread + Butter</span>
+                  <UBadge color="bread" variant="solid" size="xs" class="text-toast-900 font-bold bg-bread-400">All-in-One</UBadge>
+                </div>
+                <p class="text-xs text-white/80">
+                  Everything in Butter plus team collaboration and guest management.
+                </p>
+                <ul class="text-xs space-y-1.5 pt-1 text-white">
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
+                    <span>Everything in Butter</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
+                    <span>Planners & Collaborators</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
+                    <span>Guest Groups & Tables</span>
+                  </li>
+                  <li class="flex items-center gap-1.5">
+                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
+                    <span>Higher Email Limits</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
 
-          <div v-show="selectedTab == 2" class="space-y-4">
-            <UPageCard v-for="task in completedTasks" :key="task._id" class="white-bread-container">
-              <div class="flex justify-between items-start">
-                <div class="font-semibold">{{ task.title }}</div>
-                <UBadge :color="getPriorityColor(task.priority)" variant="subtle">{{ getPriorityLabel(task.priority) }}</UBadge>
-              </div>
-              <p class="text-sm text-muted mt-1">{{ task.details }}</p>
-              <div class="mt-2">
-                <UBadge color="neutral" variant="outline" size="sm">
-                  <UIcon name="i-lucide-user" class="mr-1 size-3" />
-                  {{ getAssigneeLabel(task) }}
-                </UBadge>
-              </div>
-              <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-4">
-                <div class="flex items-center gap-1.5" v-if="task.deadline">
-                  <UIcon name="i-lucide-calendar-clock" class="text-muted" />
-                  <span>Completed: {{ df.format(new Date(task.deadline)) }}</span>
-                </div>
-              </div>
-              <UButton
-                block
-                class="mt-4"
-                variant="outline"
-                color="neutral"
-                :loading="updatingPreviewTaskId === task._id"
-                :disabled="isEventCancelled"
-                @click="changeTaskStatus(task, 'ONGOING')"
-              >
-                Mark as Ongoing
-              </UButton>
-            </UPageCard>
-            <div v-if="completedTasks.length === 0" class="text-sm text-muted text-center py-4">No completed tasks.</div>
+          <!-- Actions -->
+          <div class="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <UButton
+              block
+              color="primary"
+              size="lg"
+              class="font-bold shadow-md flex-1 bg-toast-600 hover:bg-toast-700 text-white"
+              :to="{ path: '/event/payment-review', query: { eventId: eventId || undefined } }"
+              @click="() => { isUpgradeModalOpen = false }"
+            >
+              Upgrade Event Package
+            </UButton>
+            <UButton
+              block
+              variant="outline"
+              color="neutral"
+              size="lg"
+              class="font-medium sm:w-auto text-toast-800 border-toast-300 hover:bg-toast-50"
+              @click="() => { isUpgradeModalOpen = false }"
+            >
+              Maybe Later
+            </UButton>
           </div>
-        </UContainer>
-      </UScrollArea>
-    </UPageGrid>
+        </div>
+      </template>
+    </UModal>
   </UMain>
-
 </template>
 
 <style></style>
-I want a balanced color palette across all dashboard items, can you check on all dashboard items and check if there are any colors that are very close to each other? give 

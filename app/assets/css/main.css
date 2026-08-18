@@ -141,18 +141,7 @@
 
 html, body {
   overflow-x: hidden;
-}
-
-@media (min-width: 768px) {
-  html {
-    scrollbar-gutter: stable;
-  }
-}
-
-@media (max-width: 767px) {
-  html {
-    scrollbar-gutter: auto !important;
-  }
+  scrollbar-gutter: auto;
 }
 
 /* Prevent layout shift, scrollbar hiding, and white space on slideover/modal toggles */

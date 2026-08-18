@@ -59,31 +59,67 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar class="bg-toast-500/70 w-full sticky top-0 z-50 event-navbar text-bread-50">
-    <template #left>
-      <div class="flex items-center gap-3">
-        <NuxtLink to="/user/dashboard" class="flex items-center">
-          <img src="..\assets\bpb-icons\logo-white.svg" class="h-7" />
-        </NuxtLink>
-        <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)]">
-          {{ headerEventTitle }}
-        </div>
+  <UDashboardNavbar class="bg-toast-500/70 w-full sticky top-0 z-50 event-navbar text-bread-50 shrink-0">
+    <template #toggle>
+      <!-- Built-in Navbar Toggle for Mobile -->
+      <UDropdownMenu
+        :items="dropitems"
+        :modal="false"
+        :content="{ align: 'start', side: 'bottom' }"
+        :ui="{
+          content: 'bg-toast-600/95 ring ring-transparent mt-1 min-w-52 rounded-xl text-white shadow-xl',
+          label: '',
+          itemLeadingIcon: 'text-white',
+          item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
+        }"
+        class="sm:hidden -ml-1 mr-1.5 shrink-0"
+      >
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="text-white hover:bg-white/10"
+          aria-label="Toggle menu"
+        />
+        <template #account>
+          <div class="flex flex-col gap-1.5 text-white pb-1">
+            <div class="flex items-center gap-2">
+              <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
+              <span class="font-semibold text-sm">{{ userDisplayName }}</span>
+            </div>
+            <div id="event-mobile-navbar-actions" class="pl-8 pt-0.5"></div>
+          </div>
+        </template>
+      </UDropdownMenu>
+    </template>
+
+    <template #leading>
+      <NuxtLink to="/user/dashboard" class="flex items-center mr-2 sm:mr-3 shrink-0">
+        <img src="..\assets\bpb-icons\logo-white.svg" class="h-6 sm:h-7" />
+      </NuxtLink>
+      <div class="font-serif text-sm sm:text-xl font-bold truncate max-w-[min(100%,20rem)] text-white">
+        {{ headerEventTitle }}
       </div>
     </template>
+
     <template #right>
-      <div class="flex items-center gap-4">
+      <div class="hidden sm:flex items-center gap-3">
+        <div id="event-navbar-actions" class="flex items-center gap-2"></div>
         <UDropdownMenu
           :items="dropitems"
           :modal="false"
           :content="{ align: 'end', side: 'bottom' }"
           :ui="{
-            content: 'mt-1 min-w-40 -mr-4 rounded-xl',
+            content: 'bg-toast-600/90 ring ring-transparent mt-1 min-w-40 -mr-4 rounded-xl',
             label: '',
+            itemLeadingIcon: 'text-white',
+            item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
           }"
         >
           <UAvatar :src="avatarSrc" :alt="avatarLabel" />
           <template #account>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 text-white">
               <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
               <span class="font-semibold">{{ userDisplayName }}</span>
             </div>
@@ -93,8 +129,7 @@ const dropitems: DropdownMenuItem[][] = [
     </template>
   </UDashboardNavbar>
 
-    <slot />
-
+  <slot />
 </template>
 
 <style></style>
