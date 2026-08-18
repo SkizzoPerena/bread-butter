@@ -66,6 +66,16 @@ export default defineNuxtConfig({
     }
   },
 
+  fonts: {
+    providers: {
+      google: false,
+      fontsource: false,
+      fontshare: false,
+      adobe: false,
+      bunny: false,
+    },
+  },
+
   runtimeConfig: {
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
