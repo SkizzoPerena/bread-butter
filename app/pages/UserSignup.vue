@@ -57,9 +57,10 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   isSubmitting.value = true
   try {
-    await register({ email, password, firstName, lastName, gender })
-    toast.add({ title: 'Account created', description: 'Welcome to Bread+Butter!' })
-    await navigateTo('/user/dashboard')
+    const res = await register({ email, password, firstName, lastName, gender })
+    toast.add({ title: 'Registration started', description: 'Please enter the verification code sent to your email.' })
+    const otpId = res?.otpId || 'demo-otp-id'
+    await navigateTo(`/user/otp?otpId=${encodeURIComponent(otpId)}&email=${encodeURIComponent(email)}`)
   } catch (error) {
     toast.add({
       title: 'Sign up failed',

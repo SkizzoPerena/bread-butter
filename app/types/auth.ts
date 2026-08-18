@@ -40,17 +40,32 @@ export interface AccountMessageResponse {
 
 export interface AuthLoginResponse {
   success: boolean
-  status: number
-  token: string
+  status?: number
+  accessToken: string
   user?: AuthUser
   message: string
 }
 
 export interface AuthRegisterResponse {
   success: boolean
-  status: number
-  token: string
+  status?: number
+  otpId: string
+  message?: string
+}
+
+export interface AuthVerifyEmailResponse {
+  success: boolean
+  status?: number
+  accessToken: string
+  user?: AuthUser
   message: string
+}
+
+export interface AuthRefreshResponse {
+  success: boolean
+  status?: number
+  accessToken: string
+  message?: string
 }
 
 export interface LoginCredentials {

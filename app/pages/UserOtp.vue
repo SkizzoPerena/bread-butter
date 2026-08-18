@@ -93,6 +93,8 @@ function onPaste(event: ClipboardEvent) {
   digitInputs.value[Math.max(0, nextFocusIndex)]?.focus()
 }
 
+const { verifyEmail } = useAuth()
+
 async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
   isSubmitting.value = true
   try {
@@ -106,12 +108,7 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
         const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/user/create-event'
         await navigateTo(target)
       },
-      api: () =>
-        apiRequest('/otp/verify/' + otpId.value, {
-          method: 'PATCH',
-          authenticated: false,
-          body: { pinCode: event.data.pinCode },
-        }),
+      api: () => verifyEmail(otpId.value, event.data.pinCode),
       onApiSuccess: async (res: any) => {
         toast.add({
           title: 'OTP verified',
@@ -138,7 +135,7 @@ async function resendOtp() {
         toast.add({ title: 'OTP resent', description: 'A new 4-digit code was sent to your email.', color: 'info' })
       },
       api: () =>
-        apiRequest('/otp/resend/' + otpId.value, {
+        apiRequest('/user/otp/resend-email/' + otpId.value, {
           method: 'PATCH',
           authenticated: false,
         }),

@@ -1,5 +1,5 @@
 export default defineNuxtPlugin(async () => {
-  const { token, user } = useAuth()
+  const { token, user, restoreSession } = useAuth()
   const { isUiOnlyMode } = useApiMode()
 
   // Avoid repeating the hydration across navigations/HMR.
@@ -10,8 +10,13 @@ export default defineNuxtPlugin(async () => {
   }
   hydrated.value = true
 
-  // If there's no token (or we're in UI-only mode), there's nothing to hydrate.
-  if (!token.value || isUiOnlyMode.value) {
+  if (isUiOnlyMode.value) {
+    return
+  }
+
+  // If there's no access token, try restoring session via refresh cookie
+  if (!token.value) {
+    await restoreSession()
     return
   }
 

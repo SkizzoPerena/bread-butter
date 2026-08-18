@@ -53,7 +53,7 @@ async function submitEmail(event: FormSubmitEvent<EmailSchema>) {
         step.value = 'otp'
       },
       api: () =>
-        apiRequest<{ otpId?: string; message?: string }>('/otp/generate', {
+        apiRequest<{ otpId?: string; message?: string }>('/user/otp/generate', {
           method: 'POST',
           authenticated: false,
           body: { email: event.data.email },
@@ -86,7 +86,7 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
         step.value = 'password'
       },
       api: () =>
-        apiRequest('/otp/verify/' + otpId.value, {
+        apiRequest('/user/otp/verify/' + otpId.value, {
           method: 'PATCH',
           authenticated: false,
           body: { pinCode: event.data.pinCode },
@@ -117,7 +117,7 @@ async function resendOtp() {
         toast.add({ title: 'OTP resent', description: 'A new OTP was generated.', color: 'info' })
       },
       api: () =>
-        apiRequest('/otp/resend/' + otpId.value, {
+        apiRequest('/user/otp/resend/' + otpId.value, {
           method: 'PATCH',
           authenticated: false,
         }),
@@ -147,7 +147,7 @@ async function submitNewPassword(event: FormSubmitEvent<PasswordSchema>) {
         await navigateTo('/user/login')
       },
       api: () =>
-        apiRequest('/otp/change-password/' + otpId.value, {
+        apiRequest('/user/otp/change-password/' + otpId.value, {
           method: 'PATCH',
           authenticated: false,
           body: {
