@@ -32,7 +32,7 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
-const state = reactive<Schema>({
+const defaultForm: Schema = {
   firstName: '',
   lastName: '',
   email: '',
@@ -41,7 +41,26 @@ const state = reactive<Schema>({
   repass: '',
   tnc: false,
   updates: false
+}
+
+const state = useState<Schema>('partner-signup-draft', () => {
+  if (import.meta.client) {
+    try {
+      const saved = sessionStorage.getItem('bpb_partner_signup_draft')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+  }
+  return { ...defaultForm }
 })
+
+// Sync draft changes to sessionStorage
+watch(state, (val) => {
+  if (import.meta.client) {
+    try {
+      sessionStorage.setItem('bpb_partner_signup_draft', JSON.stringify(val))
+    } catch {}
+  }
+}, { deep: true })
 
 const isPasswordVisible = ref(false)
 
@@ -53,6 +72,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   isSubmitting.value = true
   // Simulate API call
   await new Promise(resolve => setTimeout(resolve, 1000))
+
+  if (import.meta.client) {
+    sessionStorage.removeItem('bpb_partner_signup_draft')
+  }
+  state.value = { ...defaultForm }
 
   console.log('Frontend-only registration with:', payload.data)
   toast.add({ title: 'Partner account created', description: 'Welcome to Bread+Butter!' })
@@ -113,7 +137,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <UFormField name="tnc">
               <UCheckbox v-model="state.tnc" name="tnc">
                 <template #label>
-                  <span class="text-sm text-white">I agree to Bread+Butter's <ULink to="/terms" class="text-bread-400 font-medium">
+                  <span class="text-sm text-white">I agree to Bread+Butter's <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }" class="text-bread-400 font-medium">
                       Terms and
                       Conditions.</ULink></span>
                 </template>

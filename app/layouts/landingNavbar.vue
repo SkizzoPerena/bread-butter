@@ -89,6 +89,7 @@ const links = [
   { label: 'Pricing', to: '/#pricing' },
   { label: 'About', to: 'https://www.blinkpunch.com' },
   { label: 'FAQ', to: '/faqs' },
+  { label: 'Terms', to: '/terms' },
   { label: 'Contact', to: '/contact-us' }
 ]
 </script>
@@ -99,44 +100,42 @@ const links = [
     'fixed top-0 w-full transition-all duration-300 z-50 border-none hidden lg:flex',
     isScrolled ? 'bg-toast-500/70 backdrop-blur-lg' : 'bg-transparent backdrop-blur-none'
   ]">
-    <template #left>
-      <!-- Left empty to allow center content to be truly centered -->
-      <div></div>
+    <template #title>
+      <NuxtLink to="/">
+        <img class="h-10 w-auto" src="..\assets\bpb-icons\logo-white.svg" alt="Bread + Butter Logo" />
+      </NuxtLink>
     </template>
 
-    <div class="flex items-center gap-x-8">
-      <UButton to="https://www.blinkpunch.com" variant="link" color="bread" class="font-semibold text-base text-white">
-        About
-      </UButton>
-      <UButton variant="link" color="bread" class="font-semibold text-base text-white"
+    <div class="flex items-center gap-1 sm:gap-2">
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400"
+        to="https://www.blinkpunch.com">About</UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400"
         @click="scrollToSection('#introduction')">Features</UButton>
-      <UButton variant="link" color="bread" class="font-semibold text-base text-white"
-        @click="scrollToSection('#pricing')">
-        Pricing
-      </UButton>
-      <NuxtLink to="/" class="mx-4">
-        <img src="..\assets\bpb-icons\logo-white.svg" class="h-8" />
-      </NuxtLink>
-      <UButton to="/faqs" variant="link" color="bread" class="font-semibold text-base text-white">
-        FAQ
-      </UButton>
-      <UButton to="/contact-us" variant="link" color="bread" class="font-semibold text-base text-white">Contact
-      </UButton>
-      <UButton to="/partners/login" variant="link" color="bread" class="font-semibold text-base text-white">Partners
-      </UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400"
+        @click="scrollToSection('#pricing')">Pricing</UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/partners/login">
+        Partners</UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/faqs">
+        FAQ</UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/terms">
+        Terms</UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/contact-us">
+        Contact Us</UButton>
     </div>
 
     <template #right>
-      <div class="flex items-center gap-x-4">
+      <div class="flex items-center gap-4">
         <UButton to="/user/login" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
         <UButton to="/user/signup" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
       </div>
     </template>
   </UHeader>
 
-  <!-- Mobile and Tablet Header (Nuxt UI UHeader + UPopover) -->
-  <UHeader :toggle="false" :ui="{ container: 'max-w-none w-full px-4 sm:px-6' }"
-    class="lg:hidden bg-toast-500 text-white border-none">
+  <!-- Mobile Header (hidden on lg and up) -->
+  <UHeader :ui="{ container: 'max-w-none w-full px-4 sm:px-6' }" :class="[
+    'fixed top-0 w-full transition-all duration-300 z-50 border-none flex lg:hidden',
+    isScrolled ? 'bg-toast-500/70 backdrop-blur-lg' : 'bg-transparent backdrop-blur-none'
+  ]">
     <template #title>
 
       <UPopover v-model:open="isMobileMenuOpen"
@@ -156,6 +155,8 @@ const links = [
               to="/partners/login" @click="closeMobileMenu">Partners</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
               to="/faqs" @click="closeMobileMenu">FAQ</UButton>
+            <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
+              to="/terms" @click="closeMobileMenu">Terms</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
               to="/contact-us" @click="closeMobileMenu">Contact Us</UButton>
           </div>

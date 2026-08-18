@@ -35,7 +35,7 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
-const state = reactive<Schema>({
+const defaultForm: Schema = {
   firstName: '',
   lastName: '',
   email: '',
@@ -44,7 +44,26 @@ const state = reactive<Schema>({
   repass: '',
   tnc: false,
   updates: false
+}
+
+const state = useState<Schema>('user-signup-draft', () => {
+  if (import.meta.client) {
+    try {
+      const saved = sessionStorage.getItem('bpb_user_signup_draft')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+  }
+  return { ...defaultForm }
 })
+
+// Sync draft changes to sessionStorage
+watch(state, (val) => {
+  if (import.meta.client) {
+    try {
+      sessionStorage.setItem('bpb_user_signup_draft', JSON.stringify(val))
+    } catch {}
+  }
+}, { deep: true })
 
 const isPasswordVisible = ref(false)
 
@@ -58,6 +77,10 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   isSubmitting.value = true
   try {
     const res = await register({ email, password, firstName, lastName, gender })
+    if (import.meta.client) {
+      sessionStorage.removeItem('bpb_user_signup_draft')
+    }
+    state.value = { ...defaultForm }
     toast.add({ title: 'Registration started', description: 'Please enter the verification code sent to your email.' })
     const otpId = res?.otpId || 'demo-otp-id'
     await navigateTo(`/user/otp?otpId=${encodeURIComponent(otpId)}&email=${encodeURIComponent(email)}`)
@@ -124,7 +147,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <UFormField name="tnc">
               <UCheckbox v-model="state.tnc" name="tnc" :ui="{ label: 'text-xs sm:text-sm' }">
                 <template #label>
-                  <span class="text-xs sm:text-sm">I agree to Bread+Butter's <ULink to="/terms" class="text-primary font-medium">
+                  <span class="text-xs sm:text-sm">I agree to Bread+Butter's <ULink :to="{ path: '/terms', query: { from: 'user-signup' } }" class="text-primary font-medium">
                       Terms and
                       Conditions.</ULink></span>
                 </template>
