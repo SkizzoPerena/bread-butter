@@ -196,11 +196,24 @@ export function mapApiToEventTypeLabel(apiValue: string): string {
 }
 
 export function formatEventPriceTier(
-  event: Pick<EventRecord, 'priceTier' | 'tierPricePhp'>
+  event?: Pick<EventRecord, 'priceTier' | 'tierPricePhp'> | null
 ): string {
+  if (!event) return '—'
   const tier = event.priceTier
-  if (tier && typeof tier === 'object' && tier.name) {
+  if (tier && typeof tier === 'object' && typeof tier.name === 'string' && tier.name.trim()) {
     return tier.name
+  }
+  if (typeof tier === 'string') {
+    const code = tier.trim().toUpperCase().replace(/[\s\-_+]+/g, '_')
+    if (code.includes('BREAD_BUTTER') || code.includes('PORTION_3')) return 'Bread + Butter'
+    if (code.includes('BUTTER') || code.includes('PORTION_2')) return 'Butter'
+    if (code.includes('BREAD') || code.includes('PORTION_1')) return 'Bread'
+    return tier
+  }
+  if (typeof event.tierPricePhp === 'number' && event.tierPricePhp > 0) {
+    if (event.tierPricePhp >= 10000) return 'Bread + Butter'
+    if (event.tierPricePhp >= 7000) return 'Butter'
+    return 'Bread'
   }
   return '—'
 }

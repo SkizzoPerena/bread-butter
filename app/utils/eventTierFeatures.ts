@@ -71,47 +71,115 @@ export const DASHBOARD_FEATURE_BY_ACTION: Record<
 
 type EventTierSource = Pick<EventRecord, 'priceTier' | 'tierPricePhp'>
 
-function normalizeTierCode(value: string): TierCode | null {
-  const normalized = value.trim().toUpperCase().replace(/-/g, '_')
-  if (normalized === 'BREAD_BUTTER' || normalized === 'BREAD+BUTTER') {
+export function normalizeTierCode(value: unknown): TierCode | null {
+  if (typeof value !== 'string') return null
+  const clean = value.trim().toUpperCase().replace(/[\s\-_+]+/g, '_')
+  if (
+    clean === 'BREAD_BUTTER' ||
+    clean === 'BREADBUTTER' ||
+    clean === 'PORTION_3' ||
+    clean === 'PORTION3' ||
+    clean === 'TIER_3' ||
+    clean === 'TIER3' ||
+    clean === 'PACKAGE_3' ||
+    clean === 'PACKAGE3' ||
+    clean.includes('BREAD_BUTTER') ||
+    clean.includes('PORTION_3') ||
+    clean.includes('ALL_IN_ONE')
+  ) {
     return 'BREAD_BUTTER'
   }
-  if (normalized === 'BREAD') {
-    return 'BREAD'
-  }
-  if (normalized === 'BUTTER') {
+  if (
+    clean === 'BUTTER' ||
+    clean === 'PORTION_2' ||
+    clean === 'PORTION2' ||
+    clean === 'TIER_2' ||
+    clean === 'TIER2' ||
+    clean === 'PACKAGE_2' ||
+    clean === 'PACKAGE2' ||
+    clean.includes('PORTION_2') ||
+    clean === 'BUTTER_PORTION' ||
+    clean === 'PORTION_BUTTER' ||
+    (clean.includes('BUTTER') && !clean.includes('BREAD'))
+  ) {
     return 'BUTTER'
+  }
+  if (
+    clean === 'BREAD' ||
+    clean === 'PORTION_1' ||
+    clean === 'PORTION1' ||
+    clean === 'TIER_1' ||
+    clean === 'TIER1' ||
+    clean === 'PACKAGE_1' ||
+    clean === 'PACKAGE1' ||
+    clean.includes('PORTION_1') ||
+    clean === 'BREAD_PORTION' ||
+    clean === 'PORTION_BREAD' ||
+    (clean.includes('BREAD') && !clean.includes('BUTTER'))
+  ) {
+    return 'BREAD'
   }
   return null
 }
 
-export function resolveEventTierCode(event: EventTierSource): TierCode {
-  const tier = event.priceTier
-  if (tier && typeof tier === 'object' && typeof tier.code === 'string') {
-    const knownCode = normalizeTierCode(tier.code)
-    if (knownCode) {
-      return knownCode
+export function resolveEventTierCode(event?: any): TierCode {
+  if (!event) return 'BREAD'
+
+  // 1. Direct string candidates
+  const stringCandidates = [
+    typeof event.priceTier === 'string' ? event.priceTier : null,
+    typeof event.priceTier === 'object' ? event.priceTier?.code : null,
+    typeof event.priceTier === 'object' ? event.priceTier?.name : null,
+    typeof event.priceTier === 'object' ? event.priceTier?.title : null,
+    typeof event.priceTier === 'object' ? event.priceTier?.id : null,
+    event.package,
+    event.packageName,
+    event.packageId,
+    event.tier,
+    event.tierName,
+    event.tierCode,
+    event.plan,
+    event.planName,
+  ]
+
+  for (const candidate of stringCandidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      const code = normalizeTierCode(candidate)
+      if (code) return code
     }
   }
 
-  const snapshotPrice =
-    typeof event.tierPricePhp === 'number' && event.tierPricePhp > 0
-      ? event.tierPricePhp
-      : null
-  const tierPrice =
-    tier && typeof tier === 'object' && typeof tier.pricePhp === 'number'
-      ? tier.pricePhp
-      : null
-  const pricePhp = snapshotPrice ?? tierPrice
+  // 2. Check if event.priceTier or event.priceTierId is an ObjectId and match against cached price tiers
+  const tierId = typeof event.priceTier === 'string' ? event.priceTier : (event.priceTier?._id || event.priceTierId)
+  if (typeof tierId === 'string' && tierId.trim()) {
+    const { cachedPriceTiers } = usePriceTiers()
+    const match = cachedPriceTiers.value?.find((t) => t._id === tierId)
+    if (match) {
+      const fromMatch = normalizeTierCode(match.code) || normalizeTierCode(match.name)
+      if (fromMatch) return fromMatch
+    }
+  }
 
-  if (typeof pricePhp === 'number' && pricePhp > 0) {
-    if (pricePhp >= 10000) {
-      return 'BREAD_BUTTER'
-    }
-    if (pricePhp >= 7000) {
-      return 'BUTTER'
-    }
+  // 3. Object price inspection
+  const tierObj = typeof event.priceTier === 'object' ? event.priceTier : null
+  if (tierObj && typeof tierObj.pricePhp === 'number') {
+    if (tierObj.pricePhp >= 10000) return 'BREAD_BUTTER'
+    if (tierObj.pricePhp >= 7000) return 'BUTTER'
     return 'BREAD'
+  }
+
+  // 4. Standalone tierPricePhp / payments
+  const price = typeof event.tierPricePhp === 'number' && event.tierPricePhp > 0 ? event.tierPricePhp : null
+  if (typeof price === 'number') {
+    if (price >= 10000) return 'BREAD_BUTTER'
+    if (price >= 7000) return 'BUTTER'
+    return 'BREAD'
+  }
+
+  // 5. Check eventName as fallback helper
+  if (typeof event.eventName === 'string' && event.eventName.trim()) {
+    const fromName = normalizeTierCode(event.eventName)
+    if (fromName) return fromName
   }
 
   return 'BREAD'
@@ -137,13 +205,37 @@ export function isEventFeatureAllowed(
     return false
   }
 
-  if (Array.isArray(event.allowedFeatures)) {
-    return event.allowedFeatures.includes(feature)
+  // 1. If backend event record has allowedFeatures array with entries, check inclusion directly
+  if (Array.isArray(event.allowedFeatures) && event.allowedFeatures.length > 0) {
+    const target = feature.toLowerCase().trim()
+    const hasFeature = event.allowedFeatures.some((f) => {
+      if (typeof f !== 'string') return false
+      const clean = f.toLowerCase().trim()
+      return clean === target || clean.replace(/[-_]/g, '') === target.replace(/[-_]/g, '')
+    })
+    if (hasFeature) return true
   }
 
-  const tierRank = TIER_RANK[resolveEventTierCode(event)]
-  const minTier = FEATURE_MIN_TIER[feature]
-  return tierRank >= TIER_RANK[minTier]
+  // 2. Otherwise calculate based on tier code
+  const tierCode = resolveEventTierCode(event)
+
+  // Butter and Bread + Butter have full access to all tools
+  if (tierCode === 'BUTTER' || tierCode === 'BREAD_BUTTER') {
+    return true
+  }
+
+  // Bread tier: allowed features
+  const BREAD_ALLOWED_FEATURES: EventFeature[] = [
+    EVENT_FEATURE.WEBSITE,
+    EVENT_FEATURE.INVITATION,
+    EVENT_FEATURE.GUEST_LIST,
+    EVENT_FEATURE.RSVP,
+    EVENT_FEATURE.PLAYLIST,
+    EVENT_FEATURE.WISHLIST,
+    EVENT_FEATURE.PAYMENTS,
+  ]
+
+  return BREAD_ALLOWED_FEATURES.includes(feature)
 }
 
 export function isDashboardActionAllowed(

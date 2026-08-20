@@ -9,27 +9,66 @@ import type {
 } from '~/types/auth'
 import { RestrictedAccountError } from '~/utils/restrictedAccount'
 
-const SESSION_STORAGE_KEY = 'bpb_user_access_token'
-const AUTH_USER_STATE_KEY = 'auth-user'
+export type AuthRole = 'user' | 'partner' | 'admin'
 
-export function useAuth() {
-  const token = useState<string | null>('auth-access-token', () => {
-    if (import.meta.client) {
-      return sessionStorage.getItem(SESSION_STORAGE_KEY)
-    }
+export function isLegacyObjectIdToken(token: string): boolean {
+  return /^[0-9a-fA-F]{24}$/.test(token.trim())
+}
+
+export function getSessionStorageKey(role: AuthRole = 'user'): string {
+  return `bpb_${role}_access_token`
+}
+
+export function getStoredAccessToken(role: AuthRole = 'user'): string | null {
+  if (!import.meta.client) return null
+  const rawToken = sessionStorage.getItem(getSessionStorageKey(role))
+  if (!rawToken) return null
+  const clean = rawToken.replace(/^Bearer\s+/i, '').trim()
+  if (!clean || isLegacyObjectIdToken(clean)) {
+    sessionStorage.removeItem(getSessionStorageKey(role))
     return null
+  }
+  return clean
+}
+
+export function useAuth(role: AuthRole = 'user') {
+  const storageKey = getSessionStorageKey(role)
+  const tokenStateKey = `auth-${role}-access-token`
+  const userStateKey = `auth-${role}-user`
+
+  const token = useState<string | null>(tokenStateKey, () => {
+    return getStoredAccessToken(role)
   })
 
-  const user = useState<AuthUser | null>(AUTH_USER_STATE_KEY, () => null)
+  // On client, ensure state is hydrated from sessionStorage if available
+  if (import.meta.client && !token.value) {
+    const stored = getStoredAccessToken(role)
+    if (stored) {
+      token.value = stored
+    }
+  }
+
+  const user = useState<AuthUser | null>(userStateKey, () => null)
 
   const isAuthenticated = computed(() => Boolean(token.value))
 
-  function setSession(newToken: string, newUser?: AuthUser | null) {
-    token.value = newToken
-    if (import.meta.client) {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, newToken)
+  function syncSessionFromStorage(): boolean {
+    if (!import.meta.client) return false
+    const stored = getStoredAccessToken(role)
+    if (stored) {
+      token.value = stored
+      return true
     }
-    if (newUser) {
+    return false
+  }
+
+  function setSession(newToken: string, newUser?: AuthUser | null) {
+    const cleanToken = newToken.replace(/^Bearer\s+/i, '').trim()
+    token.value = cleanToken
+    if (import.meta.client) {
+      sessionStorage.setItem(storageKey, cleanToken)
+    }
+    if (newUser !== undefined) {
       user.value = newUser
     }
   }
@@ -38,7 +77,7 @@ export function useAuth() {
     token.value = null
     user.value = null
     if (import.meta.client) {
-      sessionStorage.removeItem(SESSION_STORAGE_KEY)
+      sessionStorage.removeItem(storageKey)
     }
   }
 
@@ -52,7 +91,7 @@ export function useAuth() {
     const { apiRequest, isUiOnlyMode } = useApiMode()
     if (!isUiOnlyMode.value) {
       try {
-        await apiRequest('/user/auth/logout', {
+        await apiRequest(`/${role}/auth/logout`, {
           method: 'POST',
           authenticated: false
         })
@@ -61,7 +100,8 @@ export function useAuth() {
       }
     }
     clearSession()
-    await navigateTo('/user/login')
+    const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
+    await navigateTo(loginPath)
   }
 
   async function login(credentials: LoginCredentials) {
@@ -73,7 +113,7 @@ export function useAuth() {
 
     clearSession()
 
-    const response = await apiRequest<AuthLoginResponse>('/user/login', {
+    const response = await apiRequest<AuthLoginResponse>(`/${role}/login`, {
       method: 'POST',
       authenticated: false,
       body: {
@@ -101,7 +141,7 @@ export function useAuth() {
       return null
     }
 
-    const response = await apiRequest<AuthRegisterResponse>('/user/register', {
+    const response = await apiRequest<AuthRegisterResponse>(`/${role}/register`, {
       method: 'POST',
       authenticated: false,
       body: {
@@ -123,7 +163,7 @@ export function useAuth() {
       return null
     }
 
-    const response = await apiRequest<AuthVerifyEmailResponse>(`/user/otp/verify-email/${otpId}`, {
+    const response = await apiRequest<AuthVerifyEmailResponse>(`/${role}/otp/verify-email/${otpId}`, {
       method: 'PATCH',
       authenticated: false,
       body: { pinCode }
@@ -143,23 +183,27 @@ export function useAuth() {
       return false
     }
 
-    if (token.value) {
+    // 1. If sessionStorage has a valid access token, sync and keep it
+    if (syncSessionFromStorage()) {
       return true
     }
 
+    // 2. If sessionStorage is empty, attempt refresh via httpOnly cookie
     try {
-      const response = await apiRequest<AuthRefreshResponse>('/user/auth/refresh', {
+      const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
         method: 'POST',
         authenticated: false
       })
 
-      if (response.accessToken) {
+      if (response?.accessToken) {
         setSession(response.accessToken)
-        try {
-          const { fetchAccount } = useAccount()
-          await fetchAccount()
-        } catch {
-          // If fetching account fails, token is still restored
+        if (role === 'user') {
+          try {
+            const { fetchAccount } = useAccount()
+            await fetchAccount()
+          } catch {
+            // Token is restored even if fetching account details fails
+          }
         }
         return true
       }
@@ -174,6 +218,7 @@ export function useAuth() {
     token: readonly(token),
     user: readonly(user),
     isAuthenticated,
+    syncSessionFromStorage,
     setSession,
     clearSession,
     updateUser,

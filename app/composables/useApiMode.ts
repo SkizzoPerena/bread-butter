@@ -3,6 +3,12 @@ import {
   isRestrictedAccountError
 } from '~/utils/restrictedAccount'
 import type { AuthRefreshResponse } from '~/types/auth'
+import {
+  type AuthRole,
+  getStoredAccessToken,
+  isLegacyObjectIdToken,
+  useAuth
+} from '~/composables/useAuth'
 
 type FetchOptions = Parameters<typeof $fetch>[1]
 type ApiRequestOptions = FetchOptions & { authenticated?: boolean; _isRetry?: boolean }
@@ -14,12 +20,20 @@ function joinApiUrl(base: string, path: string): string {
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
-function getBearerHeaders(): Record<string, string> {
-  const { token } = useAuth()
-  const rawToken = token.value || (import.meta.client ? sessionStorage.getItem('bpb_user_access_token') : null)
-  if (!rawToken) return {}
-  const bearerToken = rawToken.startsWith('Bearer ') ? rawToken : `Bearer ${rawToken}`
-  return { Authorization: bearerToken }
+function detectRoleFromPath(path: string): AuthRole {
+  const clean = path.replace(/^\/?api\/?/, '/').replace(/^\//, '')
+  if (clean.startsWith('partner') || clean.startsWith('partners')) return 'partner'
+  if (clean.startsWith('admin')) return 'admin'
+  return 'user'
+}
+
+function getBearerHeaders(role: AuthRole = 'user'): Record<string, string> {
+  const stored = getStoredAccessToken(role)
+  const token = stored || useAuth(role).token.value
+  if (!token) return {}
+  const cleanToken = token.replace(/^Bearer\s+/i, '').trim()
+  if (!cleanToken || isLegacyObjectIdToken(cleanToken)) return {}
+  return { Authorization: `Bearer ${cleanToken}` }
 }
 
 function isAuthBypassPath(path: string): boolean {
@@ -32,9 +46,45 @@ function isAuthBypassPath(path: string): boolean {
     'user/otp/verify-email',
     'user/otp/generate',
     'user/otp/verify',
-    'user/otp/resend'
+    'user/otp/resend',
+    'partner/login',
+    'partner/register',
+    'partner/auth/refresh',
+    'partner/auth/logout',
+    'partners/login',
+    'partners/register',
+    'partners/auth/refresh',
+    'partners/auth/logout',
+    'admin/login',
+    'admin/auth/refresh',
+    'admin/auth/logout'
   ]
   return bypasses.some((b) => cleanPath.startsWith(b))
+}
+
+function isAuthenticationError(error: any): boolean {
+  const status = error?.response?.status ?? error?.statusCode ?? error?.status
+  const errorMsg = String(
+    error?.data?.message ||
+    error?.response?._data?.message ||
+    error?.message ||
+    ''
+  ).toLowerCase()
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    (status === 400 && (
+      errorMsg.includes('authorization') ||
+      errorMsg.includes('bearer') ||
+      errorMsg.includes('token') ||
+      errorMsg.includes('jwt')
+    )) ||
+    errorMsg.includes('use authorization') ||
+    errorMsg.includes('unauthorized') ||
+    errorMsg.includes('jwt expired') ||
+    errorMsg.includes('invalid token')
+  )
 }
 
 /**
@@ -52,20 +102,20 @@ export function useApiMode() {
   const isUiOnlyMode = computed(() => !config.public.useRealApi)
   const apiBase = computed(() => config.public.apiBase as string)
 
-  async function performRefresh(): Promise<string | null> {
+  async function performRefresh(role: AuthRole = 'user'): Promise<string | null> {
     if (refreshPromise) {
       return refreshPromise
     }
 
     refreshPromise = (async () => {
       try {
-        const response = await $fetch<AuthRefreshResponse>(joinApiUrl(apiBase.value, '/user/auth/refresh'), {
+        const response = await $fetch<AuthRefreshResponse>(joinApiUrl(apiBase.value, `/${role}/auth/refresh`), {
           method: 'POST',
           credentials: 'include'
         })
 
         if (response?.accessToken) {
-          const { setSession } = useAuth()
+          const { setSession } = useAuth(role)
           setSession(response.accessToken)
           return response.accessToken
         }
@@ -75,7 +125,7 @@ export function useApiMode() {
         refreshPromise = null
       }
 
-      const { clearSession } = useAuth()
+      const { clearSession } = useAuth(role)
       clearSession()
       return null
     })()
@@ -83,8 +133,8 @@ export function useApiMode() {
     return refreshPromise
   }
 
-  async function handleSessionExpired() {
-    const { clearSession } = useAuth()
+  async function handleSessionExpired(role: AuthRole = 'user') {
+    const { clearSession } = useAuth(role)
     clearSession()
     if (import.meta.client) {
       const toast = useToast()
@@ -93,7 +143,8 @@ export function useApiMode() {
         description: 'Please log in again.',
         color: 'warning'
       })
-      await navigateTo('/user/login')
+      const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
+      await navigateTo(loginPath)
     }
   }
 
@@ -103,28 +154,33 @@ export function useApiMode() {
     }
 
     const { authenticated = true, _isRetry = false, ...fetchOptions } = options ?? {}
+    const role = detectRoleFromPath(path)
+
+    // If authenticated request is missing Bearer token, attempt refresh first before sending
+    if (authenticated && !isAuthBypassPath(path) && !getBearerHeaders(role).Authorization && !_isRetry) {
+      await performRefresh(role)
+    }
 
     try {
       return await $fetch<T>(joinApiUrl(apiBase.value, path), {
         ...fetchOptions,
         credentials: 'include',
         headers: {
-          ...(authenticated ? getBearerHeaders() : {}),
+          ...(authenticated ? getBearerHeaders(role) : {}),
           ...(fetchOptions.headers as Record<string, string> | undefined)
         }
       })
     } catch (error: any) {
-      if (isRestrictedAccountError(error) && getBearerHeaders().Authorization) {
+      if (isRestrictedAccountError(error) && getBearerHeaders(role).Authorization) {
         return handleRestrictedAccount()
       }
 
-      const status = error?.response?.status ?? error?.statusCode ?? error?.status
-      if (status === 401 && !isAuthBypassPath(path) && !_isRetry) {
-        const newToken = await performRefresh()
+      if (isAuthenticationError(error) && !isAuthBypassPath(path) && !_isRetry) {
+        const newToken = await performRefresh(role)
         if (newToken) {
           return apiRequest<T>(path, { ...options, _isRetry: true })
         } else {
-          await handleSessionExpired()
+          await handleSessionExpired(role)
         }
       }
 
@@ -141,25 +197,30 @@ export function useApiMode() {
       throw new Error('apiUpload was called while NUXT_PUBLIC_USE_REAL_API is disabled')
     }
 
+    const role = detectRoleFromPath(path)
+
+    if (!getBearerHeaders(role).Authorization && !options?._isRetry) {
+      await performRefresh(role)
+    }
+
     try {
       return await $fetch<T>(joinApiUrl(apiBase.value, path), {
         method: options?.method ?? 'POST',
         body: formData,
         credentials: 'include',
-        headers: getBearerHeaders()
+        headers: getBearerHeaders(role)
       })
     } catch (error: any) {
-      if (isRestrictedAccountError(error) && getBearerHeaders().Authorization) {
+      if (isRestrictedAccountError(error) && getBearerHeaders(role).Authorization) {
         return handleRestrictedAccount()
       }
 
-      const status = error?.response?.status ?? error?.statusCode ?? error?.status
-      if (status === 401 && !isAuthBypassPath(path) && !options?._isRetry) {
-        const newToken = await performRefresh()
+      if (isAuthenticationError(error) && !isAuthBypassPath(path) && !options?._isRetry) {
+        const newToken = await performRefresh(role)
         if (newToken) {
           return apiUpload<T>(path, formData, { ...options, _isRetry: true })
         } else {
-          await handleSessionExpired()
+          await handleSessionExpired(role)
         }
       }
 

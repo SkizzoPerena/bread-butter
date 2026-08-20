@@ -25,7 +25,7 @@ const state = reactive({
       <div class="space-y-4">
         <p class="text-center text-lg">We'd love to hear from you!</p>
 
-        <!-- Social Media & Contact Links -->
+        <!-- Social Media Links -->
         <div class="flex justify-center space-x-4">
           <UButton
             icon="i-mdi-facebook"
@@ -53,14 +53,6 @@ const state = reactive({
             color="neutral"
             size="xl"
             aria-label="Website"
-          />
-          <UButton
-            icon="i-lucide-phone"
-            to="tel:+639123456789"
-            variant="ghost"
-            color="neutral"
-            size="xl"
-            aria-label="Phone"
           />
         </div>
 
