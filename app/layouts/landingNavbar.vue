@@ -106,19 +106,20 @@ const links = [
       </NuxtLink>
     </template>
 
-    <div class="flex items-center gap-1 sm:gap-2">
+    <div class="flex items-center gap-2 sm:gap-3">
       <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400"
-        to="https://www.blinkpunch.com">About</UButton>
+        to="https://www.blinkpunch.com">
+        About</UButton>
       <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400"
         @click="scrollToSection('#introduction')">Features</UButton>
       <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400"
         @click="scrollToSection('#pricing')">Pricing</UButton>
+      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/our-suppliers">
+        Our Suppliers</UButton>
       <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/partners/login">
         Partners</UButton>
       <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/faqs">
         FAQ</UButton>
-      <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/terms">
-        Terms</UButton>
       <UButton variant="link" class="text-sm font-medium text-white hover:text-bread-400" to="/contact-us">
         Contact Us</UButton>
     </div>
@@ -151,6 +152,8 @@ const links = [
               @click="scrollToSection('#introduction')">Features</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
               @click="scrollToSection('#pricing')">Pricing</UButton>
+            <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
+              to="/our-suppliers" @click="closeMobileMenu">Our Suppliers</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
               to="/partners/login" @click="closeMobileMenu">Partners</UButton>
             <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"

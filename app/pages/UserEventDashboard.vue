@@ -478,37 +478,59 @@ type DashboardItem = {
 }
 
 const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
+  // Row 1: Public Presence & Communication (The Event Story)
   { label: 'Website', icon: 'i-lucide-globe', action: 'website', bgClass: 'bg-blue-500', hoverClass: 'group-hover:bg-blue-600', ringClass: 'group-focus-visible:ring-blue-500' },
   { label: 'Invitation', icon: 'i-lucide-send', action: 'invitation', bgClass: 'bg-violet-500', hoverClass: 'group-hover:bg-violet-600', ringClass: 'group-focus-visible:ring-violet-500' },
-  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
-  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-red-500', hoverClass: 'group-hover:bg-red-600', ringClass: 'group-focus-visible:ring-red-500' },
   { label: 'RSVP', icon: 'i-lucide-mail', action: 'rsvp', bgClass: 'bg-teal-500', hoverClass: 'group-hover:bg-teal-600', ringClass: 'group-focus-visible:ring-teal-500' },
-  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
+
+  // Row 2: Guest Management & Experience
   { label: 'Guest List', icon: 'i-lucide-users', action: 'guestList', bgClass: 'bg-orange-500', hoverClass: 'group-hover:bg-orange-600', ringClass: 'group-focus-visible:ring-orange-500' },
-  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
+  { label: 'Gifts', icon: 'i-lucide-gift', action: 'wishlist', bgClass: 'bg-pink-500', hoverClass: 'group-hover:bg-pink-600', ringClass: 'group-focus-visible:ring-pink-500' },
   { label: 'Playlist', icon: 'i-lucide-music', action: 'playlist', bgClass: 'bg-lime-500', hoverClass: 'group-hover:bg-lime-600', ringClass: 'group-focus-visible:ring-lime-500' },
-  { label: 'Church Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-yellow-500', hoverClass: 'group-hover:bg-yellow-600', ringClass: 'group-focus-visible:ring-yellow-500' },
+
+  // Row 3: Planning, Logistics & Execution
+  { label: 'Tasks', icon: 'i-lucide-list-todo', action: 'tasks', bgClass: 'bg-red-500', hoverClass: 'group-hover:bg-red-600', ringClass: 'group-focus-visible:ring-red-500' },
+  { label: 'Schedules', icon: 'i-lucide-calendar', action: 'schedules', bgClass: 'bg-cyan-500', hoverClass: 'group-hover:bg-cyan-600', ringClass: 'group-focus-visible:ring-cyan-500' },
   { label: 'Suppliers', icon: 'i-lucide-briefcase', action: 'suppliers', bgClass: 'bg-fuchsia-500', hoverClass: 'group-hover:bg-fuchsia-600', ringClass: 'group-focus-visible:ring-fuchsia-500' },
+
+  // Row 4: Compliance, Financials & Administration
+  { label: 'Requirements', icon: 'i-lucide-church', action: 'churchRequirements', weddingOnly: true, bgClass: 'bg-yellow-500', hoverClass: 'group-hover:bg-yellow-600', ringClass: 'group-focus-visible:ring-yellow-500' },
+  { label: 'Payments', icon: 'i-lucide-credit-card', action: 'payments', bgClass: 'bg-emerald-500', hoverClass: 'group-hover:bg-emerald-600', ringClass: 'group-focus-visible:ring-emerald-500' },
   { label: 'Settings', icon: 'i-lucide-settings', action: 'settings', bgClass: 'bg-slate-500', hoverClass: 'group-hover:bg-slate-600', ringClass: 'group-focus-visible:ring-slate-500' },
 ]
-
-const dashboardItems = computed(() =>
-  DASHBOARD_ITEM_CATALOG.filter((item) => {
-    if (item.weddingOnly && !isWeddingEvent.value) {
-      return false
-    }
-    return true
-  })
-)
-
-const isUpgradeModalOpen = ref(false)
-const selectedLockedFeature = ref<DashboardItem | null>(null)
 
 function isDashboardItemBlocked(item: DashboardItem): boolean {
   if (item.action === 'settings') {
     return false
   }
   return !isDashboardActionAllowed(eventRecord.value, item.action)
+}
+
+const dashboardItems = computed(() => {
+  const filtered = DASHBOARD_ITEM_CATALOG.filter((item) => {
+    if (item.weddingOnly && !isWeddingEvent.value) {
+      return false
+    }
+    return true
+  })
+
+  // Place unlocked items first, and locked features at the bottom
+  const unlocked = filtered.filter((item) => !isDashboardItemBlocked(item))
+  const locked = filtered.filter((item) => isDashboardItemBlocked(item))
+
+  return [...unlocked, ...locked]
+})
+
+const isUpgradeModalOpen = ref(false)
+const selectedLockedFeature = ref<DashboardItem | null>(null)
+
+const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
+const isDesktopOnlyModalOpen = ref(false)
+const selectedDesktopOnlyFeature = ref<DashboardItem | null>(null)
+
+function isMobileViewport(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth < 768
 }
 
 const showTasksChecklist = computed(() =>
@@ -519,6 +541,12 @@ function handleDashboardItemClick(item: DashboardItem) {
   if (isDashboardItemBlocked(item)) {
     selectedLockedFeature.value = item
     isUpgradeModalOpen.value = true
+    return
+  }
+
+  if (isMobileViewport() && DESKTOP_ONLY_ACTIONS.includes(item.action)) {
+    selectedDesktopOnlyFeature.value = item
+    isDesktopOnlyModalOpen.value = true
     return
   }
 
@@ -574,7 +602,8 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
 </script>
 
 <template>
-  <UMain :class="showTasksChecklist ? 'bg-toast-50' : 'bg-white'">
+  <UMain :class="showTasksChecklist ? 'bg-toast-50' : 'bg-white'"
+    class="h-[calc(100vh-64px)] overflow-hidden flex flex-col">
     <ClientOnly>
       <Teleport to="#event-navbar-actions">
         <UBadge v-if="eventRecord" :color="planBadgeColor" variant="solid" size="lg"
@@ -585,17 +614,18 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
     </ClientOnly>
 
     <!-- Layout when Tasks Checklist is active (Butter & Bread + Butter packages) -->
-    <UPageGrid v-if="showTasksChecklist">
-      <UContainer class="space-y-6 white-bread-container min-h-[calc(100vh-64px)] flex flex-col col-span-2"
+    <UPageGrid v-if="showTasksChecklist" class="h-full overflow-hidden">
+      <UContainer class="white-bread-container h-full flex flex-col col-span-2 overflow-hidden"
         style="border-radius: 0;">
-        <div class="flex flex-1 items-center justify-center min-h-0 py-6 px-3 sm:px-4 w-full">
-          <div class="grid grid-cols-3 gap-3 sm:gap-6 md:gap-8 max-w-sm sm:max-w-md md:max-w-lg mx-auto w-full items-center justify-items-center">
+        <div class="flex flex-1 items-center justify-center min-h-0 py-2 sm:py-4 px-3 sm:px-4 w-full">
+          <div
+            class="grid grid-cols-3 gap-x-3 sm:gap-x-6 md:gap-x-8 gap-y-4 sm:gap-y-5 md:gap-y-6 max-w-sm sm:max-w-md md:max-w-lg mx-auto w-full items-center justify-items-center">
             <div v-for="item in dashboardItems" :key="item.label" role="button" :tabindex="0"
-              class="group flex flex-col items-center justify-center mx-auto w-full p-2 sm:p-3 md:p-4 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+              class="group flex flex-col items-center justify-center mx-auto w-full p-1 sm:p-1.5 md:p-2 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
               @click="handleDashboardItemClick(item)" @keydown.enter="handleDashboardItemKeydown($event, item)">
               <div class="relative flex items-center justify-center w-fit mx-auto">
                 <div
-                  class="size-13 sm:size-16 md:size-18 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+                  class="size-13 sm:size-15 md:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
                   :class="[
                     item.bgClass,
                     item.ringClass,
@@ -603,7 +633,7 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                       ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                       : [item.hoverClass, 'group-hover:scale-105 group-active:scale-95'],
                   ]">
-                  <UIcon :name="item.icon" class="size-6 sm:size-8 md:size-9 text-white shrink-0" />
+                  <UIcon :name="item.icon" class="size-6 sm:size-7 md:size-8 text-white shrink-0" />
                 </div>
                 <div v-if="isDashboardItemBlocked(item)"
                   class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 sm:p-1.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
@@ -611,14 +641,16 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                   <UIcon name="i-lucide-lock" class="size-2.5 sm:size-3.5 block" />
                 </div>
               </div>
-              <div class="font-medium mt-1.5 sm:mt-2.5 md:mt-3 text-center text-xs sm:text-sm md:text-base leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">{{ item.label }}</div>
+              <div
+                class="font-medium mt-1 sm:mt-1.5 md:mt-2 text-center text-xs sm:text-sm md:text-base leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">
+                {{ item.label }}</div>
             </div>
           </div>
         </div>
       </UContainer>
 
       <!-- Tasks Container (Desktop Only) -->
-      <UScrollArea class="hidden md:block h-[calc(100vh-64px)] py-6 pr-8">
+      <UScrollArea class="hidden md:block h-full py-4 pr-6">
         <UContainer class="space-y-4">
           <UPageCard class="white-bread-container space-y-4 ">
             <div class="flex justify-between items-center">
@@ -764,14 +796,15 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
     </UPageGrid>
 
     <!-- Layout when package is Bread (No container card, clean background, exact position retained) -->
-    <div v-else class="flex flex-1 items-center justify-center min-h-[calc(100vh-64px)] py-6 px-3 sm:px-4 w-full">
-      <div class="grid grid-cols-3 gap-3 sm:gap-6 md:gap-8 max-w-sm sm:max-w-md md:max-w-lg mx-auto w-full items-center justify-items-center">
+    <div v-else class="flex flex-1 items-center justify-center h-full overflow-hidden py-2 sm:py-4 px-3 sm:px-4 w-full">
+      <div
+        class="grid grid-cols-3 gap-x-3 sm:gap-x-6 md:gap-x-8 gap-y-4 sm:gap-y-5 md:gap-y-6 max-w-sm sm:max-w-md md:max-w-lg mx-auto w-full items-center justify-items-center">
         <div v-for="item in dashboardItems" :key="item.label" role="button" :tabindex="0"
-          class="group flex flex-col items-center justify-center mx-auto w-full p-2 sm:p-3 md:p-4 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+          class="group flex flex-col items-center justify-center mx-auto w-full p-1 sm:p-1.5 md:p-2 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
           @click="handleDashboardItemClick(item)" @keydown.enter="handleDashboardItemKeydown($event, item)">
           <div class="relative flex items-center justify-center w-fit mx-auto">
             <div
-              class="size-13 sm:size-16 md:size-18 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+              class="size-13 sm:size-15 md:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
               :class="[
                 item.bgClass,
                 item.ringClass,
@@ -779,7 +812,7 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                   ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                   : [item.hoverClass, 'group-hover:scale-105 group-active:scale-95'],
               ]">
-              <UIcon :name="item.icon" class="size-6 sm:size-8 md:size-9 text-white shrink-0" />
+              <UIcon :name="item.icon" class="size-6 sm:size-7 md:size-8 text-white shrink-0" />
             </div>
             <div v-if="isDashboardItemBlocked(item)"
               class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 sm:p-1.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
@@ -787,22 +820,32 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
               <UIcon name="i-lucide-lock" class="size-2.5 sm:size-3.5 block" />
             </div>
           </div>
-          <div class="font-medium mt-1.5 sm:mt-2.5 md:mt-3 text-center text-xs sm:text-sm md:text-base leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">{{ item.label }}</div>
+          <div
+            class="font-medium mt-1 sm:mt-1.5 md:mt-2 text-center text-xs sm:text-sm md:text-base leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">
+            {{ item.label }}</div>
         </div>
       </div>
     </div>
 
     <!-- Upgrade Package Modal -->
     <UModal v-model:open="isUpgradeModalOpen" :ui="{
-      content: 'bg-bread-100 border-none ring-1 ring-toast-600/20 max-w-lg rounded-2xl shadow-2xl p-6 space-y-6',
+      content: 'bread-container max-w-lg p-6 space-y-6',
       overlay: 'bg-toast-950/40 backdrop-blur-xs'
     }">
       <template #content>
         <div class="space-y-6 text-toast-900">
           <!-- Modal Header -->
           <div class="text-center space-y-2">
-            <div class="w-12 h-12 rounded-full bg-toast-600/10 text-toast-600 flex items-center justify-center mx-auto">
-              <UIcon :name="selectedLockedFeature?.icon || 'i-lucide-sparkles'" class="size-6 text-toast-600" />
+
+            <div class="flex justify-between">
+              <div class="w-8"></div>
+              <div class="w-12 h-12 rounded-full bg-toast-600/10 text-toast-600 flex items-center justify-center">
+                <UIcon :name="selectedLockedFeature?.icon || 'i-lucide-sparkles'" class="size-6 text-toast-600" />
+              </div>
+              <div class="w-8 flex justify-end items-start">
+                <UButton icon="i-lucide-x" variant="link" color="neutral"
+                  @click="() => { isUpgradeModalOpen = false }" />
+              </div>
             </div>
             <h3 class="text-2xl font-bold font-serif text-toast-800">
               Upgrade to Unlock {{ selectedLockedFeature?.label }}
@@ -841,7 +884,7 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                   </li>
                   <li class="flex items-center gap-1.5">
                     <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Church Requirements</span>
+                    <span>Requirements</span>
                   </li>
                 </ul>
               </div>
@@ -893,6 +936,71 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
               class="font-medium sm:w-auto text-toast-800 border-toast-300 hover:bg-toast-50"
               @click="() => { isUpgradeModalOpen = false }">
               Maybe Later
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Desktop Only Feature Notice Modal (Mobile View) -->
+    <UModal v-model:open="isDesktopOnlyModalOpen" :ui="{
+      content: 'bread-container max-w-md p-6 space-y-5',
+      overlay: 'bg-toast-950/40 backdrop-blur-xs'
+    }">
+      <template #content>
+        <div class="space-y-5 text-toast-900">
+          <!-- Header -->
+          <div class="space-y-3 text-center">
+            <div class="flex justify-between items-start">
+              <div class="w-8"></div>
+              <div
+                class="w-14 h-14 rounded-full bg-toast-600/10 text-toast-700 flex items-center justify-center mx-auto shadow-xs">
+                <UIcon name="i-lucide-monitor" class="size-7 text-toast-700" />
+              </div>
+              <div class="w-8 flex justify-end">
+                <UButton icon="i-lucide-x" variant="link" color="neutral"
+                  @click="() => { isDesktopOnlyModalOpen = false }" />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <h3 class="text-xl font-bold font-serif text-toast-900">
+                Desktop View Required
+              </h3>
+              <p class="text-xs sm:text-sm text-toast-800/80 max-w-xs mx-auto leading-relaxed">
+                The <span class="font-bold text-toast-900">{{ selectedDesktopOnlyFeature?.label }}</span> feature
+                requires a desktop or laptop display due to extensive layouts, design canvases, and data tables that
+                cannot be comfortably navigated on mobile screens.
+              </p>
+            </div>
+          </div>
+
+          <!-- Feature Highlight Card -->
+          <div class="bg-white/80 border border-toast-300/40 rounded-xl p-3.5 flex items-center gap-3">
+            <div class="size-10 rounded-full flex items-center justify-center shrink-0 shadow-xs"
+              :class="selectedDesktopOnlyFeature?.bgClass || 'bg-toast-600'">
+              <UIcon :name="selectedDesktopOnlyFeature?.icon || 'i-lucide-sparkles'" class="size-5 text-white" />
+            </div>
+            <div class="text-left flex-1 min-w-0">
+              <div class="font-semibold text-sm text-toast-900 truncate">{{ selectedDesktopOnlyFeature?.label }}</div>
+              <div class="text-xs text-toast-700/80 leading-tight mt-0.5">
+                {{
+                  selectedDesktopOnlyFeature?.action === 'website'
+                    ? 'Visual website editor, theme customizer & live canvas'
+                    : selectedDesktopOnlyFeature?.action === 'invitation'
+                      ? 'Card layout designer, typography controls & preview'
+                      : 'Comprehensive guest seating arrangement & group tables'
+                }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="pt-1">
+            <UButton block color="primary" size="md"
+              class="font-bold shadow-sm bg-toast-600 hover:bg-toast-700 text-white"
+              @click="() => { isDesktopOnlyModalOpen = false }">
+              Understood
             </UButton>
           </div>
         </div>

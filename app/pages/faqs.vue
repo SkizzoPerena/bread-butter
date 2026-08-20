@@ -695,10 +695,6 @@ function scrollToFaq(id: string) {
 
       <!-- Hero / Title Section -->
       <div class="text-center space-y-4 max-w-3xl mx-auto">
-        <UBadge color="bread" variant="soft" size="lg"
-          class="px-3.5 py-1 font-semibold rounded-full text-toast-900 bg-bread-400">
-          Help Center & FAQs
-        </UBadge>
         <h1 id="faq-title" class="text-4xl sm:text-5xl font-bold font-serif text-bread-400">
           Frequently Asked Questions
         </h1>

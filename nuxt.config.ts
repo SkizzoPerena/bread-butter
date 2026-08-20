@@ -159,6 +159,7 @@ export default defineNuxtConfig({
       setPath('faqs', '/faqs')
       setPath('InvitationMaker', '/invitation-maker')
       setPath('WebsiteMaker', '/website-maker')
+      setPath('OurSuppliers', '/our-suppliers')
     }
   }
 

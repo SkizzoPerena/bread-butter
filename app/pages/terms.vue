@@ -50,14 +50,6 @@ const returnUrl = computed(() => {
           </UButton>
         </div>
 
-        <UBadge
-          color="bread"
-          variant="soft"
-          size="lg"
-          class="px-3.5 py-1 font-semibold rounded-full text-toast-900 bg-bread-400"
-        >
-          Legal & Policies
-        </UBadge>
         <h1 class="text-4xl sm:text-5xl font-bold font-serif text-bread-400">
           Terms & Conditions
         </h1>
