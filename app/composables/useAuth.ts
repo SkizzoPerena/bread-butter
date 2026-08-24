@@ -15,6 +15,90 @@ export function isLegacyObjectIdToken(token: string): boolean {
   return /^[0-9a-fA-F]{24}$/.test(token.trim())
 }
 
+export function getTokenExpiration(token: string): number | null {
+  try {
+    const clean = token.replace(/^Bearer\s+/i, '').trim()
+    const parts = clean.split('.')
+    if (parts.length !== 3 || !parts[1]) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    const payload = JSON.parse(jsonPayload)
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+export function isTokenExpiredOrExpiring(token: string, thresholdSeconds = 120): boolean {
+  const exp = getTokenExpiration(token)
+  if (!exp) return false
+  return Date.now() >= exp - thresholdSeconds * 1000
+}
+
+const silentRefreshTimers: Partial<Record<AuthRole, ReturnType<typeof setTimeout>>> = {}
+let visibilityListenerAttached = false
+
+export function cancelSilentRefresh(role: AuthRole = 'user') {
+  if (silentRefreshTimers[role]) {
+    clearTimeout(silentRefreshTimers[role])
+    delete silentRefreshTimers[role]
+  }
+}
+
+export function scheduleSilentRefresh(role: AuthRole = 'user', tokenOverride?: string | null) {
+  if (!import.meta.client) return
+  cancelSilentRefresh(role)
+
+  const currentToken = tokenOverride || getStoredAccessToken(role)
+  if (!currentToken) return
+
+  const expTime = getTokenExpiration(currentToken)
+  if (!expTime) return
+
+  // Schedule refresh 2 minutes (120,000 ms) before expiration, or immediately if less than 2 mins left
+  const bufferMs = 2 * 60 * 1000
+  const timeUntilExp = expTime - Date.now()
+  const delay = Math.max(0, timeUntilExp - bufferMs)
+
+  silentRefreshTimers[role] = setTimeout(async () => {
+    const { refreshSession } = useAuth(role)
+    const success = await refreshSession()
+    if (success) {
+      scheduleSilentRefresh(role)
+    }
+  }, delay)
+
+  initVisibilityListener()
+}
+
+function initVisibilityListener() {
+  if (!import.meta.client || visibilityListenerAttached) return
+  visibilityListenerAttached = true
+
+  const checkAndRefresh = () => {
+    if (document.visibilityState === 'visible') {
+      const roles: AuthRole[] = ['user', 'partner', 'admin']
+      for (const role of roles) {
+        const currentToken = getStoredAccessToken(role)
+        if (currentToken && isTokenExpiredOrExpiring(currentToken, 120)) {
+          const { refreshSession } = useAuth(role)
+          refreshSession().then((success) => {
+            if (success) scheduleSilentRefresh(role)
+          })
+        }
+      }
+    }
+  }
+
+  document.addEventListener('visibilitychange', checkAndRefresh)
+  window.addEventListener('focus', checkAndRefresh)
+}
+
 export function getSessionStorageKey(role: AuthRole = 'user'): string {
   return `bpb_${role}_access_token`
 }
@@ -67,6 +151,7 @@ export function useAuth(role: AuthRole = 'user') {
     token.value = cleanToken
     if (import.meta.client) {
       sessionStorage.setItem(storageKey, cleanToken)
+      scheduleSilentRefresh(role, cleanToken)
     }
     if (newUser !== undefined) {
       user.value = newUser
@@ -78,6 +163,7 @@ export function useAuth(role: AuthRole = 'user') {
     user.value = null
     if (import.meta.client) {
       sessionStorage.removeItem(storageKey)
+      cancelSilentRefresh(role)
     }
   }
 
@@ -176,19 +262,13 @@ export function useAuth(role: AuthRole = 'user') {
     return response
   }
 
-  async function restoreSession(): Promise<boolean> {
+  async function refreshSession(): Promise<boolean> {
     const { apiRequest, isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
       return false
     }
 
-    // 1. If sessionStorage has a valid access token, sync and keep it
-    if (syncSessionFromStorage()) {
-      return true
-    }
-
-    // 2. If sessionStorage is empty, attempt refresh via httpOnly cookie
     try {
       const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
         method: 'POST',
@@ -197,6 +277,35 @@ export function useAuth(role: AuthRole = 'user') {
 
       if (response?.accessToken) {
         setSession(response.accessToken)
+        return true
+      }
+    } catch {
+      clearSession()
+    }
+
+    return false
+  }
+
+  async function restoreSession(): Promise<boolean> {
+    const { isUiOnlyMode } = useApiMode()
+
+    if (isUiOnlyMode.value) {
+      return false
+    }
+
+    // 1. If sessionStorage has a valid access token that is not expired/expiring, sync and schedule
+    const stored = getStoredAccessToken(role)
+    if (stored && !isTokenExpiredOrExpiring(stored, 60)) {
+      if (syncSessionFromStorage()) {
+        scheduleSilentRefresh(role, stored)
+        return true
+      }
+    }
+
+    // 2. Otherwise attempt refresh via httpOnly cookie
+    try {
+      const success = await refreshSession()
+      if (success) {
         if (role === 'user') {
           try {
             const { fetchAccount } = useAccount()
@@ -225,6 +334,7 @@ export function useAuth(role: AuthRole = 'user') {
     login,
     register,
     verifyEmail,
+    refreshSession,
     restoreSession,
     logout
   }

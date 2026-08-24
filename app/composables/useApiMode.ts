@@ -7,6 +7,7 @@ import {
   type AuthRole,
   getStoredAccessToken,
   isLegacyObjectIdToken,
+  isTokenExpiredOrExpiring,
   useAuth
 } from '~/composables/useAuth'
 
@@ -156,8 +157,11 @@ export function useApiMode() {
     const { authenticated = true, _isRetry = false, ...fetchOptions } = options ?? {}
     const role = detectRoleFromPath(path)
 
-    // If authenticated request is missing Bearer token, attempt refresh first before sending
-    if (authenticated && !isAuthBypassPath(path) && !getBearerHeaders(role).Authorization && !_isRetry) {
+    const currentToken = getStoredAccessToken(role) || useAuth(role).token.value
+    const isExpiring = currentToken ? isTokenExpiredOrExpiring(currentToken, 30) : false
+
+    // If authenticated request is missing Bearer token or token is expiring soon, attempt refresh first before sending
+    if (authenticated && !isAuthBypassPath(path) && (!getBearerHeaders(role).Authorization || isExpiring) && !_isRetry) {
       await performRefresh(role)
     }
 
@@ -199,7 +203,10 @@ export function useApiMode() {
 
     const role = detectRoleFromPath(path)
 
-    if (!getBearerHeaders(role).Authorization && !options?._isRetry) {
+    const currentToken = getStoredAccessToken(role) || useAuth(role).token.value
+    const isExpiring = currentToken ? isTokenExpiredOrExpiring(currentToken, 30) : false
+
+    if ((!getBearerHeaders(role).Authorization || isExpiring) && !options?._isRetry) {
       await performRefresh(role)
     }
 

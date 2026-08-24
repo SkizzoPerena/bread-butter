@@ -1,5 +1,5 @@
 export default defineNuxtPlugin(async () => {
-  const { token, user, restoreSession, syncSessionFromStorage } = useAuth()
+  const { token, user, restoreSession } = useAuth()
   const { isUiOnlyMode } = useApiMode()
 
   // Avoid repeating the hydration across navigations/HMR.
@@ -14,13 +14,8 @@ export default defineNuxtPlugin(async () => {
     return
   }
 
-  // First, check if sessionStorage has a valid access token and sync state
-  const hasToken = syncSessionFromStorage()
-
-  // If sessionStorage is empty, attempt restoring session via httpOnly refresh cookie
-  if (!hasToken) {
-    await restoreSession()
-  }
+  // Restore session: checks stored token validity, schedules silent refresh or calls refresh endpoint
+  await restoreSession()
 
   // If we have an access token but user details are not yet loaded, fetch account details
   if (token.value && !user.value?.email) {
