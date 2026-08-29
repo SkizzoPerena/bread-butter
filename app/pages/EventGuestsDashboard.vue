@@ -24,6 +24,7 @@ const { fetchEvent } = useEvents()
 const { fetchGuestsByEvent } = useGuests()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { isExporting, exportEventPdf } = useEventPdfExport()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -522,6 +523,16 @@ watch(eventId, () => {
             @click="() => { isAddGuestModalOpen = true }"
           >
             Add Guest
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            :loading="isExporting"
+            :disabled="!eventId || isExporting"
+            @click="exportEventPdf(eventId, 'guests')"
+          >
+            Export PDF
           </UButton>
         </div>
       </Teleport>

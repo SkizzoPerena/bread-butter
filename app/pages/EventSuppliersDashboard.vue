@@ -34,6 +34,7 @@ const { fetchEvent } = useEvents()
 const { requireEventFeature } = useEventFeatureGate()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { isExporting, exportEventPdf } = useEventPdfExport()
 const {
   isLoading: isLoadingSuppliers,
   isSubmitting,
@@ -401,14 +402,26 @@ watch(eventId, async () => {
   <UContainer class="space-y-6 py-8 pb-12">
     <ClientOnly>
       <Teleport to="#navbar-actions">
-        <UButton
-          icon="i-lucide-plus"
-          color="fuchsia"
-          :disabled="mutationsDisabled || isSubmitting"
-          @click="openAddSupplierModal"
-        >
-          Add Supplier
-        </UButton>
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            icon="i-lucide-plus"
+            color="fuchsia"
+            :disabled="mutationsDisabled || isSubmitting"
+            @click="openAddSupplierModal"
+          >
+            Add Supplier
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            :loading="isExporting"
+            :disabled="!eventId || isExporting"
+            @click="exportEventPdf(eventId, 'suppliers')"
+          >
+            Export PDF
+          </UButton>
+        </div>
       </Teleport>
     </ClientOnly>
 

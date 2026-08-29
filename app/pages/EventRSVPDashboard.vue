@@ -70,6 +70,7 @@ const { fetchEvent } = useEvents()
 const { fetchAllEventRsvps, fetchEventRsvps } = useRsvps()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { isExporting, exportEventPdf } = useEventPdfExport()
 const { updateEventQuestions } = useEventQuestions()
 
 const eventId = computed(() => {
@@ -362,10 +363,22 @@ watch(eventId, () => {
   <UContainer class="space-y-6 py-8 pb-12">
     <ClientOnly>
       <Teleport to="#navbar-actions">
-        <UButton icon="i-lucide-pencil" color="teal" :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
-          @click="() => { isQuestionsModalOpen = true }">
-          Edit Questions
-        </UButton>
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton icon="i-lucide-pencil" color="teal" :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
+            @click="() => { isQuestionsModalOpen = true }">
+            Edit Questions
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            :loading="isExporting"
+            :disabled="!eventId || isExporting"
+            @click="exportEventPdf(eventId, 'rsvps')"
+          >
+            Export PDF
+          </UButton>
+        </div>
       </Teleport>
     </ClientOnly>
 

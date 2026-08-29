@@ -32,6 +32,7 @@ const { fetchEvent } = useEvents()
 const { requireEventFeature } = useEventFeatureGate()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { isExporting, exportEventPdf } = useEventPdfExport()
 const {
   isLoading: isLoadingRequirements,
   isSubmitting,
@@ -470,6 +471,21 @@ watch(eventId, async () => {
 
 <template>
   <UContainer class="space-y-6 py-8 pb-12">
+    <ClientOnly>
+      <Teleport to="#navbar-actions">
+        <UButton
+          icon="i-lucide-file-down"
+          color="neutral"
+          variant="outline"
+          :loading="isExporting"
+          :disabled="!eventId || isExporting"
+          @click="exportEventPdf(eventId, 'church-requirements')"
+        >
+          Export PDF
+        </UButton>
+      </Teleport>
+    </ClientOnly>
+
     <div
       v-if="isPageLoading"
       class="flex items-center justify-center py-16 text-muted"
