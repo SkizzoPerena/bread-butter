@@ -1,4 +1,4 @@
-import type { EventPaymentSummary, PaymentRecord } from '~/types/payment'
+import type { EventPaymentSummary, PaymentRecord, PendingPaymentSummary } from '~/types/payment'
 import type { PriceTierRecord } from '~/types/priceTier'
 import type { TaskAssigneeRef } from '~/types/task'
 
@@ -21,6 +21,7 @@ export interface EventRecord {
   isCatholicWedding?: boolean
   playlist?: string
   latestPayment?: PaymentRecord | null
+  pendingPayment?: PendingPaymentSummary | null
   paymentSummary?: EventPaymentSummary | null
   priceTier?: PriceTierRecord | string | null
   tierPricePhp?: number | null

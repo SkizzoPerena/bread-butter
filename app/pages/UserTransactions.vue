@@ -30,6 +30,7 @@ interface PaymentEntry {
   kind: 'payment'
   eventName: string
   status: PaymentStatus
+  paymentType?: PaymentRecord['type']
   amount: number
   expectedAmount: number
   isOverpaid: boolean
@@ -67,6 +68,7 @@ const transactions = computed<TransactionEntry[]>(() => {
       kind: 'payment',
       eventName,
       status: p.status,
+      paymentType: p.type,
       amount: paidAmount,
       expectedAmount: p.amount,
       isOverpaid,
@@ -141,7 +143,9 @@ onMounted(async () => {
                 Php {{ entry.amount.toLocaleString() }}
               </div>
               <div class="text-sm text-muted">
-                {{ entry.status }}
+                {{ entry.status === 'PENDING' && entry.paymentType === 'TIER_UPGRADE'
+                  ? 'Upgrade pending review'
+                  : entry.status }}
               </div>
               <div v-if="entry.isOverpaid" class="text-xs text-muted">
                 Includes Php {{ (entry.amount - entry.expectedAmount).toLocaleString() }}

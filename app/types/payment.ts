@@ -1,6 +1,6 @@
 export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
 
-export type PaymentType = 'EVENT_CREATION_FEE'
+export type PaymentType = 'EVENT_CREATION_FEE' | 'TIER_UPGRADE' | 'EMAIL_CREDIT_PURCHASE'
 
 export type RefundStatus = 'PENDING' | 'COMPLETED' | 'REJECTED'
 
@@ -38,6 +38,16 @@ export interface PaymentRecord {
   refund?: RefundRecord | null
   createdAt?: string
   updatedAt?: string
+}
+
+export interface PendingPaymentSummary {
+  _id: string
+  type: PaymentType
+  status: PaymentStatus
+  amount: number
+  transactionId: string
+  createdAt?: string
+  targetTierName?: string | null
 }
 
 export interface PaymentsListResponse {
@@ -90,7 +100,52 @@ export interface EventPaymentSummary {
 
 interface EventPaymentContext {
   latestPayment?: PaymentRecord | null
+  pendingPayment?: PendingPaymentSummary | null
   paymentSummary?: EventPaymentSummary | null
+}
+
+export function getPendingPayment(
+  event?: EventPaymentContext | null,
+): PendingPaymentSummary | PaymentRecord | null {
+  if (event?.pendingPayment?.status === 'PENDING') {
+    return event.pendingPayment
+  }
+  if (event?.latestPayment?.status === 'PENDING') {
+    return event.latestPayment
+  }
+  return null
+}
+
+export function isTierUpgradePending(event?: EventPaymentContext | null): boolean {
+  return getPendingPayment(event)?.type === 'TIER_UPGRADE'
+}
+
+export function hasPendingPaymentBlockingUpgrade(event?: EventPaymentContext | null): boolean {
+  return getPendingPayment(event) != null
+}
+
+export function getPendingUpgradeTargetName(event?: EventPaymentContext | null): string | null {
+  const pending = getPendingPayment(event)
+  if (!pending || pending.type !== 'TIER_UPGRADE') return null
+  if ('targetTierName' in pending && pending.targetTierName) {
+    return pending.targetTierName
+  }
+  return null
+}
+
+export function getPendingUpgradeStatusLabel(event?: EventPaymentContext | null): string {
+  const targetTier = getPendingUpgradeTargetName(event)
+  if (targetTier) {
+    return `Upgrade to ${targetTier} pending`
+  }
+  if (isTierUpgradePending(event)) {
+    return 'Upgrade pending review'
+  }
+  const pending = getPendingPayment(event)
+  if (pending?.status === 'PENDING') {
+    return 'Payment pending review'
+  }
+  return ''
 }
 
 export function isEventFullyPaid(event?: EventPaymentContext | null): boolean {

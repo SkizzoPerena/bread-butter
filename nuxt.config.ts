@@ -120,6 +120,8 @@ export default defineNuxtConfig({
       setPath('EventChurchRequirementsDashboard', '/event/requirements')
       setPath('EventGuestsDashboard', '/event/guests')
       setPath('EventPaymentReview', '/event/payment-review')
+      setPath('EventUpgrade', '/event/upgrade')
+      setPath('EventEmailCredits', '/event/email-credits')
       setPath('EventPlaylistDashboard', '/event/playlist')
       setPath('EventRSVPDashboard', '/event/rsvp')
       setPath('EventSchedulesDashboard', '/event/schedules')

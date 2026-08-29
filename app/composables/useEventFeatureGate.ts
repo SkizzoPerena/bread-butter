@@ -37,10 +37,10 @@ export function useEventFeatureGate() {
       if (!isEventFeatureAllowed(detail.event, feature)) {
         toast.add({
           title: 'Feature not available',
-          description: 'This feature is not included in your event plan.',
+          description: 'Upgrade your event plan to unlock this feature.',
           color: 'error',
         })
-        await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
+        await navigateTo({ path: '/event/upgrade', query: { eventId: id } })
         return false
       }
       return true

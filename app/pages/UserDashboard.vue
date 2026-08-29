@@ -2,7 +2,7 @@
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
 import { formatEventPriceTier } from '~/types/event'
-import { getEventBalanceDue, isEventFullyPaid } from '~/types/payment'
+import { getEventBalanceDue, isEventFullyPaid, isTierUpgradePending, getPendingUpgradeStatusLabel } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
@@ -96,6 +96,9 @@ function formatEventDateLabel(eventDate: string) {
 }
 
 function getPaymentStatusLabel(event: EventRecord): string {
+  if (isTierUpgradePending(event)) {
+    return getPendingUpgradeStatusLabel(event)
+  }
   if (isEventFullyPaid(event)) {
     return 'Fully paid'
   }
