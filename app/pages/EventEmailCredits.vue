@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { EventRecord } from '~/types/event'
 import type { EmailCreditPackage } from '~/types/upgrade'
-import { isPaymentPendingReview } from '~/types/payment'
+import { isEmailCreditPurchasePending } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { formatPaymentMethodLabel, mapUiPaymentMethodToApi } from '~/utils/paymentMethod'
 import { formatPhp } from '~/utils/tierUpgradeFeatures'
@@ -36,9 +36,12 @@ const isLoading = ref(true)
 const isSubmitting = ref(false)
 const paymentPanelRef = ref<InstanceType<typeof PaymentProofPanel> | null>(null)
 
-const paymentPendingReview = computed(() =>
-  eventRecord.value ? isPaymentPendingReview(eventRecord.value.latestPayment) : false,
+const hasPendingEmailCreditPayment = computed(() =>
+  isEmailCreditPurchasePending(eventRecord.value),
 )
+
+const pendingEmailCreditMessage =
+  'Your email credit payment is pending admin review. You cannot buy more credits until it is verified.'
 
 const remainingEmails = computed(() => {
   const value = eventRecord.value?.remainingEmails
@@ -66,6 +69,11 @@ async function loadPage() {
 
     eventRecord.value = eventResponse.event
     packages.value = packagesResponse.packages ?? []
+
+    if (isEmailCreditPurchasePending(eventResponse.event)) {
+      currentStep.value = 'select'
+      selectedPackage.value = null
+    }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load email credit packages', error })
     await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
@@ -75,6 +83,7 @@ async function loadPage() {
 }
 
 function selectPackage(pkg: EmailCreditPackage) {
+  if (hasPendingEmailCreditPayment.value) return
   selectedPackage.value = pkg
   currentStep.value = 'pay'
 }
@@ -91,10 +100,10 @@ async function submitCreditPayment() {
 
   if (!id || !pkg || !panel) return
 
-  if (paymentPendingReview.value) {
+  if (hasPendingEmailCreditPayment.value) {
     toast.add({
-      title: 'Payment pending review',
-      description: 'Please wait for your current payment to be verified.',
+      title: 'Email credit payment pending review',
+      description: pendingEmailCreditMessage,
       color: 'warning',
     })
     return
@@ -164,11 +173,12 @@ onMounted(() => {
 
     <template v-else>
       <UAlert
-        v-if="paymentPendingReview"
+        v-if="hasPendingEmailCreditPayment"
         color="warning"
         variant="subtle"
-        title="Payment pending verification"
-        description="A payment for this event is already being reviewed. Please wait before submitting another."
+        icon="i-lucide-clock"
+        title="Email credit payment pending verification"
+        :description="pendingEmailCreditMessage"
       />
 
       <div v-if="remainingEmails != null" class="flex justify-center">
@@ -182,11 +192,11 @@ onMounted(() => {
         <h1 class="text-xl font-bold font-serif text-toast-900">No packages available</h1>
         <p class="text-sm text-muted">Email credit packages are not available right now. Please try again later.</p>
         <UButton
-          :to="{ path: '/invitation-maker', query: { eventId: eventId || undefined } }"
+          :to="{ path: '/event/guests', query: { eventId: eventId || undefined } }"
           color="primary"
           class="bg-toast-600 hover:bg-toast-700 text-white"
         >
-          Back to Invitation Maker
+          Back to Guest List
         </UButton>
       </div>
 
@@ -203,7 +213,10 @@ onMounted(() => {
           <UPageCard
             v-for="pkg in packages"
             :key="pkg._id"
-            class="white-bread-container cursor-pointer hover:ring-2 hover:ring-violet-500/40 transition-all"
+            class="white-bread-container transition-all"
+            :class="hasPendingEmailCreditPayment
+              ? 'opacity-60'
+              : 'cursor-pointer hover:ring-2 hover:ring-violet-500/40'"
             @click="selectPackage(pkg)"
           >
             <div class="space-y-3 text-center">
@@ -211,8 +224,13 @@ onMounted(() => {
               <h2 class="text-lg font-bold font-serif text-toast-900">{{ pkg.name }}</h2>
               <p class="text-2xl font-bold text-violet-700">{{ pkg.emailCredits.toLocaleString() }} emails</p>
               <p class="text-sm text-muted">{{ formatPhp(pkg.pricePhp) }}</p>
-              <UButton block color="primary" class="bg-toast-600 hover:bg-toast-700 text-white font-bold">
-                Select Package
+              <UButton
+                block
+                color="primary"
+                class="bg-toast-600 hover:bg-toast-700 text-white font-bold"
+                :disabled="hasPendingEmailCreditPayment"
+              >
+                {{ hasPendingEmailCreditPayment ? 'Purchase pending' : 'Select Package' }}
               </UButton>
             </div>
           </UPageCard>
@@ -259,7 +277,7 @@ onMounted(() => {
               ref="paymentPanelRef"
               :amount-due="selectedPackage.pricePhp"
               :loading="isSubmitting"
-              :disabled="paymentPendingReview"
+              :disabled="hasPendingEmailCreditPayment"
               @submit="submitCreditPayment"
             />
           </div>

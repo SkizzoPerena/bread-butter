@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { EventRecord } from '~/types/event'
-import { reportApiError } from '~/types/auth'
-import { useEvents } from '~/composables/useEvents'
+import { ref, reactive, computed } from 'vue'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -11,53 +8,7 @@ definePageMeta({
   bgClass: 'bg-violet-50'
 })
 
-const toast = useToast()
-const route = useRoute()
-const { fetchEvent } = useEvents()
-const { isUiOnlyMode, loadPageData } = useApiMode()
-
-const eventId = computed(() => {
-  const value = route.query.eventId
-  return typeof value === 'string' ? value : ''
-})
-
-const eventRecord = ref<EventRecord | null>(null)
-
-const remainingEmails = computed(() => {
-  const value = eventRecord.value?.remainingEmails
-  return typeof value === 'number' ? value : null
-})
-
-function openEmailCreditsPage() {
-  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
-  if (!id) {
-    toast.add({
-      title: 'Missing event',
-      description: 'Open an event from your dashboard first.',
-      color: 'error',
-    })
-    return
-  }
-  navigateTo({ path: '/event/email-credits', query: { eventId: id } })
-}
-
-async function loadEvent() {
-  const id = eventId.value
-  if (!id || isUiOnlyMode.value) return
-
-  try {
-    const response = await fetchEvent(id)
-    eventRecord.value = response.event
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not load event', error })
-  }
-}
-
-onMounted(() => {
-  loadPageData(loadEvent)
-})
-
-// 1. Required RSVP Data
+const isPublished = ref(false)
 const rsvpData = reactive({
   requestLine: 'Together with their families',
   eventLabel: 'Alex & Jordan are getting married!',
@@ -79,8 +30,6 @@ const blocks = ref<Block[]>([
   { id: Date.now(), type: 'heading', content: 'Schedule of Events' },
   { id: Date.now() + 1, type: 'text', content: 'Ceremony begins at 4:00 PM, with dinner and dancing to follow.' }
 ])
-
-const isPublished = ref(false)
 
 const addScheduleBlock = () => {
   // Add both blocks if they don't exist.
@@ -164,25 +113,6 @@ const formatTime = (timeString: string) => {
     <ClientOnly>
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
-          <UBadge
-            v-if="remainingEmails != null"
-            color="violet"
-            variant="subtle"
-            size="sm"
-          >
-            {{ remainingEmails.toLocaleString() }} emails left
-          </UBadge>
-
-          <UButton
-            icon="i-lucide-mail-plus"
-            color="violet"
-            variant="soft"
-            size="sm"
-            @click="openEmailCreditsPage"
-          >
-            Buy Email Credits
-          </UButton>
-
           <div v-if="isPublished" class="text-sm md:text-base font-medium text-success-600 dark:text-success-400">
             ✨ Your invitation is live!
           </div>

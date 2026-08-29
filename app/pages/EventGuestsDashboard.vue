@@ -251,6 +251,14 @@ const rsvpMakerLink = computed(() => ({
   query: eventId.value ? { eventId: eventId.value } : {},
 }))
 
+const emailCreditsLink = computed(() => {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  return {
+    path: '/event/email-credits',
+    query: id ? { eventId: id } : {},
+  }
+})
+
 const columns: TableColumn<GuestTableRow>[] = [
   {
     id: 'select',
@@ -499,6 +507,15 @@ watch(eventId, () => {
             Invite All
           </UButton>
           <UButton
+            icon="i-lucide-mail-plus"
+            color="orange"
+            variant="soft"
+            :to="emailCreditsLink"
+            :disabled="!eventId && !isUiOnlyMode"
+          >
+            Buy Email Credits
+          </UButton>
+          <UButton
             icon="i-lucide-user-plus"
             color="orange"
             :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
@@ -535,7 +552,18 @@ watch(eventId, () => {
         title="No email credits remaining"
         description="You have used all invitation emails included in your event plan."
         class="mb-4"
-      />
+      >
+        <template #actions>
+          <UButton
+            icon="i-lucide-mail-plus"
+            color="warning"
+            variant="soft"
+            :to="emailCreditsLink"
+          >
+            Buy Email Credits
+          </UButton>
+        </template>
+      </UAlert>
 
       <UPageGrid>
         <UPageCard

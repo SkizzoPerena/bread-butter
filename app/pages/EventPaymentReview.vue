@@ -3,6 +3,7 @@ import type { EventRecord } from '~/types/event'
 import { formatEventPriceTier } from '~/types/event'
 import type { PaymentRecord, RefundStatus } from '~/types/payment'
 import {
+  formatPaymentPurpose,
   getEventBalanceDue,
   isEventFullyPaid,
   isPaymentPendingReview,
@@ -366,6 +367,10 @@ async function handleSubmitPaymentProof() {
                     </UBadge>
                   </div>
                   <dl class="space-y-1 text-sm">
+                    <div class="flex justify-between gap-3">
+                      <dt class="text-muted">Paid for</dt>
+                      <dd class="font-medium text-right">{{ formatPaymentPurpose(payment) }}</dd>
+                    </div>
                     <div class="flex justify-between gap-3">
                       <dt class="text-muted">Submitted for</dt>
                       <dd class="font-medium">Php {{ payment.amount.toLocaleString() }}</dd>

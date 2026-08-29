@@ -2,6 +2,19 @@ export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
 
 export type PaymentType = 'EVENT_CREATION_FEE' | 'TIER_UPGRADE' | 'EMAIL_CREDIT_PURCHASE'
 
+export interface PaymentUpgradeRef {
+  _id: string
+  name: string
+  code?: string
+  emailCredits?: number
+}
+
+export interface PaymentUpgrade {
+  targetTierId?: PaymentUpgradeRef | string | null
+  emailCreditPackageId?: PaymentUpgradeRef | string | null
+  emailCreditsGranted?: number | null
+}
+
 export type RefundStatus = 'PENDING' | 'COMPLETED' | 'REJECTED'
 
 export interface RefundRecord {
@@ -27,6 +40,8 @@ export interface PaymentRecord {
     eventDate?: string
   }
   type: PaymentType
+  purpose?: string
+  upgrade?: PaymentUpgrade | null
   amount: number
   amountReceived?: number | null
   transactionId: string
@@ -120,8 +135,12 @@ export function isTierUpgradePending(event?: EventPaymentContext | null): boolea
   return getPendingPayment(event)?.type === 'TIER_UPGRADE'
 }
 
+export function isEmailCreditPurchasePending(event?: EventPaymentContext | null): boolean {
+  return getPendingPayment(event)?.type === 'EMAIL_CREDIT_PURCHASE'
+}
+
 export function hasPendingPaymentBlockingUpgrade(event?: EventPaymentContext | null): boolean {
-  return getPendingPayment(event) != null
+  return isTierUpgradePending(event)
 }
 
 export function getPendingUpgradeTargetName(event?: EventPaymentContext | null): string | null {
@@ -191,4 +210,32 @@ export function isPaymentPendingReview(latestPayment?: PaymentRecord | null): bo
 
 export function isEventPaymentApproved(latestPayment?: PaymentRecord | null): boolean {
   return latestPayment?.status === 'APPROVED'
+}
+
+export function formatPaymentPurpose(payment: {
+  type?: string | null
+  purpose?: string | null
+}): string {
+  const type = payment.type
+
+  if (type === 'TIER_UPGRADE') {
+    return 'Plan upgrade'
+  }
+
+  if (type === 'EMAIL_CREDIT_PURCHASE') {
+    return 'Email credits'
+  }
+
+  if (type === 'EVENT_CREATION_FEE') {
+    return 'Event plan'
+  }
+
+  if (typeof type === 'string' && type.length > 0) {
+    return type
+      .split('_')
+      .map(part => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  return 'Payment'
 }
