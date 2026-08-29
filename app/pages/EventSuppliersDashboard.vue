@@ -122,12 +122,17 @@ const supplierTypeSelectItems = computed(() =>
   SUPPLIER_TYPE_ORDER.map((value) => ({ label: value, value }))
 )
 
+function toBalanceAmount(value: unknown): number {
+  const amount = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(amount) ? amount : 0
+}
+
 function buildSupplierDraft(supplier: SupplierRecord): SupplierDraft {
   return {
     supplierType: supplier.supplierType,
     vendorName: supplier.vendorName ?? '',
-    totalBalance: supplier.totalBalance ?? 0,
-    settledBalance: supplier.settledBalance ?? 0,
+    totalBalance: toBalanceAmount(supplier.totalBalance),
+    settledBalance: toBalanceAmount(supplier.settledBalance),
     contract: supplier.contract ?? 'N/A',
     permit: supplier.permit ?? 'N/A',
   }
@@ -159,8 +164,8 @@ function isSupplierDraftDirty(supplierId: string): boolean {
   return (
     current.supplierType !== saved.supplierType ||
     current.vendorName !== saved.vendorName ||
-    current.totalBalance !== saved.totalBalance ||
-    current.settledBalance !== saved.settledBalance ||
+    toBalanceAmount(current.totalBalance) !== toBalanceAmount(saved.totalBalance) ||
+    toBalanceAmount(current.settledBalance) !== toBalanceAmount(saved.settledBalance) ||
     current.contract !== saved.contract ||
     current.permit !== saved.permit
   )
@@ -182,11 +187,11 @@ function buildUpdatePayload(draft: SupplierDraft, saved: SupplierDraft): UpdateS
   if (draft.vendorName !== saved.vendorName) {
     payload.vendorName = draft.vendorName
   }
-  if (draft.totalBalance !== saved.totalBalance) {
-    payload.totalBalance = draft.totalBalance
+  if (toBalanceAmount(draft.totalBalance) !== toBalanceAmount(saved.totalBalance)) {
+    payload.totalBalance = toBalanceAmount(draft.totalBalance)
   }
-  if (draft.settledBalance !== saved.settledBalance) {
-    payload.settledBalance = draft.settledBalance
+  if (toBalanceAmount(draft.settledBalance) !== toBalanceAmount(saved.settledBalance)) {
+    payload.settledBalance = toBalanceAmount(draft.settledBalance)
   }
   if (draft.contract !== saved.contract) {
     payload.contract = draft.contract
@@ -262,7 +267,7 @@ async function saveSupplier(supplierId: string) {
     return
   }
 
-  if (draft.settledBalance > draft.totalBalance) {
+  if (toBalanceAmount(draft.settledBalance) > toBalanceAmount(draft.totalBalance)) {
     toast.add({
       title: 'Invalid balances',
       description: 'Settled balance cannot exceed total balance.',
@@ -346,7 +351,7 @@ async function handleCreateSupplier() {
     supplierType: form.supplierType,
     supplierTitle,
     vendorName: form.vendorName.trim(),
-    totalBalance: form.totalBalance,
+    totalBalance: toBalanceAmount(form.totalBalance),
     contract: form.contract,
     permit: form.permit,
   }
