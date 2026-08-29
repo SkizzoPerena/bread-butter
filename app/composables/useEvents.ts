@@ -128,6 +128,9 @@ export function useEvents() {
       if (payload.transactionId?.trim()) {
         formData.append('transactionId', payload.transactionId.trim())
       }
+      if (payload.paymentMethod?.trim()) {
+        formData.append('paymentMethod', payload.paymentMethod.trim())
+      }
       if (payload.proofOfPayment) {
         formData.append('proofOfPayment', payload.proofOfPayment)
       }

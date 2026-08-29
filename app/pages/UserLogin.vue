@@ -2,11 +2,15 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useAuth } from '~/composables/useAuth'
+import { useEvents } from '~/composables/useEvents'
 import { getApiErrorMessage } from '~/types/auth'
 import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
 
 const toast = useToast()
+const route = useRoute()
 const { login } = useAuth()
+const { fetchUserEvents } = useEvents()
+const { isUiOnlyMode } = useApiMode()
 
 const isSubmitting = ref(false)
 
@@ -44,7 +48,24 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     })
 
     toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
-    await navigateTo('/user/dashboard')
+
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
+    if (redirect) {
+      await navigateTo(redirect)
+      return
+    }
+
+    if (isUiOnlyMode.value) {
+      await navigateTo('/user/dashboard')
+      return
+    }
+
+    const events = await fetchUserEvents(true)
+    if (events.length === 0) {
+      await navigateTo('/user/create-event')
+    } else {
+      await navigateTo('/user/dashboard')
+    }
   } catch (error) {
     const isRestricted = isRestrictedAccountError(error)
     toast.add({

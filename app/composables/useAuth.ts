@@ -1,3 +1,4 @@
+import { clearUserSessionData } from '~/composables/useUserSessionData'
 import type {
   AuthLoginResponse,
   AuthRefreshResponse,
@@ -164,6 +165,9 @@ export function useAuth(role: AuthRole = 'user') {
     if (import.meta.client) {
       sessionStorage.removeItem(storageKey)
       cancelSilentRefresh(role)
+    }
+    if (role === 'user') {
+      clearUserSessionData()
     }
   }
 

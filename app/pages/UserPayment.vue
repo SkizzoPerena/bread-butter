@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+import { useEvents } from '~/composables/useEvents'
+import { usePriceTiers } from '~/composables/usePriceTiers'
+import { reportApiError } from '~/types/auth'
+import { formatPaymentMethodLabel, mapUiPaymentMethodToApi } from '~/utils/paymentMethod'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -11,9 +16,32 @@ useHead({
 
 const route = useRoute()
 const toast = useToast()
+const { isAuthenticated } = useAuth()
+const { createEvent } = useEvents()
+const { resolvePriceTierId } = usePriceTiers()
+const { isUiOnlyMode } = useApiMode()
+
+onMounted(() => {
+  if (!isUiOnlyMode.value && !isAuthenticated.value) {
+    navigateTo('/user/login?redirect=/user/payment')
+  }
+})
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
-const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : 'My Special Celebration'))
+const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : ''))
+const eventType = computed(() => (typeof route.query.eventType === 'string' ? route.query.eventType : 'WEDDING'))
+const eventDate = computed(() => (typeof route.query.eventDate === 'string' ? route.query.eventDate : ''))
+const venue = computed(() => (typeof route.query.venue === 'string' ? route.query.venue : ''))
+const description = computed(() => {
+  if (typeof route.query.description === 'string' && route.query.description.trim()) {
+    return route.query.description.trim()
+  }
+  const name = eventName.value.trim()
+  const loc = venue.value.trim()
+  if (name && loc) return `${name} at ${loc}`
+  if (name) return `${name} celebration`
+  return 'Event celebration'
+})
 
 const packagesMap: Record<string, { title: string; price: string; discountPrice: string; description: string }> = {
   bread: {
@@ -103,6 +131,7 @@ const proofPreview = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const isProcessing = ref(false)
+const transactionId = ref('')
 
 function triggerFileInput() {
   fileInput.value?.click()
@@ -147,29 +176,104 @@ function removeFile() {
   }
 }
 
-function submitPayment() {
-  if (!proofFile.value) return
+async function submitPayment() {
+  if (!selectedQrId.value) {
+    toast.add({
+      title: 'Payment method required',
+      description: 'Please select a QR payment option.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!transactionId.value.trim()) {
+    toast.add({
+      title: 'Transaction ID required',
+      description: 'Enter the reference or transaction ID from your payment receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!proofFile.value) {
+    toast.add({
+      title: 'Proof of payment required',
+      description: 'Upload a screenshot or photo of your payment receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!eventName.value.trim() || !eventDate.value.trim() || !venue.value.trim()) {
+    toast.add({
+      title: 'Missing event details',
+      description: 'Please go back and complete your event setup first.',
+      color: 'warning',
+    })
+    return
+  }
+
+  const paymentMethod = mapUiPaymentMethodToApi(selectedQrId.value)
+  if (!paymentMethod) {
+    toast.add({
+      title: 'Invalid payment method',
+      color: 'error',
+    })
+    return
+  }
+
   isProcessing.value = true
 
-  setTimeout(() => {
-    isProcessing.value = false
+  try {
+    if (isUiOnlyMode.value) {
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: {
+          ref: transactionId.value.trim(),
+          package: selectedPkgId.value,
+          eventName: eventName.value,
+          method: formatPaymentMethodLabel(paymentMethod),
+        },
+      })
+      return
+    }
+
+    const priceTierId = await resolvePriceTierId(selectedPkgId.value)
+    await createEvent({
+      eventType: eventType.value,
+      eventName: eventName.value.trim(),
+      description: description.value,
+      venue: venue.value.trim(),
+      eventDate: eventDate.value,
+      priceTierId,
+      transactionId: transactionId.value.trim(),
+      proofOfPayment: proofFile.value,
+      paymentMethod,
+    })
+
     toast.add({
       title: 'Proof of Payment Submitted',
       description: 'Your payment transaction is currently being verified.',
-      color: 'success'
+      color: 'success',
     })
 
-    const refNum = 'BB-' + Math.floor(100000 + Math.random() * 900000)
-    navigateTo({
+    await navigateTo({
       path: '/user/payment-pending',
       query: {
-        ref: refNum,
+        ref: transactionId.value.trim(),
         package: selectedPkgId.value,
         eventName: eventName.value,
-        method: activeQr.value ? activeQr.value.label + ' QR' : 'QR Code'
-      }
+        method: formatPaymentMethodLabel(paymentMethod),
+      },
     })
-  }, 1000)
+  } catch (error) {
+    reportApiError(toast, {
+      title: 'Could not create event',
+      error,
+    })
+  } finally {
+    isProcessing.value = false
+  }
 }
 </script>
 
@@ -350,6 +454,18 @@ function submitPayment() {
             </div>
           </div>
 
+          <!-- Transaction ID -->
+          <div class="space-y-2">
+            <UFormField label="Transaction / Reference ID" required>
+              <UInput
+                v-model="transactionId"
+                placeholder="e.g. GCASH reference number"
+                size="md"
+                class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+              />
+            </UFormField>
+          </div>
+
           <!-- Upload Image Section -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
@@ -415,7 +531,9 @@ function submitPayment() {
 
           <!-- Submit Button -->
           <div class="pt-2 space-y-2">
-            <UButton block color="primary" size="md" :disabled="!proofFile || isProcessing" :loading="isProcessing"
+            <UButton block color="primary" size="md"
+              :disabled="!proofFile || !transactionId.trim() || !selectedQrId || isProcessing"
+              :loading="isProcessing"
               class="font-bold text-white bg-toast-600 hover:bg-toast-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all"
               @click="submitPayment">
               Submit Proof of Payment

@@ -63,6 +63,7 @@ export function usePayments() {
 
     const formData = new FormData()
     formData.append('transactionId', payload.transactionId.trim())
+    formData.append('paymentMethod', payload.paymentMethod.trim())
     formData.append('proofOfPayment', payload.proofOfPayment)
 
     const response = await apiUpload<PaymentMessageResponse>(

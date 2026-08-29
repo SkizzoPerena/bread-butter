@@ -137,6 +137,7 @@ export interface CreateEventPayload {
   coverImageURL?: string
   transactionId?: string
   proofOfPayment?: File
+  paymentMethod?: string
   payLater?: boolean
   isCatholicWedding?: boolean
 }

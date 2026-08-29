@@ -76,6 +76,7 @@ export interface PlatformRevenueResponse {
 export interface SubmitEventPaymentPayload {
   transactionId: string
   proofOfPayment: File
+  paymentMethod: string
 }
 
 export const EVENT_CREATION_FEE_PHP = 10000

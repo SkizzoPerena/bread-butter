@@ -201,6 +201,7 @@ async function handleSubmitPaymentProof() {
     const updatedEvent = await submitEventPaymentProof(targetEventId, {
       transactionId: paymentForm.transactionId.trim(),
       proofOfPayment: proofOfPaymentFile.value,
+      paymentMethod: 'GCASH',
     })
 
     if (eventRecord.value) {

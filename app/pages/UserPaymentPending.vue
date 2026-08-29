@@ -11,10 +11,10 @@ useHead({
 
 const route = useRoute()
 
-const referenceNumber = computed(() => (typeof route.query.ref === 'string' ? route.query.ref : 'BB-' + Math.floor(100000 + Math.random() * 900000)))
+const referenceNumber = computed(() => (typeof route.query.ref === 'string' ? route.query.ref : '—'))
 const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : 'My Celebration'))
-const packageName = computed(() => (typeof route.query.package === 'string' ? route.query.package.replace('-', ' ').toUpperCase() : 'BREAD + BUTTER'))
-const paymentMethod = computed(() => (typeof route.query.method === 'string' ? route.query.method.toUpperCase() : 'GCASH'))
+const packageName = computed(() => (typeof route.query.package === 'string' ? route.query.package.replace(/-/g, ' ').toUpperCase() : 'BREAD + BUTTER'))
+const paymentMethod = computed(() => (typeof route.query.method === 'string' ? route.query.method : 'GCASH'))
 </script>
 
 <template>
@@ -73,6 +73,11 @@ const paymentMethod = computed(() => (typeof route.query.method === 'string' ? r
         <p>• Once verified, your package features will activate automatically.</p>
         <p>• You will receive a confirmation notice via email with access details.</p>
       </div>
+
+      <UButton to="/user/dashboard" block color="primary" size="md"
+        class="font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md">
+        Go to Dashboard
+      </UButton>
 
     </UCard>
   </div>

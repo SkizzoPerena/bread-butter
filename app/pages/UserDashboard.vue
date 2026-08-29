@@ -14,7 +14,7 @@ definePageMeta({
 const toast = useToast()
 const { user } = useAuth()
 const { fetchUserEvents } = useEvents()
-const { loadPageData } = useApiMode()
+const { loadPageData, isUiOnlyMode } = useApiMode()
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -77,8 +77,12 @@ async function loadUserEvents() {
   try {
     userEvents.value = await loadPageData({
       mock: () => [],
-      fetch: () => fetchUserEvents(),
+      fetch: () => fetchUserEvents(true),
     })
+
+    if (!isUiOnlyMode.value && userEvents.value.length === 0) {
+      await navigateTo('/user/create-event')
+    }
   } catch (error) {
     userEvents.value = []
     reportApiError(toast, { title: 'Could not load events', error })
