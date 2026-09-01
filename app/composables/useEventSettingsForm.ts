@@ -11,7 +11,7 @@ export interface UseEventSettingsFormOptions {
 export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
   const toast = useToast()
   const { isUiOnlyMode } = useApiMode()
-  const { fetchEvent, updateEvent } = useEvents()
+  const { updateEvent } = useEvents()
   const { setActiveEvent } = useActiveEvent()
 
   const isSubmitting = ref(false)
@@ -32,9 +32,6 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
 
   const isWeddingEvent = computed(() => isWeddingEventType(form.eventType))
 
-  const coverImageFile = ref<File | null>(null)
-  const coverImageInput = ref<HTMLInputElement | null>(null)
-
   const isEventCancelled = computed(
     () => options.eventRecord.value?.status === 'CANCELLED'
   )
@@ -50,10 +47,6 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     form.description = record.description
     form.venue = record.venue
     form.isCatholicWedding = Boolean(record.isCatholicWedding)
-    coverImageFile.value = null
-    if (coverImageInput.value) {
-      coverImageInput.value.value = ''
-    }
   }
 
   watch(
@@ -73,11 +66,6 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     { immediate: true }
   )
 
-  function onCoverImageChange(changeEvent: Event) {
-    const input = changeEvent.target as HTMLInputElement
-    coverImageFile.value = input.files?.[0] ?? null
-  }
-
   async function submit() {
     if (!options.eventRecord.value) {
       return
@@ -96,59 +84,32 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
       return
     }
 
-    const existingCoverUrl = options.eventRecord.value.coverImageURL?.trim()
-    if (!coverImageFile.value && !existingCoverUrl) {
-      toast.add({
-        title: 'Cover image required',
-        description: 'Please upload a cover image for your event.',
-        color: 'error',
-      })
-      return
-    }
-
     isSubmitting.value = true
     try {
       const targetEventId = options.eventId.value || 'mock-event-id'
+      const nextEventType = mapEventTypeToApi(form.eventType)
+      const nextCatholic = isWeddingEvent.value ? form.isCatholicWedding : false
 
       if (!isUiOnlyMode.value) {
         await updateEvent(targetEventId, {
-          eventType: mapEventTypeToApi(form.eventType),
+          eventType: nextEventType,
           eventName: form.eventName.trim(),
           description: form.description.trim(),
           venue: form.venue.trim(),
-          coverImage: coverImageFile.value ?? undefined,
-          coverImageURL: coverImageFile.value ? undefined : existingCoverUrl,
-          isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
+          isCatholicWedding: nextCatholic,
         })
-
-        if (coverImageFile.value && options.eventId.value) {
-          const detail = await fetchEvent(options.eventId.value)
-          options.eventRecord.value = detail.event
-          setActiveEvent(detail.event)
-        } else {
-          const updated: EventRecord = {
-            ...options.eventRecord.value,
-            eventType: mapEventTypeToApi(form.eventType),
-            eventName: form.eventName.trim(),
-            description: form.description.trim(),
-            venue: form.venue.trim(),
-            isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
-          }
-          options.eventRecord.value = updated
-          setActiveEvent(updated)
-        }
-      } else {
-        const updated: EventRecord = {
-          ...options.eventRecord.value,
-          eventType: mapEventTypeToApi(form.eventType),
-          eventName: form.eventName.trim(),
-          description: form.description.trim(),
-          venue: form.venue.trim(),
-          isCatholicWedding: isWeddingEvent.value ? form.isCatholicWedding : false,
-        }
-        options.eventRecord.value = updated
-        setActiveEvent(updated)
       }
+
+      const updated: EventRecord = {
+        ...options.eventRecord.value,
+        eventType: nextEventType,
+        eventName: form.eventName.trim(),
+        description: form.description.trim(),
+        venue: form.venue.trim(),
+        isCatholicWedding: nextCatholic,
+      }
+      options.eventRecord.value = updated
+      setActiveEvent(updated)
 
       toast.add({
         title: 'Event updated',
@@ -164,13 +125,10 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
 
   return {
     form,
-    coverImageFile,
-    coverImageInput,
     isSubmitting,
     isEventCancelled,
     isWeddingEvent,
     resetFormFromEvent,
-    onCoverImageChange,
     submit,
   }
 }

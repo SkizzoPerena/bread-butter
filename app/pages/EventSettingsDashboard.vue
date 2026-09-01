@@ -5,7 +5,6 @@ import { EVENT_TYPE_OPTIONS } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
-import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -33,30 +32,18 @@ const df = new DateFormatter('en-US', { dateStyle: 'medium' })
 
 const {
   form,
-  coverImageFile,
-  coverImageInput,
   isSubmitting,
   isEventCancelled,
   isWeddingEvent,
-  onCoverImageChange,
   submit,
 } = useEventSettingsForm({
   eventId,
   eventRecord,
 })
 
-const eventCoverUrl = computed(() => {
-  if (coverImageFile.value) {
-    return URL.createObjectURL(coverImageFile.value)
-  }
-  if (eventRecord.value?.coverImageURL) {
-    return resolveEventCoverImageUrl(eventRecord.value.coverImageURL)
-  }
-  if (isUiOnlyMode.value || !eventId.value) {
-    return demoCoverImage
-  }
-  return null
-})
+const eventCoverUrl = computed(() =>
+  resolveEventCoverImageUrl(eventRecord.value?.coverImageURL)
+)
 
 const overviewDateLabel = computed(() => {
   const iso = eventRecord.value?.eventDate
@@ -202,18 +189,6 @@ watch(eventId, () => {
               <UFormField label="Description" name="description" required>
                 <UTextarea v-model="form.description" class="w-full" placeholder="Tell us more about your special day" />
               </UFormField>
-
-              <UFormField label="Cover Image" name="coverImage">
-                <input
-                  ref="coverImageInput"
-                  type="file"
-                  accept="image/*"
-                  class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-slate-500 file:px-3 file:py-1.5 file:text-white"
-                  @change="onCoverImageChange"
-                >
-                <p v-if="coverImageFile" class="mt-1 text-xs text-muted">Selected: {{ coverImageFile.name }}</p>
-                <p v-else-if="eventRecord?.coverImageURL" class="mt-1 text-xs text-muted">Current cover will be kept unless you upload a new image.</p>
-              </UFormField>
             </UForm>
           </UPageCard>
         </div>
@@ -221,18 +196,11 @@ watch(eventId, () => {
         <UPageCard class="white-bread-container md:col-span-2 max-h-[calc(100vh-64px)] overflow-y-auto space-y-4">
           <div class="overflow-hidden rounded-lg border border-gray-300">
             <img
-              v-if="eventCoverUrl"
               :src="eventCoverUrl"
               :alt="`${overviewTitle} cover`"
               class="w-full object-cover"
               @error="onCoverImageError"
             >
-            <div
-              v-else
-              class="flex h-48 items-center justify-center bg-muted/30 text-sm text-muted"
-            >
-              No cover image
-            </div>
           </div>
 
           <div class="space-y-2">

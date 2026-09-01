@@ -91,7 +91,7 @@ export function useEvents() {
         eventDate: payload.eventDate,
         status: 'ONGOING',
         isCatholicWedding: payload.isCatholicWedding ?? false,
-        coverImageURL: payload.coverImageURL ?? null,
+        coverImageURL: null,
         tierPricePhp: 10000,
         latestPayment: payload.payLater
           ? null
@@ -116,12 +116,6 @@ export function useEvents() {
 
     if (payload.isCatholicWedding !== undefined) {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
-    }
-
-    if (payload.coverImage) {
-      formData.append('coverImage', payload.coverImage)
-    } else if (payload.coverImageURL) {
-      formData.append('coverImageURL', payload.coverImageURL)
     }
 
     if (!payload.payLater) {
@@ -158,12 +152,6 @@ export function useEvents() {
 
     if (payload.isCatholicWedding !== undefined) {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
-    }
-
-    if (payload.coverImage) {
-      formData.append('coverImage', payload.coverImage)
-    } else if (payload.coverImageURL) {
-      formData.append('coverImageURL', payload.coverImageURL)
     }
 
     await apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {

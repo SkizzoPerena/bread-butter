@@ -35,10 +35,35 @@ export function getTokenExpiration(token: string): number | null {
   }
 }
 
+export function isTokenExpired(token: string): boolean {
+  const exp = getTokenExpiration(token)
+  if (!exp) return false
+  return Date.now() >= exp
+}
+
 export function isTokenExpiredOrExpiring(token: string, thresholdSeconds = 120): boolean {
   const exp = getTokenExpiration(token)
   if (!exp) return false
   return Date.now() >= exp - thresholdSeconds * 1000
+}
+
+export type RefreshSessionResult = 'success' | 'expired' | 'transient'
+
+const TRANSIENT_REFRESH_RETRY_MS = 30_000
+const refreshPromises: Partial<Record<AuthRole, Promise<RefreshSessionResult>>> = {}
+
+export function getErrorStatus(error: unknown): number | undefined {
+  const err = error as {
+    status?: number
+    statusCode?: number
+    response?: { status?: number }
+  }
+  const status = err?.response?.status ?? err?.statusCode ?? err?.status
+  return typeof status === 'number' ? status : undefined
+}
+
+export function isRefreshSessionExpiredError(error: unknown): boolean {
+  return getErrorStatus(error) === 401
 }
 
 const silentRefreshTimers: Partial<Record<AuthRole, ReturnType<typeof setTimeout>>> = {}
@@ -68,9 +93,20 @@ export function scheduleSilentRefresh(role: AuthRole = 'user', tokenOverride?: s
 
   silentRefreshTimers[role] = setTimeout(async () => {
     const { refreshSession } = useAuth(role)
-    const success = await refreshSession()
-    if (success) {
+    const result = await refreshSession()
+    if (result === 'success') {
       scheduleSilentRefresh(role)
+      return
+    }
+    if (result === 'transient') {
+      silentRefreshTimers[role] = setTimeout(() => {
+        scheduleSilentRefresh(role)
+      }, TRANSIENT_REFRESH_RETRY_MS)
+      return
+    }
+    if (import.meta.client) {
+      const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
+      await navigateTo(loginPath)
     }
   }, delay)
 
@@ -88,8 +124,13 @@ function initVisibilityListener() {
         const currentToken = getStoredAccessToken(role)
         if (currentToken && isTokenExpiredOrExpiring(currentToken, 120)) {
           const { refreshSession } = useAuth(role)
-          refreshSession().then((success) => {
-            if (success) scheduleSilentRefresh(role)
+          refreshSession().then((result) => {
+            if (result === 'success' || result === 'transient') {
+              scheduleSilentRefresh(role)
+              return
+            }
+            const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
+            navigateTo(loginPath)
           })
         }
       }
@@ -266,28 +307,42 @@ export function useAuth(role: AuthRole = 'user') {
     return response
   }
 
-  async function refreshSession(): Promise<boolean> {
+  async function refreshSession(): Promise<RefreshSessionResult> {
     const { apiRequest, isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
-      return false
+      return token.value ? 'success' : 'expired'
     }
 
-    try {
-      const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
-        method: 'POST',
-        authenticated: false
-      })
+    if (refreshPromises[role]) {
+      return refreshPromises[role]!
+    }
 
-      if (response?.accessToken) {
-        setSession(response.accessToken)
-        return true
+    refreshPromises[role] = (async () => {
+      try {
+        const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
+          method: 'POST',
+          authenticated: false
+        })
+
+        if (response?.accessToken) {
+          setSession(response.accessToken)
+          return 'success'
+        }
+
+        return 'transient'
+      } catch (error) {
+        if (isRefreshSessionExpiredError(error)) {
+          clearSession()
+          return 'expired'
+        }
+        return 'transient'
+      } finally {
+        delete refreshPromises[role]
       }
-    } catch {
-      clearSession()
-    }
+    })()
 
-    return false
+    return refreshPromises[role]!
   }
 
   async function restoreSession(): Promise<boolean> {
@@ -297,7 +352,6 @@ export function useAuth(role: AuthRole = 'user') {
       return false
     }
 
-    // 1. If sessionStorage has a valid access token that is not expired/expiring, sync and schedule
     const stored = getStoredAccessToken(role)
     if (stored && !isTokenExpiredOrExpiring(stored, 60)) {
       if (syncSessionFromStorage()) {
@@ -306,22 +360,24 @@ export function useAuth(role: AuthRole = 'user') {
       }
     }
 
-    // 2. Otherwise attempt refresh via httpOnly cookie
-    try {
-      const success = await refreshSession()
-      if (success) {
-        if (role === 'user') {
-          try {
-            const { fetchAccount } = useAccount()
-            await fetchAccount()
-          } catch {
-            // Token is restored even if fetching account details fails
-          }
+    const result = await refreshSession()
+    if (result === 'success') {
+      if (role === 'user') {
+        try {
+          const { fetchAccount } = useAccount()
+          await fetchAccount()
+        } catch {
+          // Token is restored even if fetching account details fails
         }
+      }
+      return true
+    }
+
+    if (result === 'transient' && stored && !isTokenExpired(stored)) {
+      if (syncSessionFromStorage()) {
+        scheduleSilentRefresh(role, stored)
         return true
       }
-    } catch {
-      clearSession()
     }
 
     return false

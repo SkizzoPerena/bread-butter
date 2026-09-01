@@ -2,11 +2,11 @@ import {
   handleRestrictedAccount,
   isRestrictedAccountError
 } from '~/utils/restrictedAccount'
-import type { AuthRefreshResponse } from '~/types/auth'
 import {
   type AuthRole,
   getStoredAccessToken,
   isLegacyObjectIdToken,
+  isTokenExpired,
   isTokenExpiredOrExpiring,
   useAuth
 } from '~/composables/useAuth'
@@ -14,8 +14,6 @@ import {
 type FetchOptions = Parameters<typeof $fetch>[1]
 type ApiRequestOptions = FetchOptions & { authenticated?: boolean; _isRetry?: boolean }
 type MaybePromise<T> = T | Promise<T>
-
-let refreshPromise: Promise<string | null> | null = null
 
 function joinApiUrl(base: string, path: string): string {
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
@@ -74,17 +72,19 @@ function isAuthenticationError(error: any): boolean {
 
   return (
     status === 401 ||
-    status === 403 ||
     (status === 400 && (
       errorMsg.includes('authorization') ||
       errorMsg.includes('bearer') ||
       errorMsg.includes('token') ||
       errorMsg.includes('jwt')
     )) ||
-    errorMsg.includes('use authorization') ||
-    errorMsg.includes('unauthorized') ||
-    errorMsg.includes('jwt expired') ||
-    errorMsg.includes('invalid token')
+    (status == null && (
+      errorMsg.includes('use authorization') ||
+      errorMsg.includes('unauthorized') ||
+      errorMsg.includes('jwt expired') ||
+      errorMsg.includes('invalid token') ||
+      errorMsg.includes('invalid or expired access token')
+    ))
   )
 }
 
@@ -103,35 +103,13 @@ export function useApiMode() {
   const isUiOnlyMode = computed(() => !config.public.useRealApi)
   const apiBase = computed(() => config.public.apiBase as string)
 
-  async function performRefresh(role: AuthRole = 'user'): Promise<string | null> {
-    if (refreshPromise) {
-      return refreshPromise
+  async function performRefresh(role: AuthRole = 'user'): Promise<{ token: string | null; expired: boolean }> {
+    const { refreshSession } = useAuth(role)
+    const result = await refreshSession()
+    if (result === 'success') {
+      return { token: getStoredAccessToken(role) || useAuth(role).token.value, expired: false }
     }
-
-    refreshPromise = (async () => {
-      try {
-        const response = await $fetch<AuthRefreshResponse>(joinApiUrl(apiBase.value, `/${role}/auth/refresh`), {
-          method: 'POST',
-          credentials: 'include'
-        })
-
-        if (response?.accessToken) {
-          const { setSession } = useAuth(role)
-          setSession(response.accessToken)
-          return response.accessToken
-        }
-      } catch {
-        // Refresh failed
-      } finally {
-        refreshPromise = null
-      }
-
-      const { clearSession } = useAuth(role)
-      clearSession()
-      return null
-    })()
-
-    return refreshPromise
+    return { token: null, expired: result === 'expired' }
   }
 
   async function handleSessionExpired(role: AuthRole = 'user') {
@@ -158,11 +136,14 @@ export function useApiMode() {
     const role = detectRoleFromPath(path)
 
     const currentToken = getStoredAccessToken(role) || useAuth(role).token.value
+    const expired = currentToken ? isTokenExpired(currentToken) : !getBearerHeaders(role).Authorization
     const isExpiring = currentToken ? isTokenExpiredOrExpiring(currentToken, 30) : false
 
-    // If authenticated request is missing Bearer token or token is expiring soon, attempt refresh first before sending
     if (authenticated && !isAuthBypassPath(path) && (!getBearerHeaders(role).Authorization || isExpiring) && !_isRetry) {
-      await performRefresh(role)
+      const refresh = await performRefresh(role)
+      if (!refresh.token && refresh.expired && (expired || !currentToken)) {
+        await handleSessionExpired(role)
+      }
     }
 
     try {
@@ -180,10 +161,11 @@ export function useApiMode() {
       }
 
       if (isAuthenticationError(error) && !isAuthBypassPath(path) && !_isRetry) {
-        const newToken = await performRefresh(role)
-        if (newToken) {
+        const refresh = await performRefresh(role)
+        if (refresh.token) {
           return apiRequest<T>(path, { ...options, _isRetry: true })
-        } else {
+        }
+        if (refresh.expired) {
           await handleSessionExpired(role)
         }
       }
@@ -204,10 +186,14 @@ export function useApiMode() {
     const role = detectRoleFromPath(path)
 
     const currentToken = getStoredAccessToken(role) || useAuth(role).token.value
+    const expired = currentToken ? isTokenExpired(currentToken) : !getBearerHeaders(role).Authorization
     const isExpiring = currentToken ? isTokenExpiredOrExpiring(currentToken, 30) : false
 
     if ((!getBearerHeaders(role).Authorization || isExpiring) && !options?._isRetry) {
-      await performRefresh(role)
+      const refresh = await performRefresh(role)
+      if (!refresh.token && refresh.expired && (expired || !currentToken)) {
+        await handleSessionExpired(role)
+      }
     }
 
     try {
@@ -223,10 +209,11 @@ export function useApiMode() {
       }
 
       if (isAuthenticationError(error) && !isAuthBypassPath(path) && !options?._isRetry) {
-        const newToken = await performRefresh(role)
-        if (newToken) {
+        const refresh = await performRefresh(role)
+        if (refresh.token) {
           return apiUpload<T>(path, formData, { ...options, _isRetry: true })
-        } else {
+        }
+        if (refresh.expired) {
           await handleSessionExpired(role)
         }
       }
