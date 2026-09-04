@@ -3,5 +3,5 @@ import ForgotPasswordFlow from '~/components/auth/ForgotPasswordFlow.vue'
 </script>
 
 <template>
-  <ForgotPasswordFlow variant="user" />
+  <ForgotPasswordFlow variant="partner" />
 </template>

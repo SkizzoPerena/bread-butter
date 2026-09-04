@@ -78,7 +78,8 @@ const plans = ref<PricingPlanProps[]>([
       '100 emails'
     ],
     button: {
-      label: "Let's get baking!"
+      label: "Let's get baking!",
+      to: '/user/signup'
     }
   },
   {
@@ -95,7 +96,8 @@ const plans = ref<PricingPlanProps[]>([
       '250 emails'
     ],
     button: {
-      label: 'Spread the word!'
+      label: 'Spread the word!',
+      to: '/user/signup'
     }
   },
   {
@@ -110,7 +112,8 @@ const plans = ref<PricingPlanProps[]>([
       '250 emails',
     ],
     button: {
-      label: 'To butter days!'
+      label: 'To butter days!',
+      to: '/user/signup'
     }
   }
 ])
@@ -150,7 +153,7 @@ function scrollMotion(delay: number = 0) {
       </div>
       <UContainer class="flex justify-center items-center my-0">
         <div class="w-56 sm:w-64">
-          <UButton to="/user/login" size="lg" block color="neutral" variant="soft" class="font-bold text-sm sm:text-base">LET'S GET THIS BREAD
+          <UButton to="/user/signup" size="lg" block color="neutral" variant="soft" class="font-bold text-sm sm:text-base">LET'S GET THIS BREAD
           </UButton>
         </div>
       </UContainer>
@@ -325,7 +328,7 @@ function scrollMotion(delay: number = 0) {
 
 
           <div class="w-56 sm:w-64">
-            <UButton to="/user/login" size="lg" block color="bread" variant="solid" class="font-bold text-xs sm:text-sm text-toast-700">
+            <UButton to="/user/signup" size="lg" block color="bread" variant="solid" class="font-bold text-xs sm:text-sm text-toast-700">
               LET'S GET THIS BREAD
             </UButton>
           </div>
