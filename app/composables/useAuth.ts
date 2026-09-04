@@ -68,6 +68,8 @@ export function isRefreshSessionExpiredError(error: unknown): boolean {
 
 const silentRefreshTimers: Partial<Record<AuthRole, ReturnType<typeof setTimeout>>> = {}
 let visibilityListenerAttached = false
+const sessionEnsured: Partial<Record<AuthRole, boolean>> = {}
+const ensurePromises: Partial<Record<AuthRole, Promise<boolean>>> = {}
 
 export function cancelSilentRefresh(role: AuthRole = 'user') {
   if (silentRefreshTimers[role]) {
@@ -141,24 +143,81 @@ function initVisibilityListener() {
   window.addEventListener('focus', checkAndRefresh)
 }
 
-export function getSessionStorageKey(role: AuthRole = 'user'): string {
+export function getAccessTokenStorageKey(role: AuthRole = 'user'): string {
   return `bpb_${role}_access_token`
+}
+
+/** @deprecated Use getAccessTokenStorageKey */
+export function getSessionStorageKey(role: AuthRole = 'user'): string {
+  return getAccessTokenStorageKey(role)
+}
+
+function readAccessToken(role: AuthRole): string | null {
+  const key = getAccessTokenStorageKey(role)
+  const fromLocal = localStorage.getItem(key)
+  if (fromLocal) return fromLocal
+  const fromSession = sessionStorage.getItem(key)
+  if (fromSession) {
+    localStorage.setItem(key, fromSession)
+    sessionStorage.removeItem(key)
+    return fromSession
+  }
+  return null
+}
+
+function writeAccessToken(role: AuthRole, token: string) {
+  const key = getAccessTokenStorageKey(role)
+  localStorage.setItem(key, token)
+  sessionStorage.removeItem(key)
+}
+
+function removeAccessToken(role: AuthRole) {
+  const key = getAccessTokenStorageKey(role)
+  localStorage.removeItem(key)
+  sessionStorage.removeItem(key)
 }
 
 export function getStoredAccessToken(role: AuthRole = 'user'): string | null {
   if (!import.meta.client) return null
-  const rawToken = sessionStorage.getItem(getSessionStorageKey(role))
+  const rawToken = readAccessToken(role)
   if (!rawToken) return null
   const clean = rawToken.replace(/^Bearer\s+/i, '').trim()
   if (!clean || isLegacyObjectIdToken(clean)) {
-    sessionStorage.removeItem(getSessionStorageKey(role))
+    removeAccessToken(role)
     return null
   }
   return clean
 }
 
+export async function ensureSession(role: AuthRole = 'user'): Promise<boolean> {
+  const { isUiOnlyMode } = useApiMode()
+  const { restoreSession, isAuthenticated, syncSessionFromStorage } = useAuth(role)
+
+  if (isUiOnlyMode.value) {
+    syncSessionFromStorage()
+    return isAuthenticated.value
+  }
+
+  if (sessionEnsured[role]) {
+    return isAuthenticated.value
+  }
+
+  if (!ensurePromises[role]) {
+    ensurePromises[role] = (async () => {
+      try {
+        await restoreSession()
+        return isAuthenticated.value
+      } finally {
+        sessionEnsured[role] = true
+        ensurePromises[role] = undefined
+      }
+    })()
+  }
+
+  return ensurePromises[role]!
+}
+
 export function useAuth(role: AuthRole = 'user') {
-  const storageKey = getSessionStorageKey(role)
   const tokenStateKey = `auth-${role}-access-token`
   const userStateKey = `auth-${role}-user`
 
@@ -166,7 +225,7 @@ export function useAuth(role: AuthRole = 'user') {
     return getStoredAccessToken(role)
   })
 
-  // On client, ensure state is hydrated from sessionStorage if available
+  // On client, ensure state is hydrated from persistent storage if available
   if (import.meta.client && !token.value) {
     const stored = getStoredAccessToken(role)
     if (stored) {
@@ -192,7 +251,7 @@ export function useAuth(role: AuthRole = 'user') {
     const cleanToken = newToken.replace(/^Bearer\s+/i, '').trim()
     token.value = cleanToken
     if (import.meta.client) {
-      sessionStorage.setItem(storageKey, cleanToken)
+      writeAccessToken(role, cleanToken)
       scheduleSilentRefresh(role, cleanToken)
     }
     if (newUser !== undefined) {
@@ -203,8 +262,9 @@ export function useAuth(role: AuthRole = 'user') {
   function clearSession() {
     token.value = null
     user.value = null
+    sessionEnsured[role] = true
     if (import.meta.client) {
-      sessionStorage.removeItem(storageKey)
+      removeAccessToken(role)
       cancelSilentRefresh(role)
     }
     if (role === 'user') {
@@ -239,10 +299,21 @@ export function useAuth(role: AuthRole = 'user') {
     const { apiRequest, isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
+      setSession(
+        `ui-only-${role}-token`,
+        {
+          email: credentials.email,
+          firstName: role === 'partner' ? 'Partner' : 'Jane',
+          lastName: 'User',
+          gender: 'FEMALE'
+        }
+      )
+      sessionEnsured[role] = true
       return null
     }
 
     clearSession()
+    sessionEnsured[role] = true
 
     const response = await apiRequest<AuthLoginResponse>(`/${role}/login`, {
       method: 'POST',
@@ -349,7 +420,7 @@ export function useAuth(role: AuthRole = 'user') {
     const { isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
-      return false
+      return syncSessionFromStorage()
     }
 
     const stored = getStoredAccessToken(role)

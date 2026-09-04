@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
+import { ref, computed } from 'vue'
 import { useEvents } from '~/composables/useEvents'
 import { usePriceTiers } from '~/composables/usePriceTiers'
 import { reportApiError } from '~/types/auth'
@@ -16,16 +15,9 @@ useHead({
 
 const route = useRoute()
 const toast = useToast()
-const { isAuthenticated } = useAuth()
 const { createEvent } = useEvents()
 const { resolvePriceTierId } = usePriceTiers()
 const { isUiOnlyMode } = useApiMode()
-
-onMounted(() => {
-  if (!isUiOnlyMode.value && !isAuthenticated.value) {
-    navigateTo('/user/login?redirect=/user/payment')
-  }
-})
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
 const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : ''))

@@ -1,30 +1,26 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { getApiErrorMessage } from '~/types/auth'
+import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
 
 const toast = useToast()
+const route = useRoute()
+const { login } = useAuth('partner')
 
 const isSubmitting = ref(false)
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Must be at least 6 characters'),
-  remember: z.boolean().optional()
+  password: z.string().min(6, 'Must be at least 6 characters')
 })
 
 type Schema = z.output<typeof schema>
 
 const state = reactive<Schema>({
   email: '',
-  password: '',
-  remember: false
+  password: ''
 })
-
-const stats = [
-  { value: '500+', description: 'Events planned' },
-  { value: '10,000+', description: 'Invitations sent' },
-  { value: '100%', description: 'Convenience' }
-]
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (isSubmitting.value) {
@@ -32,14 +28,27 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   }
 
   isSubmitting.value = true
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  try {
+    await login({
+      email: payload.data.email.trim(),
+      password: payload.data.password
+    })
 
-  console.log('Frontend-only login with:', payload.data)
-  toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
-  await navigateTo('/partners')
-
-  isSubmitting.value = false
+    toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
+    await navigateTo(redirect || '/partners')
+  } catch (error) {
+    const isRestricted = isRestrictedAccountError(error)
+    toast.add({
+      title: isRestricted ? 'Account restricted' : 'Sign in failed',
+      description: isRestricted
+        ? RESTRICTED_ACCOUNT_MESSAGE
+        : getApiErrorMessage(error, 'Unable to sign in. Check your email and password.'),
+      color: 'error'
+    })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -68,10 +77,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <template #hint>
               <ULink to="/partners/forgot-password" class="text-bread-400 font-medium hover:text-bread-50" tabindex="-1">Forgot password?</ULink>
             </template>
-          </UFormField>
-
-          <UFormField name="remember">
-            <UCheckbox v-model="state.remember" label="Remember me"  :ui="{label: ' text-white'}"/>
           </UFormField>
 
           <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>

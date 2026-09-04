@@ -81,7 +81,9 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/': { prerender: true }
+    // Auth decides landing vs dashboard on the client; prerendering `/` breaks
+    // post-login navigation with a failed `_payload.json` fetch.
+    '/': { ssr: false }
   },
 
   compatibilityDate: '2025-01-15',

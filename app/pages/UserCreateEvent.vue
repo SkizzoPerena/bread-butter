@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
-import { useApiMode } from '~/composables/useApiMode'
+import { ref, reactive, computed } from 'vue'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -12,14 +10,6 @@ useHead({
 })
 
 const toast = useToast()
-const { isAuthenticated } = useAuth()
-const { isUiOnlyMode } = useApiMode()
-
-onMounted(() => {
-  if (!isUiOnlyMode.value && !isAuthenticated.value) {
-    navigateTo('/user/login?redirect=/user/create-event')
-  }
-})
 
 type ViewStep = 'packages' | 'details'
 

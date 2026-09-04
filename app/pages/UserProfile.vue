@@ -16,8 +16,6 @@ const {
   changePassword,
   enableEmailNotifications,
   disableEmailNotifications,
-  isAuthenticated,
-  isUiOnlyMode,
 } = useAccount()
 
 const genderOptions = [
@@ -208,10 +206,6 @@ async function onEmailNotifToggle(enabled: boolean) {
 }
 
 onMounted(async () => {
-  if (!isUiOnlyMode.value && !isAuthenticated.value) {
-    await navigateTo('/user/login')
-    return
-  }
   await loadProfile()
 })
 </script>
