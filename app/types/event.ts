@@ -141,6 +141,7 @@ export interface CreateEventPayload {
   paymentMethod?: string
   payLater?: boolean
   isCatholicWedding?: boolean
+  voucherCode?: string
 }
 
 export interface UpdateEventPayload {

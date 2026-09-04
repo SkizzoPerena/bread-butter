@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useEvents } from '~/composables/useEvents'
 import { usePriceTiers } from '~/composables/usePriceTiers'
+import { useAccount } from '~/composables/useAccount'
 import { reportApiError } from '~/types/auth'
 import { formatPaymentMethodLabel, mapUiPaymentMethodToApi } from '~/utils/paymentMethod'
+import { hasVoucherCode, normalizeVoucherCode } from '~/utils/referralCode'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -17,9 +19,12 @@ const route = useRoute()
 const toast = useToast()
 const { createEvent } = useEvents()
 const { resolvePriceTierId } = usePriceTiers()
+const { fetchAccount } = useAccount()
 const { isUiOnlyMode } = useApiMode()
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
+const isBreadButterPackage = computed(() => selectedPkgId.value === 'bread-butter')
+
 const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : ''))
 const eventType = computed(() => (typeof route.query.eventType === 'string' ? route.query.eventType : 'WEDDING'))
 const eventDate = computed(() => (typeof route.query.eventDate === 'string' ? route.query.eventDate : ''))
@@ -124,6 +129,32 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const isProcessing = ref(false)
 const transactionId = ref('')
+const voucherCode = ref('')
+const platformCreditPhp = ref(0)
+
+watch(voucherCode, (value) => {
+  const normalized = normalizeVoucherCode(value)
+  if (normalized !== value) {
+    voucherCode.value = normalized
+  }
+})
+
+const hasVoucherEntered = computed(() => hasVoucherCode(voucherCode.value))
+
+function formatPhp(amount: number): string {
+  return `₱${amount.toLocaleString('en-PH', { maximumFractionDigits: 0 })}`
+}
+
+onMounted(async () => {
+  if (isUiOnlyMode.value) return
+  try {
+    const account = await fetchAccount()
+    const credit = account.platformCreditPhp
+    platformCreditPhp.value = typeof credit === 'number' && credit > 0 ? credit : 0
+  } catch {
+    platformCreditPhp.value = 0
+  }
+})
 
 function triggerFileInput() {
   fileInput.value?.click()
@@ -231,6 +262,7 @@ async function submitPayment() {
     }
 
     const priceTierId = await resolvePriceTierId(selectedPkgId.value)
+    const normalizedVoucher = normalizeVoucherCode(voucherCode.value)
     await createEvent({
       eventType: eventType.value,
       eventName: eventName.value.trim(),
@@ -241,6 +273,7 @@ async function submitPayment() {
       transactionId: transactionId.value.trim(),
       proofOfPayment: proofFile.value,
       paymentMethod,
+      ...(normalizedVoucher ? { voucherCode: normalizedVoucher } : {})
     })
 
     toast.add({
@@ -309,8 +342,36 @@ async function submitPayment() {
               <p class="text-xs text-toast-800 leading-snug">{{ currentPackage.description }}</p>
             </div>
 
+            <div v-if="isBreadButterPackage" class="space-y-1.5">
+              <label class="text-[10px] text-toast-600 font-bold uppercase tracking-wider">
+                Partner promo code
+              </label>
+              <UInput
+                v-model="voucherCode"
+                placeholder="Enter voucher code"
+                size="sm"
+                class="w-full uppercase bg-white text-toast-900"
+              />
+              <p class="text-[10px] text-toast-700 leading-snug">
+                Enter a partner voucher code. Discount is applied when you submit payment.
+              </p>
+            </div>
+            <p v-else class="text-[10px] text-toast-700 italic leading-snug">
+              Partner promo codes apply to Bread + Butter events only.
+            </p>
+
             <!-- Price breakdown -->
             <div class="space-y-1.5 pt-1.5 text-xs border-t border-toast-600/20">
+              <div v-if="platformCreditPhp > 0" class="flex justify-between text-toast-700">
+                <span>Referral credit available</span>
+                <span class="font-semibold text-toast-900">{{ formatPhp(platformCreditPhp) }}</span>
+              </div>
+              <p v-if="platformCreditPhp > 0" class="text-[10px] text-toast-600 italic">
+                Referral credit is applied automatically at checkout.
+              </p>
+              <p v-if="hasVoucherEntered && isBreadButterPackage" class="text-[10px] text-toast-600 italic">
+                Partner discount will be applied at checkout.
+              </p>
               <div class="flex justify-between text-toast-700">
                 <span>Standard Rate</span>
                 <span class="line-through">{{ currentPackage.price }}</span>

@@ -9,6 +9,7 @@ import type {
   RegisterCredentials
 } from '~/types/auth'
 import { RestrictedAccountError } from '~/utils/restrictedAccount'
+import { normalizeReferralCode } from '~/utils/referralCode'
 
 export type AuthRole = 'user' | 'partner' | 'admin'
 
@@ -343,16 +344,26 @@ export function useAuth(role: AuthRole = 'user') {
       return null
     }
 
+    const normalizedReferral = credentials.referralCode
+      ? normalizeReferralCode(credentials.referralCode)
+      : ''
+
+    const body: Record<string, string> = {
+      email: credentials.email,
+      password: credentials.password,
+      firstName: credentials.firstName,
+      lastName: credentials.lastName,
+      gender: credentials.gender
+    }
+
+    if (normalizedReferral) {
+      body.referralCode = normalizedReferral
+    }
+
     const response = await apiRequest<AuthRegisterResponse>(`/${role}/register`, {
       method: 'POST',
       authenticated: false,
-      body: {
-        email: credentials.email,
-        password: credentials.password,
-        firstName: credentials.firstName,
-        lastName: credentials.lastName,
-        gender: credentials.gender
-      }
+      body
     })
 
     return response

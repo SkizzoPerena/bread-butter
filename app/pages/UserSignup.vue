@@ -3,8 +3,10 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useAuth } from '~/composables/useAuth'
 import { getApiErrorMessage } from '~/types/auth'
+import { isValidReferralCode, normalizeReferralCode } from '~/utils/referralCode'
 
 const toast = useToast()
+const route = useRoute()
 const { register } = useAuth()
 
 const isSubmitting = ref(false)
@@ -19,6 +21,10 @@ const schema = z.object({
   lastName: z.string().min(1, 'Enter your last name'),
   email: z.string().email('Invalid email'),
   gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' }),
+  referralCode: z.string().optional().refine(
+    (value) => !value?.trim() || isValidReferralCode(value),
+    'Referral code must be a 5-character hex string'
+  ),
   password: z.string().min(8, 'Must be at least 8 characters'),
   repass: z.string().min(8, 'Must be at least 8 characters'),
   tnc: z.boolean().refine(val => val === true, 'You must agree to the terms and conditions.'),
@@ -40,6 +46,7 @@ const defaultForm: Schema = {
   lastName: '',
   email: '',
   gender: undefined as unknown as Schema['gender'],
+  referralCode: '',
   password: '',
   repass: '',
   tnc: false,
@@ -54,6 +61,26 @@ const state = useState<Schema>('user-signup-draft', () => {
     } catch {}
   }
   return { ...defaultForm }
+})
+
+watch(
+  () => state.value.referralCode,
+  (value) => {
+    const normalized = normalizeReferralCode(value)
+    if (normalized !== value) {
+      state.value.referralCode = normalized
+    }
+  }
+)
+
+onMounted(() => {
+  const fromQuery =
+    (typeof route.query.referralCode === 'string' && route.query.referralCode.trim())
+    || (typeof route.query.ref === 'string' && route.query.ref.trim())
+    || ''
+  if (fromQuery && !state.value.referralCode?.trim()) {
+    state.value.referralCode = normalizeReferralCode(fromQuery)
+  }
 })
 
 // Sync draft changes to sessionStorage
@@ -72,11 +99,19 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     return
   }
 
-  const { email, password, firstName, lastName, gender } = payload.data
+  const { email, password, firstName, lastName, gender, referralCode } = payload.data
+  const normalizedReferral = normalizeReferralCode(referralCode)
 
   isSubmitting.value = true
   try {
-    const res = await register({ email, password, firstName, lastName, gender })
+    const res = await register({
+      email,
+      password,
+      firstName,
+      lastName,
+      gender,
+      ...(normalizedReferral ? { referralCode: normalizedReferral } : {})
+    })
     if (import.meta.client) {
       sessionStorage.removeItem('bpb_user_signup_draft')
     }
@@ -119,6 +154,19 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </UFormField>
           <UFormField label="Email" name="email" required :ui="{ label: 'text-xs sm:text-sm' }">
             <UInput v-model="state.email" class="w-full text-xs sm:text-sm" placeholder="Enter your email" />
+          </UFormField>
+          <UFormField
+            label="Referral code (optional)"
+            name="referralCode"
+            :ui="{ label: 'text-xs sm:text-sm' }"
+            hint="Enter a friend's 5-character referral code to receive signup credit after email verification."
+          >
+            <UInput
+              v-model="state.referralCode"
+              class="w-full text-xs sm:text-sm uppercase"
+              placeholder="e.g. 1A2B3"
+              maxlength="5"
+            />
           </UFormField>
           <UFormField label="Gender" name="gender" required :ui="{ label: 'text-xs sm:text-sm' }">
             <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full text-xs sm:text-sm" />

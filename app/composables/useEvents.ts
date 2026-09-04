@@ -10,6 +10,7 @@ import type {
 } from '~/types/event'
 import type { PriceTierRecord } from '~/types/priceTier'
 import { usePriceTiers } from '~/composables/usePriceTiers'
+import { normalizeVoucherCode } from '~/utils/referralCode'
 
 export function useEvents() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
@@ -116,6 +117,13 @@ export function useEvents() {
 
     if (payload.isCatholicWedding !== undefined) {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
+    }
+
+    const normalizedVoucher = payload.voucherCode
+      ? normalizeVoucherCode(payload.voucherCode)
+      : ''
+    if (normalizedVoucher) {
+      formData.append('voucherCode', normalizedVoucher)
     }
 
     if (!payload.payLater) {
