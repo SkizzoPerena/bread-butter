@@ -110,6 +110,27 @@ export default defineNuxtConfig({
 
   hooks: {
     'pages:extend'(pages) {
+      // Keep leftover/pre-vamp page files in the repo, but do not expose them as routes.
+      const hiddenRouteNames = new Set([
+        'EventTasksDashboardPreVamp',
+        'UserDashboard pre-vamp',
+        'UserEventDashboard prevamp',
+        'UserSignup copy',
+        'NuxtTemplate'
+      ])
+
+      for (let i = pages.length - 1; i >= 0; i--) {
+        const page = pages[i]
+        const name = page?.name || ''
+        const file = String(page?.file || '')
+        if (
+          hiddenRouteNames.has(name)
+          || /pre-vamp|prevamp|signup copy|NuxtTemplate/i.test(`${name} ${file}`)
+        ) {
+          pages.splice(i, 1)
+        }
+      }
+
       // This function will find a page by its auto-generated name and update its path
       const setPath = (name: string, path: string) => {
         const page = pages.find(p => p.name === name)
@@ -130,16 +151,13 @@ export default defineNuxtConfig({
       setPath('EventSettingsDashboard', '/event/settings')
       setPath('EventSuppliersDashboard', '/event/suppliers')
       setPath('EventTasksDashboard', '/event/tasks')
-      setPath('EventTasksDashboardPreVamp', '/event/tasks-pre-vamp')
       setPath('EventWishlistDashboard', '/event/wishlist')
       setPath('SubEventDashboard', '/event/sub-event')
       setPath('AddGuestsBulk', '/event/add-guests-bulk')
 
       // Set paths for /user/* routes
       setPath('UserCreateEvent', '/user/create-event')
-      setPath('UserDashboard pre-vamp', '/user/dashboard-pre-vamp')
       setPath('UserDashboard', '/user/dashboard')
-      setPath('UserEventDashboard prevamp', '/user/event-dashboard-prevamp')
       setPath('UserEventDashboard', '/user/event-dashboard')
       setPath('UserForgotPassword', '/user/forgot-password')
       setPath('UserLogin', '/user/login')
@@ -148,7 +166,6 @@ export default defineNuxtConfig({
       setPath('UserPaymentPending', '/user/payment-pending')
       setPath('UserProfile', '/user/profile')
       setPath('UserReportIssue', '/user/report-issue')
-      setPath('UserSignup copy', '/user/signup-copy')
       setPath('UserSignup', '/user/signup')
       setPath('UserTransactions', '/user/transactions')
 
