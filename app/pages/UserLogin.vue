@@ -16,7 +16,7 @@ onMounted(async () => {
   const authenticated = await ensureSession()
   if (!authenticated) return
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
-  await navigateTo(redirect || '/user/dashboard')
+  await navigateTo(redirect || '/')
 })
 
 const isSubmitting = ref(false)
@@ -60,7 +60,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     }
 
     if (isUiOnlyMode.value) {
-      await navigateTo('/user/dashboard')
+      await navigateTo('/')
       return
     }
 
@@ -68,7 +68,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     if (events.length === 0) {
       await navigateTo('/user/create-event')
     } else {
-      await navigateTo('/user/dashboard')
+      await navigateTo('/')
     }
   } catch (error) {
     const isRestricted = isRestrictedAccountError(error)

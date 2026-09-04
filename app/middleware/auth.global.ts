@@ -15,11 +15,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const { isUiOnlyMode } = useApiMode()
   if (isUiOnlyMode.value) return
 
+  if (to.path === '/user/dashboard') {
+    return navigateTo('/', { replace: true })
+  }
+
+  if (to.path === '/') {
+    await ensureSession('user')
+    return
+  }
+
   if (to.path === '/user/login') {
     const authenticated = await ensureSession('user')
     if (authenticated) {
       const redirect = typeof to.query.redirect === 'string' ? to.query.redirect.trim() : ''
-      return navigateTo(redirect || '/user/dashboard')
+      return navigateTo(redirect || '/')
     }
     return
   }

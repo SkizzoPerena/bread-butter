@@ -74,7 +74,7 @@ const paymentMethod = computed(() => (typeof route.query.method === 'string' ? r
         <p>• You will receive a confirmation notice via email with access details.</p>
       </div>
 
-      <UButton to="/user/dashboard" block color="primary" size="md"
+      <UButton to="/" block color="primary" size="md"
         class="font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md">
         Go to Dashboard
       </UButton>

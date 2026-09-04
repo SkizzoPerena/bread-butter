@@ -83,7 +83,8 @@ export default defineNuxtConfig({
   routeRules: {
     // Auth decides landing vs dashboard on the client; prerendering `/` breaks
     // post-login navigation with a failed `_payload.json` fetch.
-    '/': { ssr: false }
+    '/': { ssr: false },
+    '/user/dashboard': { redirect: { to: '/', statusCode: 301 } },
   },
 
   compatibilityDate: '2025-01-15',
@@ -113,7 +114,7 @@ export default defineNuxtConfig({
       // Keep leftover/pre-vamp page files in the repo, but do not expose them as routes.
       const hiddenRouteNames = new Set([
         'EventTasksDashboardPreVamp',
-        'UserDashboard pre-vamp',
+        'UserDashboard',
         'UserEventDashboard prevamp',
         'UserSignup copy',
         'NuxtTemplate'
@@ -157,7 +158,7 @@ export default defineNuxtConfig({
 
       // Set paths for /user/* routes
       setPath('UserCreateEvent', '/user/create-event')
-      setPath('UserDashboard', '/user/dashboard')
+      // UserDashboard merged into `/` (index.vue); legacy path redirects via routeRules
       setPath('UserEventDashboard', '/user/event-dashboard')
       setPath('UserForgotPassword', '/user/forgot-password')
       setPath('UserLogin', '/user/login')

@@ -11,9 +11,13 @@ useHead({
   ]
 })
 
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, syncSessionFromStorage } = useAuth()
 const authReady = ref(false)
 const layoutName = computed(() => (isAuthenticated.value ? 'user-navbar' : 'landing-navbar'))
+
+if (import.meta.client) {
+  syncSessionFromStorage()
+}
 
 onMounted(async () => {
   await ensureSession()

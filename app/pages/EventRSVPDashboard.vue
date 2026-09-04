@@ -348,7 +348,7 @@ onMounted(() => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/user/dashboard')
+    navigateTo('/')
     return
   }
   loadEventData()

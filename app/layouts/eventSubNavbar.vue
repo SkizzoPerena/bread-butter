@@ -35,7 +35,7 @@ const titleThemeClass = computed(() => {
           />
 
           <!-- Image Slot Wrapper -->
-          <NuxtLink to="/user/dashboard" class="flex items-center">
+          <NuxtLink to="/" class="flex items-center">
             <img v-if="route.meta.useLogo" src="..\assets\bpb-icons\logomark-toast-700.svg" class="h-7" />
             <img v-else src="..\assets\bpb-icons\logo-toast-700.svg" class="h-7" />
           </NuxtLink>

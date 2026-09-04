@@ -56,7 +56,7 @@ async function loadPage() {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    await navigateTo('/user/dashboard')
+    await navigateTo('/')
     return
   }
 
