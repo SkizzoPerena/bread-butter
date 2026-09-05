@@ -58,6 +58,23 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
+  const isPartnerEventWorkspace = to.query.role === 'partner' && (
+    to.path === '/user/event-dashboard'
+    || to.path.startsWith('/event/')
+  )
+
+  if (isPartnerEventWorkspace) {
+    const authenticated = await ensureSession('partner')
+    if (!authenticated) {
+      notifyNotLoggedIn()
+      return navigateTo({
+        path: '/partners/login',
+        query: { redirect: loginRedirectTarget(to) }
+      })
+    }
+    return
+  }
+
   const authenticated = await ensureSession('user')
   if (!authenticated) {
     notifyNotLoggedIn()

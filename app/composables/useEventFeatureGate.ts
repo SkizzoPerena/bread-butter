@@ -1,4 +1,5 @@
 import { reportApiError } from '~/types/auth'
+import { useApiRole } from '~/composables/useApiRole'
 import { useEvents } from '~/composables/useEvents'
 import {
   type EventFeature,
@@ -10,6 +11,7 @@ export function useEventFeatureGate() {
   const route = useRoute()
   const { fetchEvent } = useEvents()
   const { isUiOnlyMode } = useApiMode()
+  const { isPartnerRole, withRoleQuery } = useApiRole()
 
   const eventId = computed(() => {
     const value = route.query.eventId
@@ -40,13 +42,16 @@ export function useEventFeatureGate() {
           description: 'Upgrade your event plan to unlock this feature.',
           color: 'error',
         })
-        await navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+        await navigateTo({ path: '/event/upgrade', query: withRoleQuery({ eventId: id }) })
         return false
       }
       return true
     } catch (error) {
       reportApiError(toast, { title: 'Could not verify event access', error })
-      await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
+      await navigateTo({
+        path: isPartnerRole.value ? `/partners/events/${id}` : '/user/event-dashboard',
+        query: isPartnerRole.value ? undefined : withRoleQuery({ eventId: id })
+      })
       return false
     }
   }

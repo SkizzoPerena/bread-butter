@@ -10,14 +10,16 @@ import type {
 } from '~/types/event'
 import type { PriceTierRecord } from '~/types/priceTier'
 import { usePriceTiers } from '~/composables/usePriceTiers'
+import { useApiRole } from '~/composables/useApiRole'
 import { normalizeVoucherCode } from '~/utils/referralCode'
 
 export function useEvents() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
   const { fetchAvailablePriceTiers } = usePriceTiers()
+  const { role } = useApiRole()
 
-  const eventCache = useState<Record<string, SelectedEventDetail>>('bpb-events-detail-cache', () => ({}))
-  const userEventsCache = useState<EventRecord[]>('bpb-user-events-list-cache', () => [])
+  const eventCache = useState<Record<string, SelectedEventDetail>>(`bpb-${role.value}-events-detail-cache`, () => ({}))
+  const userEventsCache = useState<EventRecord[]>(`bpb-${role.value}-events-list-cache`, () => [])
 
   function enrichEventTier(event: EventRecord, tiers: PriceTierRecord[]): EventRecord {
     if (!event) return event
