@@ -1,0 +1,136 @@
+import type {
+  AccountMessageResponse,
+  AccountResponse,
+  AccountUpdatePayload,
+  AuthUser,
+  UserAccount
+} from '~/types/auth'
+
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024
+
+function mockPartnerAccount(storedUser: AuthUser | null): UserAccount {
+  return {
+    email: storedUser?.email ?? 'partner@example.com',
+    firstName: storedUser?.firstName ?? 'Partner',
+    lastName: storedUser?.lastName ?? 'User',
+    gender: storedUser?.gender ?? 'FEMALE',
+    profileImageURL: storedUser?.profileImageURL ?? '',
+    emailNotifEnabled: storedUser?.emailNotifEnabled ?? true,
+    contactNumber: '',
+    partnerCreditPhp: 125500
+  }
+}
+
+export function usePartnerAccount() {
+  const { user, updateUser, isAuthenticated } = useAuth('partner')
+  const { apiRequest, apiUpload, loadPageData, isUiOnlyMode } = useApiMode()
+
+  async function fetchAccount(): Promise<UserAccount> {
+    const account = await loadPageData({
+      mock: () => mockPartnerAccount(user.value),
+      fetch: async () => {
+        const response = await apiRequest<AccountResponse>('/partner/account')
+        return response.account
+      }
+    })
+
+    updateUser({
+      email: account.email,
+      firstName: account.firstName,
+      lastName: account.lastName,
+      gender: account.gender,
+      profileImageURL: account.profileImageURL,
+      emailNotifEnabled: account.emailNotifEnabled ?? true
+    })
+
+    return account
+  }
+
+  async function saveAccount(payload: AccountUpdatePayload): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      updateUser(payload)
+      return { success: true, message: 'Account updated successfully.' }
+    }
+
+    const response = await apiRequest<AccountMessageResponse>('/partner/account', {
+      method: 'PATCH',
+      body: payload
+    })
+
+    updateUser(payload)
+    return response
+  }
+
+  async function uploadProfilePicture(file: File): Promise<AccountMessageResponse> {
+    if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+      throw new Error('Please attach a .png, .jpg, or .jpeg file')
+    }
+    if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+      throw new Error('Image must be 2MB or smaller')
+    }
+
+    if (isUiOnlyMode.value) {
+      updateUser({ profileImageURL: URL.createObjectURL(file) })
+      return { success: true, message: 'Profile picture updated successfully.' }
+    }
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    const response = await apiUpload<AccountMessageResponse>('/partner/account/profile-picture', formData)
+    const account = await fetchAccount()
+    updateUser({ profileImageURL: account.profileImageURL })
+
+    return response
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      return { success: true, message: 'Password changed successfully.' }
+    }
+
+    return apiRequest<AccountMessageResponse>('/partner/account/change-password', {
+      method: 'PATCH',
+      body: { currentPassword, newPassword }
+    })
+  }
+
+  async function enableEmailNotifications(): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      updateUser({ emailNotifEnabled: true })
+      return { success: true, message: 'Email notifications enabled.' }
+    }
+
+    const response = await apiRequest<AccountMessageResponse>(
+      '/partner/account/email-notifications/enable',
+      { method: 'PATCH' }
+    )
+    updateUser({ emailNotifEnabled: true })
+    return response
+  }
+
+  async function disableEmailNotifications(): Promise<AccountMessageResponse> {
+    if (isUiOnlyMode.value) {
+      updateUser({ emailNotifEnabled: false })
+      return { success: true, message: 'Email notifications disabled.' }
+    }
+
+    const response = await apiRequest<AccountMessageResponse>(
+      '/partner/account/email-notifications/disable',
+      { method: 'PATCH' }
+    )
+    updateUser({ emailNotifEnabled: false })
+    return response
+  }
+
+  return {
+    isAuthenticated,
+    isUiOnlyMode,
+    fetchAccount,
+    saveAccount,
+    uploadProfilePicture,
+    changePassword,
+    enableEmailNotifications,
+    disableEmailNotifications
+  }
+}
