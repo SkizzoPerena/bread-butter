@@ -33,6 +33,7 @@ export interface RefundRecord {
 export interface PaymentRecord {
   _id: string
   user?: string
+  partner?: string
   event?: string | {
     _id: string
     eventName: string
@@ -44,6 +45,8 @@ export interface PaymentRecord {
   upgrade?: PaymentUpgrade | null
   amount: number
   amountReceived?: number | null
+  partnerCreditAppliedPhp?: number | null
+  platformCreditAppliedPhp?: number | null
   transactionId: string
   proofOfPaymentURL: string
   status: PaymentStatus
