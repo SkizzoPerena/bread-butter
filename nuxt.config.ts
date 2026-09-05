@@ -172,8 +172,15 @@ export default defineNuxtConfig({
 
       // Set paths for /partners/* routes
       setPath('PartnerDashboard', '/partners')
+      setPath('PartnerEvents', '/partners/events')
+      setPath('PartnerVouchers', '/partners/vouchers')
+      setPath('PartnerCashouts', '/partners/cashouts')
+      setPath('PartnerProfile', '/partners/profile')
+      setPath('PartnerCollaborations', '/partners/collaborations')
+      setPath('PartnerTransactions', '/partners/transactions')
       setPath('PartnerLogin', '/partners/login')
       setPath('PartnerSignup', '/partners/signup')
+      setPath('PartnerOtp', '/partners/otp')
       setPath('PartnerForgotPassword', '/partners/forgot-password')
 
       // Set paths for standalone pages

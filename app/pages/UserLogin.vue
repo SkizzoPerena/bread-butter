@@ -33,6 +33,8 @@ const state = reactive<Schema>({
   password: ''
 })
 
+const isPasswordVisible = ref(false)
+
 const stats = [
   { value: '500+', description: 'Events planned' },
   { value: '10,000+', description: 'Invitations sent' },
@@ -121,7 +123,24 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             </UFormField>
 
             <UFormField label="Password" name="password" required :ui="{ label: 'text-xs sm:text-sm' }">
-              <UInput v-model="state.password" type="password" class="w-full text-xs sm:text-sm" placeholder="Enter your password" />
+              <UInput
+                v-model="state.password"
+                :type="isPasswordVisible ? 'text' : 'password'"
+                class="w-full text-xs sm:text-sm"
+                placeholder="Enter your password"
+              >
+                <template #trailing>
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    size="sm"
+                    :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                    :padded="false"
+                    aria-label="Toggle password visibility"
+                    @click="isPasswordVisible = !isPasswordVisible"
+                  />
+                </template>
+              </UInput>
               <template #hint>
                 <ULink to="/user/forgot-password" class="text-primary font-medium text-xs sm:text-sm" tabindex="-1">Forgot password?</ULink>
               </template>
@@ -153,7 +172,24 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </UFormField>
 
           <UFormField label="Password" name="password" required :ui="{ label: 'text-xs sm:text-sm' }">
-            <UInput v-model="state.password" type="password" class="w-full text-xs sm:text-sm" placeholder="Enter your password" />
+            <UInput
+              v-model="state.password"
+              :type="isPasswordVisible ? 'text' : 'password'"
+              class="w-full text-xs sm:text-sm"
+              placeholder="Enter your password"
+            >
+              <template #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :padded="false"
+                  aria-label="Toggle password visibility"
+                  @click="isPasswordVisible = !isPasswordVisible"
+                />
+              </template>
+            </UInput>
             <template #hint>
               <ULink to="/user/forgot-password" class="text-primary font-medium text-xs sm:text-sm" tabindex="-1">Forgot password?</ULink>
             </template>

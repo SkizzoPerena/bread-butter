@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -92,6 +92,17 @@ const eventForm = reactive({
   eventDate: '',
   venue: '',
   description: '',
+  isCatholicWedding: false,
+})
+
+const isWeddingEventType = computed(() =>
+  String(eventForm.eventType || '').trim().toUpperCase() === 'WEDDING',
+)
+
+watch(isWeddingEventType, (isWedding) => {
+  if (!isWedding) {
+    eventForm.isCatholicWedding = false
+  }
 })
 
 const eventTypeOptions = [
@@ -192,6 +203,7 @@ function submitEventSetup() {
       eventDate: eventForm.eventDate,
       venue: eventForm.venue.trim(),
       description: buildDescription(),
+      isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding ? 'true' : 'false',
     },
   })
 }
@@ -290,6 +302,13 @@ function submitEventSetup() {
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
             </div>
+
+            <UCheckbox
+              v-if="isWeddingEventType"
+              v-model="eventForm.isCatholicWedding"
+              label="Is this a Catholic wedding?"
+              class="text-toast-900"
+            />
 
             <UFormField label="Venue / Location" required>
               <UInput v-model="eventForm.venue" placeholder="e.g. Manila Cathedral / Grand Ballroom" size="lg"

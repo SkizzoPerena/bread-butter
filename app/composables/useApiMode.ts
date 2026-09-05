@@ -10,6 +10,7 @@ import {
   isTokenExpiredOrExpiring,
   useAuth
 } from '~/composables/useAuth'
+import { getRoleAwareApiPath, resolveRouteRole } from '~/composables/useApiRole'
 
 type FetchOptions = Parameters<typeof $fetch>[1]
 type ApiRequestOptions = FetchOptions & { authenticated?: boolean; _isRetry?: boolean }
@@ -24,6 +25,14 @@ function detectRoleFromPath(path: string): AuthRole {
   if (clean.startsWith('partner') || clean.startsWith('partners')) return 'partner'
   if (clean.startsWith('admin')) return 'admin'
   return 'user'
+}
+
+function resolveCurrentRouteRole(): AuthRole {
+  try {
+    return resolveRouteRole(useRoute())
+  } catch {
+    return 'user'
+  }
 }
 
 function getBearerHeaders(role: AuthRole = 'user'): Record<string, string> {
@@ -55,6 +64,8 @@ function isAuthBypassPath(path: string): boolean {
     'partner/otp/verify',
     'partner/otp/resend',
     'partner/otp/change-password',
+    'partner/otp/verify-email',
+    'partner/otp/resend-email',
     'partners/login',
     'partners/register',
     'partners/auth/refresh',
@@ -137,14 +148,15 @@ export function useApiMode() {
       throw new Error('apiRequest was called while NUXT_PUBLIC_USE_REAL_API is disabled')
     }
 
+    const normalizedPath = getRoleAwareApiPath(path, resolveCurrentRouteRole())
     const { authenticated = true, _isRetry = false, ...fetchOptions } = options ?? {}
-    const role = detectRoleFromPath(path)
+    const role = detectRoleFromPath(normalizedPath)
 
     const currentToken = getStoredAccessToken(role) || useAuth(role).token.value
     const expired = currentToken ? isTokenExpired(currentToken) : !getBearerHeaders(role).Authorization
     const isExpiring = currentToken ? isTokenExpiredOrExpiring(currentToken, 30) : false
 
-    if (authenticated && !isAuthBypassPath(path) && (!getBearerHeaders(role).Authorization || isExpiring) && !_isRetry) {
+    if (authenticated && !isAuthBypassPath(normalizedPath) && (!getBearerHeaders(role).Authorization || isExpiring) && !_isRetry) {
       const refresh = await performRefresh(role)
       if (!refresh.token && refresh.expired && (expired || !currentToken)) {
         await handleSessionExpired(role)
@@ -152,7 +164,7 @@ export function useApiMode() {
     }
 
     try {
-      return await $fetch<T>(joinApiUrl(apiBase.value, path), {
+      return await $fetch<T>(joinApiUrl(apiBase.value, normalizedPath), {
         ...fetchOptions,
         credentials: 'include',
         headers: {
@@ -165,10 +177,10 @@ export function useApiMode() {
         return handleRestrictedAccount()
       }
 
-      if (isAuthenticationError(error) && !isAuthBypassPath(path) && !_isRetry) {
+      if (isAuthenticationError(error) && !isAuthBypassPath(normalizedPath) && !_isRetry) {
         const refresh = await performRefresh(role)
         if (refresh.token) {
-          return apiRequest<T>(path, { ...options, _isRetry: true })
+          return apiRequest<T>(normalizedPath, { ...options, _isRetry: true })
         }
         if (refresh.expired) {
           await handleSessionExpired(role)
@@ -188,7 +200,8 @@ export function useApiMode() {
       throw new Error('apiUpload was called while NUXT_PUBLIC_USE_REAL_API is disabled')
     }
 
-    const role = detectRoleFromPath(path)
+    const normalizedPath = getRoleAwareApiPath(path, resolveCurrentRouteRole())
+    const role = detectRoleFromPath(normalizedPath)
 
     const currentToken = getStoredAccessToken(role) || useAuth(role).token.value
     const expired = currentToken ? isTokenExpired(currentToken) : !getBearerHeaders(role).Authorization
@@ -202,7 +215,7 @@ export function useApiMode() {
     }
 
     try {
-      return await $fetch<T>(joinApiUrl(apiBase.value, path), {
+      return await $fetch<T>(joinApiUrl(apiBase.value, normalizedPath), {
         method: options?.method ?? 'POST',
         body: formData,
         credentials: 'include',
@@ -213,10 +226,10 @@ export function useApiMode() {
         return handleRestrictedAccount()
       }
 
-      if (isAuthenticationError(error) && !isAuthBypassPath(path) && !options?._isRetry) {
+      if (isAuthenticationError(error) && !isAuthBypassPath(normalizedPath) && !options?._isRetry) {
         const refresh = await performRefresh(role)
         if (refresh.token) {
-          return apiUpload<T>(path, formData, { ...options, _isRetry: true })
+          return apiUpload<T>(normalizedPath, formData, { ...options, _isRetry: true })
         }
         if (refresh.expired) {
           await handleSessionExpired(role)
