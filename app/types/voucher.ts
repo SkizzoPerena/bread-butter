@@ -30,3 +30,12 @@ export interface VoucherResponse {
   message: string
   voucher: VoucherRecord
 }
+
+export interface VoucherValidateResponse {
+  success: boolean
+  status?: number
+  message: string
+  code?: string
+  discountAmountPhp?: number
+}
+

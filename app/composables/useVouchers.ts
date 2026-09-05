@@ -1,4 +1,11 @@
-import type { VoucherPayload, VoucherResponse, VouchersListResponse } from '~/types/voucher'
+import type {
+  VoucherPayload,
+  VoucherResponse,
+  VoucherValidateResponse,
+  VouchersListResponse
+} from '~/types/voucher'
+import { PACKAGE_SLUG_TO_TIER_CODE } from '~/composables/usePriceTiers'
+import { normalizeVoucherCode } from '~/utils/referralCode'
 
 const mockVouchers = [
   {
@@ -20,6 +27,35 @@ export function useVouchers() {
     return loadPageData({
       mock: () => ({ success: true, status: 200, vouchers: mockVouchers }),
       fetch: () => apiRequest<VouchersListResponse>('/partner/vouchers')
+    })
+  }
+
+  async function validateVoucherForUser(
+    code: string,
+    packageSlug = 'bread-butter'
+  ): Promise<VoucherValidateResponse> {
+    const normalized = normalizeVoucherCode(code)
+    const priceTierCode = PACKAGE_SLUG_TO_TIER_CODE[packageSlug] || 'BREAD_BUTTER'
+
+    if (isUiOnlyMode.value) {
+      if (normalized === 'BLINK5' || normalized === 'VALID') {
+        return {
+          success: true,
+          status: 200,
+          message: 'Voucher is valid.',
+          code: normalized,
+          discountAmountPhp: 500
+        }
+      }
+      return Promise.reject({
+        data: { message: 'Voucher not found.' },
+        statusCode: 404
+      })
+    }
+
+    return apiRequest<VoucherValidateResponse>('/user/vouchers/validate', {
+      method: 'POST',
+      body: { code: normalized, priceTierCode }
     })
   }
 
@@ -123,6 +159,7 @@ export function useVouchers() {
 
   return {
     listVouchers,
+    validateVoucherForUser,
     createVoucher,
     updateVoucher,
     deactivateVoucher,

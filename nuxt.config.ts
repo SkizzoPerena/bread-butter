@@ -172,6 +172,7 @@ export default defineNuxtConfig({
 
       // Set paths for /partners/* routes
       setPath('PartnerDashboard', '/partners')
+      setPath('PartnerEvents', '/partners/events')
       setPath('PartnerVouchers', '/partners/vouchers')
       setPath('PartnerCashouts', '/partners/cashouts')
       setPath('PartnerProfile', '/partners/profile')
