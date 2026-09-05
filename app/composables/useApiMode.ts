@@ -55,6 +55,8 @@ function isAuthBypassPath(path: string): boolean {
     'partner/otp/verify',
     'partner/otp/resend',
     'partner/otp/change-password',
+    'partner/otp/verify-email',
+    'partner/otp/resend-email',
     'partners/login',
     'partners/register',
     'partners/auth/refresh',

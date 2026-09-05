@@ -174,6 +174,7 @@ export default defineNuxtConfig({
       setPath('PartnerDashboard', '/partners')
       setPath('PartnerLogin', '/partners/login')
       setPath('PartnerSignup', '/partners/signup')
+      setPath('PartnerOtp', '/partners/otp')
       setPath('PartnerForgotPassword', '/partners/forgot-password')
 
       // Set paths for standalone pages

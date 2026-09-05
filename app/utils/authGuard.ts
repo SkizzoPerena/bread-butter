@@ -21,7 +21,8 @@ const PUBLIC_PATHS = new Set([
   '/user/forgot-password',
   '/partners/login',
   '/partners/signup',
-  '/partners/forgot-password'
+  '/partners/forgot-password',
+  '/partners/otp'
 ])
 
 export function isPublicPath(path: string): boolean {
