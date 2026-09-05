@@ -2,6 +2,9 @@
 import { pageColumns } from '#build/ui'
 import type { TableColumn } from '@nuxt/ui'
 
+definePageMeta({
+  layout: 'partner-navbar'
+})
 
 const partnerName = 'BlinkPunch' // Mock partner name
 
