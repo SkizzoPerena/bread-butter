@@ -31,6 +31,12 @@ const eventName = computed(() => (typeof route.query.eventName === 'string' ? ro
 const eventType = computed(() => (typeof route.query.eventType === 'string' ? route.query.eventType : 'WEDDING'))
 const eventDate = computed(() => (typeof route.query.eventDate === 'string' ? route.query.eventDate : ''))
 const venue = computed(() => (typeof route.query.venue === 'string' ? route.query.venue : ''))
+const isCatholicWedding = computed(() => {
+  const raw = route.query.isCatholicWedding
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const flagged = value === 'true' || value === '1'
+  return String(eventType.value || '').trim().toUpperCase() === 'WEDDING' && flagged
+})
 const description = computed(() => {
   if (typeof route.query.description === 'string' && route.query.description.trim()) {
     return route.query.description.trim()
@@ -372,6 +378,7 @@ async function submitPayment() {
       description: description.value,
       venue: venue.value.trim(),
       eventDate: eventDate.value,
+      isCatholicWedding: isCatholicWedding.value,
       priceTierId,
       transactionId: transactionId.value.trim(),
       proofOfPayment: proofFile.value,
