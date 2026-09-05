@@ -22,6 +22,8 @@ const state = reactive<Schema>({
   password: ''
 })
 
+const isPasswordVisible = ref(false)
+
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (isSubmitting.value) {
     return
@@ -60,9 +62,10 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                     
 
         <div class="my-auto">
-            <div class="flex justify-center"><img src="..\assets\bpb-icons\logo-white.svg" class="h-12 mb-2" />
-            <div class="text-4xl font-bold font-serif ml-3 mt-1">Partners</div>
-            </div>
+            <NuxtLink to="/" class="flex justify-center items-center" aria-label="Back to Bread + Butter home">
+              <img src="..\assets\bpb-icons\logo-white.svg" class="h-12 mb-2" alt="Bread + Butter" />
+              <div class="text-4xl font-bold font-serif ml-3 mt-1">Partners</div>
+            </NuxtLink>
                 <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
           <div class="text-center text-sm mb-6">
             <div class="text-xl font-serif font-semibold">Login</div>
@@ -73,7 +76,24 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           </UFormField>
 
           <UFormField label="Password" name="password" required :ui="{label: ' text-white'}">
-            <UInput v-model="state.password" type="password" class="w-full" placeholder="Enter your password" />
+            <UInput
+              v-model="state.password"
+              :type="isPasswordVisible ? 'text' : 'password'"
+              class="w-full"
+              placeholder="Enter your password"
+            >
+              <template #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :padded="false"
+                  aria-label="Toggle password visibility"
+                  @click="isPasswordVisible = !isPasswordVisible"
+                />
+              </template>
+            </UInput>
             <template #hint>
               <ULink to="/partners/forgot-password" class="text-bread-400 font-medium hover:text-bread-50" tabindex="-1">Forgot password?</ULink>
             </template>

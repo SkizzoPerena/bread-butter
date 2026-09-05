@@ -153,6 +153,57 @@ export function getSessionStorageKey(role: AuthRole = 'user'): string {
   return getAccessTokenStorageKey(role)
 }
 
+const ACTIVE_AUTH_ROLE_KEY = 'bpb_active_auth_role'
+
+export function getActiveAuthRole(): AuthRole | null {
+  if (!import.meta.client) return null
+
+  const stored = localStorage.getItem(ACTIVE_AUTH_ROLE_KEY)
+  if (stored === 'user' || stored === 'partner' || stored === 'admin') {
+    if (getStoredAccessToken(stored)) return stored
+    localStorage.removeItem(ACTIVE_AUTH_ROLE_KEY)
+  }
+
+  // Legacy sessions: infer from whichever token still exists.
+  if (getStoredAccessToken('partner')) return 'partner'
+  if (getStoredAccessToken('user')) return 'user'
+  if (getStoredAccessToken('admin')) return 'admin'
+  return null
+}
+
+function setActiveAuthRole(role: AuthRole) {
+  if (!import.meta.client) return
+  localStorage.setItem(ACTIVE_AUTH_ROLE_KEY, role)
+}
+
+function clearActiveAuthRole(role?: AuthRole) {
+  if (!import.meta.client) return
+  const current = localStorage.getItem(ACTIVE_AUTH_ROLE_KEY)
+  if (!role || current === role) {
+    localStorage.removeItem(ACTIVE_AUTH_ROLE_KEY)
+  }
+}
+
+/** Keep only one of user/partner signed in at a time. */
+function clearConflictingRoleSessions(activeRole: AuthRole) {
+  if (!import.meta.client) return
+  if (activeRole !== 'user' && activeRole !== 'partner') return
+
+  const other: AuthRole = activeRole === 'user' ? 'partner' : 'user'
+  cancelSilentRefresh(other)
+  removeAccessToken(other)
+  sessionEnsured[other] = true
+
+  const otherToken = useState<string | null>(`auth-${other}-access-token`)
+  const otherUser = useState<AuthUser | null>(`auth-${other}-user`)
+  otherToken.value = null
+  otherUser.value = null
+
+  if (other === 'user') {
+    clearUserSessionData()
+  }
+}
+
 function readAccessToken(role: AuthRole): string | null {
   const key = getAccessTokenStorageKey(role)
   const fromLocal = localStorage.getItem(key)
@@ -253,6 +304,10 @@ export function useAuth(role: AuthRole = 'user') {
     token.value = cleanToken
     if (import.meta.client) {
       writeAccessToken(role, cleanToken)
+      setActiveAuthRole(role)
+      if (role === 'user' || role === 'partner') {
+        clearConflictingRoleSessions(role)
+      }
       scheduleSilentRefresh(role, cleanToken)
     }
     if (newUser !== undefined) {
@@ -266,6 +321,7 @@ export function useAuth(role: AuthRole = 'user') {
     sessionEnsured[role] = true
     if (import.meta.client) {
       removeAccessToken(role)
+      clearActiveAuthRole(role)
       cancelSilentRefresh(role)
     }
     if (role === 'user') {
@@ -292,8 +348,7 @@ export function useAuth(role: AuthRole = 'user') {
       }
     }
     clearSession()
-    const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
-    await navigateTo(loginPath)
+    await navigateTo('/')
   }
 
   async function login(credentials: LoginCredentials) {

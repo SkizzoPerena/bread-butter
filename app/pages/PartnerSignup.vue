@@ -72,6 +72,7 @@ watch(state, (val) => {
 }, { deep: true })
 
 const isPasswordVisible = ref(false)
+const isRepassVisible = ref(false)
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (isSubmitting.value) {
@@ -152,7 +153,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                   size="sm"
                   :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
                   :padded="false"
-                  @click="() => { isPasswordVisible = !isPasswordVisible }"
+                  aria-label="Toggle password visibility"
+                  @click="isPasswordVisible = !isPasswordVisible"
                 />
               </template>
             </UInput>
@@ -160,7 +162,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UFormField label="Verify password" :ui="{ label: ' text-white' }" name="repass" required>
             <UInput
               v-model="state.repass"
-              :type="isPasswordVisible ? 'text' : 'password'"
+              :type="isRepassVisible ? 'text' : 'password'"
               class="w-full"
               placeholder="Re-enter your password"
             >
@@ -169,9 +171,10 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                   color="neutral"
                   variant="link"
                   size="sm"
-                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :icon="isRepassVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
                   :padded="false"
-                  @click="() => { isPasswordVisible = !isPasswordVisible }"
+                  aria-label="Toggle verify password visibility"
+                  @click="isRepassVisible = !isRepassVisible"
                 />
               </template>
             </UInput>

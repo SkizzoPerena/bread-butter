@@ -20,7 +20,15 @@ if (import.meta.client) {
 }
 
 onMounted(async () => {
-  await ensureSession()
+  const activeRole = getActiveAuthRole()
+  if (activeRole === 'partner') {
+    const partnerOk = await ensureSession('partner')
+    if (partnerOk) {
+      await navigateTo('/partners', { replace: true })
+      return
+    }
+  }
+  await ensureSession('user')
   authReady.value = true
 })
 </script>
