@@ -146,15 +146,17 @@ function scrollMotion(delay: number = 0) {
         <div class="font-bold text-2xl sm:text-5xl font-serif mb-3 sm:mb-6 text-pretty tracking-tight">
           Your dream celebration, baked to perfection.
         </div>
-        <div class="text-sm sm:text-lg max-w-2xl mx-auto">
+        <div class="text-sm sm:text-lg max-w-5xl mx-auto">
           Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
-          <p class="hidden sm:block" /> From custom websites and digital invitations to seamless guest management—everything you need is
+          <p class="hidden sm:block" /> From custom websites and digital invitations to seamless guest
+          management—everything you need is
           finally in one place.
         </div>
       </div>
       <UContainer class="flex justify-center items-center my-0">
         <div class="w-56 sm:w-64">
-          <UButton to="/user/login" size="lg" block color="neutral" variant="soft" class="font-bold text-sm sm:text-base">LET'S GET THIS BREAD
+          <UButton to="/user/login" size="lg" block color="neutral" variant="soft"
+            class="font-bold text-sm sm:text-base">LET'S GET THIS BREAD
           </UButton>
         </div>
       </UContainer>
@@ -172,7 +174,8 @@ function scrollMotion(delay: number = 0) {
         <Motion v-bind="scrollMotion(0.2)">
           <div>
             Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
-            <p class="hidden sm:block" /> From custom websites and digital invitations to seamless guest management—everything you need is
+            <p class="hidden sm:block" /> From custom websites and digital invitations to seamless guest
+            management—everything you need is
             finally in one place.
           </div>
         </Motion>
@@ -206,7 +209,8 @@ function scrollMotion(delay: number = 0) {
     <UPageSection class="bg-toast-500">
 
       <UContainer class="font-regular text-sm sm:text-xl text-center text-white">
-        <img class="max-h-4/5 mb-4 sm:mb-6 mx-auto" src="https://lh3.googleusercontent.com/d/1gwoHSTP-QKnTnMOFFMVQuWVRiCnwDz-9" />
+        <img class="max-h-4/5 mb-4 sm:mb-6 mx-auto"
+          src="https://lh3.googleusercontent.com/d/1gwoHSTP-QKnTnMOFFMVQuWVRiCnwDz-9" />
         <Motion v-bind="scrollMotion(0.1)">
 
           <div class="font-bold text-2xl sm:text-5xl font-serif mb-3 sm:mb-6">Powerful tools, baked right in.</div>
@@ -225,12 +229,14 @@ function scrollMotion(delay: number = 0) {
       <UContainer class="font-regular text-sm sm:text-xl text-center">
         <Motion v-bind="scrollMotion(0.1)">
 
-          <div class="font-bold text-2xl sm:text-5xl font-serif mb-6 sm:mb-12">Everything you <a class="text-toast-400">knead</a> for a
+          <div class="font-bold text-2xl sm:text-5xl font-serif mb-6 sm:mb-12">Everything you <a
+              class="text-toast-400">knead</a> for a
             <p class="hidden sm:block" />Flawless Celebration
           </div>
         </Motion>
         <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-          <div v-for="(feature, index) in features" :key="index" class="bread-container p-4 sm:p-6 sm:px-8 bg-white text-left">
+          <div v-for="(feature, index) in features" :key="index"
+            class="bread-container p-4 sm:p-6 sm:px-8 bg-white text-left">
             <UIcon :name="feature.icon" class="size-7 sm:size-9 my-1 sm:my-2" />
             <div class="font-serif font-bold text-base sm:text-xl">{{ feature.title }}
             </div>
@@ -248,29 +254,37 @@ function scrollMotion(delay: number = 0) {
         </div>
       </UContainer>
 
-      <UPageCard orientation="horizontal"
-        class="bg-transparent border-none ring-0 text-white lg:max-2xl:h-[85vh]">
-        <img src="https://lh3.googleusercontent.com/d/1O3k6v9_IQQkybM5HLpMXIOa7YXdr4QiU" alt="Illustration"
-          class="rounded-lg h-64 sm:h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
+      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white lg:max-2xl:h-[85vh]">
+        <div class="relative rounded-lg overflow-hidden h-64 sm:h-[85vh] w-full">
+          <img src="https://lh3.googleusercontent.com/d/1-tM75FL0soVprwPc2wQ4WJnup1m2J-Qv" alt="Illustration"
+            class="rounded-lg h-full w-full object-cover" loading="lazy" width="750" height="500" />
+          <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
+            <p class="text-white text-xs sm:text-sm font-medium [text-shadow:0_2px_4px_var(--color-toast-700)]">
+              couple name, date
+            </p>
+          </div>
+        </div>
 
         <div>
           <div class="text-2xl sm:text-4xl font-bold">For Celebrants</div>
           <div class="text-base sm:text-xl text-bread-500">A slice of heaven</div>
           <div class="mt-4 sm:mt-6 font-semibold text-lg sm:text-2xl">Stress-Free Planning</div>
-          <div class="text-sm sm:text-xl text-toast-100">Visualize your entire event at a glance with color-coded features and easy
+          <div class="text-sm sm:text-xl text-toast-100">Visualize your entire event at a glance with color-coded
+            features and easy
             task management.</div>
           <div class="mt-4 sm:mt-6 font-semibold text-lg sm:text-2xl">Personalized Touch</div>
-          <div class="text-sm sm:text-xl text-toast-100">Easily customize your website, invitations, and registries to match your
+          <div class="text-sm sm:text-xl text-toast-100">Easily customize your website, invitations, and registries to
+            match your
             unique theme.</div>
           <div class="mt-4 sm:mt-6 font-semibold text-lg sm:text-2xl">Stay on Budget</div>
-          <div class="text-sm sm:text-xl text-toast-100">Built-in payment trackers and calendar schedules ensure nothing falls
+          <div class="text-sm sm:text-xl text-toast-100">Built-in payment trackers and calendar schedules ensure nothing
+            falls
             through the cracks.</div>
         </div>
 
       </UPageCard>
 
-      <UPageCard orientation="horizontal"
-        class="bg-transparent border-none ring-0 text-white lg:h-[85vh]">
+      <UPageCard orientation="horizontal" class="bg-transparent border-none ring-0 text-white lg:h-[85vh]">
         <div>
           <div class="text-2xl sm:text-4xl font-bold">For Planners</div>
           <div class="text-base sm:text-xl text-bread-500">Earning your crust</div>
@@ -278,14 +292,23 @@ function scrollMotion(delay: number = 0) {
           <div class="text-sm sm:text-xl text-toast-100">Manage multiple events and clients from a single master account
             seamlessly.</div>
           <div class="mt-4 sm:mt-6 font-semibold text-lg sm:text-2xl">Streamlined Workflows</div>
-          <div class="text-sm sm:text-xl text-toast-100">Assign tasks directly to clients, track supplier payments, and monitor
+          <div class="text-sm sm:text-xl text-toast-100">Assign tasks directly to clients, track supplier payments, and
+            monitor
             venue requirements.</div>
           <div class="mt-4 sm:mt-6 font-semibold text-lg sm:text-2xl">Professional Dashboards</div>
-          <div class="text-sm sm:text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored to their
+          <div class="text-sm sm:text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored
+            to their
             specific event.</div>
         </div>
-        <img src="https://lh3.googleusercontent.com/d/1p4o3uWyTXtF8g05BL9_XpPDR6zETkygU" alt="Illustration"
-          class="rounded-lg h-64 sm:h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
+        <div class="relative rounded-lg overflow-hidden h-64 sm:h-[85vh] w-full">
+          <img src="https://lh3.googleusercontent.com/d/1So8l7ZSJ8Ba748jeL4_fZ07HRU-RZlS9" alt="Illustration"
+            class="rounded-lg h-full w-full object-cover" loading="lazy" width="750" height="500" />
+          <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
+            <p class="text-white text-xs sm:text-sm font-medium [text-shadow:0_2px_4px_var(--color-toast-700)]">
+              couple name, date
+            </p>
+          </div>
+        </div>
       </UPageCard>
 
     </UPageSection>
@@ -321,7 +344,8 @@ function scrollMotion(delay: number = 0) {
         <div></div>
         <div class="col-span-3 flex flex-col justify-center items-center space-y-6 sm:space-y-12 px-4">
           <div class="font-medium text-sm sm:text-xl text-center text-white">
-            <div class="font-bold text-2xl sm:text-5xl font-serif mb-3 sm:mb-6 text-bread-400">Ready to raise a toast to your next big
+            <div class="font-bold text-2xl sm:text-5xl font-serif mb-3 sm:mb-6 text-bread-400">Ready to raise a toast to
+              your next big
               event?</div>
             <div>Join thousands of celebrants, couples, and event professionals who are planning smarter, not harder.
               Let’s bake up something unforgettable together.</div>
@@ -329,7 +353,8 @@ function scrollMotion(delay: number = 0) {
 
 
           <div class="w-56 sm:w-64">
-            <UButton to="/user/login" size="lg" block color="bread" variant="solid" class="font-bold text-xs sm:text-sm text-toast-700">
+            <UButton to="/user/login" size="lg" block color="bread" variant="solid"
+              class="font-bold text-xs sm:text-sm text-toast-700">
               LET'S GET THIS BREAD
             </UButton>
           </div>
