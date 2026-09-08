@@ -145,7 +145,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               Create your account and start planning
             </div>
 
-            <img src="..\assets\bpb-icons\logomark.svg" class="h-8 sm:h-10" />
+            <img src="~/assets/bpb-icons/logomark.svg" class="h-8 sm:h-10" />
           </div>
           <UFormField label="First name" name="firstName" required :ui="{ label: 'text-xs sm:text-sm' }">
             <UInput v-model="state.firstName" class="w-full text-xs sm:text-sm" placeholder="First name" />

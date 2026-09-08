@@ -92,16 +92,7 @@ export function getDynamicStyle(
   return { bg: secondary, heading: secondary_text_color, text: secondary_text_color };
 }
 
-export function formatDateWithWeekday(dateString: string): string {
-  if (!dateString) return ''
-  const date = new Date(dateString.replace(/-/g, '/'))
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
+export { formatDateWithWeekday } from './invitationDisplay'
 
 export function getGoogleMapsUrl(location: string): string {
   if (!location) return ''

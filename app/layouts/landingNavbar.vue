@@ -102,7 +102,7 @@ const links = [
   ]">
     <template #title>
       <NuxtLink to="/">
-        <img class="h-10 w-auto" src="..\assets\bpb-icons\logo-white.svg" alt="Bread + Butter Logo" />
+        <img class="h-10 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
       </NuxtLink>
     </template>
 
@@ -166,7 +166,7 @@ const links = [
         </template>
       </UPopover>
       <NuxtLink to="/" class="flex items-center gap-2" @click="closeMobileMenu">
-        <img class="h-7 w-auto" src="..\assets\bpb-icons\logo-white.svg" alt="Bread + Butter Logo" />
+        <img class="h-7 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
       </NuxtLink>
     </template>
 

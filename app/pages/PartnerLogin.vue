@@ -63,7 +63,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
         <div class="my-auto">
             <NuxtLink to="/" class="flex justify-center items-center" aria-label="Back to Bread + Butter home">
-              <img src="..\assets\bpb-icons\logo-white.svg" class="h-12 mb-2" alt="Bread + Butter" />
+              <img src="~/assets/bpb-icons/logo-white.svg" class="h-12 mb-2" alt="Bread + Butter" />
               <div class="text-4xl font-bold font-serif ml-3 mt-1">Partners</div>
             </NuxtLink>
                 <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">

@@ -51,7 +51,7 @@ const linkClass = computed(() =>
     <UPageCard :class="cardClass">
       <div class="gap-8">
         <div v-if="isPartner" class="flex justify-center mb-4">
-          <img src="../assets/bpb-icons/logo-white.svg" class="h-10" alt="Bread + Butter">
+          <img src="~/assets/bpb-icons/logo-white.svg" class="h-10" alt="Bread + Butter">
           <div class="text-2xl font-bold font-serif ml-3 mt-0.5 text-white">Partners</div>
         </div>
 
