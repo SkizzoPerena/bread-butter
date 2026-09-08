@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useEvents } from '~/composables/useEvents'
+import { usePriceTiers, PACKAGE_SLUG_TO_TIER_CODE } from '~/composables/usePriceTiers'
+import { useAccount } from '~/composables/useAccount'
+import { useVouchers } from '~/composables/useVouchers'
+import { getApiErrorMessage, reportApiError } from '~/types/auth'
+import { formatPaymentMethodLabel, mapUiPaymentMethodToApi } from '~/utils/paymentMethod'
+import { hasVoucherCode, normalizeVoucherCode } from '~/utils/referralCode'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -11,28 +18,57 @@ useHead({
 
 const route = useRoute()
 const toast = useToast()
+const { createEvent } = useEvents()
+const { resolvePriceTierId, fetchAvailablePriceTiers } = usePriceTiers()
+const { fetchAccount } = useAccount()
+const { validateVoucherForUser } = useVouchers()
+const { isUiOnlyMode } = useApiMode()
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
-const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : 'My Special Celebration'))
+const isBreadButterPackage = computed(() => selectedPkgId.value === 'bread-butter')
 
-const packagesMap: Record<string, { title: string; price: string; discountPrice: string; description: string }> = {
+const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : ''))
+const eventType = computed(() => (typeof route.query.eventType === 'string' ? route.query.eventType : 'WEDDING'))
+const eventDate = computed(() => (typeof route.query.eventDate === 'string' ? route.query.eventDate : ''))
+const venue = computed(() => (typeof route.query.venue === 'string' ? route.query.venue : ''))
+const isCatholicWedding = computed(() => {
+  const raw = route.query.isCatholicWedding
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const flagged = value === 'true' || value === '1'
+  return String(eventType.value || '').trim().toUpperCase() === 'WEDDING' && flagged
+})
+const description = computed(() => {
+  if (typeof route.query.description === 'string' && route.query.description.trim()) {
+    return route.query.description.trim()
+  }
+  const name = eventName.value.trim()
+  const loc = venue.value.trim()
+  if (name && loc) return `${name} at ${loc}`
+  if (name) return `${name} celebration`
+  return 'Event celebration'
+})
+
+const packagesMap: Record<string, { title: string; price: string; discountPrice: string; description: string; baseFeePhp: number }> = {
   bread: {
     title: 'Bread',
     price: 'P10,000',
     discountPrice: 'P5,000',
-    description: 'Essential tools for your website and guests.'
+    description: 'Essential tools for your website and guests.',
+    baseFeePhp: 5000
   },
   butter: {
     title: 'Butter',
     price: 'P15,000',
     discountPrice: 'P7,500',
-    description: 'Advanced planning tools and supplier management.'
+    description: 'Advanced planning tools and supplier management.',
+    baseFeePhp: 7500
   },
   'bread-butter': {
     title: 'Bread + Butter',
     price: 'P20,000',
     discountPrice: 'P10,000',
-    description: 'The ultimate package with full collaborator access.'
+    description: 'The ultimate package with full collaborator access.',
+    baseFeePhp: 10000
   }
 }
 
@@ -40,10 +76,14 @@ const defaultPackage = {
   title: 'Bread + Butter',
   price: 'P20,000',
   discountPrice: 'P10,000',
-  description: 'The ultimate package with full collaborator access.'
+  description: 'The ultimate package with full collaborator access.',
+  baseFeePhp: 10000
 }
 
 const currentPackage = computed(() => packagesMap[selectedPkgId.value] ?? defaultPackage)
+const tierBaseFeePhp = ref<number | null>(null)
+
+const baseFeePhp = computed(() => tierBaseFeePhp.value ?? currentPackage.value.baseFeePhp)
 
 interface QrOption {
   id: string
@@ -103,6 +143,113 @@ const proofPreview = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const isProcessing = ref(false)
+const transactionId = ref('')
+const voucherCode = ref('')
+const platformCreditPhp = ref(0)
+const voucherStatus = ref<'idle' | 'checking' | 'valid' | 'invalid'>('idle')
+const voucherDiscountPhp = ref(0)
+const voucherMessage = ref('')
+let voucherValidateTimer: ReturnType<typeof setTimeout> | null = null
+let voucherValidateRequestId = 0
+
+watch(voucherCode, (value) => {
+  const normalized = normalizeVoucherCode(value)
+  if (normalized !== value) {
+    voucherCode.value = normalized
+    return
+  }
+
+  if (!isBreadButterPackage.value) {
+    resetVoucherValidation()
+    return
+  }
+
+  if (!hasVoucherCode(normalized)) {
+    resetVoucherValidation()
+    return
+  }
+
+  voucherStatus.value = 'checking'
+  voucherMessage.value = 'Checking promo code…'
+  voucherDiscountPhp.value = 0
+
+  if (voucherValidateTimer) {
+    clearTimeout(voucherValidateTimer)
+  }
+  voucherValidateTimer = setTimeout(() => {
+    void validateEnteredVoucher()
+  }, 400)
+})
+
+const hasVoucherEntered = computed(() => hasVoucherCode(voucherCode.value))
+const feeAfterVoucherPhp = computed(() =>
+  Math.max(0, baseFeePhp.value - Math.max(0, voucherDiscountPhp.value))
+)
+const referralCreditAppliedPhp = computed(() =>
+  Math.min(Math.max(0, platformCreditPhp.value), feeAfterVoucherPhp.value)
+)
+const amountDuePhp = computed(() =>
+  Math.max(0, feeAfterVoucherPhp.value - referralCreditAppliedPhp.value)
+)
+
+function resetVoucherValidation() {
+  voucherStatus.value = 'idle'
+  voucherDiscountPhp.value = 0
+  voucherMessage.value = ''
+}
+
+function formatPhp(amount: number): string {
+  return `₱${amount.toLocaleString('en-PH', { maximumFractionDigits: 0 })}`
+}
+
+async function validateEnteredVoucher() {
+  const code = normalizeVoucherCode(voucherCode.value)
+  if (!isBreadButterPackage.value || !hasVoucherCode(code)) {
+    resetVoucherValidation()
+    return
+  }
+
+  const requestId = ++voucherValidateRequestId
+  voucherStatus.value = 'checking'
+  voucherMessage.value = 'Checking promo code…'
+
+  try {
+    const response = await validateVoucherForUser(code, selectedPkgId.value)
+    if (requestId !== voucherValidateRequestId) return
+    if (normalizeVoucherCode(voucherCode.value) !== code) return
+
+    voucherStatus.value = 'valid'
+    voucherDiscountPhp.value = Number(response.discountAmountPhp) || 0
+    voucherMessage.value = response.message || `Promo code applied: ${formatPhp(voucherDiscountPhp.value)} off.`
+  } catch (error) {
+    if (requestId !== voucherValidateRequestId) return
+    if (normalizeVoucherCode(voucherCode.value) !== code) return
+
+    voucherStatus.value = 'invalid'
+    voucherDiscountPhp.value = 0
+    voucherMessage.value = getApiErrorMessage(error, 'This promo code is not valid.')
+  }
+}
+
+onMounted(async () => {
+  if (isUiOnlyMode.value) return
+  try {
+    const [account, tiers] = await Promise.all([
+      fetchAccount(),
+      fetchAvailablePriceTiers()
+    ])
+    const credit = account.platformCreditPhp
+    platformCreditPhp.value = typeof credit === 'number' && credit > 0 ? credit : 0
+
+    const tierCode = PACKAGE_SLUG_TO_TIER_CODE[selectedPkgId.value]
+    const match = tiers.find(tier => tier.code === tierCode && tier.isEnabled !== false)
+    if (typeof match?.pricePhp === 'number' && match.pricePhp > 0) {
+      tierBaseFeePhp.value = match.pricePhp
+    }
+  } catch {
+    platformCreditPhp.value = 0
+  }
+})
 
 function triggerFileInput() {
   fileInput.value?.click()
@@ -147,29 +294,121 @@ function removeFile() {
   }
 }
 
-function submitPayment() {
-  if (!proofFile.value) return
+async function submitPayment() {
+  if (!selectedQrId.value) {
+    toast.add({
+      title: 'Payment method required',
+      description: 'Please select a QR payment option.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!transactionId.value.trim()) {
+    toast.add({
+      title: 'Transaction ID required',
+      description: 'Enter the reference or transaction ID from your payment receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!proofFile.value) {
+    toast.add({
+      title: 'Proof of payment required',
+      description: 'Upload a screenshot or photo of your payment receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!eventName.value.trim() || !eventDate.value.trim() || !venue.value.trim()) {
+    toast.add({
+      title: 'Missing event details',
+      description: 'Please go back and complete your event setup first.',
+      color: 'warning',
+    })
+    return
+  }
+
+  const paymentMethod = mapUiPaymentMethodToApi(selectedQrId.value)
+  if (!paymentMethod) {
+    toast.add({
+      title: 'Invalid payment method',
+      color: 'error',
+    })
+    return
+  }
+
   isProcessing.value = true
 
-  setTimeout(() => {
-    isProcessing.value = false
+  try {
+    if (isUiOnlyMode.value) {
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: {
+          ref: transactionId.value.trim(),
+          package: selectedPkgId.value,
+          eventName: eventName.value,
+          method: formatPaymentMethodLabel(paymentMethod),
+        },
+      })
+      return
+    }
+
+    const normalizedVoucher = normalizeVoucherCode(voucherCode.value)
+    if (isBreadButterPackage.value && hasVoucherCode(normalizedVoucher)) {
+      if (voucherStatus.value !== 'valid') {
+        await validateEnteredVoucher()
+      }
+      if (voucherStatus.value !== 'valid') {
+        toast.add({
+          title: 'Invalid promo code',
+          description: voucherMessage.value || 'Enter a valid partner promo code, or clear the field.',
+          color: 'error',
+        })
+        return
+      }
+    }
+
+    const priceTierId = await resolvePriceTierId(selectedPkgId.value)
+    await createEvent({
+      eventType: eventType.value,
+      eventName: eventName.value.trim(),
+      description: description.value,
+      venue: venue.value.trim(),
+      eventDate: eventDate.value,
+      isCatholicWedding: isCatholicWedding.value,
+      priceTierId,
+      transactionId: transactionId.value.trim(),
+      proofOfPayment: proofFile.value,
+      paymentMethod,
+      ...(normalizedVoucher ? { voucherCode: normalizedVoucher } : {})
+    })
+
     toast.add({
       title: 'Proof of Payment Submitted',
       description: 'Your payment transaction is currently being verified.',
-      color: 'success'
+      color: 'success',
     })
 
-    const refNum = 'BB-' + Math.floor(100000 + Math.random() * 900000)
-    navigateTo({
+    await navigateTo({
       path: '/user/payment-pending',
       query: {
-        ref: refNum,
+        ref: transactionId.value.trim(),
         package: selectedPkgId.value,
         eventName: eventName.value,
-        method: activeQr.value ? activeQr.value.label + ' QR' : 'QR Code'
-      }
+        method: formatPaymentMethodLabel(paymentMethod),
+      },
     })
-  }, 1000)
+  } catch (error) {
+    reportApiError(toast, {
+      title: 'Could not create event',
+      error,
+    })
+  } finally {
+    isProcessing.value = false
+  }
 }
 </script>
 
@@ -213,15 +452,65 @@ function submitPayment() {
               <p class="text-xs text-toast-800 leading-snug">{{ currentPackage.description }}</p>
             </div>
 
+            <div v-if="isBreadButterPackage" class="space-y-1.5">
+              <label class="text-[10px] text-toast-600 font-bold uppercase tracking-wider">
+                Partner promo code
+              </label>
+              <UInput
+                v-model="voucherCode"
+                placeholder="Enter voucher code"
+                size="sm"
+                class="w-full uppercase bg-white text-toast-900"
+              />
+              <p
+                v-if="voucherMessage"
+                class="text-[10px] leading-snug"
+                :class="{
+                  'text-toast-700': voucherStatus === 'checking' || voucherStatus === 'idle',
+                  'text-green-800': voucherStatus === 'valid',
+                  'text-red-700': voucherStatus === 'invalid'
+                }"
+              >
+                {{ voucherMessage }}
+              </p>
+              <p v-else class="text-[10px] text-toast-700 leading-snug">
+                Enter a partner voucher code to see your discount before you pay.
+              </p>
+            </div>
+            <p v-else class="text-[10px] text-toast-700 italic leading-snug">
+              Partner promo codes apply to Bread + Butter events only.
+            </p>
+
             <!-- Price breakdown -->
             <div class="space-y-1.5 pt-1.5 text-xs border-t border-toast-600/20">
               <div class="flex justify-between text-toast-700">
                 <span>Standard Rate</span>
                 <span class="line-through">{{ currentPackage.price }}</span>
               </div>
+              <div class="flex justify-between text-toast-700">
+                <span>Package total</span>
+                <span class="font-semibold text-toast-900">{{ formatPhp(baseFeePhp) }}</span>
+              </div>
+              <div
+                v-if="voucherStatus === 'valid' && voucherDiscountPhp > 0"
+                class="flex justify-between text-green-800"
+              >
+                <span>Partner promo ({{ voucherCode }})</span>
+                <span class="font-semibold">-{{ formatPhp(voucherDiscountPhp) }}</span>
+              </div>
+              <div v-if="referralCreditAppliedPhp > 0" class="flex justify-between text-toast-700">
+                <span>Referral credit applied</span>
+                <span class="font-semibold text-toast-900">-{{ formatPhp(referralCreditAppliedPhp) }}</span>
+              </div>
+              <p
+                v-else-if="platformCreditPhp > 0"
+                class="text-[10px] text-toast-600 italic"
+              >
+                Referral credit available: {{ formatPhp(platformCreditPhp) }} (applied at checkout).
+              </p>
               <div class="flex justify-between font-bold text-toast-900 text-sm">
-                <span>Promo Total</span>
-                <span class="text-toast-700 font-serif text-lg">{{ currentPackage.discountPrice }}</span>
+                <span>Amount due</span>
+                <span class="text-toast-700 font-serif text-lg">{{ formatPhp(amountDuePhp) }}</span>
               </div>
             </div>
           </div>
@@ -350,6 +639,18 @@ function submitPayment() {
             </div>
           </div>
 
+          <!-- Transaction ID -->
+          <div class="space-y-2">
+            <UFormField label="Transaction / Reference ID" required>
+              <UInput
+                v-model="transactionId"
+                placeholder="e.g. GCASH reference number"
+                size="md"
+                class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+              />
+            </UFormField>
+          </div>
+
           <!-- Upload Image Section -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
@@ -415,7 +716,9 @@ function submitPayment() {
 
           <!-- Submit Button -->
           <div class="pt-2 space-y-2">
-            <UButton block color="primary" size="md" :disabled="!proofFile || isProcessing" :loading="isProcessing"
+            <UButton block color="primary" size="md"
+              :disabled="!proofFile || !transactionId.trim() || !selectedQrId || isProcessing"
+              :loading="isProcessing"
               class="font-bold text-white bg-toast-600 hover:bg-toast-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all"
               @click="submitPayment">
               Submit Proof of Payment

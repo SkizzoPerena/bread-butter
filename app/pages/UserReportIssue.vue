@@ -76,7 +76,7 @@ async function submitReport() {
     report.description = ''
     attachmentFile.value = null
 
-    await navigateTo('/user/dashboard')
+    await navigateTo('/')
   } catch (error) {
     toast.add({
       title: 'Could not submit report',
@@ -144,7 +144,7 @@ async function submitReport() {
             label="Cancel"
             color="neutral"
             variant="outline"
-            to="/user/dashboard"
+            to="/"
           />
           <UButton
             type="submit"

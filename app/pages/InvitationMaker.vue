@@ -8,7 +8,7 @@ definePageMeta({
   bgClass: 'bg-violet-50'
 })
 
-// 1. Required RSVP Data
+const isPublished = ref(false)
 const rsvpData = reactive({
   requestLine: 'Together with their families',
   eventLabel: 'Alex & Jordan are getting married!',
@@ -30,8 +30,6 @@ const blocks = ref<Block[]>([
   { id: Date.now(), type: 'heading', content: 'Schedule of Events' },
   { id: Date.now() + 1, type: 'text', content: 'Ceremony begins at 4:00 PM, with dinner and dancing to follow.' }
 ])
-
-const isPublished = ref(false)
 
 const addScheduleBlock = () => {
   // Add both blocks if they don't exist.
@@ -114,7 +112,7 @@ const formatTime = (timeString: string) => {
   <div>
     <ClientOnly>
       <Teleport to="#navbar-actions">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
           <div v-if="isPublished" class="text-sm md:text-base font-medium text-success-600 dark:text-success-400">
             ✨ Your invitation is live!
           </div>

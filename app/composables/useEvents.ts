@@ -10,13 +10,16 @@ import type {
 } from '~/types/event'
 import type { PriceTierRecord } from '~/types/priceTier'
 import { usePriceTiers } from '~/composables/usePriceTiers'
+import { useApiRole } from '~/composables/useApiRole'
+import { normalizeVoucherCode } from '~/utils/referralCode'
 
 export function useEvents() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
   const { fetchAvailablePriceTiers } = usePriceTiers()
+  const { role } = useApiRole()
 
-  const eventCache = useState<Record<string, SelectedEventDetail>>('bpb-events-detail-cache', () => ({}))
-  const userEventsCache = useState<EventRecord[]>('bpb-user-events-list-cache', () => [])
+  const eventCache = useState<Record<string, SelectedEventDetail>>(`bpb-${role.value}-events-detail-cache`, () => ({}))
+  const userEventsCache = useState<EventRecord[]>(`bpb-${role.value}-events-list-cache`, () => [])
 
   function enrichEventTier(event: EventRecord, tiers: PriceTierRecord[]): EventRecord {
     if (!event) return event
@@ -91,7 +94,7 @@ export function useEvents() {
         eventDate: payload.eventDate,
         status: 'ONGOING',
         isCatholicWedding: payload.isCatholicWedding ?? false,
-        coverImageURL: payload.coverImageURL ?? null,
+        coverImageURL: null,
         tierPricePhp: 10000,
         latestPayment: payload.payLater
           ? null
@@ -118,15 +121,19 @@ export function useEvents() {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
     }
 
-    if (payload.coverImage) {
-      formData.append('coverImage', payload.coverImage)
-    } else if (payload.coverImageURL) {
-      formData.append('coverImageURL', payload.coverImageURL)
+    const normalizedVoucher = payload.voucherCode
+      ? normalizeVoucherCode(payload.voucherCode)
+      : ''
+    if (normalizedVoucher) {
+      formData.append('voucherCode', normalizedVoucher)
     }
 
     if (!payload.payLater) {
       if (payload.transactionId?.trim()) {
         formData.append('transactionId', payload.transactionId.trim())
+      }
+      if (payload.paymentMethod?.trim()) {
+        formData.append('paymentMethod', payload.paymentMethod.trim())
       }
       if (payload.proofOfPayment) {
         formData.append('proofOfPayment', payload.proofOfPayment)
@@ -155,12 +162,6 @@ export function useEvents() {
 
     if (payload.isCatholicWedding !== undefined) {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
-    }
-
-    if (payload.coverImage) {
-      formData.append('coverImage', payload.coverImage)
-    } else if (payload.coverImageURL) {
-      formData.append('coverImageURL', payload.coverImageURL)
     }
 
     await apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {

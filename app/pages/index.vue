@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { PricingPlanProps } from '@nuxt/ui'
-
+definePageMeta({
+  layout: false
+})
 
 useHead({
   link: [
@@ -10,125 +11,26 @@ useHead({
   ]
 })
 
-definePageMeta({
-  layout: 'landing-navbar',
-})
+const { isAuthenticated, syncSessionFromStorage } = useAuth()
+const authReady = ref(false)
+const layoutName = computed(() => (isAuthenticated.value ? 'user-navbar' : 'landing-navbar'))
 
-const marqueeImages = [
-  { title: 'Weddings', file: 'https://lh3.googleusercontent.com/d/1YUP_0jJgtVtxecPCMGqxRDrgPkIr1AqH' }, // Kept existing ID
-  { title: 'Baptisms', file: 'https://lh3.googleusercontent.com/d/1mWdMWl-t_2rFjl_Z_RGTPiyAIQjrehF7' },
-  { title: 'Debuts', file: 'https://lh3.googleusercontent.com/d/1GWy4spWV256SfiFBbFmdY3AEI5w7UrGQ' },
-  { title: 'Anniversaries', file: 'https://lh3.googleusercontent.com/d/1hjTxoVVBMb_cIiRQ2b38CSeI1atVa1OR' },
-  { title: 'Birthdays', file: 'https://lh3.googleusercontent.com/d/17foBQ42q_cXsGxf_8e98iEMnXGSwv96k' },
-  { title: 'Baby Showers', file: 'https://lh3.googleusercontent.com/d/1f0ElKK9PeiSCl7mkXkq1OCTtBI2iiPcH' },
-  { title: 'Engagement Parties', file: 'https://lh3.googleusercontent.com/d/1viUKMoCnIO7RPebMpx8X7W_cpTaOleAT' },
-  { title: 'All other parties!', file: 'https://lh3.googleusercontent.com/d/1y-9HbQkK4R4u5CnWRXzHGyb0yyxCLKYm' },
-]
-
-
-const features = [
-  {
-    icon: 'i-lucide-globe',
-    title: 'Custom Websites & Invitations',
-    subtitle: 'The Upper Crust',
-    description: 'Build a stunning, personalized website and design custom digital invitations that leave a lasting impression.'
-  },
-  {
-    icon: 'i-lucide-users',
-    title: 'Seamless RSVP & Guest List',
-    subtitle: 'No Half-Baked Plans',
-    description: 'Easily collect RSVPs, track meal preferences, and organize your seating chart without the headache.'
-  },
-  {
-    icon: 'i-lucide-list-checks',
-    title: 'Smart Task Checklist',
-    subtitle: 'Stay on a Roll',
-    description: 'Keep track of every detail with a built-in Kanban-style checklist. Watch your tasks move from "To Do" to "Completed" like clockwork.'
-  },
-  {
-    icon: 'i-lucide-briefcase',
-    title: 'Supplier & Payment Tracking',
-    subtitle: 'Managing the Dough',
-    description: 'Keep your budget in check. Manage all your vendors, store contracts, and track upcoming payment deadlines in one place.'
-  },
-  {
-    icon: 'i-lucide-church',
-    title: 'Ceremony & Church Requirements',
-    subtitle: 'The Recipe for Success',
-    description: 'A dedicated space to organize essential documents, marriage licenses, and specific venue rules.'
-  },
-  {
-    icon: 'i-lucide-gift',
-    title: 'Gifts & Playlists',
-    subtitle: 'The Icing on Top',
-    description: 'Curate your digital registry and collaborate on the ultimate reception playlist guaranteed to get everyone toasting.'
-  }
-]
-
-const plans = ref<PricingPlanProps[]>([
-  {
-    title: 'Bread',
-    description: 'Essential tools for your website and guests.',
-    price: 'P10,000',
-    discount: 'P5,000',
-    features: [
-      'Website Builder',
-      'Guest List',
-      'RSVP',
-      'Invitations',
-      'Playlist',
-      'Gifts',
-      'Payments Management',
-      '100 emails'
-    ],
-    button: {
-      label: "Let's get baking!"
-    }
-  },
-  {
-    title: 'Butter',
-    description: 'Advanced planning tools and supplier management.',
-    price: 'P15,000',
-    discount: 'P7,500',
-    features: [
-      'All Bread Features',
-      'Tasks',
-      'Suppliers',
-      'Church Requirements',
-      'Schedules (each schedule gets 100 email credits)',
-      '250 emails'
-    ],
-    button: {
-      label: 'Spread the word!'
-    }
-  },
-  {
-    title: 'Bread + Butter',
-    description: 'The ultimate package with full collaborator access.',
-    price: 'P20,000',
-    discount: 'P10,000',
-    features: [
-      'All Bread Features',
-      'All Butter Features',
-      'Collaborator Access',
-      '250 emails',
-    ],
-    button: {
-      label: 'To butter days!'
-    }
-  }
-])
-
-function scrollMotion(delay: number = 0) {
-  return {
-    initial: { opacity: 0, y: 16 },
-    whileInView: { opacity: 1, y: 0 },
-    inViewOptions: { once: true, amount: 1 },
-    transition: { duration: 0.6, delay }
-  }
+if (import.meta.client) {
+  syncSessionFromStorage()
 }
 
-
+onMounted(async () => {
+  const activeRole = getActiveAuthRole()
+  if (activeRole === 'partner') {
+    const partnerOk = await ensureSession('partner')
+    if (partnerOk) {
+      await navigateTo('/partners', { replace: true })
+      return
+    }
+  }
+  await ensureSession('user')
+  authReady.value = true
+})
 </script>
 
 <template>
@@ -364,28 +266,14 @@ function scrollMotion(delay: number = 0) {
       </UPageGrid>
     </UPageSection>
 
+  <div
+    v-if="!authReady"
+    class="min-h-screen flex items-center justify-center bg-bread-400"
+  >
+    <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-toast-700" />
   </div>
+  <NuxtLayout v-else :name="layoutName">
+    <UserEventsDashboard v-if="isAuthenticated" />
+    <LandingHome v-else />
+  </NuxtLayout>
 </template>
-
-<style>
-.landing-bg {
-  position: relative;
-  /* This is needed for the overlay and video to be positioned correctly */
-  z-index: 1;
-}
-
-.landing-bg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-color: #3e1500;
-  opacity: 0.55;
-  z-index: -1;
-}
-
-.la-belle-aurore-regular {
-  font-family: "La Belle Aurore", cursive;
-  font-weight: 400;
-  font-style: normal;
-}
-</style>

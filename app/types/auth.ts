@@ -19,6 +19,7 @@ export interface UserAccount {
   emailNotifEnabled?: boolean
   subscriptionLevel?: string
   contactNumber?: string
+  platformCreditPhp?: number
 }
 
 export interface AccountResponse {
@@ -71,7 +72,6 @@ export interface AuthRefreshResponse {
 export interface LoginCredentials {
   email: string
   password: string
-  remember?: boolean
 }
 
 export interface RegisterCredentials {
@@ -80,6 +80,7 @@ export interface RegisterCredentials {
   firstName: string
   lastName: string
   gender: 'MALE' | 'FEMALE'
+  referralCode?: string
 }
 
 export function isSuppressedApiError(error: unknown): boolean {

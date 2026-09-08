@@ -56,7 +56,7 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Dashboard',
     icon: 'i-lucide-layout-dashboard',
-    to: '/user/dashboard'
+    to: '/'
   }, {
     label: 'Profile',
     icon: 'i-lucide-user-cog',
@@ -100,10 +100,10 @@ const links = [
         <UButton to="https://www.blinkpunch.com" variant="link" color="bread" class="font-semibold text-base text-white">
           About
         </UButton>
-        <UButton to="/user/dashboard" variant="link" color="bread" class="font-semibold text-base text-white">
+        <UButton to="/" variant="link" color="bread" class="font-semibold text-base text-white">
           Dashboard
         </UButton>
-        <NuxtLink to="/user/dashboard" class="mx-4">
+        <NuxtLink to="/" class="mx-4">
           <img src="../assets/bpb-icons/logo-white.svg" class="h-8" />
         </NuxtLink>
         <UButton to="/faqs" variant="link" color="bread" class="font-semibold text-base text-white">
@@ -148,7 +148,7 @@ const links = [
           <template #content>
             <div class="flex flex-col space-y-1">
               <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
-                to="/user/dashboard" @click="closeMobileMenu">Dashboard</UButton>
+                to="/" @click="closeMobileMenu">Dashboard</UButton>
               <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
                 to="https://www.blinkpunch.com" @click="closeMobileMenu">About Us</UButton>
               <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
@@ -158,7 +158,7 @@ const links = [
             </div>
           </template>
         </UPopover>
-        <NuxtLink to="/user/dashboard" class="flex items-center gap-2" @click="closeMobileMenu">
+        <NuxtLink to="/" class="flex items-center gap-2" @click="closeMobileMenu">
           <img class="h-7 w-auto" src="../assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
         </NuxtLink>
       </template>

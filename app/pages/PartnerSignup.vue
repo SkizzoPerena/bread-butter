@@ -1,8 +1,14 @@
 <script lang="ts" setup>
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { getApiErrorMessage } from '~/types/auth'
+
+definePageMeta({
+  layout: false
+})
 
 const toast = useToast()
+const { register } = useAuth('partner')
 
 const isSubmitting = ref(false)
 
@@ -27,7 +33,7 @@ const schema = z.object({
   return true
 }, {
   message: "Passwords don't match",
-  path: ['repass'],
+  path: ['repass']
 })
 
 type Schema = z.output<typeof schema>
@@ -48,21 +54,25 @@ const state = useState<Schema>('partner-signup-draft', () => {
     try {
       const saved = sessionStorage.getItem('bpb_partner_signup_draft')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch {
+      // Ignore invalid saved draft data and fall back to the default form.
+    }
   }
   return { ...defaultForm }
 })
 
-// Sync draft changes to sessionStorage
 watch(state, (val) => {
   if (import.meta.client) {
     try {
       sessionStorage.setItem('bpb_partner_signup_draft', JSON.stringify(val))
-    } catch {}
+    } catch {
+      // Ignore storage failures so the form remains usable.
+    }
   }
 }, { deep: true })
 
 const isPasswordVisible = ref(false)
+const isRepassVisible = ref(false)
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (isSubmitting.value) {
@@ -70,26 +80,42 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   }
 
   isSubmitting.value = true
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  try {
+    const { email, password, firstName, lastName, gender } = payload.data
+    const response = await register({
+      email: email.trim(),
+      password,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      gender
+    })
 
-  if (import.meta.client) {
-    sessionStorage.removeItem('bpb_partner_signup_draft')
+    if (import.meta.client) {
+      sessionStorage.removeItem('bpb_partner_signup_draft')
+    }
+    state.value = { ...defaultForm }
+
+    toast.add({
+      title: 'Registration started',
+      description: 'Please enter the verification code sent to your email.'
+    })
+
+    const otpId = response?.otpId || 'demo-otp-id'
+    await navigateTo(`/partners/otp?otpId=${encodeURIComponent(otpId)}&email=${encodeURIComponent(email.trim())}`)
+  } catch (error) {
+    toast.add({
+      title: 'Sign up failed',
+      description: getApiErrorMessage(error, 'Unable to create your partner account.'),
+      color: 'error'
+    })
+  } finally {
+    isSubmitting.value = false
   }
-  state.value = { ...defaultForm }
-
-  console.log('Frontend-only registration with:', payload.data)
-  toast.add({ title: 'Partner account created', description: 'Welcome to Bread+Butter!' })
-  await navigateTo('/partners')
-
-  isSubmitting.value = false
 }
-
 </script>
 
 <template>
   <div class="flex items-center justify-center p-4 bpb-pattern h-screen text-white">
-
     <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4 bg-toast-700 text-white">
       <div class="gap-8">
         <UForm :schema="schema" :state="state" class="space-y-5" @submit="onSubmit">
@@ -101,35 +127,55 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
             <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
           </div>
-          <UFormField label="First name":ui="{label: ' text-white'}" name="firstName" required>
+          <UFormField label="First name" :ui="{ label: ' text-white' }" name="firstName" required>
             <UInput v-model="state.firstName" class="w-full" placeholder="First name" />
           </UFormField>
-          <UFormField label="Last name":ui="{label: ' text-white'}" name="lastName" required>
+          <UFormField label="Last name" :ui="{ label: ' text-white' }" name="lastName" required>
             <UInput v-model="state.lastName" class="w-full" placeholder="Last name" />
           </UFormField>
-          <UFormField label="Email":ui="{label: ' text-white'}" name="email" required>
+          <UFormField label="Email" :ui="{ label: ' text-white' }" name="email" required>
             <UInput v-model="state.email" class="w-full" placeholder="Enter your email" />
           </UFormField>
-          <UFormField label="Gender":ui="{label: ' text-white'}" name="gender" required>
+          <UFormField label="Gender" :ui="{ label: ' text-white' }" name="gender" required>
             <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
           </UFormField>
-          <UFormField label="Password":ui="{label: ' text-white'}" name="password" required>
-            <UInput v-model="state.password" :type="isPasswordVisible ? 'text' : 'password'" class="w-full"
-              placeholder="Enter your password">
+          <UFormField label="Password" :ui="{ label: ' text-white' }" name="password" required>
+            <UInput
+              v-model="state.password"
+              :type="isPasswordVisible ? 'text' : 'password'"
+              class="w-full"
+              placeholder="Enter your password"
+            >
               <template #trailing>
-                <UButton color="neutral" variant="link" size="sm"
-                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
-                  @click="() => { isPasswordVisible = !isPasswordVisible }" />
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :padded="false"
+                  aria-label="Toggle password visibility"
+                  @click="isPasswordVisible = !isPasswordVisible"
+                />
               </template>
             </UInput>
           </UFormField>
-          <UFormField label="Verify password":ui="{label: ' text-white'}" name="repass" required>
-            <UInput v-model="state.repass" :type="isPasswordVisible ? 'text' : 'password'" class="w-full"
-              placeholder="Re-enter your password">
+          <UFormField label="Verify password" :ui="{ label: ' text-white' }" name="repass" required>
+            <UInput
+              v-model="state.repass"
+              :type="isRepassVisible ? 'text' : 'password'"
+              class="w-full"
+              placeholder="Re-enter your password"
+            >
               <template #trailing>
-                <UButton color="neutral" variant="link" size="sm"
-                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
-                  @click="() => { isPasswordVisible = !isPasswordVisible }" />
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="isRepassVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :padded="false"
+                  aria-label="Toggle verify password visibility"
+                  @click="isRepassVisible = !isRepassVisible"
+                />
               </template>
             </UInput>
           </UFormField>
@@ -137,14 +183,22 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <UFormField name="tnc">
               <UCheckbox v-model="state.tnc" name="tnc">
                 <template #label>
-                  <span class="text-sm text-white">I agree to Bread+Butter's <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }" class="text-bread-400 font-medium">
-                      Terms and
-                      Conditions.</ULink></span>
+                  <span class="text-sm text-white">
+                    I agree to Bread+Butter's
+                    <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }" class="text-bread-400 font-medium">
+                      Terms and Conditions.
+                    </ULink>
+                  </span>
                 </template>
               </UCheckbox>
             </UFormField>
             <UFormField name="updates">
-              <UCheckbox v-model="state.updates" name="updates":ui="{label: ' text-white'}" label="I want to receive updates from Bread+Butter." />
+              <UCheckbox
+                v-model="state.updates"
+                name="updates"
+                :ui="{ label: ' text-white' }"
+                label="I want to receive updates from Bread+Butter."
+              />
             </UFormField>
           </div>
           <UButton type="submit" block :loading="isSubmitting">Sign up</UButton>
@@ -155,7 +209,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       </div>
     </UPageCard>
   </div>
-
 </template>
 
 <style></style>

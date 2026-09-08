@@ -23,7 +23,7 @@
     "category": "Church Requirements",
     "timeline": "6 Months Before",
     "sourceUrl": "",
-    "description": "Must be a recently issued copy from your baptism parish with the specific annotation: 'For Marriage Purposes Only'.",
+    "description": "Must be a recently issued copy from your baptism parish with the specific annotation for marriage purposes.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -41,7 +41,7 @@
     "category": "Church Requirements",
     "timeline": "6 Months Before",
     "sourceUrl": "",
-    "description": "Must be a recently issued copy from your confirmation parish with the specific annotation: 'For Marriage Purposes Only'.",
+    "description": "Must be a recently issued copy from your confirmation parish with the specific annotation for marriage purposes.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -59,7 +59,7 @@
     "category": "Church Requirements",
     "timeline": "6 Months Before",
     "sourceUrl": "https://psahelpline.ph/",
-    "description": "Certificate of No Marriage Record issued by the PSA to ensure no prior legal marriage exists.",
+    "description": "Certificate of No Marriage Record issued by the PSA (for Filipinos only) confirming no prior legal marriage exists.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -77,7 +77,7 @@
     "category": "Church Requirements",
     "timeline": "6 Months Before",
     "sourceUrl": "",
-    "description": "Certificate of Attendance/Completion from an authorized pre-nuptial program approved by the Catholic Church.",
+    "description": "Certificate of Attendance/Completion of a Pre-Cana Seminar or Pre-Nuptial Counseling. Confirm with the church if they accept certificates issued by CEFAM or Discovery Weekend; otherwise schedule and complete the Pre-Cana seminar required by the wedding parish.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -95,7 +95,7 @@
     "category": "Church Requirements",
     "timeline": "3 Months Before",
     "sourceUrl": "",
-    "description": "Formal interview to be scheduled and conducted by the parish priest at the church where you are to marry.",
+    "description": "Formal interview to be scheduled and conducted with the church where you are to marry.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -113,7 +113,7 @@
     "category": "Church Requirements",
     "timeline": "3 Months Before",
     "sourceUrl": "",
-    "description": "Forms are claimed at the wedding church and submitted to your respective home parishes for a mandatory 3-week continuous public posting.",
+    "description": "Bring to the respective parishes of the couple to be posted for three (3) consecutive Sundays.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -131,25 +131,7 @@
     "category": "Church Requirements",
     "timeline": "3 Months Before",
     "sourceUrl": "",
-    "description": "Explicit formal permission given by your home parish priest if you intend to marry outside of your territorial parish.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "church_marriage_license_validation",
-    "displayName": "Valid Marriage License or Prior Marriage Documents",
-    "category": "Church Requirements",
-    "timeline": "3 Months Before",
-    "sourceUrl": "",
-    "description": "Submit a valid Marriage License issued by the Local Civil Registrar (valid for 120 days). If previously married, provide a PSA Civil Marriage Certificate along with Civil Annulment docs or a formal Report of Marriage.",
+    "description": "Permission from the Parish Priest if marrying outside your parish.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -167,7 +149,7 @@
     "category": "Church Requirements",
     "timeline": "2 Months Before",
     "sourceUrl": "",
-    "description": "Return the signed and cleared reply notice forms back to the wedding church after the 3-week posting duration at your home parishes.",
+    "description": "Submit the reply notice of marriage banns back to the wedding church after posting at your home parishes.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -185,7 +167,7 @@
     "category": "Church Requirements",
     "timeline": "2 Months Before",
     "sourceUrl": "",
-    "description": "Applicable only if you are inviting your own priest to officiate: Certificate of Authority to Solemnize Marriage (CRASM) and a valid Celebret.",
+    "description": "Certificate of authority to solemnize marriage (CRASM) and celebret of guest priest, applicable if you will have your own priest.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -203,7 +185,7 @@
     "category": "Church Requirements",
     "timeline": "1 Month Before",
     "sourceUrl": "",
-    "description": "Final validation and submission of all outstanding internal parish documents, waivers, and clearancess.",
+    "description": "Submit church forms and permits required by the wedding parish.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -221,7 +203,7 @@
     "category": "Church Requirements",
     "timeline": "1 Month Before",
     "sourceUrl": "",
-    "description": "Final clean list of legal witnesses/sponsors. Make sure to include the full mailing or residential addresses of at least two main principal sponsors.",
+    "description": "Final list of principal sponsors, including the full address of two of your principal sponsors.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -239,7 +221,7 @@
     "category": "Church Requirements",
     "timeline": "2 Weeks Before",
     "sourceUrl": "",
-    "description": "Carefully double-check the spelling, names, birthdates, and details on the layout/draft certificate to prevent legal issues post-ceremony.",
+    "description": "Carefully review the draft marriage certificate for spelling, names, birthdates, and other details before the ceremony.",
     "groom": {
       "status": "required",
       "dateAcquired": null,
@@ -252,201 +234,219 @@
     }
   },
   {
-    "taskKey": "special_archdiocese_clearance",
-    "displayName": "Archdiocese Clearance",
+    "taskKey": "special_chancery_inquiry",
+    "displayName": "Inquiry/Visit at the Chancery Office",
     "category": "Special Clearances",
-    "timeline": "As Needed",
+    "timeline": "6 Months Before",
     "sourceUrl": "",
-    "description": "Mandatory review and clearance directly from the Archdiocese office if executing a mixed marriage (interfaith) or if a partner had a prior marriage.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_birth_certificate_ctc",
-    "displayName": "Certified True Copy of Birth Certificate",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "https://psahelpline.ph/",
-    "description": "Civil registry verification copy of the legal birth certificate registry.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_cenomar",
-    "displayName": "Certificate of No Marriage (CENOMAR)",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "https://psahelpline.ph/",
-    "description": "Freshly issued civil registry tracking copy of your CENOMAR for municipal compilation.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_parental_consent_advice",
-    "displayName": "Affidavit of Parental Consent or Advice",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "Legal requirement in the Philippines: Parental Consent Affidavit is mandatory for applicants ages 18-21. Parental Advice document is required for ages 22-25.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_cedula",
-    "displayName": "Community Tax Certificate (Cedula)",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "Current fiscal year Community Tax Certificate obtained from your local city hall or barangay hall.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_barangay_clearance",
-    "displayName": "Barangay Clearance",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "An official local clearance issued by the specific Barangay office holding jurisdiction over your legal residence.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_valid_ids",
-    "displayName": "Two (2) Valid Government IDs",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "Original and clear photocopies of at least two formal government-issued identity cards (e.g., Passport, UMID, Driver's License, National ID).",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_id_picture_1x1",
-    "displayName": "1x1 ID Picture",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "Recent 1x1 size identification photographs with clean, solid background setups.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "civil_marriage_license_form",
-    "displayName": "Accomplished Marriage License Application Form",
-    "category": "Civil Registry Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "The master application document completed and swore before the Local Civil Registrar officer.",
-    "groom": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    },
-    "bride": {
-      "status": "required",
-      "dateAcquired": null,
-      "notes": ""
-    }
-  },
-  {
-    "taskKey": "foreigner_legal_capacity",
-    "displayName": "Certificate of Legal Capacity to Contract Marriage",
-    "category": "Foreigner-Specific Requirements",
-    "timeline": "Before Marriage License Application",
-    "sourceUrl": "",
-    "description": "Official declaration issued by the foreigner's national embassy or consulate located within the Philippines confirming legal freedom to marry.",
+    "description": "For foreigners, non-Catholics, or divorcees: inquire or visit at the Chancery Office regarding additional clearances.",
     "groom": {
       "status": "not required",
       "dateAcquired": null,
-      "notes": "Set to required only if Groom is a foreign national."
+      "notes": "Set to required if this applies to the groom."
     },
     "bride": {
       "status": "not required",
       "dateAcquired": null,
-      "notes": "Set to required only if Bride is a foreign national."
+      "notes": "Set to required if this applies to the bride."
     }
   },
   {
-    "taskKey": "foreigner_passport_photocopy",
-    "displayName": "Photocopy of Passport Pages",
-    "category": "Foreigner-Specific Requirements",
-    "timeline": "Before Marriage License Application",
+    "taskKey": "special_check_archdiocese",
+    "displayName": "Check with the Archdiocese",
+    "category": "Special Clearances",
+    "timeline": "6 Months Before",
     "sourceUrl": "",
-    "description": "Clear photocopies verifying passport data: identity info page, signature page, and the page proving their latest formal entry stamp into the Philippines.",
+    "description": "For mixed or previous marriage cases: confirm applicable requirements with the Archdiocese.",
     "groom": {
       "status": "not required",
       "dateAcquired": null,
-      "notes": "Set to required only if Groom is a foreign national."
+      "notes": "Set to required if this applies to the groom."
     },
     "bride": {
       "status": "not required",
       "dateAcquired": null,
-      "notes": "Set to required only if Bride is a foreign national."
+      "notes": "Set to required if this applies to the bride."
+    }
+  },
+  {
+    "taskKey": "special_civilly_married_docs",
+    "displayName": "PSA Civil Marriage and Annulment or Report of Marriage",
+    "category": "Special Clearances",
+    "timeline": "6 Months Before",
+    "sourceUrl": "",
+    "description": "If previously civilly married: PSA Civil Marriage and Civilly Annulled documents, or PSA Civil Marriage and Report of Marriage.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if previously civilly married."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if previously civilly married."
+    }
+  },
+  {
+    "taskKey": "special_renewal_of_vows_certificate",
+    "displayName": "Church Marriage Certificate",
+    "category": "Special Clearances",
+    "timeline": "6 Months Before",
+    "sourceUrl": "",
+    "description": "Required for renewal of vows: Church Marriage Certificate.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required for renewal of vows."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required for renewal of vows."
+    }
+  },
+  {
+    "taskKey": "special_archdiocese_questionnaire",
+    "displayName": "Archdiocese of Manila Questionnaire",
+    "category": "Special Clearances",
+    "timeline": "5 Months Before",
+    "sourceUrl": "https://drive.google.com/file/d/1Qhh1uIPDOA1-iU5S4KSvtc0Emxxv-e6s/view?usp=sharing",
+    "description": "Accomplished questionnaire if the wedding is covered by the Archdiocese of Manila (for foreigners, non-Catholics, or divorcees).",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if this applies."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if this applies."
+    }
+  },
+  {
+    "taskKey": "special_freedom_to_marry_abroad",
+    "displayName": "Certificate of Freedom to Marry or Affidavit of Free Status",
+    "category": "Special Clearances",
+    "timeline": "5 Months Before",
+    "sourceUrl": "",
+    "description": "For foreigners: Certificate of Freedom to Marry from the parish of present residence abroad for six months or more immediately prior to the wedding, or Affidavit of Free Status to Marry.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required only if the groom is a foreign national."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required only if the bride is a foreign national."
+    }
+  },
+  {
+    "taskKey": "special_embassy_legal_capacity",
+    "displayName": "Certificate of Free Status to Marry / Legal Capacity from Embassy",
+    "category": "Special Clearances",
+    "timeline": "5 Months Before",
+    "sourceUrl": "",
+    "description": "For foreigners: Certificate of Free Status to Marry / Legal Capacity from the Embassy of the country of origin.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required only if the groom is a foreign national."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required only if the bride is a foreign national."
+    }
+  },
+  {
+    "taskKey": "special_active_membership_mixed_marriage",
+    "displayName": "Certificate of Active Membership (Mixed Marriage)",
+    "category": "Special Clearances",
+    "timeline": "5 Months Before",
+    "sourceUrl": "",
+    "description": "For non-Catholics: Certificate of Active Membership from his/her religious affiliation (mixed marriage).",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if the groom is non-Catholic."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if the bride is non-Catholic."
+    }
+  },
+  {
+    "taskKey": "special_divorce_decree",
+    "displayName": "Absolute Decree of Divorce Papers",
+    "category": "Special Clearances",
+    "timeline": "5 Months Before",
+    "sourceUrl": "",
+    "description": "For divorced parties: certified true copy of legal papers proving the absolute decree of divorce.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if previously divorced."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if previously divorced."
+    }
+  },
+  {
+    "taskKey": "special_declaration_of_nullity",
+    "displayName": "Final Declaration of Nullity",
+    "category": "Special Clearances",
+    "timeline": "5 Months Before",
+    "sourceUrl": "",
+    "description": "For a previous marriage declared null and void: certified true copy of the Final Declaration of Nullity from a Matrimonial Tribunal.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if a prior marriage was declared null and void."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if a prior marriage was declared null and void."
+    }
+  },
+  {
+    "taskKey": "special_chancery_clearance",
+    "displayName": "Clearance from the Chancery Office",
+    "category": "Special Clearances",
+    "timeline": "1 Month Before",
+    "sourceUrl": "",
+    "description": "Clearance from the Chancery Office, Arzobispado de Manila, for foreigners, non-Catholics, or divorcees when applicable.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if this applies to the groom."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if this applies to the bride."
+    }
+  },
+  {
+    "taskKey": "special_disparity_of_cult_clearance",
+    "displayName": "Disparity of Cult Clearance",
+    "category": "Special Clearances",
+    "timeline": "1 Month Before",
+    "sourceUrl": "",
+    "description": "For non-Catholics: Disparity of Cult Clearance from the Chancery Office, Arzobispado de Manila.",
+    "groom": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if the groom is non-Catholic."
+    },
+    "bride": {
+      "status": "not required",
+      "dateAcquired": null,
+      "notes": "Set to required if the bride is non-Catholic."
     }
   }
 ]

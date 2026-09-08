@@ -81,7 +81,10 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/': { prerender: true }
+    // Auth decides landing vs dashboard on the client; prerendering `/` breaks
+    // post-login navigation with a failed `_payload.json` fetch.
+    '/': { ssr: false },
+    '/user/dashboard': { redirect: { to: '/', statusCode: 301 } },
   },
 
   compatibilityDate: '2025-01-15',
@@ -108,6 +111,27 @@ export default defineNuxtConfig({
 
   hooks: {
     'pages:extend'(pages) {
+      // Keep leftover/pre-vamp page files in the repo, but do not expose them as routes.
+      const hiddenRouteNames = new Set([
+        'EventTasksDashboardPreVamp',
+        'UserDashboard',
+        'UserEventDashboard prevamp',
+        'UserSignup copy',
+        'NuxtTemplate'
+      ])
+
+      for (let i = pages.length - 1; i >= 0; i--) {
+        const page = pages[i]
+        const name = page?.name || ''
+        const file = String(page?.file || '')
+        if (
+          hiddenRouteNames.has(name)
+          || /pre-vamp|prevamp|signup copy|NuxtTemplate/i.test(`${name} ${file}`)
+        ) {
+          pages.splice(i, 1)
+        }
+      }
+
       // This function will find a page by its auto-generated name and update its path
       const setPath = (name: string, path: string) => {
         const page = pages.find(p => p.name === name)
@@ -120,22 +144,21 @@ export default defineNuxtConfig({
       setPath('EventChurchRequirementsDashboard', '/event/requirements')
       setPath('EventGuestsDashboard', '/event/guests')
       setPath('EventPaymentReview', '/event/payment-review')
+      setPath('EventUpgrade', '/event/upgrade')
+      setPath('EventEmailCredits', '/event/email-credits')
       setPath('EventPlaylistDashboard', '/event/playlist')
       setPath('EventRSVPDashboard', '/event/rsvp')
       setPath('EventSchedulesDashboard', '/event/schedules')
       setPath('EventSettingsDashboard', '/event/settings')
       setPath('EventSuppliersDashboard', '/event/suppliers')
       setPath('EventTasksDashboard', '/event/tasks')
-      setPath('EventTasksDashboardPreVamp', '/event/tasks-pre-vamp')
       setPath('EventWishlistDashboard', '/event/wishlist')
       setPath('SubEventDashboard', '/event/sub-event')
       setPath('AddGuestsBulk', '/event/add-guests-bulk')
 
       // Set paths for /user/* routes
       setPath('UserCreateEvent', '/user/create-event')
-      setPath('UserDashboard pre-vamp', '/user/dashboard-pre-vamp')
-      setPath('UserDashboard', '/user/dashboard')
-      setPath('UserEventDashboard prevamp', '/user/event-dashboard-prevamp')
+      // UserDashboard merged into `/` (index.vue); legacy path redirects via routeRules
       setPath('UserEventDashboard', '/user/event-dashboard')
       setPath('UserForgotPassword', '/user/forgot-password')
       setPath('UserLogin', '/user/login')
@@ -144,14 +167,20 @@ export default defineNuxtConfig({
       setPath('UserPaymentPending', '/user/payment-pending')
       setPath('UserProfile', '/user/profile')
       setPath('UserReportIssue', '/user/report-issue')
-      setPath('UserSignup copy', '/user/signup-copy')
       setPath('UserSignup', '/user/signup')
       setPath('UserTransactions', '/user/transactions')
 
       // Set paths for /partners/* routes
       setPath('PartnerDashboard', '/partners')
+      setPath('PartnerEvents', '/partners/events')
+      setPath('PartnerVouchers', '/partners/vouchers')
+      setPath('PartnerCashouts', '/partners/cashouts')
+      setPath('PartnerProfile', '/partners/profile')
+      setPath('PartnerCollaborations', '/partners/collaborations')
+      setPath('PartnerTransactions', '/partners/transactions')
       setPath('PartnerLogin', '/partners/login')
       setPath('PartnerSignup', '/partners/signup')
+      setPath('PartnerOtp', '/partners/otp')
       setPath('PartnerForgotPassword', '/partners/forgot-password')
 
       // Set paths for standalone pages

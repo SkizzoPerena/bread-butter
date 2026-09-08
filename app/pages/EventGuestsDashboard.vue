@@ -24,6 +24,7 @@ const { fetchEvent } = useEvents()
 const { fetchGuestsByEvent } = useGuests()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { isExporting, exportEventPdf } = useEventPdfExport()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -251,6 +252,14 @@ const rsvpMakerLink = computed(() => ({
   query: eventId.value ? { eventId: eventId.value } : {},
 }))
 
+const emailCreditsLink = computed(() => {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  return {
+    path: '/event/email-credits',
+    query: id ? { eventId: id } : {},
+  }
+})
+
 const columns: TableColumn<GuestTableRow>[] = [
   {
     id: 'select',
@@ -460,7 +469,7 @@ onMounted(() => {
       description: 'Open an event from your dashboard first.',
       color: 'error',
     })
-    navigateTo('/user/dashboard')
+    navigateTo('/')
     return
   }
   loadEventData()
@@ -499,12 +508,31 @@ watch(eventId, () => {
             Invite All
           </UButton>
           <UButton
+            icon="i-lucide-mail-plus"
+            color="orange"
+            variant="soft"
+            :to="emailCreditsLink"
+            :disabled="!eventId && !isUiOnlyMode"
+          >
+            Buy Email Credits
+          </UButton>
+          <UButton
             icon="i-lucide-user-plus"
             color="orange"
             :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
             @click="() => { isAddGuestModalOpen = true }"
           >
             Add Guest
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            :loading="isExporting"
+            :disabled="!eventId || isExporting"
+            @click="exportEventPdf(eventId, 'guests')"
+          >
+            Export PDF
           </UButton>
         </div>
       </Teleport>
@@ -535,7 +563,18 @@ watch(eventId, () => {
         title="No email credits remaining"
         description="You have used all invitation emails included in your event plan."
         class="mb-4"
-      />
+      >
+        <template #actions>
+          <UButton
+            icon="i-lucide-mail-plus"
+            color="warning"
+            variant="soft"
+            :to="emailCreditsLink"
+          >
+            Buy Email Credits
+          </UButton>
+        </template>
+      </UAlert>
 
       <UPageGrid>
         <UPageCard

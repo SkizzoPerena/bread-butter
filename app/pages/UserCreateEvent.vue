@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
+
+definePageMeta({
+  layout: 'signed-in-navbar',
+})
 
 useHead({
   title: 'Create Event - Bread + Butter',
 })
 
-const router = useRouter()
 const toast = useToast()
 
 type ViewStep = 'packages' | 'details'
 
 const currentView = ref<ViewStep>('packages')
-const selectedPackage = ref<string>('bread-butter') // default or selected
+const selectedPackage = ref<string>('bread-butter')
 
 const plans = [
   {
@@ -88,7 +91,18 @@ const eventForm = reactive({
   eventType: 'WEDDING',
   eventDate: '',
   venue: '',
-  guestCount: 100,
+  description: '',
+  isCatholicWedding: false,
+})
+
+const isWeddingEventType = computed(() =>
+  String(eventForm.eventType || '').trim().toUpperCase() === 'WEDDING',
+)
+
+watch(isWeddingEventType, (isWedding) => {
+  if (!isWedding) {
+    eventForm.isCatholicWedding = false
+  }
 })
 
 const eventTypeOptions = [
@@ -101,6 +115,28 @@ const eventTypeOptions = [
   { label: 'Special Party', value: 'PARTY' }
 ]
 
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const minEventDate = computed(() => {
+  const min = new Date()
+  min.setFullYear(min.getFullYear() + 1)
+  return formatDateInputValue(min)
+})
+
+function isEventDateAtLeastOneYearOut(dateStr: string): boolean {
+  if (!dateStr.trim()) return false
+  const selected = new Date(`${dateStr}T00:00:00`)
+  const min = new Date()
+  min.setFullYear(min.getFullYear() + 1)
+  min.setHours(0, 0, 0, 0)
+  return selected >= min
+}
+
 function switchView(view: ViewStep) {
   currentView.value = view
 }
@@ -110,29 +146,68 @@ function choosePackage(pkgId: string) {
   switchView('details')
 }
 
+function buildDescription(): string {
+  const trimmed = eventForm.description.trim()
+  if (trimmed) return trimmed
+
+  const name = eventForm.eventName.trim()
+  const venue = eventForm.venue.trim()
+  if (name && venue) return `${name} at ${venue}`
+  if (name) return `${name} celebration`
+  return 'Event celebration'
+}
+
 function submitEventSetup() {
   if (!eventForm.eventName.trim()) {
     toast.add({
       title: 'Event name required',
       description: 'Please enter a name for your celebration.',
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
 
-  // Navigate to Payment page with query parameters
+  if (!eventForm.eventDate.trim()) {
+    toast.add({
+      title: 'Event date required',
+      description: 'Please select your target event date.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!isEventDateAtLeastOneYearOut(eventForm.eventDate)) {
+    toast.add({
+      title: 'Event date too soon',
+      description: 'Please select a date at least one year from today.',
+      color: 'warning',
+    })
+    return
+  }
+
+  if (!eventForm.venue.trim()) {
+    toast.add({
+      title: 'Venue required',
+      description: 'Please enter a venue or location for your event.',
+      color: 'warning',
+    })
+    return
+  }
+
   navigateTo({
     path: '/user/payment',
     query: {
       package: selectedPackage.value,
-      eventName: eventForm.eventName,
+      eventName: eventForm.eventName.trim(),
       eventType: eventForm.eventType,
       eventDate: eventForm.eventDate,
-      venue: eventForm.venue,
-      guestCount: String(eventForm.guestCount)
-    }
+      venue: eventForm.venue.trim(),
+      description: buildDescription(),
+      isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding ? 'true' : 'false',
+    },
   })
 }
+
 </script>
 
 <template>
@@ -221,20 +296,29 @@ function submitEventSetup() {
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
 
-              <UFormField label="Target Event Date">
-                <UInput v-model="eventForm.eventDate" type="date" size="lg"
+              <UFormField label="Target Event Date" required
+                description="Must be at least one year from today">
+                <UInput v-model="eventForm.eventDate" type="date" size="lg" :min="minEventDate"
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
             </div>
 
-            <UFormField label="Venue / Location">
+            <UCheckbox
+              v-if="isWeddingEventType"
+              v-model="eventForm.isCatholicWedding"
+              label="Is this a Catholic wedding?"
+              class="text-toast-900"
+            />
+
+            <UFormField label="Venue / Location" required>
               <UInput v-model="eventForm.venue" placeholder="e.g. Manila Cathedral / Grand Ballroom" size="lg"
                 class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
             </UFormField>
 
-            <UFormField label="Estimated Guest Count">
-              <UInput v-model.number="eventForm.guestCount" type="number" min="1" size="lg"
-                class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
+            <UFormField label="Event Description" required>
+              <UTextarea v-model="eventForm.description"
+                placeholder="Brief description of your celebration (auto-filled from name and venue if left blank)"
+                :rows="3" size="lg" class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
             </UFormField>
 
             <div class="pt-4 flex gap-4">

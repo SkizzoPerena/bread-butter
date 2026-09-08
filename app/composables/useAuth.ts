@@ -1,3 +1,4 @@
+import { clearUserSessionData } from '~/composables/useUserSessionData'
 import type {
   AuthLoginResponse,
   AuthRefreshResponse,
@@ -8,6 +9,7 @@ import type {
   RegisterCredentials
 } from '~/types/auth'
 import { RestrictedAccountError } from '~/utils/restrictedAccount'
+import { normalizeReferralCode } from '~/utils/referralCode'
 
 export type AuthRole = 'user' | 'partner' | 'admin'
 
@@ -34,14 +36,41 @@ export function getTokenExpiration(token: string): number | null {
   }
 }
 
+export function isTokenExpired(token: string): boolean {
+  const exp = getTokenExpiration(token)
+  if (!exp) return false
+  return Date.now() >= exp
+}
+
 export function isTokenExpiredOrExpiring(token: string, thresholdSeconds = 120): boolean {
   const exp = getTokenExpiration(token)
   if (!exp) return false
   return Date.now() >= exp - thresholdSeconds * 1000
 }
 
+export type RefreshSessionResult = 'success' | 'expired' | 'transient'
+
+const TRANSIENT_REFRESH_RETRY_MS = 30_000
+const refreshPromises: Partial<Record<AuthRole, Promise<RefreshSessionResult>>> = {}
+
+export function getErrorStatus(error: unknown): number | undefined {
+  const err = error as {
+    status?: number
+    statusCode?: number
+    response?: { status?: number }
+  }
+  const status = err?.response?.status ?? err?.statusCode ?? err?.status
+  return typeof status === 'number' ? status : undefined
+}
+
+export function isRefreshSessionExpiredError(error: unknown): boolean {
+  return getErrorStatus(error) === 401
+}
+
 const silentRefreshTimers: Partial<Record<AuthRole, ReturnType<typeof setTimeout>>> = {}
 let visibilityListenerAttached = false
+const sessionEnsured: Partial<Record<AuthRole, boolean>> = {}
+const ensurePromises: Partial<Record<AuthRole, Promise<boolean>>> = {}
 
 export function cancelSilentRefresh(role: AuthRole = 'user') {
   if (silentRefreshTimers[role]) {
@@ -67,9 +96,20 @@ export function scheduleSilentRefresh(role: AuthRole = 'user', tokenOverride?: s
 
   silentRefreshTimers[role] = setTimeout(async () => {
     const { refreshSession } = useAuth(role)
-    const success = await refreshSession()
-    if (success) {
+    const result = await refreshSession()
+    if (result === 'success') {
       scheduleSilentRefresh(role)
+      return
+    }
+    if (result === 'transient') {
+      silentRefreshTimers[role] = setTimeout(() => {
+        scheduleSilentRefresh(role)
+      }, TRANSIENT_REFRESH_RETRY_MS)
+      return
+    }
+    if (import.meta.client) {
+      const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
+      await navigateTo(loginPath)
     }
   }, delay)
 
@@ -87,8 +127,13 @@ function initVisibilityListener() {
         const currentToken = getStoredAccessToken(role)
         if (currentToken && isTokenExpiredOrExpiring(currentToken, 120)) {
           const { refreshSession } = useAuth(role)
-          refreshSession().then((success) => {
-            if (success) scheduleSilentRefresh(role)
+          refreshSession().then((result) => {
+            if (result === 'success' || result === 'transient') {
+              scheduleSilentRefresh(role)
+              return
+            }
+            const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
+            navigateTo(loginPath)
           })
         }
       }
@@ -99,24 +144,132 @@ function initVisibilityListener() {
   window.addEventListener('focus', checkAndRefresh)
 }
 
-export function getSessionStorageKey(role: AuthRole = 'user'): string {
+export function getAccessTokenStorageKey(role: AuthRole = 'user'): string {
   return `bpb_${role}_access_token`
+}
+
+/** @deprecated Use getAccessTokenStorageKey */
+export function getSessionStorageKey(role: AuthRole = 'user'): string {
+  return getAccessTokenStorageKey(role)
+}
+
+const ACTIVE_AUTH_ROLE_KEY = 'bpb_active_auth_role'
+
+export function getActiveAuthRole(): AuthRole | null {
+  if (!import.meta.client) return null
+
+  const stored = localStorage.getItem(ACTIVE_AUTH_ROLE_KEY)
+  if (stored === 'user' || stored === 'partner' || stored === 'admin') {
+    if (getStoredAccessToken(stored)) return stored
+    localStorage.removeItem(ACTIVE_AUTH_ROLE_KEY)
+  }
+
+  // Legacy sessions: infer from whichever token still exists.
+  if (getStoredAccessToken('partner')) return 'partner'
+  if (getStoredAccessToken('user')) return 'user'
+  if (getStoredAccessToken('admin')) return 'admin'
+  return null
+}
+
+function setActiveAuthRole(role: AuthRole) {
+  if (!import.meta.client) return
+  localStorage.setItem(ACTIVE_AUTH_ROLE_KEY, role)
+}
+
+function clearActiveAuthRole(role?: AuthRole) {
+  if (!import.meta.client) return
+  const current = localStorage.getItem(ACTIVE_AUTH_ROLE_KEY)
+  if (!role || current === role) {
+    localStorage.removeItem(ACTIVE_AUTH_ROLE_KEY)
+  }
+}
+
+/** Keep only one of user/partner signed in at a time. */
+function clearConflictingRoleSessions(activeRole: AuthRole) {
+  if (!import.meta.client) return
+  if (activeRole !== 'user' && activeRole !== 'partner') return
+
+  const other: AuthRole = activeRole === 'user' ? 'partner' : 'user'
+  cancelSilentRefresh(other)
+  removeAccessToken(other)
+  sessionEnsured[other] = true
+
+  const otherToken = useState<string | null>(`auth-${other}-access-token`)
+  const otherUser = useState<AuthUser | null>(`auth-${other}-user`)
+  otherToken.value = null
+  otherUser.value = null
+
+  if (other === 'user') {
+    clearUserSessionData()
+  }
+}
+
+function readAccessToken(role: AuthRole): string | null {
+  const key = getAccessTokenStorageKey(role)
+  const fromLocal = localStorage.getItem(key)
+  if (fromLocal) return fromLocal
+  const fromSession = sessionStorage.getItem(key)
+  if (fromSession) {
+    localStorage.setItem(key, fromSession)
+    sessionStorage.removeItem(key)
+    return fromSession
+  }
+  return null
+}
+
+function writeAccessToken(role: AuthRole, token: string) {
+  const key = getAccessTokenStorageKey(role)
+  localStorage.setItem(key, token)
+  sessionStorage.removeItem(key)
+}
+
+function removeAccessToken(role: AuthRole) {
+  const key = getAccessTokenStorageKey(role)
+  localStorage.removeItem(key)
+  sessionStorage.removeItem(key)
 }
 
 export function getStoredAccessToken(role: AuthRole = 'user'): string | null {
   if (!import.meta.client) return null
-  const rawToken = sessionStorage.getItem(getSessionStorageKey(role))
+  const rawToken = readAccessToken(role)
   if (!rawToken) return null
   const clean = rawToken.replace(/^Bearer\s+/i, '').trim()
   if (!clean || isLegacyObjectIdToken(clean)) {
-    sessionStorage.removeItem(getSessionStorageKey(role))
+    removeAccessToken(role)
     return null
   }
   return clean
 }
 
+export async function ensureSession(role: AuthRole = 'user'): Promise<boolean> {
+  const { isUiOnlyMode } = useApiMode()
+  const { restoreSession, isAuthenticated, syncSessionFromStorage } = useAuth(role)
+
+  if (isUiOnlyMode.value) {
+    syncSessionFromStorage()
+    return isAuthenticated.value
+  }
+
+  if (sessionEnsured[role]) {
+    return isAuthenticated.value
+  }
+
+  if (!ensurePromises[role]) {
+    ensurePromises[role] = (async () => {
+      try {
+        await restoreSession()
+        return isAuthenticated.value
+      } finally {
+        sessionEnsured[role] = true
+        ensurePromises[role] = undefined
+      }
+    })()
+  }
+
+  return ensurePromises[role]!
+}
+
 export function useAuth(role: AuthRole = 'user') {
-  const storageKey = getSessionStorageKey(role)
   const tokenStateKey = `auth-${role}-access-token`
   const userStateKey = `auth-${role}-user`
 
@@ -124,7 +277,7 @@ export function useAuth(role: AuthRole = 'user') {
     return getStoredAccessToken(role)
   })
 
-  // On client, ensure state is hydrated from sessionStorage if available
+  // On client, ensure state is hydrated from persistent storage if available
   if (import.meta.client && !token.value) {
     const stored = getStoredAccessToken(role)
     if (stored) {
@@ -150,7 +303,11 @@ export function useAuth(role: AuthRole = 'user') {
     const cleanToken = newToken.replace(/^Bearer\s+/i, '').trim()
     token.value = cleanToken
     if (import.meta.client) {
-      sessionStorage.setItem(storageKey, cleanToken)
+      writeAccessToken(role, cleanToken)
+      setActiveAuthRole(role)
+      if (role === 'user' || role === 'partner') {
+        clearConflictingRoleSessions(role)
+      }
       scheduleSilentRefresh(role, cleanToken)
     }
     if (newUser !== undefined) {
@@ -161,9 +318,14 @@ export function useAuth(role: AuthRole = 'user') {
   function clearSession() {
     token.value = null
     user.value = null
+    sessionEnsured[role] = true
     if (import.meta.client) {
-      sessionStorage.removeItem(storageKey)
+      removeAccessToken(role)
+      clearActiveAuthRole(role)
       cancelSilentRefresh(role)
+    }
+    if (role === 'user') {
+      clearUserSessionData()
     }
   }
 
@@ -186,18 +348,28 @@ export function useAuth(role: AuthRole = 'user') {
       }
     }
     clearSession()
-    const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
-    await navigateTo(loginPath)
+    await navigateTo('/')
   }
 
   async function login(credentials: LoginCredentials) {
     const { apiRequest, isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
+      setSession(
+        `ui-only-${role}-token`,
+        {
+          email: credentials.email,
+          firstName: role === 'partner' ? 'Partner' : 'Jane',
+          lastName: 'User',
+          gender: 'FEMALE'
+        }
+      )
+      sessionEnsured[role] = true
       return null
     }
 
     clearSession()
+    sessionEnsured[role] = true
 
     const response = await apiRequest<AuthLoginResponse>(`/${role}/login`, {
       method: 'POST',
@@ -227,16 +399,26 @@ export function useAuth(role: AuthRole = 'user') {
       return null
     }
 
+    const normalizedReferral = credentials.referralCode
+      ? normalizeReferralCode(credentials.referralCode)
+      : ''
+
+    const body: Record<string, string> = {
+      email: credentials.email,
+      password: credentials.password,
+      firstName: credentials.firstName,
+      lastName: credentials.lastName,
+      gender: credentials.gender
+    }
+
+    if (normalizedReferral) {
+      body.referralCode = normalizedReferral
+    }
+
     const response = await apiRequest<AuthRegisterResponse>(`/${role}/register`, {
       method: 'POST',
       authenticated: false,
-      body: {
-        email: credentials.email,
-        password: credentials.password,
-        firstName: credentials.firstName,
-        lastName: credentials.lastName,
-        gender: credentials.gender
-      }
+      body
     })
 
     return response
@@ -262,38 +444,51 @@ export function useAuth(role: AuthRole = 'user') {
     return response
   }
 
-  async function refreshSession(): Promise<boolean> {
+  async function refreshSession(): Promise<RefreshSessionResult> {
     const { apiRequest, isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
-      return false
+      return token.value ? 'success' : 'expired'
     }
 
-    try {
-      const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
-        method: 'POST',
-        authenticated: false
-      })
+    if (refreshPromises[role]) {
+      return refreshPromises[role]!
+    }
 
-      if (response?.accessToken) {
-        setSession(response.accessToken)
-        return true
+    refreshPromises[role] = (async () => {
+      try {
+        const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
+          method: 'POST',
+          authenticated: false
+        })
+
+        if (response?.accessToken) {
+          setSession(response.accessToken)
+          return 'success'
+        }
+
+        return 'transient'
+      } catch (error) {
+        if (isRefreshSessionExpiredError(error)) {
+          clearSession()
+          return 'expired'
+        }
+        return 'transient'
+      } finally {
+        delete refreshPromises[role]
       }
-    } catch {
-      clearSession()
-    }
+    })()
 
-    return false
+    return refreshPromises[role]!
   }
 
   async function restoreSession(): Promise<boolean> {
     const { isUiOnlyMode } = useApiMode()
 
     if (isUiOnlyMode.value) {
-      return false
+      return syncSessionFromStorage()
     }
 
-    // 1. If sessionStorage has a valid access token that is not expired/expiring, sync and schedule
     const stored = getStoredAccessToken(role)
     if (stored && !isTokenExpiredOrExpiring(stored, 60)) {
       if (syncSessionFromStorage()) {
@@ -302,22 +497,24 @@ export function useAuth(role: AuthRole = 'user') {
       }
     }
 
-    // 2. Otherwise attempt refresh via httpOnly cookie
-    try {
-      const success = await refreshSession()
-      if (success) {
-        if (role === 'user') {
-          try {
-            const { fetchAccount } = useAccount()
-            await fetchAccount()
-          } catch {
-            // Token is restored even if fetching account details fails
-          }
+    const result = await refreshSession()
+    if (result === 'success') {
+      if (role === 'user') {
+        try {
+          const { fetchAccount } = useAccount()
+          await fetchAccount()
+        } catch {
+          // Token is restored even if fetching account details fails
         }
+      }
+      return true
+    }
+
+    if (result === 'transient' && stored && !isTokenExpired(stored)) {
+      if (syncSessionFromStorage()) {
+        scheduleSilentRefresh(role, stored)
         return true
       }
-    } catch {
-      clearSession()
     }
 
     return false

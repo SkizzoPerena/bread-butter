@@ -1,0 +1,350 @@
+<script lang="ts" setup>
+import * as z from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { reportApiError } from '~/types/auth'
+import { resolveProfileImageUrl } from '~/utils/profileImage'
+
+definePageMeta({
+  layout: 'partner-navbar'
+})
+
+const toast = useToast()
+const {
+  fetchAccount,
+  saveAccount,
+  uploadProfilePicture,
+  changePassword,
+  enableEmailNotifications,
+  disableEmailNotifications
+} = usePartnerAccount()
+
+const genderOptions = [
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' }
+]
+
+type SettingsTabId = 'profile' | 'password' | 'preferences'
+
+const settingsTabs: { id: SettingsTabId; label: string; icon: string }[] = [
+  { id: 'profile', label: 'Profile', icon: 'i-lucide-user-cog' },
+  { id: 'password', label: 'Password', icon: 'i-lucide-lock' },
+  { id: 'preferences', label: 'Preferences', icon: 'i-lucide-settings' }
+]
+
+const activeTab = ref<SettingsTabId>('profile')
+
+const schema = z.object({
+  firstName: z.string().min(1, 'Enter your first name'),
+  lastName: z.string().min(1, 'Enter your last name'),
+  email: z.string().email('Invalid email'),
+  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' })
+})
+
+type Schema = z.output<typeof schema>
+
+const state = reactive<Schema>({
+  firstName: '',
+  lastName: '',
+  email: '',
+  gender: 'FEMALE'
+})
+
+const profileImageURL = ref('')
+const partnerCreditPhp = ref(0)
+const isLoading = ref(true)
+const isSaving = ref(false)
+const isUploading = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const passwordState = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmNewPassword: ''
+})
+const isChangingPassword = ref(false)
+
+const emailNotifEnabled = ref(true)
+const isUpdatingEmailNotif = ref(false)
+
+const displayName = computed(() => `${state.firstName} ${state.lastName}`.trim())
+const profileImageSrc = computed(() => resolveProfileImageUrl(profileImageURL.value))
+
+function applyAccountToForm(account: {
+  email: string
+  firstName: string
+  lastName: string
+  gender: string
+  profileImageURL?: string
+  emailNotifEnabled?: boolean
+  partnerCreditPhp?: number
+}) {
+  state.firstName = account.firstName
+  state.lastName = account.lastName
+  state.email = account.email
+  state.gender = account.gender === 'MALE' || account.gender === 'FEMALE'
+    ? account.gender
+    : 'FEMALE'
+  profileImageURL.value = account.profileImageURL ?? ''
+  emailNotifEnabled.value = account.emailNotifEnabled ?? true
+  partnerCreditPhp.value = account.partnerCreditPhp ?? 0
+}
+
+async function loadProfile() {
+  isLoading.value = true
+  try {
+    const account = await fetchAccount()
+    applyAccountToForm(account)
+  } catch (error) {
+    reportApiError(toast, { title: 'Unable to load profile', error })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function onSubmit(payload: FormSubmitEvent<Schema>) {
+  if (isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const response = await saveAccount({
+      firstName: payload.data.firstName,
+      lastName: payload.data.lastName,
+      gender: payload.data.gender
+    })
+    toast.add({ title: 'Profile updated', description: response.message })
+  } catch (error) {
+    reportApiError(toast, { title: 'Save failed', error })
+  } finally {
+    isSaving.value = false
+  }
+}
+
+function openFilePicker() {
+  fileInputRef.value?.click()
+}
+
+async function onProfileImageSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file) {
+    return
+  }
+
+  isUploading.value = true
+  try {
+    const response = await uploadProfilePicture(file)
+    const { user } = useAuth('partner')
+    if (user.value) {
+      applyAccountToForm(user.value)
+    }
+    toast.add({ title: 'Profile picture updated', description: response.message })
+  } catch (error) {
+    reportApiError(toast, { title: 'Upload failed', error })
+  } finally {
+    isUploading.value = false
+  }
+}
+
+async function submitPasswordChange() {
+  if (isChangingPassword.value) {
+    return
+  }
+
+  if (!passwordState.currentPassword.trim()) {
+    toast.add({ title: 'Current password required', color: 'error' })
+    return
+  }
+  if (passwordState.newPassword.trim().length < 6) {
+    toast.add({ title: 'New password too short', description: 'Password must be at least 6 characters.', color: 'error' })
+    return
+  }
+  if (passwordState.newPassword !== passwordState.confirmNewPassword) {
+    toast.add({ title: 'Passwords do not match', description: 'Confirm your new password.', color: 'error' })
+    return
+  }
+
+  isChangingPassword.value = true
+  try {
+    const response = await changePassword(passwordState.currentPassword, passwordState.newPassword)
+    toast.add({ title: 'Password updated', description: response.message })
+    passwordState.currentPassword = ''
+    passwordState.newPassword = ''
+    passwordState.confirmNewPassword = ''
+  } catch (error) {
+    reportApiError(toast, { title: 'Password update failed', error })
+  } finally {
+    isChangingPassword.value = false
+  }
+}
+
+async function onEmailNotifToggle(enabled: boolean) {
+  if (isUpdatingEmailNotif.value) {
+    return
+  }
+
+  const previous = emailNotifEnabled.value
+  emailNotifEnabled.value = enabled
+  isUpdatingEmailNotif.value = true
+
+  try {
+    const response = enabled
+      ? await enableEmailNotifications()
+      : await disableEmailNotifications()
+    toast.add({
+      title: enabled ? 'Email notifications on' : 'Email notifications off',
+      description: response.message
+    })
+  } catch (error) {
+    emailNotifEnabled.value = previous
+    reportApiError(toast, { title: 'Could not update notification preference', error })
+  } finally {
+    isUpdatingEmailNotif.value = false
+  }
+}
+
+onMounted(loadProfile)
+</script>
+
+<template>
+  <UContainer class="py-6">
+    <UPageGrid class="items-start">
+      <UPageCard class="white-bread-container">
+        <div class="text-lg text-pretty font-semibold text-muted">Partner Settings</div>
+        <nav class="mt-3 flex flex-col gap-1" aria-label="Partner settings sections">
+          <button
+            v-for="tab in settingsTabs"
+            :key="tab.id"
+            type="button"
+            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition"
+            :class="
+              activeTab === tab.id
+                ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/25'
+                : 'text-muted hover:bg-muted/50 hover:text-default'
+            "
+            :aria-current="activeTab === tab.id ? 'page' : undefined"
+            @click="activeTab = tab.id"
+          >
+            <UIcon :name="tab.icon" class="size-4 shrink-0" />
+            {{ tab.label }}
+          </button>
+        </nav>
+      </UPageCard>
+
+      <UPageCard class="col-span-2 white-bread-container">
+        <template v-if="activeTab === 'profile'">
+          <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading profile...
+          </div>
+          <div v-else class="mt-4 flex w-full gap-4">
+            <div class="w-1/3">
+              <div class="mb-6 flex w-full justify-center gap-4">
+                <img
+                  :src="profileImageSrc"
+                  class="size-37.5 rounded-full object-cover"
+                  :alt="displayName"
+                  width="150"
+                  height="150"
+                >
+              </div>
+              <div class="text-center">
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  class="hidden"
+                  @change="onProfileImageSelected"
+                >
+                <UButton
+                  icon="i-lucide-upload"
+                  label="Upload new picture"
+                  variant="outline"
+                  :loading="isUploading"
+                  @click="openFilePicker"
+                />
+                <div class="mt-1 text-sm text-muted">PNG or JPG (Max 2MB)</div>
+              </div>
+            </div>
+
+            <div class="w-2/3 space-y-4">
+              <div class="rounded-lg bg-toast-50 p-4">
+                <div class="text-sm text-muted">Available partner credit</div>
+                <div class="text-2xl font-bold font-serif text-toast-700">Php {{ partnerCreditPhp.toLocaleString() }}</div>
+              </div>
+
+              <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+                <UFormField label="First name" name="firstName" required>
+                  <UInput v-model="state.firstName" class="w-full" />
+                </UFormField>
+                <UFormField label="Last name" name="lastName" required>
+                  <UInput v-model="state.lastName" class="w-full" />
+                </UFormField>
+                <UFormField label="Email" name="email">
+                  <UInput v-model="state.email" type="email" class="w-full" disabled />
+                </UFormField>
+                <UFormField label="Gender" name="gender" required>
+                  <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
+                </UFormField>
+                <div class="flex justify-end pt-2">
+                  <UButton type="submit" :loading="isSaving">Save Changes</UButton>
+                </div>
+              </UForm>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="activeTab === 'password'">
+          <div class="text-lg text-pretty font-semibold text-muted">Password</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading profile...
+          </div>
+          <div v-else class="mt-4 max-w-xl space-y-4">
+            <UForm class="space-y-4" @submit.prevent="submitPasswordChange">
+              <UFormField label="Current password" name="currentPassword" required>
+                <UInput v-model="passwordState.currentPassword" type="password" class="w-full" autocomplete="current-password" />
+              </UFormField>
+              <UFormField label="New password" name="newPassword" required>
+                <UInput v-model="passwordState.newPassword" type="password" class="w-full" autocomplete="new-password" />
+              </UFormField>
+              <UFormField label="Confirm new password" name="confirmNewPassword" required>
+                <UInput v-model="passwordState.confirmNewPassword" type="password" class="w-full" autocomplete="new-password" />
+              </UFormField>
+              <div class="flex justify-end pt-2">
+                <UButton type="submit" :loading="isChangingPassword">Update password</UButton>
+              </div>
+            </UForm>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="text-lg text-pretty font-semibold text-muted">Preferences</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading preferences...
+          </div>
+          <div v-else class="mt-6 max-w-xl space-y-6">
+            <div class="flex items-start justify-between gap-4 rounded-lg border border-bread-300/60 p-4">
+              <div class="min-w-0">
+                <div class="font-medium">Email notifications</div>
+                <p class="mt-1 text-sm text-muted">
+                  Receive updates about your vouchers, collaborations, cashouts, and account activity.
+                </p>
+              </div>
+              <USwitch
+                :model-value="emailNotifEnabled"
+                :loading="isUpdatingEmailNotif"
+                :disabled="isUpdatingEmailNotif"
+                @update:model-value="onEmailNotifToggle"
+              />
+            </div>
+          </div>
+        </template>
+      </UPageCard>
+    </UPageGrid>
+  </UContainer>
+</template>
+
+<style></style>

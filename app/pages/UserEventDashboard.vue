@@ -9,6 +9,7 @@ import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import type { TaskStatus } from '~/types/task'
 import { getAssigneeLabel } from '~/utils/taskAssignee'
 import type { EventRecord, TasksSummary, SelectedEventDetail } from '~/types/event'
+import { isEventFullyPaid, isTierUpgradePending, getPendingUpgradeStatusLabel, getPendingUpgradeTargetName } from '~/types/payment'
 import {
   EVENT_FEATURE,
   type DashboardAction,
@@ -40,6 +41,10 @@ const eventId = computed(() => {
 const eventRecord = ref<EventRecord | null>(null)
 const tasksSummary = ref<TasksSummary | null>(null)
 const isLoadingEvent = ref(false)
+
+const isUpgradePending = computed(() => isTierUpgradePending(eventRecord.value))
+
+const pendingUpgradeTargetName = computed(() => getPendingUpgradeTargetName(eventRecord.value))
 
 const useDemoFallbacks = computed(() => !eventId.value || isUiOnlyMode.value)
 
@@ -285,7 +290,7 @@ async function loadEventData() {
           },
         },
       }),
-      fetch: async () => fetchEvent(eventId.value),
+      fetch: async () => fetchEvent(eventId.value, true),
     })
     eventRecord.value = detail.event
     setActiveEvent(detail.event)
@@ -319,6 +324,37 @@ function openWebsiteMaker() {
     return
   }
   navigateTo({ path: '/website-maker', query: { eventId: id } })
+}
+
+function openUpgradePage() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+
+  if (!isUiOnlyMode.value && eventRecord.value && !isEventFullyPaid(eventRecord.value)) {
+    navigateTo({ path: '/event/payment-review', query: { eventId: id } })
+    return
+  }
+
+  if (!isUiOnlyMode.value && isUpgradePending.value) {
+    toast.add({
+      title: 'Upgrade pending review',
+      description: pendingUpgradeTargetName.value
+        ? `Your upgrade to ${pendingUpgradeTargetName.value} is being verified.`
+        : 'Your upgrade payment is being verified.',
+      color: 'warning',
+    })
+    navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+    return
+  }
+
+  navigateTo({ path: '/event/upgrade', query: { eventId: id } })
 }
 
 function openInvitationMaker() {
@@ -521,9 +557,6 @@ const dashboardItems = computed(() => {
   return [...unlocked, ...locked]
 })
 
-const isUpgradeModalOpen = ref(false)
-const selectedLockedFeature = ref<DashboardItem | null>(null)
-
 const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
 const isDesktopOnlyModalOpen = ref(false)
 const selectedDesktopOnlyFeature = ref<DashboardItem | null>(null)
@@ -539,8 +572,7 @@ const showTasksChecklist = computed(() =>
 
 function handleDashboardItemClick(item: DashboardItem) {
   if (isDashboardItemBlocked(item)) {
-    selectedLockedFeature.value = item
-    isUpgradeModalOpen.value = true
+    openUpgradePage()
     return
   }
 
@@ -606,12 +638,48 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
     class="h-[calc(100vh-64px)] overflow-hidden flex flex-col">
     <ClientOnly>
       <Teleport to="#event-navbar-actions">
-        <UBadge v-if="eventRecord" :color="planBadgeColor" variant="solid" size="lg"
-          class="text-black rounded-full shadow-sm">
-          {{ formatEventPriceTier(eventRecord) }}
-        </UBadge>
+        <div v-if="eventRecord" class="flex items-center gap-2">
+          <UButton
+            v-if="isUpgradePending"
+            icon="i-lucide-clock"
+            color="warning"
+            variant="soft"
+            size="sm"
+            class="font-semibold"
+            disabled
+          >
+            Upgrade pending
+          </UButton>
+          <UButton
+            v-else
+            icon="i-lucide-sparkles"
+            color="warning"
+            variant="soft"
+            size="sm"
+            class="font-semibold"
+            @click="openUpgradePage"
+          >
+            Upgrade
+          </UButton>
+          <UBadge :color="planBadgeColor" variant="solid" size="lg"
+            class="text-black rounded-full shadow-sm">
+            {{ formatEventPriceTier(eventRecord) }}
+          </UBadge>
+        </div>
       </Teleport>
     </ClientOnly>
+
+    <UContainer v-if="isUpgradePending" class="pt-3 shrink-0">
+      <UAlert
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-clock"
+        title="Upgrade pending verification"
+        :description="pendingUpgradeTargetName
+          ? `Your upgrade to ${pendingUpgradeTargetName} is being reviewed. Your current plan stays active until admin approval.`
+          : 'Your upgrade payment is being reviewed. Your current plan stays active until admin approval.'"
+      />
+    </UContainer>
 
     <!-- Layout when Tasks Checklist is active (Butter & Bread + Butter packages) -->
     <UPageGrid v-if="showTasksChecklist" class="h-full overflow-hidden">
@@ -826,121 +894,6 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
         </div>
       </div>
     </div>
-
-    <!-- Upgrade Package Modal -->
-    <UModal v-model:open="isUpgradeModalOpen" :ui="{
-      content: 'bread-container max-w-lg p-6 space-y-6',
-      overlay: 'bg-toast-950/40 backdrop-blur-xs'
-    }">
-      <template #content>
-        <div class="space-y-6 text-toast-900">
-          <!-- Modal Header -->
-          <div class="text-center space-y-2">
-
-            <div class="flex justify-between">
-              <div class="w-8"></div>
-              <div class="w-12 h-12 rounded-full bg-toast-600/10 text-toast-600 flex items-center justify-center">
-                <UIcon :name="selectedLockedFeature?.icon || 'i-lucide-sparkles'" class="size-6 text-toast-600" />
-              </div>
-              <div class="w-8 flex justify-end items-start">
-                <UButton icon="i-lucide-x" variant="link" color="neutral"
-                  @click="() => { isUpgradeModalOpen = false }" />
-              </div>
-            </div>
-            <h3 class="text-2xl font-bold font-serif text-toast-800">
-              Upgrade to Unlock {{ selectedLockedFeature?.label }}
-            </h3>
-            <p class="text-sm text-toast-800/80 max-w-sm mx-auto">
-              The <span class="font-bold">{{ selectedLockedFeature?.label }}</span> tool is available on higher tiers.
-              Level up your celebration with more power.
-            </p>
-          </div>
-
-          <!-- Package Highlights -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <!-- Butter -->
-            <div
-              class="bg-white/90 p-4 rounded-xl border border-toast-300/40 space-y-3 flex flex-col justify-between shadow-xs">
-              <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="font-bold font-serif text-lg text-toast-900">Butter</span>
-                  <UBadge color="warning" variant="subtle" size="xs">Popular</UBadge>
-                </div>
-                <p class="text-xs text-toast-800/80">
-                  Essential planning tools to manage tasks, schedules, and suppliers.
-                </p>
-                <ul class="text-xs space-y-1.5 pt-1 text-toast-900">
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Tasks Checklist</span>
-                  </li>
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Event Schedules</span>
-                  </li>
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Suppliers & Budget</span>
-                  </li>
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Requirements</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <!-- Bread + Butter -->
-            <div
-              class="bg-toast-600 text-white p-4 rounded-xl shadow-md space-y-3 flex flex-col justify-between ring-2 ring-toast-600">
-              <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <span class="font-bold font-serif text-lg text-white">Bread + Butter</span>
-                  <UBadge color="bread" variant="solid" size="xs" class="text-toast-900 font-bold bg-bread-400">
-                    All-in-One</UBadge>
-                </div>
-                <p class="text-xs text-white/80">
-                  Everything in Butter plus team collaboration and guest management.
-                </p>
-                <ul class="text-xs space-y-1.5 pt-1 text-white">
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
-                    <span>Everything in Butter</span>
-                  </li>
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
-                    <span>Planners & Collaborators</span>
-                  </li>
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
-                    <span>Guest Groups & Tables</span>
-                  </li>
-                  <li class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-check" class="size-3.5 text-bread-300 shrink-0" />
-                    <span>Higher Email Limits</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex flex-col sm:flex-row gap-2.5 pt-2">
-            <UButton block color="primary" size="lg"
-              class="font-bold shadow-md flex-1 bg-toast-600 hover:bg-toast-700 text-white"
-              :to="{ path: '/event/payment-review', query: { eventId: eventId || undefined } }"
-              @click="() => { isUpgradeModalOpen = false }">
-              Upgrade Event Package
-            </UButton>
-            <UButton block variant="outline" color="neutral" size="lg"
-              class="font-medium sm:w-auto text-toast-800 border-toast-300 hover:bg-toast-50"
-              @click="() => { isUpgradeModalOpen = false }">
-              Maybe Later
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
 
     <!-- Desktop Only Feature Notice Modal (Mobile View) -->
     <UModal v-model:open="isDesktopOnlyModalOpen" :ui="{

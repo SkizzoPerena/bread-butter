@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PaymentRecord, PaymentStatus, RefundStatus } from '~/types/payment'
+import { formatPaymentPurpose } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { usePayments } from '~/composables/usePayments'
 
@@ -29,6 +30,7 @@ interface PaymentEntry {
   id: string
   kind: 'payment'
   eventName: string
+  purpose: string
   status: PaymentStatus
   amount: number
   expectedAmount: number
@@ -42,6 +44,7 @@ interface RefundEntry {
   id: string
   kind: 'refund'
   eventName: string
+  purpose: string
   status: RefundStatus
   amount: number
   reason?: string
@@ -66,6 +69,7 @@ const transactions = computed<TransactionEntry[]>(() => {
       id: `${p._id}-payment`,
       kind: 'payment',
       eventName,
+      purpose: formatPaymentPurpose(p),
       status: p.status,
       amount: paidAmount,
       expectedAmount: p.amount,
@@ -80,6 +84,7 @@ const transactions = computed<TransactionEntry[]>(() => {
         id: `${p._id}-refund`,
         kind: 'refund',
         eventName,
+        purpose: formatPaymentPurpose(p),
         status: p.refund.status,
         amount: p.refund.amount,
         reason: p.refund.reason,
@@ -134,6 +139,9 @@ onMounted(async () => {
               <span class="font-medium truncate">
                 {{ entry.kind === 'refund' ? `Refund — ${entry.eventName}` : entry.eventName }}
               </span>
+            </div>
+            <div class="text-sm text-muted">
+              {{ entry.purpose }}
             </div>
 
             <template v-if="entry.kind === 'payment'">
