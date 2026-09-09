@@ -197,6 +197,9 @@ export default defineNuxtConfig({
       setPath('InvitationMaker', '/invitation-maker')
       setPath('WebsiteMaker', '/website-maker')
       setPath('OurSuppliers', '/our-suppliers')
+      setPath('About', '/about')
+      setPath('NewsAndEvents', '/news-and-events')
+      setPath('UsefulTips', '/useful-tips')
     }
   }
 

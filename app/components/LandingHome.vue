@@ -240,7 +240,7 @@ function scrollMotion(delay: number = 0) {
       </UContainer>
     </UPageSection>
 
-    <UPageSection class="bg-toast-700 space-y-0">
+    <UPageSection id="benefits" class="bg-toast-700 space-y-0">
 
       <UContainer class="font-serif text-lg sm:text-xl text-center text-white">
         <div class="font-bold text-2xl sm:text-5xl font-serif">Built for celebrations, perfected for planners
