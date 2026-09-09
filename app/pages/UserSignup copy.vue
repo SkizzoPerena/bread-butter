@@ -80,7 +80,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               Create your account and start planning
             </div>
 
-            <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
+            <img src="~/assets/bpb-icons/logomark.svg" class="h-10" />
           </div>
           <UFormField label="Names" name="names" class="" required>
             <div class="flex justify-between items-center">

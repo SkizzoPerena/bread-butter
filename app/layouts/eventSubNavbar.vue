@@ -36,8 +36,8 @@ const titleThemeClass = computed(() => {
 
           <!-- Image Slot Wrapper -->
           <NuxtLink to="/" class="flex items-center">
-            <img v-if="route.meta.useLogo" src="..\assets\bpb-icons\logomark-toast-700.svg" class="h-7" />
-            <img v-else src="..\assets\bpb-icons\logo-toast-700.svg" class="h-7" />
+            <img v-if="route.meta.useLogo" src="~/assets/bpb-icons/logomark-toast-700.svg" class="h-7" />
+            <img v-else src="~/assets/bpb-icons/logo-toast-700.svg" class="h-7" />
           </NuxtLink>
           <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)] transition-colors" :class="titleThemeClass">
           <slot name="title">

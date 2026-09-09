@@ -79,7 +79,7 @@ const dropitems: DropdownMenuItem[][] = [
 
       <template #leading>
         <NuxtLink to="/" class="flex items-center mr-2 sm:mr-3 shrink-0">
-          <img src="..\assets\bpb-icons\logo-white.svg" class="h-6 sm:h-7" />
+          <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
         </NuxtLink>
         <span v-if="user?.firstName"
           class="text-white font-serif text-sm sm:text-xl font-semibold border-l-2 border-white pl-2 sm:pl-3 truncate">

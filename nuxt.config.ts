@@ -30,6 +30,14 @@ export default defineNuxtConfig({
   }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image' ,   'motion-v/nuxt',
 ],
 
+  app: {
+    head: {
+      link: [
+        { rel: 'preload', href: '/videos/Hero-bg.mp4', as: 'video', type: 'video/mp4' }
+      ]
+    }
+  },
+
   devtools: {
     enabled: true
   },
@@ -196,6 +204,9 @@ export default defineNuxtConfig({
       setPath('InvitationMaker', '/invitation-maker')
       setPath('WebsiteMaker', '/website-maker')
       setPath('OurSuppliers', '/our-suppliers')
+      setPath('About', '/about')
+      setPath('NewsAndEvents', '/news-and-events')
+      setPath('UsefulTips', '/useful-tips')
     }
   }
 

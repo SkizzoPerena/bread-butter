@@ -96,7 +96,7 @@ const dropitems: DropdownMenuItem[][] = [
 
     <template #leading>
       <NuxtLink to="/" class="flex items-center mr-2 sm:mr-3 shrink-0">
-        <img src="..\assets\bpb-icons\logo-white.svg" class="h-6 sm:h-7" />
+        <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
       </NuxtLink>
       <div class="font-serif text-sm sm:text-xl font-bold truncate max-w-[min(100%,20rem)] text-white">
         {{ headerEventTitle }}

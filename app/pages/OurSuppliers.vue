@@ -757,15 +757,22 @@ const totalVendorsCount = computed(() => {
         <div v-else class="space-y-12">
           <section v-for="cat in filteredCategories" :key="cat.id" class="space-y-6 scroll-mt-28">
             <!-- Category Header Banner -->
-            <div class="flex items-center gap-3 border-b-2 border-toast-600/20 pb-3">
-              <div class="size-10 rounded-xl bg-toast-600 text-white flex items-center justify-center shadow-xs">
-                <UIcon :name="cat.icon" class="size-5" />
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-toast-600/20 pb-3">
+              <div class="flex items-center gap-3">
+                <div class="size-10 rounded-xl bg-toast-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <UIcon :name="cat.icon" class="size-5" />
+                </div>
+                <div>
+                  <h2 class="text-2xl sm:text-3xl font-bold font-serif text-toast-800">
+                    {{ cat.title }}
+                  </h2>
+                </div>
               </div>
-              <div>
-                <h2 class="text-2xl sm:text-3xl font-bold font-serif text-toast-800">
-                  {{ cat.title }}
-                </h2>
-              </div>
+
+              <UButton to="/user/login" color="primary" variant="solid" size="sm"
+                class="font-semibold text-xs sm:text-sm bg-toast-600 hover:bg-toast-700 text-white shrink-0 self-start sm:self-auto rounded-lg shadow-xs">
+                Contact our trusted suppliers
+              </UButton>
             </div>
 
             <!-- Subcategories Grid -->
@@ -779,11 +786,10 @@ const totalVendorsCount = computed(() => {
 
                   <ul class="space-y-2 text-sm text-toast-900">
                     <li v-for="vendor in sub.vendors" :key="vendor" class="flex items-center justify-between gap-2">
-                      <!-- Special Subtle Highlight for Creative Preppers with Facebook Link -->
-                      <a v-if="isSpecialVendor(vendor)" href="https://www.facebook.com/CreativePreppers" target="_blank"
-                        rel="noopener noreferrer"
+                      <!-- Special Subtle Highlight for Creative Preppers redirecting to login -->
+                      <NuxtLink v-if="isSpecialVendor(vendor)" to="/user/login"
                         class="w-full flex items-center justify-between font-sans text-toast-900 font-bold group cursor-pointer no-underline py-0.5"
-                        title="Visit Creative Preppers on Facebook">
+                        title="Log in to contact Creative Preppers">
                         <span class="flex items-center gap-2 font-sans">
                           <div class="w-4 flex items-center justify-center shrink-0">
                             <UIcon name="i-ph-sparkle-fill"
@@ -796,7 +802,7 @@ const totalVendorsCount = computed(() => {
                           class="font-medium text-[10px] uppercase tracking-wider font-sans">
                           Featured
                         </UBadge>
-                      </a>
+                      </NuxtLink>
 
                       <!-- Normal Vendor Item -->
                       <div v-else class="flex items-center gap-2">

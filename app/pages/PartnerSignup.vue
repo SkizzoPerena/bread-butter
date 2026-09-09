@@ -125,7 +125,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               Create your partner account
             </div>
 
-            <img src="..\assets\bpb-icons\logomark.svg" class="h-10" />
+            <img src="~/assets/bpb-icons/logomark.svg" class="h-10" />
           </div>
           <UFormField label="First name" :ui="{ label: ' text-white' }" name="firstName" required>
             <UInput v-model="state.firstName" class="w-full" placeholder="First name" />

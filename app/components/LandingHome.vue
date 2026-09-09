@@ -4,6 +4,7 @@ import type { PricingPlanProps } from '@nuxt/ui'
 
 useHead({
   link: [
+    { rel: 'preload', href: '/videos/Hero-bg.mp4', as: 'video', type: 'video/mp4' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=La+Belle+Aurore&display=swap' }
@@ -136,18 +137,17 @@ function scrollMotion(delay: number = 0) {
       class=" 100vh landing-bg landing-bg-overlay flex justify-center items-end"
       :ui="{ title: 'font-serif text-white', description: 'text-white' }">
 
-      <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
-        <source
-          src="https://cdn.prod.website-files.com/63177d78c6b7b970195ad37c/631881dada5f467db6f42b29_video-transcode.webm"
-          type="video/webm">
+      <video autoplay loop muted playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover -z-10">
+        <source src="/videos/Hero-bg.mp4" type="video/mp4">
       </video>
       <div class="text-white text-center px-4">
         <div class="font-bold text-2xl sm:text-5xl font-serif mb-3 sm:mb-6 text-pretty tracking-tight">
           Your dream celebration, baked to perfection.
         </div>
-        <div class="text-sm sm:text-lg max-w-2xl mx-auto">
+        <div class="text-sm sm:text-lg max-w-5xl mx-auto">
           Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together.
-          <p class="hidden sm:block" /> From custom websites and digital invitations to seamless guest management—everything you need is
+          <p class="hidden sm:block" /> From custom websites and digital invitations to seamless guest
+          management—everything you need is
           finally in one place.
         </div>
       </div>
@@ -240,7 +240,7 @@ function scrollMotion(delay: number = 0) {
       </UContainer>
     </UPageSection>
 
-    <UPageSection class="bg-toast-700 space-y-0">
+    <UPageSection id="benefits" class="bg-toast-700 space-y-0">
 
       <UContainer class="font-serif text-lg sm:text-xl text-center text-white">
         <div class="font-bold text-2xl sm:text-5xl font-serif">Built for celebrations, perfected for planners
@@ -249,8 +249,15 @@ function scrollMotion(delay: number = 0) {
 
       <UPageCard orientation="horizontal"
         class="bg-transparent border-none ring-0 text-white lg:max-2xl:h-[85vh]">
-        <img src="https://lh3.googleusercontent.com/d/1O3k6v9_IQQkybM5HLpMXIOa7YXdr4QiU" alt="Illustration"
-          class="rounded-lg h-64 sm:h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
+        <div class="relative rounded-lg overflow-hidden h-64 sm:h-[85vh] w-full">
+          <img src="https://lh3.googleusercontent.com/d/1-tM75FL0soVprwPc2wQ4WJnup1m2J-Qv" alt="Illustration"
+            class="rounded-lg h-full w-full object-cover" loading="lazy" width="750" height="500" />
+          <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
+            <p class="text-white text-xs sm:text-sm font-medium [text-shadow:0_2px_4px_var(--color-toast-700)]">
+              couple name, date
+            </p>
+          </div>
+        </div>
 
         <div>
           <div class="text-2xl sm:text-4xl font-bold">For Celebrants</div>
@@ -283,8 +290,15 @@ function scrollMotion(delay: number = 0) {
           <div class="text-sm sm:text-xl text-toast-100">Impress clients with a clean, centralized digital hub tailored to their
             specific event.</div>
         </div>
-        <img src="https://lh3.googleusercontent.com/d/1p4o3uWyTXtF8g05BL9_XpPDR6zETkygU" alt="Illustration"
-          class="rounded-lg h-64 sm:h-[85vh] w-full object-cover" loading="lazy" width="750" height="500" />
+        <div class="relative rounded-lg overflow-hidden h-64 sm:h-[85vh] w-full">
+          <img src="https://lh3.googleusercontent.com/d/1So8l7ZSJ8Ba748jeL4_fZ07HRU-RZlS9" alt="Illustration"
+            class="rounded-lg h-full w-full object-cover" loading="lazy" width="750" height="500" />
+          <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
+            <p class="text-white text-xs sm:text-sm font-medium [text-shadow:0_2px_4px_var(--color-toast-700)]">
+              couple name, date
+            </p>
+          </div>
+        </div>
       </UPageCard>
 
     </UPageSection>

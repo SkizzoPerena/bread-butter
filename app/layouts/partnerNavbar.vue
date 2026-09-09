@@ -40,7 +40,7 @@ async function handleLogout() {
     <UDashboardNavbar class="bg-toast-600/95 w-full sticky top-0 z-50 shrink-0 border-b border-toast-700/20">
       <template #leading>
         <NuxtLink to="/partners" class="flex items-center gap-3 shrink-0">
-          <img src="..\assets\bpb-icons\logo-white.svg" class="h-6 sm:h-7" alt="Bread + Butter partner logo" />
+          <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" alt="Bread + Butter partner logo" />
           <span class="hidden sm:inline text-white font-serif text-lg font-semibold">
             Partner Portal
           </span>
