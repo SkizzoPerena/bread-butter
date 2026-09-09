@@ -3,9 +3,8 @@ import type { EventRecord } from '~/types/event'
 import type { EmailCreditPackage } from '~/types/upgrade'
 import { isEmailCreditPurchasePending } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
-import { formatPaymentMethodLabel, mapUiPaymentMethodToApi } from '~/utils/paymentMethod'
 import { formatPhp } from '~/utils/tierUpgradeFeatures'
-import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
+import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -18,8 +17,9 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
-const { getEmailCreditPackages, submitEmailCreditPayment } = useUpgrade()
+const { getEmailCreditPackages, createEmailCreditCheckoutSession } = useUpgrade()
 const { isUiOnlyMode, loadPageData } = useApiMode()
+const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
 
 type ViewStep = 'select' | 'pay'
 
@@ -34,14 +34,27 @@ const packages = ref<EmailCreditPackage[]>([])
 const selectedPackage = ref<EmailCreditPackage | null>(null)
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const paymentPanelRef = ref<InstanceType<typeof PaymentProofPanel> | null>(null)
 
 const hasPendingEmailCreditPayment = computed(() =>
   isEmailCreditPurchasePending(eventRecord.value),
 )
 
-const pendingEmailCreditMessage =
-  'Your email credit payment is pending admin review. You cannot buy more credits until it is verified.'
+const isPaymongoPending = computed(() => {
+  const pending = eventRecord.value?.pendingPayment
+  const latest = eventRecord.value?.latestPayment
+  if (pending?.provider === 'PAYMONGO' && pending.type === 'EMAIL_CREDIT_PURCHASE') {
+    return true
+  }
+  return latest?.provider === 'PAYMONGO'
+    && latest?.type === 'EMAIL_CREDIT_PURCHASE'
+    && latest?.status === 'PENDING'
+})
+
+const pendingEmailCreditMessage = computed(() =>
+  isPaymongoPending.value
+    ? 'Your email credit checkout is still open. Continue to PayMongo to complete payment.'
+    : 'Your email credit payment is pending admin review. You cannot buy more credits until it is verified.',
+)
 
 const remainingEmails = computed(() => {
   const value = eventRecord.value?.remainingEmails
@@ -96,67 +109,64 @@ function goBackToSelection() {
 async function submitCreditPayment() {
   const id = eventId.value
   const pkg = selectedPackage.value
-  const panel = paymentPanelRef.value
 
-  if (!id || !pkg || !panel) return
+  if (!id || !pkg) return
 
-  if (hasPendingEmailCreditPayment.value) {
+  if (hasPendingEmailCreditPayment.value && !isPaymongoPending.value) {
     toast.add({
       title: 'Email credit payment pending review',
-      description: pendingEmailCreditMessage,
+      description: pendingEmailCreditMessage.value,
       color: 'warning',
     })
     return
   }
 
-  const paymentMethod = mapUiPaymentMethodToApi(panel.selectedQrId)
-  if (!paymentMethod) {
-    toast.add({ title: 'Payment method required', color: 'warning' })
-    return
-  }
-
-  if (!panel.transactionId.trim()) {
-    toast.add({ title: 'Transaction ID required', color: 'warning' })
-    return
-  }
-
-  if (!panel.proofFile) {
-    toast.add({ title: 'Proof of payment required', color: 'warning' })
-    return
-  }
-
   isSubmitting.value = true
   try {
-    await submitEmailCreditPayment(id, {
+    const idempotencyKey = getOrCreateIdempotencyKey(`email-credits:${id}:${pkg._id}`)
+    const checkout = await createEmailCreditCheckoutSession(id, {
       emailCreditPackageId: pkg._id,
-      transactionId: panel.transactionId,
-      paymentMethod,
-      proofOfPayment: panel.proofFile,
-    })
+      cancelPath: `/event/email-credits?eventId=${id}&cancelled=1`,
+    }, idempotencyKey)
 
-    toast.add({
-      title: 'Proof of Payment Submitted',
-      description: 'Your email credit purchase is being verified.',
-      color: 'success',
-    })
+    if (checkout.alreadyPaid) {
+      await navigateTo({
+        path: '/user/payment/success',
+        query: { payment_id: checkout.paymentId, checkout_id: checkout.checkoutId || undefined },
+      })
+      return
+    }
 
-    await navigateTo({
-      path: '/user/payment-pending',
-      query: {
-        ref: panel.transactionId.trim(),
-        eventName: eventRecord.value?.eventName ?? '',
-        package: pkg.name,
-        method: formatPaymentMethodLabel(paymentMethod),
-      },
-    })
+    if (!checkout.checkoutUrl) {
+      toast.add({
+        title: 'Could not start checkout',
+        description: checkout.message || 'PayMongo did not return a checkout URL.',
+        color: 'error',
+      })
+      return
+    }
+
+    rememberCheckoutIds(checkout.checkoutId, checkout.paymentId)
+    if (isUiOnlyMode.value) {
+      await navigateTo(checkout.checkoutUrl)
+      return
+    }
+    redirectToCheckout(checkout.checkoutUrl)
   } catch (error) {
-    reportApiError(toast, { title: 'Could not submit payment', error })
+    reportApiError(toast, { title: 'Could not start checkout', error })
   } finally {
     isSubmitting.value = false
   }
 }
 
 onMounted(() => {
+  if (route.query.cancelled === '1') {
+    toast.add({
+      title: 'Checkout cancelled',
+      description: 'No charge was made. You can proceed to checkout when you are ready.',
+      color: 'warning',
+    })
+  }
   void loadPageData({
     fetch: loadPage,
     mock: loadPage,
@@ -273,11 +283,10 @@ onMounted(() => {
           </UPageCard>
 
           <div class="md:col-span-7">
-            <PaymentProofPanel
-              ref="paymentPanelRef"
+            <PaymentCheckoutPanel
               :amount-due="selectedPackage.pricePhp"
               :loading="isSubmitting"
-              :disabled="hasPendingEmailCreditPayment"
+              :disabled="hasPendingEmailCreditPayment && !isPaymongoPending"
               @submit="submitCreditPayment"
             />
           </div>

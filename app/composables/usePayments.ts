@@ -1,5 +1,6 @@
 import type { EventRecord } from '~/types/event'
 import type {
+  CheckoutSessionResponse,
   EventPaymentsListResponse,
   PaymentMessageResponse,
   PaymentsListResponse,
@@ -87,9 +88,57 @@ export function usePayments() {
     }
   }
 
+  async function createEventFeeCheckoutSession(
+    eventId: string,
+    options?: { cancelPath?: string; idempotencyKey?: string },
+  ): Promise<CheckoutSessionResponse> {
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        checkoutUrl: '/user/payment/success?payment_id=mock-payment-id',
+        checkoutId: 'cs_mock',
+        paymentId: 'mock-payment-id',
+      }
+    }
+
+    return apiRequest<CheckoutSessionResponse>(`/user/events/${eventId}/checkout-session`, {
+      method: 'POST',
+      body: {
+        ...(options?.cancelPath ? { cancelPath: options.cancelPath } : {}),
+      },
+      headers: options?.idempotencyKey
+        ? { 'Idempotency-Key': options.idempotencyKey }
+        : undefined,
+    })
+  }
+
+  async function getCheckoutStatus(checkoutId: string): Promise<CheckoutSessionResponse> {
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        checkoutId,
+        paymentId: checkoutId,
+        payment: {
+          _id: checkoutId,
+          type: 'EVENT_CREATION_FEE',
+          amount: 10000,
+          transactionId: checkoutId,
+          status: 'APPROVED',
+          provider: 'PAYMONGO',
+        },
+      }
+    }
+
+    return apiRequest<CheckoutSessionResponse>(`/user/payments/checkout/${checkoutId}`)
+  }
+
   return {
     getMyPayments,
     getEventPayments,
-    submitEventPaymentProof
+    submitEventPaymentProof,
+    createEventFeeCheckoutSession,
+    getCheckoutStatus,
   }
 }

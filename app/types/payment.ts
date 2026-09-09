@@ -1,4 +1,6 @@
-export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
+export type PaymentMethod = 'GCASH' | 'PAYMAYA' | 'BANK_TRANSFER' | 'CARD' | 'QRPH' | 'GRAB_PAY'
+
+export type PaymentProvider = 'MANUAL' | 'PAYMONGO'
 
 export type PaymentType = 'EVENT_CREATION_FEE' | 'TIER_UPGRADE' | 'EMAIL_CREDIT_PURCHASE'
 
@@ -48,7 +50,11 @@ export interface PaymentRecord {
   partnerCreditAppliedPhp?: number | null
   platformCreditAppliedPhp?: number | null
   transactionId: string
-  proofOfPaymentURL: string
+  proofOfPaymentURL?: string | null
+  paymentMethod?: PaymentMethod | string
+  provider?: PaymentProvider | string
+  paymongoCheckoutId?: string | null
+  paymongoPaymentId?: string | null
   status: PaymentStatus
   denialReason?: string
   reviewedAt?: string | null
@@ -66,6 +72,10 @@ export interface PendingPaymentSummary {
   transactionId: string
   createdAt?: string
   targetTierName?: string | null
+  targetTierId?: string | null
+  emailCreditPackageId?: string | null
+  provider?: PaymentProvider | string
+  paymongoCheckoutId?: string | null
 }
 
 export interface PaymentsListResponse {
@@ -105,6 +115,20 @@ export interface SubmitEventPaymentPayload {
   transactionId: string
   proofOfPayment: File
   paymentMethod: string
+}
+
+export interface CheckoutSessionResponse {
+  success: boolean
+  status: number
+  message?: string
+  checkoutUrl?: string | null
+  checkoutId?: string | null
+  paymentId?: string
+  alreadyPaid?: boolean
+  payment?: PaymentRecord
+  paymentSummary?: EventPaymentSummary | null
+  eventName?: string
+  eventId?: string
 }
 
 export const EVENT_CREATION_FEE_PHP = 10000

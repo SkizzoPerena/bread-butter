@@ -5,9 +5,8 @@ import { formatEventPriceTier } from '~/types/event'
 import { isEventFullyPaid, hasPendingPaymentBlockingUpgrade, getPendingUpgradeTargetName } from '~/types/payment'
 import type { PendingUpgradeInfo } from '~/types/upgrade'
 import { reportApiError } from '~/types/auth'
-import { formatPaymentMethodLabel, mapUiPaymentMethodToApi } from '~/utils/paymentMethod'
 import { formatPhp, getTierFeatureBullets } from '~/utils/tierUpgradeFeatures'
-import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
+import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -20,8 +19,9 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
-const { getTierUpgradeOptions, submitTierUpgradePayment } = useUpgrade()
+const { getTierUpgradeOptions, createTierUpgradeCheckoutSession } = useUpgrade()
 const { isUiOnlyMode, loadPageData } = useApiMode()
+const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
 
 type ViewStep = 'select' | 'pay'
 
@@ -40,7 +40,8 @@ const pendingUpgrade = ref<PendingUpgradeInfo | null>(null)
 const selectedUpgrade = ref<TierUpgradeOption | null>(null)
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const paymentPanelRef = ref<InstanceType<typeof PaymentProofPanel> | null>(null)
+
+const isPaymongoPending = computed(() => pendingUpgrade.value?.provider === 'PAYMONGO')
 
 const paymentPendingReview = computed(() =>
   hasPendingPaymentBlockingUpgrade(eventRecord.value),
@@ -56,9 +57,12 @@ const pendingUpgradeTargetName = computed(() =>
   ?? 'selected plan',
 )
 
-const pendingUpgradeMessage = computed(() =>
-  `Your upgrade to ${pendingUpgradeTargetName.value} is pending admin review. You cannot submit another upgrade until it is verified.`,
-)
+const pendingUpgradeMessage = computed(() => {
+  if (isPaymongoPending.value) {
+    return `Your upgrade to ${pendingUpgradeTargetName.value} checkout is still open. Continue to PayMongo to complete payment.`
+  }
+  return `Your upgrade to ${pendingUpgradeTargetName.value} is pending admin review. You cannot submit another upgrade until it is verified.`
+})
 
 const isEventPaid = computed(() =>
   eventRecord.value ? isEventFullyPaid(eventRecord.value) : false,
@@ -153,11 +157,10 @@ function goBackToSelection() {
 async function submitUpgradePayment() {
   const id = eventId.value
   const upgrade = selectedUpgrade.value
-  const panel = paymentPanelRef.value
 
-  if (!id || !upgrade || !panel) return
+  if (!id || !upgrade) return
 
-  if (hasPendingUpgrade.value) {
+  if (hasPendingUpgrade.value && !isPaymongoPending.value) {
     toast.add({
       title: 'Upgrade pending review',
       description: pendingUpgradeMessage.value,
@@ -166,54 +169,74 @@ async function submitUpgradePayment() {
     return
   }
 
-  const paymentMethod = mapUiPaymentMethodToApi(panel.selectedQrId)
-  if (!paymentMethod) {
-    toast.add({ title: 'Payment method required', color: 'warning' })
-    return
-  }
-
-  if (!panel.transactionId.trim()) {
-    toast.add({ title: 'Transaction ID required', color: 'warning' })
-    return
-  }
-
-  if (!panel.proofFile) {
-    toast.add({ title: 'Proof of payment required', color: 'warning' })
-    return
-  }
-
   isSubmitting.value = true
   try {
-    await submitTierUpgradePayment(id, {
+    const idempotencyKey = getOrCreateIdempotencyKey(`upgrade:${id}:${upgrade.targetTierId}`)
+    const checkout = await createTierUpgradeCheckoutSession(id, {
       targetTierId: upgrade.targetTierId,
-      transactionId: panel.transactionId,
-      paymentMethod,
-      proofOfPayment: panel.proofFile,
-    })
+      cancelPath: `/event/upgrade?eventId=${id}&cancelled=1`,
+    }, idempotencyKey)
 
-    toast.add({
-      title: 'Proof of Payment Submitted',
-      description: 'Your upgrade payment is being verified.',
-      color: 'success',
-    })
+    if (checkout.alreadyPaid) {
+      await navigateTo({
+        path: '/user/payment/success',
+        query: { payment_id: checkout.paymentId, checkout_id: checkout.checkoutId || undefined },
+      })
+      return
+    }
 
-    await navigateTo({
-      path: '/user/payment-pending',
-      query: {
-        ref: panel.transactionId.trim(),
-        eventName: eventRecord.value?.eventName ?? '',
-        package: upgrade.name,
-        method: formatPaymentMethodLabel(paymentMethod),
-      },
-    })
+    if (!checkout.checkoutUrl) {
+      toast.add({
+        title: 'Could not start checkout',
+        description: checkout.message || 'PayMongo did not return a checkout URL.',
+        color: 'error',
+      })
+      return
+    }
+
+    rememberCheckoutIds(checkout.checkoutId, checkout.paymentId)
+    if (isUiOnlyMode.value) {
+      await navigateTo(checkout.checkoutUrl)
+      return
+    }
+    redirectToCheckout(checkout.checkoutUrl)
   } catch (error) {
-    reportApiError(toast, { title: 'Could not submit upgrade payment', error })
+    reportApiError(toast, { title: 'Could not start checkout', error })
   } finally {
     isSubmitting.value = false
   }
 }
 
+async function continuePendingCheckout() {
+  const id = eventId.value
+  const targetTierId = pendingUpgrade.value?.targetTierId
+  if (!id || !targetTierId) return
+  selectedUpgrade.value = upgradeOptions.value.find((option) => option.targetTierId === targetTierId) ?? {
+    targetTierId,
+    name: pendingUpgrade.value?.targetTierName || 'selected plan',
+    code: '',
+    pricePhp: pendingUpgrade.value?.amount ?? 0,
+    priceDifferencePhp: pendingUpgrade.value?.amount ?? 0,
+    emailCreditsDelta: 0,
+    paymentSummary: {
+      requiredAmount: pendingUpgrade.value?.amount ?? 0,
+      totalReceived: 0,
+      balanceDue: pendingUpgrade.value?.amount ?? 0,
+      isFullyPaid: false,
+    },
+  }
+  currentStep.value = 'pay'
+  await submitUpgradePayment()
+}
+
 onMounted(() => {
+  if (route.query.cancelled === '1') {
+    toast.add({
+      title: 'Checkout cancelled',
+      description: 'No charge was made. You can proceed to checkout when you are ready.',
+      color: 'warning',
+    })
+  }
   void loadPageData({
     fetch: loadPage,
     mock: loadPage,
@@ -346,6 +369,16 @@ onMounted(() => {
             </NuxtLink>.
           </p>
           <UButton
+            v-if="isPaymongoPending"
+            block
+            color="primary"
+            class="bg-toast-600 hover:bg-toast-700 text-white font-bold"
+            :loading="isSubmitting"
+            @click="continuePendingCheckout"
+          >
+            Continue to checkout
+          </UButton>
+          <UButton
             :to="{ path: '/user/event-dashboard', query: { eventId: eventId || undefined } }"
             color="neutral"
             variant="outline"
@@ -410,11 +443,10 @@ onMounted(() => {
           </UPageCard>
 
           <div class="md:col-span-7">
-            <PaymentProofPanel
-              ref="paymentPanelRef"
+            <PaymentCheckoutPanel
               :amount-due="amountDue"
               :loading="isSubmitting"
-              :disabled="hasPendingUpgrade || !isEventPaid"
+              :disabled="(hasPendingUpgrade && !isPaymongoPending) || !isEventPaid"
               @submit="submitUpgradePayment"
             />
           </div>

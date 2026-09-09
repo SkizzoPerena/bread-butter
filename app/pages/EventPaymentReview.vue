@@ -7,11 +7,11 @@ import {
   getEventBalanceDue,
   isEventFullyPaid,
   isPaymentPendingReview,
-  needsPaymentSubmission
 } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import { useEvents } from '~/composables/useEvents'
+import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -25,7 +25,8 @@ const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
-const { submitEventPaymentProof, getEventPayments } = usePayments()
+const { createEventFeeCheckoutSession, getEventPayments } = usePayments()
+const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -37,11 +38,11 @@ const eventPayments = ref<PaymentRecord[]>([])
 const isLoadingEvent = ref(false)
 const isSubmittingPayment = ref(false)
 
-const paymentForm = reactive({
-  transactionId: '',
-})
-const proofOfPaymentFile = ref<File | null>(null)
-const proofOfPaymentInput = ref<HTMLInputElement | null>(null)
+const isPaymongoPending = computed(() =>
+  eventRecord.value?.latestPayment?.status === 'PENDING'
+  && (eventRecord.value?.latestPayment?.provider === 'PAYMONGO'
+    || eventRecord.value?.pendingPayment?.provider === 'PAYMONGO'),
+)
 
 const refundStatusColor: Record<RefundStatus, 'warning' | 'success' | 'error'> = {
   PENDING: 'warning',
@@ -54,10 +55,6 @@ const refundStatusLabel: Record<RefundStatus, string> = {
   COMPLETED: 'Refund completed',
   REJECTED: 'Refund rejected',
 }
-
-const showPaymentProofForm = computed(() =>
-  eventRecord.value ? needsPaymentSubmission(eventRecord.value) : false
-)
 
 const paymentPendingReview = computed(() =>
   eventRecord.value ? isPaymentPendingReview(eventRecord.value.latestPayment) : false
@@ -110,9 +107,49 @@ function isUnderpaid(payment: PaymentRecord): boolean {
   )
 }
 
-function onProofOfPaymentChange(changeEvent: Event) {
-  const input = changeEvent.target as HTMLInputElement
-  proofOfPaymentFile.value = input.files?.[0] ?? null
+async function handleProceedToCheckout() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+
+  isSubmittingPayment.value = true
+  try {
+    const targetEventId = eventId.value || 'mock-event-id'
+    const idempotencyKey = getOrCreateIdempotencyKey(`event-fee:${targetEventId}`)
+    const checkout = await createEventFeeCheckoutSession(targetEventId, {
+      cancelPath: `/event/payment-review?eventId=${targetEventId}&cancelled=1`,
+      idempotencyKey,
+    })
+
+    if (checkout.alreadyPaid) {
+      await navigateTo({
+        path: '/user/payment/success',
+        query: { payment_id: checkout.paymentId, checkout_id: checkout.checkoutId || undefined },
+      })
+      return
+    }
+
+    if (!checkout.checkoutUrl) {
+      toast.add({
+        title: 'Could not start checkout',
+        description: checkout.message || 'PayMongo did not return a checkout URL.',
+        color: 'error',
+      })
+      return
+    }
+
+    rememberCheckoutIds(checkout.checkoutId, checkout.paymentId)
+    if (isUiOnlyMode.value) {
+      await navigateTo(checkout.checkoutUrl)
+      return
+    }
+    redirectToCheckout(checkout.checkoutUrl)
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not start checkout', error })
+  } finally {
+    isSubmittingPayment.value = false
+  }
 }
 
 async function loadEventPayments(targetEventId: string) {
@@ -175,60 +212,19 @@ async function loadEventData() {
 }
 
 onMounted(() => {
+  if (route.query.cancelled === '1') {
+    toast.add({
+      title: 'Checkout cancelled',
+      description: 'No charge was made. You can proceed to checkout when you are ready.',
+      color: 'warning',
+    })
+  }
   loadEventData()
 })
 
 watch(eventId, () => {
   loadEventData()
 })
-
-async function handleSubmitPaymentProof() {
-  if (!eventId.value && !isUiOnlyMode.value) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  if (!paymentForm.transactionId.trim()) {
-    toast.add({ title: 'Transaction ID required', color: 'error' })
-    return
-  }
-  if (!proofOfPaymentFile.value) {
-    toast.add({ title: 'Proof of payment required', color: 'error' })
-    return
-  }
-
-  isSubmittingPayment.value = true
-  try {
-    const targetEventId = eventId.value || 'mock-event-id'
-    const updatedEvent = await submitEventPaymentProof(targetEventId, {
-      transactionId: paymentForm.transactionId.trim(),
-      proofOfPayment: proofOfPaymentFile.value,
-      paymentMethod: 'GCASH',
-    })
-
-    if (eventRecord.value) {
-      eventRecord.value = {
-        ...eventRecord.value,
-        latestPayment: updatedEvent.latestPayment ?? null,
-        paymentSummary: updatedEvent.paymentSummary ?? eventRecord.value.paymentSummary,
-      }
-    } else {
-      eventRecord.value = updatedEvent
-    }
-
-    await loadEventPayments(targetEventId)
-
-    paymentForm.transactionId = ''
-    proofOfPaymentFile.value = null
-    toast.add({
-      title: 'Payment proof submitted',
-      description: 'An admin will review your payment shortly.',
-    })
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not submit payment proof', error })
-  } finally {
-    isSubmittingPayment.value = false
-  }
-}
 </script>
 
 <template>
@@ -266,7 +262,7 @@ async function handleSubmitPaymentProof() {
             title="Settle event payment"
             :description="`Outstanding balance: Php ${paymentBalanceDue.toLocaleString()}`"
           >
-            <div v-if="paymentPendingReview" class="space-y-2">
+            <div v-if="paymentPendingReview && !isPaymongoPending" class="space-y-2">
               <UBadge color="warning" variant="soft" label="Pending review" />
               <p class="text-sm text-muted">
                 Your payment is awaiting admin review. Once it's approved you can publish
@@ -275,12 +271,7 @@ async function handleSubmitPaymentProof() {
               </p>
             </div>
 
-            <UForm
-              v-else
-              :state="paymentForm"
-              class="space-y-4"
-              @submit.prevent="handleSubmitPaymentProof"
-            >
+            <div v-else class="space-y-4">
               <UAlert
                 v-if="paymentDenialReason"
                 color="error"
@@ -293,41 +284,16 @@ async function handleSubmitPaymentProof() {
               <p class="text-sm text-muted">
                 Amount to pay now:
                 <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
-                Upload your proof of payment and reference number, then an admin will
-                verify it.
+                Continue to PayMongo to complete this payment.
               </p>
 
-              <UFormField label="Transaction / reference ID" name="transactionId" required>
-                <UInput
-                  v-model="paymentForm.transactionId"
-                  class="w-full"
-                  placeholder="e.g. GCash or bank reference number"
-                />
-              </UFormField>
-
-              <UFormField label="Proof of payment" name="proofOfPayment" required>
-                <input
-                  ref="proofOfPaymentInput"
-                  type="file"
-                  accept="image/*"
-                  class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-white"
-                  @change="onProofOfPaymentChange"
-                >
-                <p v-if="proofOfPaymentFile" class="mt-1 text-xs text-muted">
-                  Selected: {{ proofOfPaymentFile.name }}
-                </p>
-              </UFormField>
-
-              <UButton
-                type="submit"
-                block
-                class="mt-2"
-                label="Submit payment proof"
-                icon="i-lucide-upload"
-                color="emerald"
+              <PaymentCheckoutPanel
+                :amount-due="paymentBalanceDue"
                 :loading="isSubmittingPayment"
+                :submit-label="isPaymongoPending ? 'Continue to checkout' : 'Proceed to checkout'"
+                @submit="handleProceedToCheckout"
               />
-            </UForm>
+            </div>
           </UPageCard>
 
           <UPageCard
@@ -421,7 +387,7 @@ async function handleSubmitPaymentProof() {
           >
             <UIcon name="i-lucide-receipt" class="size-10 text-muted" />
             <p class="mt-4 text-sm font-medium">No payments submitted</p>
-            <p class="mt-1 text-sm text-muted">Upload your proof of payment to see it here.</p>
+            <p class="mt-1 text-sm text-muted">Pay with PayMongo to see it here.</p>
           </div>
         </div>
       </div>
