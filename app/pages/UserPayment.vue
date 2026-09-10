@@ -6,6 +6,14 @@ import { useAccount } from '~/composables/useAccount'
 import { useVouchers } from '~/composables/useVouchers'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import { hasVoucherCode, normalizeVoucherCode } from '~/utils/referralCode'
+import {
+  REFERRAL_DISCOUNT_PERCENT,
+  PROMO_DISCOUNT_PERCENT,
+  ONLINE_CONVENIENCE_FEE_PERCENT,
+  percentOf,
+  convenienceFeeOf,
+  onlineTotalOf,
+} from '~/utils/pricing'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
@@ -89,7 +97,7 @@ const baseFeePhp = computed(() => tierBaseFeePhp.value ?? currentPackage.value.b
 
 const isProcessing = ref(false)
 const voucherCode = ref('')
-const platformCreditPhp = ref(0)
+const referralDiscountEligible = ref(false)
 const voucherStatus = ref<'idle' | 'checking' | 'valid' | 'invalid'>('idle')
 const voucherDiscountPhp = ref(0)
 const voucherMessage = ref('')
@@ -126,15 +134,21 @@ watch(voucherCode, (value) => {
 })
 
 const hasVoucherEntered = computed(() => hasVoucherCode(voucherCode.value))
-const feeAfterVoucherPhp = computed(() =>
-  Math.max(0, baseFeePhp.value - Math.max(0, voucherDiscountPhp.value))
+const promoApplies = computed(
+  () => voucherStatus.value === 'valid' && voucherDiscountPhp.value > 0,
 )
-const referralCreditAppliedPhp = computed(() =>
-  Math.min(Math.max(0, platformCreditPhp.value), feeAfterVoucherPhp.value)
+const referralDiscountPhp = computed(() => {
+  if (promoApplies.value || !referralDiscountEligible.value) return 0
+  return percentOf(baseFeePhp.value, REFERRAL_DISCOUNT_PERCENT)
+})
+const appliedDiscountPhp = computed(() =>
+  promoApplies.value ? voucherDiscountPhp.value : referralDiscountPhp.value,
 )
-const amountDuePhp = computed(() =>
-  Math.max(0, feeAfterVoucherPhp.value - referralCreditAppliedPhp.value)
+const discountedSubtotalPhp = computed(() =>
+  Math.max(0, baseFeePhp.value - appliedDiscountPhp.value),
 )
+const convenienceFeePhp = computed(() => convenienceFeeOf(discountedSubtotalPhp.value))
+const amountDuePhp = computed(() => onlineTotalOf(discountedSubtotalPhp.value))
 
 function resetVoucherValidation() {
   voucherStatus.value = 'idle'
@@ -164,7 +178,9 @@ async function validateEnteredVoucher() {
 
     voucherStatus.value = 'valid'
     voucherDiscountPhp.value = Number(response.discountAmountPhp) || 0
-    voucherMessage.value = response.message || `Promo code applied: ${formatPhp(voucherDiscountPhp.value)} off.`
+    voucherMessage.value =
+      response.message ||
+      `Promo code applied: ${response.discountPercent || PROMO_DISCOUNT_PERCENT}% off (${formatPhp(voucherDiscountPhp.value)}).`
   } catch (error) {
     if (requestId !== voucherValidateRequestId) return
     if (normalizeVoucherCode(voucherCode.value) !== code) return
@@ -182,8 +198,7 @@ onMounted(async () => {
       fetchAccount(),
       fetchAvailablePriceTiers()
     ])
-    const credit = account.platformCreditPhp
-    platformCreditPhp.value = typeof credit === 'number' && credit > 0 ? credit : 0
+    referralDiscountEligible.value = account.referralDiscountEligible === true
 
     const tierCode = PACKAGE_SLUG_TO_TIER_CODE[selectedPkgId.value]
     const match = tiers.find(tier => tier.code === tierCode && tier.isEnabled !== false)
@@ -191,7 +206,7 @@ onMounted(async () => {
       tierBaseFeePhp.value = match.pricePhp
     }
   } catch {
-    platformCreditPhp.value = 0
+    referralDiscountEligible.value = false
   }
 
   if (route.query.cancelled === '1') {
@@ -385,22 +400,30 @@ async function submitPayment() {
                 <span class="font-semibold text-toast-900">{{ formatPhp(baseFeePhp) }}</span>
               </div>
               <div
-                v-if="voucherStatus === 'valid' && voucherDiscountPhp > 0"
+                v-if="promoApplies"
                 class="flex justify-between text-green-800"
               >
-                <span>Partner promo ({{ voucherCode }})</span>
+                <span>Partner promo {{ PROMO_DISCOUNT_PERCENT }}% ({{ voucherCode }})</span>
                 <span class="font-semibold">-{{ formatPhp(voucherDiscountPhp) }}</span>
               </div>
-              <div v-if="referralCreditAppliedPhp > 0" class="flex justify-between text-toast-700">
-                <span>Referral credit applied</span>
-                <span class="font-semibold text-toast-900">-{{ formatPhp(referralCreditAppliedPhp) }}</span>
+              <div v-else-if="referralDiscountPhp > 0" class="flex justify-between text-toast-700">
+                <span>Referral discount {{ REFERRAL_DISCOUNT_PERCENT }}%</span>
+                <span class="font-semibold text-toast-900">-{{ formatPhp(referralDiscountPhp) }}</span>
               </div>
               <p
-                v-else-if="platformCreditPhp > 0"
+                v-else-if="referralDiscountEligible"
                 class="text-[10px] text-toast-600 italic"
               >
-                Referral credit available: {{ formatPhp(platformCreditPhp) }} (applied at checkout).
+                Referral {{ REFERRAL_DISCOUNT_PERCENT }}% applies on this first event unless a promo is better.
               </p>
+              <div class="flex justify-between text-toast-700">
+                <span>Subtotal</span>
+                <span class="font-semibold text-toast-900">{{ formatPhp(discountedSubtotalPhp) }}</span>
+              </div>
+              <div class="flex justify-between text-toast-700">
+                <span>Convenience fee ({{ ONLINE_CONVENIENCE_FEE_PERCENT }}%)</span>
+                <span class="font-semibold text-toast-900">{{ formatPhp(convenienceFeePhp) }}</span>
+              </div>
               <div class="flex justify-between font-bold text-toast-900 text-sm">
                 <span>Amount due</span>
                 <span class="text-toast-700 font-serif text-lg">{{ formatPhp(amountDuePhp) }}</span>
@@ -413,6 +436,7 @@ async function submitPayment() {
         <div class="md:col-span-7">
           <PaymentCheckoutPanel
             :amount-due="amountDuePhp"
+            :convenience-fee="convenienceFeePhp"
             :loading="isProcessing"
             @submit="submitPayment"
           />

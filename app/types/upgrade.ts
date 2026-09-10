@@ -6,6 +6,8 @@ export interface UpgradePaymentSummary {
   totalReceived: number
   balanceDue: number
   isFullyPaid: boolean
+  convenienceFeePhp?: number
+  onlineBalanceDue?: number
 }
 
 export interface CurrentTierInfo {

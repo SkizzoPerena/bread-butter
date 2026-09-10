@@ -11,7 +11,8 @@ const mockVouchers = [
   {
     _id: 'mock-voucher-1',
     code: 'BLINK5',
-    discountAmountPhp: 500,
+    discountAmountPhp: 1000,
+    discountPercent: 10,
     maxUses: 20,
     expiresAt: null,
     isActive: true,
@@ -44,7 +45,8 @@ export function useVouchers() {
           status: 200,
           message: 'Voucher is valid.',
           code: normalized,
-          discountAmountPhp: 500
+          discountAmountPhp: 1000,
+          discountPercent: 10,
         }
       }
       return Promise.reject({

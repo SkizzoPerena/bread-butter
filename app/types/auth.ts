@@ -20,6 +20,8 @@ export interface UserAccount {
   subscriptionLevel?: string
   contactNumber?: string
   platformCreditPhp?: number
+  referralDiscountEligible?: boolean
+  referralCode?: string
 }
 
 export interface AccountResponse {

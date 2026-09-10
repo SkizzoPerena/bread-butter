@@ -16,6 +16,7 @@ function mockAccount(storedUser: AuthUser | null): UserAccount {
     gender: storedUser?.gender ?? 'FEMALE',
     profileImageURL: storedUser?.profileImageURL ?? '',
     emailNotifEnabled: storedUser?.emailNotifEnabled ?? true,
+    referralDiscountEligible: false,
   }
 }
 

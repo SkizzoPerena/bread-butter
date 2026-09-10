@@ -13,7 +13,6 @@ const { listVouchers, createVoucher, updateVoucher, deactivateVoucher, reactivat
 
 const schema = z.object({
   code: z.string().min(1, 'Enter a voucher code'),
-  discountAmountPhp: z.coerce.number().int().positive('Discount must be greater than zero').max(1000, 'Discount cannot exceed 1000'),
   maxUses: z.union([z.coerce.number().int().positive('Max uses must be greater than zero'), z.literal(''), z.null()]).optional(),
   expiresAt: z.string().optional()
 })
@@ -27,7 +26,6 @@ const editingId = ref<string | null>(null)
 
 const state = reactive<VoucherFormSchema>({
   code: '',
-  discountAmountPhp: 0,
   maxUses: '',
   expiresAt: ''
 })
@@ -37,7 +35,6 @@ const isEditing = computed(() => Boolean(editingId.value))
 function resetForm() {
   editingId.value = null
   state.code = ''
-  state.discountAmountPhp = 0
   state.maxUses = ''
   state.expiresAt = ''
 }
@@ -45,7 +42,6 @@ function resetForm() {
 function applyVoucherToForm(voucher: VoucherRecord) {
   editingId.value = voucher._id
   state.code = voucher.code
-  state.discountAmountPhp = voucher.discountAmountPhp
   state.maxUses = voucher.maxUses ?? ''
   state.expiresAt = voucher.expiresAt ? voucher.expiresAt.slice(0, 10) : ''
 }
@@ -53,7 +49,6 @@ function applyVoucherToForm(voucher: VoucherRecord) {
 function normalizePayload() {
   return {
     code: state.code.trim().toUpperCase(),
-    discountAmountPhp: Number(state.discountAmountPhp),
     maxUses: state.maxUses === '' || state.maxUses == null ? null : Number(state.maxUses),
     expiresAt: state.expiresAt?.trim() ? state.expiresAt : null
   }
@@ -141,16 +136,13 @@ onMounted(loadVouchers)
         <template #header>
           <div>
             <h2 class="font-semibold text-lg">{{ isEditing ? 'Edit voucher' : 'Create voucher' }}</h2>
-            <p class="text-sm text-muted">Discounts are applied during Bread + Butter checkout.</p>
+            <p class="text-sm text-muted">Every promo code gives 10% off Bread + Butter checkout.</p>
           </div>
         </template>
 
         <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
           <UFormField label="Voucher code" name="code" required>
             <UInput v-model="state.code" class="w-full uppercase" placeholder="e.g. BLINK5" />
-          </UFormField>
-          <UFormField label="Discount amount (PHP)" name="discountAmountPhp" required>
-            <UInput v-model="state.discountAmountPhp" type="number" class="w-full" min="1" max="1000" />
           </UFormField>
           <UFormField label="Max uses" name="maxUses" hint="Optional">
             <UInput v-model="state.maxUses" type="number" class="w-full" min="1" />
@@ -196,7 +188,7 @@ onMounted(loadVouchers)
                 <UBadge :label="voucher.isActive ? 'Active' : 'Inactive'" :color="voucher.isActive ? 'success' : 'neutral'" variant="soft" />
               </div>
               <div class="text-sm text-muted">
-                Discount: <span class="font-medium text-default">Php {{ voucher.discountAmountPhp.toLocaleString() }}</span>
+                Discount: <span class="font-medium text-default">{{ voucher.discountPercent ?? 10 }}% off Bread + Butter</span>
               </div>
               <div class="text-sm text-muted">
                 Uses: {{ voucher.useCount ?? 0 }}<span v-if="voucher.maxUses"> / {{ voucher.maxUses }}</span>

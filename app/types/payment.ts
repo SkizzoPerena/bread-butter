@@ -47,6 +47,7 @@ export interface PaymentRecord {
   upgrade?: PaymentUpgrade | null
   amount: number
   amountReceived?: number | null
+  convenienceFeePhp?: number | null
   partnerCreditAppliedPhp?: number | null
   platformCreditAppliedPhp?: number | null
   transactionId: string
@@ -69,6 +70,7 @@ export interface PendingPaymentSummary {
   type: PaymentType
   status: PaymentStatus
   amount: number
+  convenienceFeePhp?: number
   transactionId: string
   createdAt?: string
   targetTierName?: string | null
@@ -138,6 +140,15 @@ export interface EventPaymentSummary {
   totalReceived: number
   balanceDue: number
   isFullyPaid: boolean
+  tierPricePhp?: number
+  voucherDiscountPhp?: number
+  referralDiscountPhp?: number
+  appliedDiscountPhp?: number
+  partnerCreditAppliedPhp?: number
+  platformCreditAppliedPhp?: number
+  totalDiscountPhp?: number
+  convenienceFeePhp?: number
+  onlineBalanceDue?: number
 }
 
 interface EventPaymentContext {
@@ -219,6 +230,18 @@ export function getEventBalanceDue(event?: EventPaymentContext | null): number {
     return 0
   }
   return getEventCreationFee(event)
+}
+
+export function getEventOnlineBalanceDue(event?: EventPaymentContext | null): number {
+  if (event?.paymentSummary?.onlineBalanceDue != null) {
+    return event.paymentSummary.onlineBalanceDue
+  }
+  const balanceDue = getEventBalanceDue(event)
+  const fee = event?.paymentSummary?.convenienceFeePhp
+  if (typeof fee === 'number' && Number.isFinite(fee)) {
+    return Math.max(0, balanceDue) + Math.max(0, fee)
+  }
+  return Math.round(Math.max(0, balanceDue) * 1.12)
 }
 
 export function needsPaymentSubmission(event?: EventPaymentContext | null): boolean {
