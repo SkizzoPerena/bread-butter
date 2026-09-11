@@ -5,7 +5,6 @@ import type { PaymentRecord, RefundStatus } from '~/types/payment'
 import {
   formatPaymentPurpose,
   getEventBalanceDue,
-  getEventOnlineBalanceDue,
   isEventFullyPaid,
   isPaymentPendingReview,
 } from '~/types/payment'
@@ -67,13 +66,6 @@ const isEventPaidInFull = computed(() =>
 
 const paymentBalanceDue = computed(() =>
   eventRecord.value ? getEventBalanceDue(eventRecord.value) : 0
-)
-const paymentOnlineBalanceDue = computed(() =>
-  eventRecord.value ? getEventOnlineBalanceDue(eventRecord.value) : 0
-)
-const paymentConvenienceFee = computed(() =>
-  eventRecord.value?.paymentSummary?.convenienceFeePhp
-    ?? Math.max(0, paymentOnlineBalanceDue.value - paymentBalanceDue.value)
 )
 
 const showPaymentSection = computed(() =>
@@ -197,8 +189,6 @@ async function loadEventData() {
             totalReceived: 0,
             balanceDue: 10000,
             isFullyPaid: false,
-            convenienceFeePhp: 1200,
-            onlineBalanceDue: 11200,
           },
           latestPayment: {
             _id: 'mock-payment-id',
@@ -270,7 +260,7 @@ watch(eventId, () => {
             v-if="showPaymentSection"
             class="white-bread-container"
             title="Settle event payment"
-            :description="`Event balance: Php ${paymentBalanceDue.toLocaleString()}`"
+            :description="`Outstanding balance: Php ${paymentBalanceDue.toLocaleString()}`"
           >
             <div v-if="paymentPendingReview && !isPaymongoPending" class="space-y-2">
               <UBadge color="warning" variant="soft" label="Pending review" />
@@ -293,16 +283,12 @@ watch(eventId, () => {
 
               <p class="text-sm text-muted">
                 Amount to pay now:
-                <span class="font-semibold text-default">Php {{ paymentOnlineBalanceDue.toLocaleString() }}</span>
-                <span v-if="paymentConvenienceFee > 0">
-                  (includes Php {{ paymentConvenienceFee.toLocaleString() }} convenience fee)
-                </span>.
+                <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
                 Continue to PayMongo to complete this payment.
               </p>
 
               <PaymentCheckoutPanel
-                :amount-due="paymentOnlineBalanceDue"
-                :convenience-fee="paymentConvenienceFee"
+                :amount-due="paymentBalanceDue"
                 :loading="isSubmittingPayment"
                 :submit-label="isPaymongoPending ? 'Continue to checkout' : 'Proceed to checkout'"
                 @submit="handleProceedToCheckout"

@@ -9,10 +9,7 @@ import { hasVoucherCode, normalizeVoucherCode } from '~/utils/referralCode'
 import {
   REFERRAL_DISCOUNT_PERCENT,
   PROMO_DISCOUNT_PERCENT,
-  ONLINE_CONVENIENCE_FEE_PERCENT,
   percentOf,
-  convenienceFeeOf,
-  onlineTotalOf,
 } from '~/utils/pricing'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
@@ -147,8 +144,7 @@ const appliedDiscountPhp = computed(() =>
 const discountedSubtotalPhp = computed(() =>
   Math.max(0, baseFeePhp.value - appliedDiscountPhp.value),
 )
-const convenienceFeePhp = computed(() => convenienceFeeOf(discountedSubtotalPhp.value))
-const amountDuePhp = computed(() => onlineTotalOf(discountedSubtotalPhp.value))
+const amountDuePhp = computed(() => discountedSubtotalPhp.value)
 
 function resetVoucherValidation() {
   voucherStatus.value = 'idle'
@@ -416,14 +412,6 @@ async function submitPayment() {
               >
                 Referral {{ REFERRAL_DISCOUNT_PERCENT }}% applies on this first event unless a promo is better.
               </p>
-              <div class="flex justify-between text-toast-700">
-                <span>Subtotal</span>
-                <span class="font-semibold text-toast-900">{{ formatPhp(discountedSubtotalPhp) }}</span>
-              </div>
-              <div class="flex justify-between text-toast-700">
-                <span>Convenience fee ({{ ONLINE_CONVENIENCE_FEE_PERCENT }}%)</span>
-                <span class="font-semibold text-toast-900">{{ formatPhp(convenienceFeePhp) }}</span>
-              </div>
               <div class="flex justify-between font-bold text-toast-900 text-sm">
                 <span>Amount due</span>
                 <span class="text-toast-700 font-serif text-lg">{{ formatPhp(amountDuePhp) }}</span>
@@ -436,7 +424,6 @@ async function submitPayment() {
         <div class="md:col-span-7">
           <PaymentCheckoutPanel
             :amount-due="amountDuePhp"
-            :convenience-fee="convenienceFeePhp"
             :loading="isProcessing"
             @submit="submitPayment"
           />

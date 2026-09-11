@@ -6,7 +6,6 @@ import { isEventFullyPaid, hasPendingPaymentBlockingUpgrade, getPendingUpgradeTa
 import type { PendingUpgradeInfo } from '~/types/upgrade'
 import { reportApiError } from '~/types/auth'
 import { formatPhp, getTierFeatureBullets } from '~/utils/tierUpgradeFeatures'
-import { ONLINE_CONVENIENCE_FEE_PERCENT, convenienceFeeOf, onlineTotalOf } from '~/utils/pricing'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
@@ -71,19 +70,11 @@ const isEventPaid = computed(() =>
 
 const hasAvailableUpgrades = computed(() => upgradeOptions.value.length > 0)
 
-const upgradeSubtotal = computed(() => {
+const amountDue = computed(() => {
   if (!selectedUpgrade.value) return 0
   return selectedUpgrade.value.paymentSummary.balanceDue
     || selectedUpgrade.value.priceDifferencePhp
 })
-const convenienceFeePhp = computed(() =>
-  selectedUpgrade.value?.paymentSummary.convenienceFeePhp
-    ?? convenienceFeeOf(upgradeSubtotal.value),
-)
-const amountDue = computed(() =>
-  selectedUpgrade.value?.paymentSummary.onlineBalanceDue
-    ?? onlineTotalOf(upgradeSubtotal.value),
-)
 
 function planStatusLabel(plan: PlanCatalogEntry): string {
   if (plan.status === 'current') return 'Current plan'
@@ -444,14 +435,6 @@ onMounted(() => {
                 <span class="text-muted">Upgrading to</span>
                 <span class="font-semibold">{{ selectedUpgrade.name }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Upgrade subtotal</span>
-                <span class="font-semibold">{{ formatPhp(upgradeSubtotal) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Convenience fee ({{ ONLINE_CONVENIENCE_FEE_PERCENT }}%)</span>
-                <span class="font-semibold">{{ formatPhp(convenienceFeePhp) }}</span>
-              </div>
               <div class="flex justify-between font-bold text-toast-900 border-t border-default pt-2">
                 <span>Amount due</span>
                 <span>{{ formatPhp(amountDue) }}</span>
@@ -462,7 +445,6 @@ onMounted(() => {
           <div class="md:col-span-7">
             <PaymentCheckoutPanel
               :amount-due="amountDue"
-              :convenience-fee="convenienceFeePhp"
               :loading="isSubmitting"
               :disabled="(hasPendingUpgrade && !isPaymongoPending) || !isEventPaid"
               @submit="submitUpgradePayment"

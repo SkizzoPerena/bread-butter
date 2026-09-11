@@ -4,7 +4,6 @@ import type { EmailCreditPackage } from '~/types/upgrade'
 import { isEmailCreditPurchasePending } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { formatPhp } from '~/utils/tierUpgradeFeatures'
-import { ONLINE_CONVENIENCE_FEE_PERCENT, convenienceFeeOf, onlineTotalOf } from '~/utils/pricing'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
@@ -61,10 +60,6 @@ const remainingEmails = computed(() => {
   const value = eventRecord.value?.remainingEmails
   return typeof value === 'number' ? value : null
 })
-
-const creditSubtotal = computed(() => selectedPackage.value?.pricePhp ?? 0)
-const creditConvenienceFee = computed(() => convenienceFeeOf(creditSubtotal.value))
-const creditAmountDue = computed(() => onlineTotalOf(creditSubtotal.value))
 
 async function loadPage() {
   const id = eventId.value
@@ -280,25 +275,16 @@ onMounted(() => {
                 <span class="text-muted">Email credits</span>
                 <span class="font-semibold">{{ selectedPackage.emailCredits.toLocaleString() }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Package subtotal</span>
-                <span class="font-semibold">{{ formatPhp(selectedPackage.pricePhp) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Convenience fee ({{ ONLINE_CONVENIENCE_FEE_PERCENT }}%)</span>
-                <span class="font-semibold">{{ formatPhp(creditConvenienceFee) }}</span>
-              </div>
               <div class="flex justify-between font-bold text-toast-900 border-t border-default pt-2">
                 <span>Amount due</span>
-                <span>{{ formatPhp(creditAmountDue) }}</span>
+                <span>{{ formatPhp(selectedPackage.pricePhp) }}</span>
               </div>
             </div>
           </UPageCard>
 
           <div class="md:col-span-7">
             <PaymentCheckoutPanel
-              :amount-due="creditAmountDue"
-              :convenience-fee="creditConvenienceFee"
+              :amount-due="selectedPackage.pricePhp"
               :loading="isSubmitting"
               :disabled="hasPendingEmailCreditPayment && !isPaymongoPending"
               @submit="submitCreditPayment"

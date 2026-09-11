@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
   amountDue: number
-  convenienceFee?: number
   loading?: boolean
   disabled?: boolean
   submitLabel?: string
@@ -31,13 +30,6 @@ function formatPhp(amount: number): string {
         You will be redirected to PayMongo to pay with card, GCash, Maya, GrabPay, or QRPh.
         After a successful payment you will return here automatically.
       </p>
-      <div
-        v-if="props.convenienceFee && props.convenienceFee > 0"
-        class="flex justify-between items-center text-xs text-toast-700 pt-1"
-      >
-        <span>Includes convenience fee</span>
-        <span>{{ formatPhp(props.convenienceFee) }}</span>
-      </div>
       <div class="flex justify-between items-center text-sm font-semibold text-toast-900 pt-1">
         <span>Amount due</span>
         <span class="font-serif text-lg">{{ formatPhp(props.amountDue) }}</span>
