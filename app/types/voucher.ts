@@ -1,7 +1,8 @@
 export interface VoucherRecord {
   _id: string
   code: string
-  discountAmountPhp: number
+  discountAmountPhp?: number
+  discountPercent?: number
   maxUses?: number | null
   expiresAt?: string | null
   isActive: boolean
@@ -13,7 +14,6 @@ export interface VoucherRecord {
 
 export interface VoucherPayload {
   code: string
-  discountAmountPhp: number
   maxUses?: number | null
   expiresAt?: string | null
 }
@@ -37,5 +37,6 @@ export interface VoucherValidateResponse {
   message: string
   code?: string
   discountAmountPhp?: number
+  discountPercent?: number
 }
 

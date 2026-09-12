@@ -1,4 +1,10 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+type NuxtHookPage = {
+  name?: string
+  path: string
+  file?: string
+}
+
 export default defineNuxtConfig({
   components: [
     {
@@ -118,7 +124,7 @@ export default defineNuxtConfig({
   },
 
   hooks: {
-    'pages:extend'(pages) {
+    'pages:extend'(pages: NuxtHookPage[]) {
       // Keep leftover/pre-vamp page files in the repo, but do not expose them as routes.
       const hiddenRouteNames = new Set([
         'EventTasksDashboardPreVamp',
@@ -173,6 +179,7 @@ export default defineNuxtConfig({
       setPath('UserOtp', '/user/otp')
       setPath('UserPayment', '/user/payment')
       setPath('UserPaymentPending', '/user/payment-pending')
+      setPath('UserPaymentSuccess', '/user/payment/success')
       setPath('UserProfile', '/user/profile')
       setPath('UserReportIssue', '/user/report-issue')
       setPath('UserSignup', '/user/signup')

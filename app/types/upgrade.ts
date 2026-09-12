@@ -49,6 +49,9 @@ export interface PendingUpgradeInfo {
   transactionId: string
   createdAt?: string
   targetTierName?: string | null
+  targetTierId?: string | null
+  provider?: string
+  paymongoCheckoutId?: string | null
 }
 
 export interface TierUpgradeOptionsResponse {
@@ -96,4 +99,15 @@ export interface UpgradePaymentMessageResponse {
   message: string
   payment?: PaymentRecord
   event?: EventRecord
+}
+
+export interface SubmitTierUpgradeCheckoutPayload {
+  targetTierId: string
+  cancelPath?: string
+}
+
+export interface SubmitEmailCreditCheckoutPayload {
+  emailCreditPackageId: string
+  upgradeGroupId?: string
+  cancelPath?: string
 }

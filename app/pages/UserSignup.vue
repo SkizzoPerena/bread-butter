@@ -160,7 +160,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             label="Referral code (optional)"
             name="referralCode"
             :ui="{ label: 'text-xs sm:text-sm' }"
-            hint="Enter a friend's 5-character referral code to receive signup credit after email verification."
+            hint="Enter a friend's 5-character referral code to get 5% off your first event after email verification."
           >
             <UInput
               v-model="state.referralCode"

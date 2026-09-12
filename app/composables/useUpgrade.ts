@@ -1,6 +1,9 @@
+import type { CheckoutSessionResponse } from '~/types/payment'
 import type {
   EmailCreditPackagesResponse,
+  SubmitEmailCreditCheckoutPayload,
   SubmitEmailCreditPayload,
+  SubmitTierUpgradeCheckoutPayload,
   SubmitTierUpgradePayload,
   TierUpgradeOptionsResponse,
   UpgradePaymentMessageResponse,
@@ -196,10 +199,62 @@ export function useUpgrade() {
     )
   }
 
+  async function createTierUpgradeCheckoutSession(
+    eventId: string,
+    payload: SubmitTierUpgradeCheckoutPayload,
+    idempotencyKey?: string,
+  ): Promise<CheckoutSessionResponse> {
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        checkoutUrl: '/user/payment/success?payment_id=mock-upgrade-payment',
+        checkoutId: 'cs_mock_upgrade',
+        paymentId: 'mock-upgrade-payment',
+      }
+    }
+
+    return apiRequest<CheckoutSessionResponse>(
+      `/user/events/${eventId}/tier-upgrade/checkout-session`,
+      {
+        method: 'POST',
+        body: payload,
+        headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      },
+    )
+  }
+
+  async function createEmailCreditCheckoutSession(
+    eventId: string,
+    payload: SubmitEmailCreditCheckoutPayload,
+    idempotencyKey?: string,
+  ): Promise<CheckoutSessionResponse> {
+    if (isUiOnlyMode.value) {
+      return {
+        success: true,
+        status: 200,
+        checkoutUrl: '/user/payment/success?payment_id=mock-email-credit-payment',
+        checkoutId: 'cs_mock_credits',
+        paymentId: 'mock-email-credit-payment',
+      }
+    }
+
+    return apiRequest<CheckoutSessionResponse>(
+      `/user/events/${eventId}/email-credits/checkout-session`,
+      {
+        method: 'POST',
+        body: payload,
+        headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      },
+    )
+  }
+
   return {
     getTierUpgradeOptions,
     submitTierUpgradePayment,
     getEmailCreditPackages,
     submitEmailCreditPayment,
+    createTierUpgradeCheckoutSession,
+    createEmailCreditCheckoutSession,
   }
 }
