@@ -6,6 +6,7 @@ import { isEventFullyPaid, hasPendingPaymentBlockingUpgrade, getPendingUpgradeTa
 import type { PendingUpgradeInfo } from '~/types/upgrade'
 import { reportApiError } from '~/types/auth'
 import { formatPhp, getTierFeatureBullets } from '~/utils/tierUpgradeFeatures'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
@@ -70,6 +71,8 @@ const isEventPaid = computed(() =>
 
 const hasAvailableUpgrades = computed(() => upgradeOptions.value.length > 0)
 
+const dashboardPath = computed(() => resolveEventDashboardPath(eventRecord.value))
+
 const amountDue = computed(() => {
   if (!selectedUpgrade.value) return 0
   return selectedUpgrade.value.paymentSummary.balanceDue
@@ -131,7 +134,7 @@ async function loadPage() {
     }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load upgrade options', error })
-    await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
+    await navigateTo({ path: dashboardPath.value, query: { eventId: id } })
   } finally {
     isLoading.value = false
   }
@@ -379,7 +382,7 @@ onMounted(() => {
             Continue to checkout
           </UButton>
           <UButton
-            :to="{ path: '/user/event-dashboard', query: { eventId: eventId || undefined } }"
+            :to="{ path: dashboardPath, query: { eventId: eventId || undefined } }"
             color="neutral"
             variant="outline"
           >
@@ -398,7 +401,7 @@ onMounted(() => {
             your event may already be on the highest tier in the database.
           </p>
           <UButton
-            :to="{ path: '/user/event-dashboard', query: { eventId: eventId || undefined } }"
+            :to="{ path: dashboardPath, query: { eventId: eventId || undefined } }"
             color="neutral"
             variant="outline"
           >

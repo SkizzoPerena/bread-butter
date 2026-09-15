@@ -16,7 +16,7 @@ import {
 } from '~/types/churchRequirement'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
-import { EVENT_FEATURE } from '~/utils/eventTierFeatures'
+import { EVENT_FEATURE, resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -411,8 +411,7 @@ async function confirmDeleteRequirement() {
   try {
     await deleteRequirement(targetId)
     requirements.value = requirements.value.filter((item) => item._id !== targetId)
-    const nextDrafts = { ...partyDrafts.value }
-    delete nextDrafts[targetId]
+    const { [targetId]: _, ...nextDrafts } = partyDrafts.value
     partyDrafts.value = nextDrafts
     savedPartyDrafts.value = clonePartyDrafts(nextDrafts)
     isDeleteModalOpen.value = false
@@ -452,7 +451,7 @@ onMounted(async () => {
       color: 'error',
     })
     navigateTo({
-      path: '/user/event-dashboard',
+      path: resolveEventDashboardPath(eventRecord.value),
       query: eventId.value ? { eventId: eventId.value } : undefined,
     })
     return
@@ -651,7 +650,7 @@ watch(eventId, async () => {
                       <input
                         type="file"
                         accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                        class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-yellow-900"
+                        class="block w-full file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-yellow-900"
                         :disabled="mutationsDisabled || isSubmitting"
                         @change="onPartyFileSelected(item._id, party, $event)"
                       />

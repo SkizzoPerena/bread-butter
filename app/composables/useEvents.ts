@@ -172,10 +172,18 @@ export function useEvents() {
     userEventsCache.value = []
   }
 
+  function getCachedEvent(id: string): EventRecord | null {
+    if (!id) return null
+    if (eventCache.value[id]?.event) return eventCache.value[id].event
+    return userEventsCache.value.find((e) => e._id === id) || null
+  }
+
   return {
     fetchUserEvents,
     fetchEvent,
     createEvent,
-    updateEvent
+    updateEvent,
+    getCachedEvent,
   }
 }
+

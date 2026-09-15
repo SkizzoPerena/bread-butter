@@ -4,12 +4,13 @@ import { useEvents } from '~/composables/useEvents'
 import {
   type EventFeature,
   isEventFeatureAllowed,
+  resolveEventDashboardPath,
 } from '~/utils/eventTierFeatures'
 
 export function useEventFeatureGate() {
   const toast = useToast()
   const route = useRoute()
-  const { fetchEvent } = useEvents()
+  const { fetchEvent, getCachedEvent } = useEvents()
   const { isUiOnlyMode } = useApiMode()
   const { isPartnerRole, withRoleQuery } = useApiRole()
 
@@ -48,8 +49,9 @@ export function useEventFeatureGate() {
       return true
     } catch (error) {
       reportApiError(toast, { title: 'Could not verify event access', error })
+      const cached = getCachedEvent(id)
       await navigateTo({
-        path: isPartnerRole.value ? `/partners/events/${id}` : '/user/event-dashboard',
+        path: isPartnerRole.value ? `/partners/events/${id}` : resolveEventDashboardPath(cached),
         query: isPartnerRole.value ? undefined : withRoleQuery({ eventId: id })
       })
       return false

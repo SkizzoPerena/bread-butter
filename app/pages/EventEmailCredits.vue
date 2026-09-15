@@ -4,6 +4,7 @@ import type { EmailCreditPackage } from '~/types/upgrade'
 import { isEmailCreditPurchasePending } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { formatPhp } from '~/utils/tierUpgradeFeatures'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
@@ -16,7 +17,7 @@ definePageMeta({
 
 const toast = useToast()
 const route = useRoute()
-const { fetchEvent } = useEvents()
+const { fetchEvent, getCachedEvent } = useEvents()
 const { getEmailCreditPackages, createEmailCreditCheckoutSession } = useUpgrade()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
@@ -89,7 +90,8 @@ async function loadPage() {
     }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load email credit packages', error })
-    await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
+    const cached = getCachedEvent(id)
+    await navigateTo({ path: resolveEventDashboardPath(cached), query: { eventId: id } })
   } finally {
     isLoading.value = false
   }

@@ -2,6 +2,8 @@
 import { formatPaymentPurpose } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { formatPhp } from '~/utils/tierUpgradeFeatures'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
+import { useEvents } from '~/composables/useEvents'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -14,6 +16,7 @@ useHead({
 const route = useRoute()
 const toast = useToast()
 const { getCheckoutStatus } = usePayments()
+const { getCachedEvent } = useEvents()
 const { isUiOnlyMode } = useApiMode()
 const { readRememberedCheckoutIds, clearIdempotencyKey } = usePayMongoCheckout()
 
@@ -41,7 +44,8 @@ function dashboardPathForType() {
   if (paymentType.value === 'TIER_UPGRADE') {
     return '/event/upgrade'
   }
-  return '/user/event-dashboard'
+  const cached = getCachedEvent(eventId.value)
+  return resolveEventDashboardPath(cached)
 }
 
 async function pollCheckout() {

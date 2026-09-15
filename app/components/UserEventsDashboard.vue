@@ -6,6 +6,7 @@ import { getEventBalanceDue, isEventFullyPaid, isTierUpgradePending, getPendingU
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 
 const toast = useToast()
 const { fetchUserEvents } = useEvents()
@@ -117,6 +118,13 @@ function onCoverImageError(event: Event) {
   img.src = defaultCover
 }
 
+function getEventDashboardLink(event: EventRecord) {
+  return {
+    path: resolveEventDashboardPath(event),
+    query: { eventId: event._id },
+  }
+}
+
 onMounted(() => {
   loadUserEvents()
 })
@@ -200,7 +208,7 @@ onMounted(() => {
               </div>
               <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
                 <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2"
-                  :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }">
+                  :to="getEventDashboardLink(event)">
                   Open Dashboard
                 </UButton>
               </div>
@@ -260,7 +268,7 @@ onMounted(() => {
               </div>
               <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
                 <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2"
-                  :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }">
+                  :to="getEventDashboardLink(event)">
                   Open Dashboard
                 </UButton>
               </div>

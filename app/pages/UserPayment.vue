@@ -11,6 +11,7 @@ import {
   PROMO_DISCOUNT_PERCENT,
   percentOf,
 } from '~/utils/pricing'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 
 definePageMeta({
@@ -273,7 +274,7 @@ async function submitPayment() {
         description: 'There is no remaining balance to collect.',
         color: 'success',
       })
-      await navigateTo({ path: '/user/event-dashboard', query: { eventId } })
+      await navigateTo({ path: resolveEventDashboardPath(created), query: { eventId } })
       return
     }
 
