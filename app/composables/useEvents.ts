@@ -78,6 +78,9 @@ export function useEvents() {
       guestList: response.guestList ?? [],
       rsvpSummary: response.rsvpSummary ?? null,
       tasks: response.tasks ?? null,
+      guestStats: response.guestStats ?? null,
+      supplierSummary: response.supplierSummary ?? null,
+      churchRequirementSummary: response.churchRequirementSummary ?? null,
     }
     eventCache.value[eventId] = detail
     return detail

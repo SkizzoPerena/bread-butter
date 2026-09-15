@@ -6,7 +6,9 @@ import type {
   SelectedEventDetail,
   TasksSummary,
   GuestRecord,
+  GuestStats,
   RsvpSummary,
+  ChurchRequirementSummary,
 } from '~/types/event'
 import { isWeddingEventType, formatEventPriceTier } from '~/types/event'
 import { reportApiError } from '~/types/auth'
@@ -15,6 +17,7 @@ import {
   isTierUpgradePending,
   getPendingUpgradeTargetName,
 } from '~/types/payment'
+import type { SupplierSummary } from '~/types/supplier'
 import {
   type DashboardAction,
   getAllowedFeaturesForEvent,
@@ -46,7 +49,18 @@ const eventRecord = ref<EventRecord | null>(null)
 const tasksSummary = ref<TasksSummary | null>(null)
 const guestList = ref<GuestRecord[]>([])
 const rsvpSummary = ref<RsvpSummary | null>(null)
+const guestStats = ref<GuestStats | null>(null)
+const supplierSummary = ref<SupplierSummary | null>(null)
+const churchRequirementSummary = ref<ChurchRequirementSummary | null>(null)
 const isLoadingEvent = ref(false)
+
+const COMING_SOON = 'Coming soon'
+
+function toNonNegativeNumber(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0) return 0
+  return n
+}
 
 const isUpgradePending = computed(() => isTierUpgradePending(eventRecord.value))
 const pendingUpgradeTargetName = computed(() => getPendingUpgradeTargetName(eventRecord.value))
@@ -100,6 +114,12 @@ async function loadEventData() {
           status: 'ONGOING',
           coverImageURL: null,
           latestPayment: null,
+          paymentSummary: {
+            fee: 10000,
+            totalReceived: 6500,
+            balanceDue: 3500,
+            isFullyPaid: false,
+          },
           priceTier: {
             _id: 'mock-tier-id',
             code: 'bread_butter',
@@ -120,9 +140,31 @@ async function loadEventData() {
           }),
         },
         guestList: [],
-        rsvpSummary: null,
+        rsvpSummary: {
+          totalSent: 120,
+          going: 84,
+          notGoing: 12,
+          pending: 24,
+        },
+        guestStats: {
+          total: 120,
+          withoutTable: 12,
+          seated: 108,
+        },
+        supplierSummary: {
+          totalBudget: 0,
+          totalPaid: 0,
+          totalRemaining: 0,
+          supplierCount: 0,
+        },
+        churchRequirementSummary: {
+          total: 10,
+          completed: 8,
+          pending: 2,
+        },
         tasks: {
           totalTasks: 21,
+          overdueCount: 0,
           byStatus: {
             'not-started': 4,
             waiting: 2,
@@ -159,6 +201,9 @@ async function loadEventData() {
     tasksSummary.value = detail.tasks
     guestList.value = detail.guestList || []
     rsvpSummary.value = detail.rsvpSummary || null
+    guestStats.value = detail.guestStats || null
+    supplierSummary.value = detail.supplierSummary || null
+    churchRequirementSummary.value = detail.churchRequirementSummary || null
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -208,43 +253,28 @@ const tierPrice = computed(() => {
 })
 
 const amountPaid = computed(() => {
-  if (eventRecord.value) {
-    if (isEventFullyPaid(eventRecord.value)) return tierPrice.value
-    if (typeof eventRecord.value.latestPayment?.amount === 'number') {
-      return eventRecord.value.latestPayment.amount
-    }
-  }
-  return 6500
+  return toNonNegativeNumber(eventRecord.value?.paymentSummary?.totalReceived)
 })
 
 const balanceDue = computed(() => {
-  return Math.max(0, tierPrice.value - amountPaid.value)
+  return toNonNegativeNumber(eventRecord.value?.paymentSummary?.balanceDue)
 })
 
 // 2. Tasks & 5-Status Breakdown
 const taskStatusBreakdown = computed(() => {
   const byStatus = tasksSummary.value?.byStatus
-  if (byStatus && Object.keys(byStatus).length > 0) {
-    const notStarted = byStatus['not-started'] ?? byStatus.TODO ?? 4
-    const waiting = byStatus.waiting ?? 2
-    const inProgress = byStatus['in-progress'] ?? byStatus.ONGOING ?? 6
-    const onHold = byStatus['on-hold'] ?? 1
-    const completed = byStatus.completed ?? byStatus.COMPLETED ?? 8
+  const notStarted = toNonNegativeNumber(byStatus?.['not-started'] ?? byStatus?.TODO)
+  const waiting = toNonNegativeNumber(byStatus?.waiting)
+  const inProgress = toNonNegativeNumber(byStatus?.['in-progress'] ?? byStatus?.ONGOING)
+  const onHold = toNonNegativeNumber(byStatus?.['on-hold'])
+  const completed = toNonNegativeNumber(byStatus?.completed ?? byStatus?.COMPLETED)
 
-    return [
-      { key: 'not-started', label: 'Not Started', count: notStarted, colorClass: 'bg-slate-500', color: 'bg-slate-500', hex: '#64748b' },
-      { key: 'waiting', label: 'Waiting', count: waiting, colorClass: 'bg-orange-500', color: 'bg-orange-500', hex: '#f97316' },
-      { key: 'in-progress', label: 'In Progress', count: inProgress, colorClass: 'bg-blue-500', color: 'bg-blue-500', hex: '#3b82f6' },
-      { key: 'on-hold', label: 'On Hold', count: onHold, colorClass: 'bg-yellow-500', color: 'bg-yellow-500', hex: '#eab308' },
-      { key: 'completed', label: 'Completed', count: completed, colorClass: 'bg-green-500', color: 'bg-green-500', hex: '#00C16A' },
-    ]
-  }
   return [
-    { key: 'not-started', label: 'Not Started', count: 4, colorClass: 'bg-slate-500', color: 'bg-slate-500', hex: '#64748b' },
-    { key: 'waiting', label: 'Waiting', count: 2, colorClass: 'bg-orange-500', color: 'bg-orange-500', hex: '#f97316' },
-    { key: 'in-progress', label: 'In Progress', count: 6, colorClass: 'bg-blue-500', color: 'bg-blue-500', hex: '#3b82f6' },
-    { key: 'on-hold', label: 'On Hold', count: 1, colorClass: 'bg-yellow-500', color: 'bg-yellow-500', hex: '#eab308' },
-    { key: 'completed', label: 'Completed', count: 8, colorClass: 'bg-green-500', color: 'bg-green-500', hex: '#00C16A' },
+    { key: 'not-started', label: 'Not Started', count: notStarted, colorClass: 'bg-slate-500', color: 'bg-slate-500', hex: '#64748b' },
+    { key: 'waiting', label: 'Waiting', count: waiting, colorClass: 'bg-orange-500', color: 'bg-orange-500', hex: '#f97316' },
+    { key: 'in-progress', label: 'In Progress', count: inProgress, colorClass: 'bg-blue-500', color: 'bg-blue-500', hex: '#3b82f6' },
+    { key: 'on-hold', label: 'On Hold', count: onHold, colorClass: 'bg-yellow-500', color: 'bg-yellow-500', hex: '#eab308' },
+    { key: 'completed', label: 'Completed', count: completed, colorClass: 'bg-green-500', color: 'bg-green-500', hex: '#00C16A' },
   ]
 })
 
@@ -253,7 +283,7 @@ const totalTasks = computed(() => {
 })
 
 const completedTasksCount = computed(() => {
-  return taskStatusBreakdown.value.find((s) => s.key === 'completed')?.count ?? 8
+  return taskStatusBreakdown.value.find((s) => s.key === 'completed')?.count ?? 0
 })
 
 const taskCompletionPercent = computed(() => {
@@ -274,62 +304,39 @@ const TASK_STATUS_COLORS = computed(() => {
 
 // 3. Guests & RSVP Metrics
 const confirmedGuestsCount = computed(() => {
-  if (rsvpSummary.value?.going) return rsvpSummary.value.going
-  if (guestList.value.length > 0) {
-    const count = guestList.value.filter((g) => g.rsvp?.status === 'GOING').length
-    if (count > 0) return count
-  }
-  return 84
+  return toNonNegativeNumber(rsvpSummary.value?.going)
 })
 
 const totalInvitedCount = computed(() => {
-  if (rsvpSummary.value?.totalSent) return rsvpSummary.value.totalSent
-  if (guestList.value.length > 0) return guestList.value.length
-  return 120
+  return toNonNegativeNumber(rsvpSummary.value?.totalSent)
 })
 
 const rsvpResponseRate = computed(() => {
-  if (rsvpSummary.value && totalInvitedCount.value > 0) {
-    const responded = (rsvpSummary.value.going || 0) + (rsvpSummary.value.notGoing || 0)
-    return Math.round((responded / totalInvitedCount.value) * 100)
-  }
-  return 80
+  if (totalInvitedCount.value <= 0) return 0
+  const responded =
+    toNonNegativeNumber(rsvpSummary.value?.going) + toNonNegativeNumber(rsvpSummary.value?.notGoing)
+  return Math.round((responded / totalInvitedCount.value) * 100)
 })
 
 // 4. Financial Snapshot Metrics
-const targetBudget = computed(() => 850000)
-const forecastSpend = computed(() => 810000)
-const budgetRemaining = computed(() => Math.max(0, targetBudget.value - amountPaid.value))
-const remainingPayable = computed(() => Math.max(0, forecastSpend.value - amountPaid.value))
+const supplierAmountPaid = computed(() => {
+  return toNonNegativeNumber(supplierSummary.value?.totalPaid)
+})
 
-const budgetUsedPercent = computed(() => {
-  if (targetBudget.value === 0) return 0
-  return Math.round((amountPaid.value / targetBudget.value) * 100)
+const remainingPayable = computed(() => {
+  return toNonNegativeNumber(supplierSummary.value?.totalRemaining)
 })
 
 const budgetStatus = computed(() => {
-  if (forecastSpend.value <= targetBudget.value) {
-    return {
-      label: 'Within Budget',
-      color: 'success' as const,
-    }
-  }
   return {
-    label: 'Over Budget',
-    color: 'error' as const,
+    label: COMING_SOON,
+    color: 'neutral' as const,
   }
 })
 
 // 5. Planning Health Metrics
 const overdueTasksCount = computed(() => {
-  if (tasksSummary.value?.preview?.tasks) {
-    const now = new Date()
-    const overdue = tasksSummary.value.preview.tasks.filter((t) =>
-      t.deadline && new Date(t.deadline) < now && t.status !== 'COMPLETED'
-    )
-    if (overdue.length > 0) return overdue.length
-  }
-  return 0
+  return toNonNegativeNumber(tasksSummary.value?.overdueCount)
 })
 
 const overdueTasksCountText = computed(() => {
@@ -350,29 +357,29 @@ const onTrackTasksPercent = computed(() => {
 const totalConfirmedGuests = computed(() => confirmedGuestsCount.value)
 
 const guestsWithoutTables = computed(() => {
-  if (guestList.value.length > 0) {
-    return guestList.value.filter((g) => !g.tableCode).length
-  }
-  return 12
+  return toNonNegativeNumber(guestStats.value?.withoutTable)
 })
 
 const seatedGuestsCount = computed(() => {
-  return Math.max(0, totalConfirmedGuests.value - guestsWithoutTables.value)
+  return toNonNegativeNumber(guestStats.value?.seated)
 })
 
 const guestsSeatedPercent = computed(() => {
   if (totalConfirmedGuests.value === 0) return 0
-  return Math.round((seatedGuestsCount.value / totalConfirmedGuests.value) * 100)
+  return Math.min(100, Math.round((seatedGuestsCount.value / totalConfirmedGuests.value) * 100))
 })
 
 const totalRequirements = computed(() => {
-  if (eventRecord.value?.questions && eventRecord.value.questions.length > 0) {
-    return eventRecord.value.questions.length
-  }
-  return 10
+  return toNonNegativeNumber(churchRequirementSummary.value?.total)
 })
 
-const completedRequirements = computed(() => 8)
+const completedRequirements = computed(() => {
+  return toNonNegativeNumber(churchRequirementSummary.value?.completed)
+})
+
+const pendingRequirements = computed(() => {
+  return toNonNegativeNumber(churchRequirementSummary.value?.pending)
+})
 
 const requirementsCompletionPercent = computed(() => {
   if (totalRequirements.value === 0) return 0
@@ -957,7 +964,7 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                   </div>
                   <div class="flex items-center gap-1 shrink-0 ml-1">
                     <span class="text-[11px] font-bold text-highlighted">{{ status.count }}</span>
-                    <span class="text-[9px] text-muted">({{ Math.round((status.count / totalTasks) * 100) }}%)</span>
+                    <span class="text-[9px] text-muted">({{ totalTasks ? Math.round((status.count / totalTasks) * 100) : 0 }}%)</span>
                   </div>
                 </div>
               </div>
@@ -990,7 +997,7 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                     <UIcon name="i-lucide-target" class="size-3.5 text-red-500 shrink-0" />
                   </div>
                   <div class="text-base sm:text-lg lg:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ targetBudget.toLocaleString() }}
+                    {{ COMING_SOON }}
                   </div>
                   <div class="text-xs text-muted truncate">
                     Allocated budget limit
@@ -1005,7 +1012,7 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                     <UIcon name="i-lucide-trending-up" class="size-3.5 text-blue-500 shrink-0" />
                   </div>
                   <div class="text-base sm:text-lg lg:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ forecastSpend.toLocaleString() }}
+                    {{ COMING_SOON }}
                   </div>
                   <div class="text-xs text-muted truncate">
                     Projected total spend
@@ -1020,7 +1027,7 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                     <UIcon name="i-lucide-check-circle" class="size-3.5 text-green-500 shrink-0" />
                   </div>
                   <div class="text-base sm:text-lg lg:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ amountPaid.toLocaleString() }}
+                    ₱{{ supplierAmountPaid.toLocaleString() }}
                   </div>
                   <div class="text-xs text-muted truncate">
                     Disbursed to suppliers
@@ -1050,7 +1057,7 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                     <UIcon name="i-lucide-wallet" class="size-3.5 text-emerald-500 shrink-0" />
                   </div>
                   <div class="text-base sm:text-lg lg:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ budgetRemaining.toLocaleString() }}
+                    {{ COMING_SOON }}
                   </div>
                   <div class="text-xs text-muted truncate">
                     Available target balance
@@ -1065,10 +1072,10 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                     <UIcon name="i-lucide-pie-chart" class="size-3.5 text-indigo-500 shrink-0" />
                   </div>
                   <div class="text-base sm:text-lg lg:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    {{ budgetUsedPercent }}%
+                    {{ COMING_SOON }}
                   </div>
                   <div class="w-full">
-                    <UProgress :model-value="budgetUsedPercent" color="neutral" size="2xs" />
+                    <UProgress :model-value="0" color="neutral" size="2xs" />
                   </div>
                 </div>
               </div>
@@ -1126,7 +1133,7 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
                     <UProgress :model-value="requirementsCompletionPercent" color="success" size="2xs" />
                     <div class="text-[11px] text-muted flex justify-between">
                       <span>{{ completedRequirements }} fulfilled</span>
-                      <span>{{ totalRequirements - completedRequirements }} pending</span>
+                      <span>{{ pendingRequirements }} pending</span>
                     </div>
                   </div>
                 </div>
