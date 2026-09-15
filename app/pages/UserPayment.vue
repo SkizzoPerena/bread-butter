@@ -12,7 +12,12 @@ import {
   percentOf,
 } from '~/utils/pricing'
 import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
+import {
+  getProofSubmitPayload,
+  type PaymentProofPanelExpose,
+} from '~/utils/paymentMethod'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
+import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -30,7 +35,9 @@ const { fetchAccount } = useAccount()
 const { validateVoucherForUser } = useVouchers()
 const { createEventFeeCheckoutSession } = usePayments()
 const { isUiOnlyMode } = useApiMode()
+const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
 const isBreadButterPackage = computed(() => selectedPkgId.value === 'bread-butter')
@@ -225,15 +232,38 @@ async function submitPayment() {
     return
   }
 
+  const proofPayload = isPaymongoActivated.value ? null : getProofSubmitPayload(proofPanel.value)
+  if (!isPaymongoActivated.value && !proofPayload) {
+    toast.add({
+      title: 'Incomplete payment proof',
+      description: 'Select a payment method, enter a reference ID, and upload your receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
   isProcessing.value = true
 
   try {
     if (isUiOnlyMode.value) {
+      if (isPaymongoActivated.value) {
+        await navigateTo({
+          path: '/user/payment/success',
+          query: {
+            payment_id: 'mock-payment-id',
+            checkout_id: 'cs_mock',
+          },
+        })
+        return
+      }
+
       await navigateTo({
-        path: '/user/payment/success',
+        path: '/user/payment-pending',
         query: {
-          payment_id: 'mock-payment-id',
-          checkout_id: 'cs_mock',
+          ref: proofPayload?.transactionId || 'MOCK-REF',
+          eventName: eventName.value,
+          package: selectedPkgId.value,
+          method: proofPayload?.paymentMethod || 'GCASH',
         },
       })
       return
@@ -263,8 +293,15 @@ async function submitPayment() {
       eventDate: eventDate.value,
       isCatholicWedding: isCatholicWedding.value,
       priceTierId,
-      payLater: true,
+      payLater: isPaymongoActivated.value,
       ...(normalizedVoucher ? { voucherCode: normalizedVoucher } : {}),
+      ...(!isPaymongoActivated.value && proofPayload
+        ? {
+            transactionId: proofPayload.transactionId,
+            paymentMethod: proofPayload.paymentMethod,
+            proofOfPayment: proofPayload.proofOfPayment,
+          }
+        : {}),
     })
 
     const eventId = created._id
@@ -275,6 +312,19 @@ async function submitPayment() {
         color: 'success',
       })
       await navigateTo({ path: resolveEventDashboardPath(created), query: { eventId } })
+      return
+    }
+
+    if (!isPaymongoActivated.value) {
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: {
+          ref: proofPayload?.transactionId || created.latestPayment?.transactionId || '',
+          eventName: eventName.value,
+          package: selectedPkgId.value,
+          method: proofPayload?.paymentMethod || '',
+        },
+      })
       return
     }
 
@@ -308,7 +358,7 @@ async function submitPayment() {
     redirectToCheckout(checkout.checkoutUrl)
   } catch (error) {
     reportApiError(toast, {
-      title: 'Could not start checkout',
+      title: isPaymongoActivated.value ? 'Could not start checkout' : 'Could not submit payment',
       error,
     })
   } finally {
@@ -331,7 +381,9 @@ async function submitPayment() {
           Complete Your Order
         </h1>
         <p class="text-xs text-bread-200">
-          Review your order, then continue to PayMongo to complete payment.
+          {{ isPaymongoActivated
+            ? 'Review your order, then continue to PayMongo to complete payment.'
+            : 'Review your order, then scan the QR and upload your proof of payment.' }}
         </p>
       </div>
 
@@ -421,9 +473,16 @@ async function submitPayment() {
           </div>
         </div>
 
-        <!-- Right Side: PayMongo checkout -->
         <div class="md:col-span-7">
           <PaymentCheckoutPanel
+            v-if="isPaymongoActivated"
+            :amount-due="amountDuePhp"
+            :loading="isProcessing"
+            @submit="submitPayment"
+          />
+          <PaymentProofPanel
+            v-else
+            ref="proofPanel"
             :amount-due="amountDuePhp"
             :loading="isProcessing"
             @submit="submitPayment"

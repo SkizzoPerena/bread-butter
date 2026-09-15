@@ -39,7 +39,7 @@ const paymentMethod = computed(() => (typeof route.query.method === 'string' ? r
           We're heating the oven for you!
         </h1>
         <p class="text-xs text-toast-800 max-w-xs mx-auto">
-          Your transaction has been submitted and is currently being verified by our payment gateway.
+          Your transaction has been submitted and is currently being verified by our admin team.
         </p>
       </div>
 
