@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#171717"/>
+  <circle cx="44" cy="40" r="16" stroke="#D4AF37" stroke-width="2"/>
+  <text x="37" y="46" font-family="'Fraunces', serif" font-size="16" font-weight="700" fill="#D4AF37">P</text>
+  <text x="72" y="37" font-family="'Fraunces', serif" font-size="17" font-weight="600" fill="#F5F5F5" letter-spacing="3">PAT DY</text>
+  <text x="73" y="52" font-family="'Figtree', sans-serif" font-size="8" font-weight="500" fill="#A3A3A3" letter-spacing="4">PHOTOGRAPHY</text>
+</svg>

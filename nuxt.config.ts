@@ -27,8 +27,8 @@ export default defineNuxtConfig({
 
   modules: [['@nuxt/eslint', {
     stylistic: false
-  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image' ,   'motion-v/nuxt',
-],
+  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image', 'motion-v/nuxt',
+  ],
 
   app: {
     head: {
@@ -94,7 +94,7 @@ export default defineNuxtConfig({
     transpile: ['reka-ui']
   },
 
-    routeRules: {
+  routeRules: {
     // Auth decides landing vs dashboard on the client; prerendering `/` breaks
     // post-login navigation with a failed `_payload.json` fetch.
     '/': { ssr: false },
@@ -215,6 +215,8 @@ export default defineNuxtConfig({
       setPath('PartnerSignup', '/partners/signup')
       setPath('PartnerOtp', '/partners/otp')
       setPath('PartnerForgotPassword', '/partners/forgot-password')
+      setPath('BakerLogin', '/bakers/login')
+      setPath('BakerSignup', '/bakers/signup')
 
       // Set paths for standalone pages
       setPath('ContactUs', '/contact-us')

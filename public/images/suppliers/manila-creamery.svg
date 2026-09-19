@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#2E1F1A"/>
+  <!-- Ice cream cone motif -->
+  <polygon points="40,56 48,56 44,64" fill="#EAB308"/>
+  <circle cx="44" cy="40" r="14" fill="#FDE047"/>
+  <circle cx="44" cy="40" r="10" fill="#CA8A04"/>
+  <text x="68" y="37" font-family="'Fraunces', serif" font-size="14.5" font-weight="700" fill="#FEF08A" letter-spacing="1">MANILA CREAMERY</text>
+  <text x="69" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#E2E8F0" letter-spacing="3">ARTISAN GELATO &amp; CARTS</text>
+</svg>

@@ -39,6 +39,10 @@ const PUBLIC_PATHS = new Set([
   '/partners/signup',
   '/partners/forgot-password',
   '/partners/otp',
+  '/bakers/login',
+  '/bakers/signup',
+  '/baker/login',
+  '/baker/signup',
   '/event/dashboard',
   '/event-dashboard'
 ])
@@ -54,7 +58,11 @@ const PARTNER_AUTH_PUBLIC_PATHS = new Set([
   '/partners/login',
   '/partners/signup',
   '/partners/forgot-password',
-  '/partners/otp'
+  '/partners/otp',
+  '/bakers/login',
+  '/bakers/signup',
+  '/baker/login',
+  '/baker/signup'
 ])
 
 export function isPublicPath(path: string): boolean {

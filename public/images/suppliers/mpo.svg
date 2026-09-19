@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#18182E"/>
+  <!-- Musical clef / notes -->
+  <circle cx="34" cy="46" r="6" fill="#A5B4FC"/>
+  <rect x="38" y="24" width="3" height="22" fill="#A5B4FC"/>
+  <circle cx="50" cy="40" r="6" fill="#818CF8"/>
+  <rect x="54" y="18" width="3" height="22" fill="#818CF8"/>
+  <path d="M40 24h17v4H40z" fill="#818CF8"/>
+  <text x="68" y="37" font-family="'Fraunces', serif" font-size="13" font-weight="700" fill="#EEF2FF" letter-spacing="1">MANILA PHILHARMONIC</text>
+  <text x="69" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#C7D2FE" letter-spacing="3.5">ORCHESTRA</text>
+</svg>

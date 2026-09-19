@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#3D1A24"/>
+  <circle cx="44" cy="40" r="16" fill="#FCE7F3" fill-opacity="0.2"/>
+  <path d="M44 28l3.5 7.5L56 37l-6 6 1.5 8.5L44 47.5 36.5 51.5 38 43l-6-6 8.5-1.5z" fill="#F472B6"/>
+  <text x="72" y="37" font-family="'Fraunces', serif" font-size="14.5" font-weight="700" fill="#FFF1F2" letter-spacing="1">CREATIVE PREPPERS</text>
+  <text x="73" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#FDA4AF" letter-spacing="2">FAVORS &amp; ACCESSORIES</text>
+</svg>

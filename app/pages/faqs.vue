@@ -703,11 +703,11 @@ function scrollToFaq(id: string) {
         </p>
       </div>
 
-      <!-- Main FAQ Layout with UPageAside on left and container on right -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <!-- Main FAQ Layout with UPageAside on left and container on right (4-grid layout) -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
 
         <!-- Left Side: UPageAside using bread-container CSS class -->
-        <UPageAside class="bread-container bg-bread-400 text-toast-900 p-5 lg:col-span-4 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto space-y-6">
+        <UPageAside class="bread-container bg-bread-400 text-toast-900 p-5 lg:col-span-1 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto space-y-6">
           <div>
             <h2 class="text-xl font-bold font-serif text-toast-800 border-b border-toast-600/20 pb-3 mb-4">
               Categories
@@ -738,8 +738,8 @@ function scrollToFaq(id: string) {
           </div>
         </UPageAside>
 
-        <!-- Right Side: Main FAQ Container using bread-container CSS class -->
-        <div class="bread-container bg-bread-400 text-toast-900 p-6 sm:p-8 lg:col-span-8 space-y-6">
+        <!-- Right Side: Main FAQ Container using bread-container CSS class (Topic Results) -->
+        <div class="bread-container bg-bread-400 text-toast-900 p-6 sm:p-8 lg:col-span-3 space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-toast-600/20 pb-4">
             <div>
               <h2 class="text-2xl font-bold font-serif text-toast-800">

@@ -48,7 +48,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  if (to.path === '/partners/login') {
+  if (to.path === '/partners/login' || to.path === '/bakers/login' || to.path === '/baker/login') {
     if (activeRole === 'user' && (await ensureSession('user'))) {
       return navigateTo('/', { replace: true })
     }

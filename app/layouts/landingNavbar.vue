@@ -106,15 +106,21 @@ const featuresItems: DropdownMenuItem[][] = [
 const partnersItems: DropdownMenuItem[][] = [
   [
     {
-      label: 'Our Suppliers',
+      label: 'Our Bakery',
       icon: 'i-lucide-store',
       to: '/our-suppliers',
       active: false
     },
     {
-      label: 'Partners',
+      label: 'Dough Makers',
       icon: 'i-lucide-handshake',
       to: '/partners/login',
+      active: false
+    },
+    {
+      label: 'Bakers',
+      icon: 'i-lucide-chef-hat',
+      to: '/bakers/login',
       active: false
     }
   ]
@@ -319,6 +325,14 @@ const links = [
                 </template>
                 Partners
               </UButton>
+              <UButton variant="ghost"
+                class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                to="/bakers/login" @click="closeMobileMenu">
+                <template #leading>
+                  <UIcon name="i-lucide-chef-hat" class="size-4 text-bread-400 mr-2" />
+                </template>
+                Bakers
+              </UButton>
             </div>
 
             <div class="h-px bg-toast-500/50 -mx-1" />
@@ -380,7 +394,7 @@ const links = [
 
   <slot />
 
-  <UFooter class="bg-bread-400">
+  <UFooter v-if="!route.meta.hideFooter" class="bg-bread-400">
     <template #left>
       <p class="text-sm text-toast-600">
         Copyright © {{ new Date().getFullYear() }} Bread+Butter. All rights reserved.
