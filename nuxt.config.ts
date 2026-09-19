@@ -84,6 +84,7 @@ export default defineNuxtConfig({
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
       useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',
+      isPaymongoActivated: process.env.NUXT_PUBLIC_IS_PAYMONGO_ACTIVATED === 'true',
       apiBase:
         process.env.NUXT_PUBLIC_API_BASE_URL ||
         'https://bread-butter-backend.onrender.com/api',
