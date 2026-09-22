@@ -146,7 +146,7 @@ const tabItems = [
                   <UTextarea class="w-full" placeholder="Tell us more about your special day" />
                 </UFormField>
 
-                <UButton to="/user/event-dashboard" block class="mt-4">
+                <UButton to="/event/dashboard-butter" block class="mt-4">
                   Save Changes
                 </UButton>
               </UForm>

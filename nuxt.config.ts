@@ -100,8 +100,8 @@ export default defineNuxtConfig({
     // post-login navigation with a failed `_payload.json` fetch.
     '/': { ssr: false },
     '/user/dashboard': { redirect: { to: '/', statusCode: 301 } },
-    '/event-dashboard': { redirect: { to: '/user/event-dashboard', statusCode: 301 } },
-    '/event/dashboard': { redirect: { to: '/user/event-dashboard', statusCode: 301 } },
+    '/event-dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
+    '/event/dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
     '/event/dashboard-v1': { redirect: { to: '/event/dashboard-bread', statusCode: 301 } },
     '/event/dashboard-bread+butter': { redirect: { to: '/event/dashboard-bread-butter', statusCode: 301 } },
   },

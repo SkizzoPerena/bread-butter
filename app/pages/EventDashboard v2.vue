@@ -833,6 +833,200 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
   }
   return map[item.label] || 'bg-toast-600'
 }
+
+interface PriorityDashboardTask {
+  id: string
+  title: string
+  priority: 'urgent' | 'important'
+  category: string
+  action: DashboardAction
+  dueText?: string
+}
+
+function getTaskDashboardTheme(category: string) {
+  const map: Record<string, { bg: string; text: string; border: string; dot: string; icon: string }> = {
+    Payments: { bg: 'bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-500/30', dot: 'bg-emerald-500', icon: 'i-lucide-credit-card' },
+    Suppliers: { bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-700 dark:text-fuchsia-400', border: 'border-fuchsia-500/30', dot: 'bg-fuchsia-500', icon: 'i-lucide-briefcase' },
+    Requirements: { bg: 'bg-yellow-500/10', text: 'text-yellow-800 dark:text-yellow-400', border: 'border-yellow-500/30', dot: 'bg-yellow-500', icon: 'i-lucide-church' },
+    'Guest List': { bg: 'bg-orange-500/10', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-500/30', dot: 'bg-orange-500', icon: 'i-lucide-users' },
+    RSVP: { bg: 'bg-teal-500/10', text: 'text-teal-700 dark:text-teal-400', border: 'border-teal-500/30', dot: 'bg-teal-500', icon: 'i-lucide-mail' },
+    Playlist: { bg: 'bg-lime-500/15', text: 'text-lime-800 dark:text-lime-400', border: 'border-lime-600/30', dot: 'bg-lime-500', icon: 'i-lucide-music' },
+    Schedules: { bg: 'bg-cyan-500/10', text: 'text-cyan-800 dark:text-cyan-400', border: 'border-cyan-500/30', dot: 'bg-cyan-500', icon: 'i-lucide-calendar' },
+    Website: { bg: 'bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-500/30', dot: 'bg-blue-500', icon: 'i-lucide-globe' },
+    Invitation: { bg: 'bg-violet-500/10', text: 'text-violet-700 dark:text-violet-400', border: 'border-violet-500/30', dot: 'bg-violet-500', icon: 'i-lucide-send' },
+    Gifts: { bg: 'bg-pink-500/10', text: 'text-pink-700 dark:text-pink-400', border: 'border-pink-500/30', dot: 'bg-pink-500', icon: 'i-lucide-gift' },
+    Tasks: { bg: 'bg-red-500/10', text: 'text-red-700 dark:text-red-400', border: 'border-red-500/30', dot: 'bg-red-500', icon: 'i-lucide-list-todo' },
+    Settings: { bg: 'bg-slate-500/10', text: 'text-slate-700 dark:text-slate-400', border: 'border-slate-500/30', dot: 'bg-slate-500', icon: 'i-lucide-settings' },
+  }
+  return map[category] || { bg: 'bg-toast-500/10', text: 'text-toast-700', border: 'border-toast-500/30', dot: 'bg-toast-500', icon: 'i-lucide-check-circle' }
+}
+
+const urgentTasks = computed<PriorityDashboardTask[]>(() => {
+  const rawTasks = tasksSummary.value?.preview?.tasks || []
+  const urgentFromSummary = rawTasks
+    .filter((t: any) => t.priority <= 1 && t.status !== 'COMPLETED')
+    .map((t: any) => {
+      const titleLower = (t.title || '').toLowerCase()
+      let category = 'Tasks'
+      let action: DashboardAction = 'tasks'
+      if (titleLower.includes('pay') || titleLower.includes('budget') || titleLower.includes('fee')) {
+        category = 'Payments'; action = 'payments'
+      } else if (titleLower.includes('cater') || titleLower.includes('photo') || titleLower.includes('supplier') || titleLower.includes('band') || titleLower.includes('florist')) {
+        category = 'Suppliers'; action = 'suppliers'
+      } else if (titleLower.includes('church') || titleLower.includes('cert') || titleLower.includes('license') || titleLower.includes('require')) {
+        category = 'Requirements'; action = 'churchRequirements'
+      } else if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
+        category = 'Guest List'; action = 'guestList'
+      } else if (titleLower.includes('rsvp') || titleLower.includes('invite') || titleLower.includes('response')) {
+        category = 'RSVP'; action = 'rsvp'
+      } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
+        category = 'Playlist'; action = 'playlist'
+      } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
+        category = 'Schedules'; action = 'schedules'
+      }
+      return {
+        id: t._id || t.id,
+        title: t.title,
+        priority: 'urgent' as const,
+        category,
+        action,
+        dueText: t.deadline ? df.format(new Date(t.deadline)) : 'Due soon',
+      }
+    })
+
+  if (urgentFromSummary.length > 0) {
+    return urgentFromSummary.slice(0, 3)
+  }
+
+  return [
+    {
+      id: 'urgent-1',
+      title: 'Settle caterer balance payment',
+      priority: 'urgent',
+      category: 'Payments',
+      action: 'payments',
+      dueText: 'Due in 3 days',
+    },
+    {
+      id: 'urgent-2',
+      title: 'Submit church baptismal certificate',
+      priority: 'urgent',
+      category: 'Requirements',
+      action: 'churchRequirements',
+      dueText: 'Due this week',
+    },
+    {
+      id: 'urgent-3',
+      title: 'Follow up unconfirmed RSVPs',
+      priority: 'urgent',
+      category: 'RSVP',
+      action: 'rsvp',
+      dueText: '24 pending',
+    },
+  ]
+})
+
+const importantTasks = computed<PriorityDashboardTask[]>(() => {
+  const rawTasks = tasksSummary.value?.preview?.tasks || []
+  const importantFromSummary = rawTasks
+    .filter((t: any) => t.priority === 2 && t.status !== 'COMPLETED')
+    .map((t: any) => {
+      const titleLower = (t.title || '').toLowerCase()
+      let category = 'Tasks'
+      let action: DashboardAction = 'tasks'
+      if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
+        category = 'Guest List'; action = 'guestList'
+      } else if (titleLower.includes('cater') || titleLower.includes('photo') || titleLower.includes('supplier') || titleLower.includes('band') || titleLower.includes('florist')) {
+        category = 'Suppliers'; action = 'suppliers'
+      } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
+        category = 'Playlist'; action = 'playlist'
+      } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
+        category = 'Schedules'; action = 'schedules'
+      } else if (titleLower.includes('pay') || titleLower.includes('budget')) {
+        category = 'Payments'; action = 'payments'
+      } else if (titleLower.includes('web') || titleLower.includes('site')) {
+        category = 'Website'; action = 'website'
+      }
+      return {
+        id: t._id || t.id,
+        title: t.title,
+        priority: 'important' as const,
+        category,
+        action,
+        dueText: t.deadline ? df.format(new Date(t.deadline)) : 'Upcoming',
+      }
+    })
+
+  if (importantFromSummary.length > 0) {
+    return importantFromSummary.slice(0, 3)
+  }
+
+  return [
+    {
+      id: 'important-1',
+      title: 'Finalize reception seating arrangement',
+      priority: 'important',
+      category: 'Guest List',
+      action: 'guestList',
+      dueText: '12 unassigned',
+    },
+    {
+      id: 'important-2',
+      title: 'Review photographer & videographer shot list',
+      priority: 'important',
+      category: 'Suppliers',
+      action: 'suppliers',
+      dueText: 'Milestone review',
+    },
+    {
+      id: 'important-3',
+      title: 'Curate grand entrance & first dance songs',
+      priority: 'important',
+      category: 'Playlist',
+      action: 'playlist',
+      dueText: '3 songs needed',
+    },
+  ]
+})
+
+function onPriorityTaskClick(task: PriorityDashboardTask) {
+  switch (task.action) {
+    case 'payments':
+      openPayments()
+      break
+    case 'suppliers':
+      openSuppliersDashboard()
+      break
+    case 'churchRequirements':
+      openChurchRequirementsDashboard()
+      break
+    case 'guestList':
+      openGuestList()
+      break
+    case 'rsvp':
+      openRsvpDashboard()
+      break
+    case 'playlist':
+      openEventPlaylist()
+      break
+    case 'schedules':
+      openSchedulesDashboard()
+      break
+    case 'website':
+      openWebsiteMaker()
+      break
+    case 'invitation':
+      openInvitationMaker()
+      break
+    case 'wishlist':
+      openWishlistDashboard()
+      break
+    case 'tasks':
+    default:
+      openTasksDashboard()
+      break
+  }
+}
 </script>
 
 <template>
@@ -924,47 +1118,150 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
           </div>
         </div>
 
-        <!-- 2. Main Workspace Split: Left = Tasks by Status (Pie Chart), Right = Financial Snapshot & Planning Health stacked -->
+        <!-- 2. Main Workspace Split: Left = Priority Tasks & Tasks by Status stacked, Right = Financial Snapshot & Planning Health stacked -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-4 flex-1 w-full items-stretch min-h-0">
-          <!-- Left Column: Tasks by Status with Pie Chart -->
-          <div
-            class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col justify-between h-full w-full min-h-0">
-            <div class="flex items-center justify-between gap-3 border-b border-bread-200/60 pb-2 shrink-0">
-              <div>
-                <h2 class="text-2xl font-bold font-serif text-highlighted leading-tight">Tasks by Status</h2>
-                <p class="text-[11px] text-muted">
-                  Classified into 5 operational statuses
-                </p>
-              </div>
-              <UBadge variant="subtle" size="sm" color="neutral" class="font-medium shrink-0">
-                {{ totalTasks }} Total Tasks
-              </UBadge>
-            </div>
-
-            <!-- Pie Chart Visual (Scales to fill all vacant space in container) -->
+          <!-- Left Column: Stacked Containers (Top: Priority Tasks, Bottom: Tasks by Status / Pie Chart) -->
+          <div class="flex flex-col gap-3.5 sm:gap-4 h-full w-full min-h-0">
+            <!-- Top Container: Priority Tasks (Urgent & Important) -->
             <div
-              class="flex flex-col items-center justify-center w-full min-h-0 flex-1 py-1.5 overflow-hidden relative">
-              <PieChart :data="taskStatusChartData" :colors="TASK_STATUS_COLORS" :show-legend="false" size="fill"
-                class="w-full h-full flex-1 min-h-0" chart-class="w-full h-full flex-1 min-h-0" />
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
+              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
+                <div>
+                  <h3 class="text-xl sm:text-2xl font-bold font-serif text-highlighted leading-tight">Priority Tasks</h3>
+                  <p class="text-[11px] text-muted">Top urgent & important milestones</p>
+                </div>
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                  class="text-xs font-semibold text-toast-700 hover:text-toast-900 cursor-pointer"
+                  trailing-icon="i-lucide-arrow-right"
+                  @click="openTasksDashboard"
+                >
+                  View all
+                </UButton>
+              </div>
+
+              <!-- 2 Columns: Urgent vs Important Tasks -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 py-1.5 flex-1 items-stretch w-full min-h-0">
+                <!-- Column 1: Urgent Tasks -->
+                <div class="flex flex-col gap-1.5 min-h-0 justify-between">
+                  <div class="flex items-center justify-between px-0.5 shrink-0">
+                    <div class="flex items-center gap-1 text-[11px] font-bold text-red-600 tracking-wide uppercase">
+                      <span class="size-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span>Urgent Priority</span>
+                    </div>
+                    <span class="text-[10px] text-muted font-medium">{{ urgentTasks.length }} tasks</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5 flex-1 min-h-0 justify-around">
+                    <button
+                      v-for="task in urgentTasks"
+                      :key="task.id"
+                      type="button"
+                      class="w-full text-left p-2 rounded-lg bg-toast-50/50 hover:bg-toast-100/70 border border-bread-200/50 hover:border-red-300 transition-all flex items-center justify-between gap-2 group cursor-pointer"
+                      @click="onPriorityTaskClick(task)"
+                    >
+                      <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <span
+                          class="size-5 rounded-md flex items-center justify-center shrink-0 border"
+                          :class="[getTaskDashboardTheme(task.category).bg, getTaskDashboardTheme(task.category).border]"
+                        >
+                          <UIcon :name="getTaskDashboardTheme(task.category).icon" class="size-3" :class="getTaskDashboardTheme(task.category).text" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                          <p class="text-xs font-semibold text-highlighted truncate group-hover:text-red-700 transition-colors">
+                            {{ task.title }}
+                          </p>
+                          <div class="flex items-center gap-1.5 text-[10px] text-muted">
+                            <span class="font-medium" :class="getTaskDashboardTheme(task.category).text">
+                              {{ task.category }}
+                            </span>
+                            <span v-if="task.dueText">·</span>
+                            <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <UIcon name="i-lucide-chevron-right" class="size-3.5 text-bread-300 group-hover:text-red-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Column 2: Important Tasks -->
+                <div class="flex flex-col gap-1.5 min-h-0 justify-between">
+                  <div class="flex items-center justify-between px-0.5 shrink-0">
+                    <div class="flex items-center gap-1 text-[11px] font-bold text-amber-600 tracking-wide uppercase">
+                      <span class="size-1.5 rounded-full bg-amber-500" />
+                      <span>Important Priority</span>
+                    </div>
+                    <span class="text-[10px] text-muted font-medium">{{ importantTasks.length }} tasks</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5 flex-1 min-h-0 justify-around">
+                    <button
+                      v-for="task in importantTasks"
+                      :key="task.id"
+                      type="button"
+                      class="w-full text-left p-2 rounded-lg bg-toast-50/50 hover:bg-toast-100/70 border border-bread-200/50 hover:border-amber-300 transition-all flex items-center justify-between gap-2 group cursor-pointer"
+                      @click="onPriorityTaskClick(task)"
+                    >
+                      <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <span
+                          class="size-5 rounded-md flex items-center justify-center shrink-0 border"
+                          :class="[getTaskDashboardTheme(task.category).bg, getTaskDashboardTheme(task.category).border]"
+                        >
+                          <UIcon :name="getTaskDashboardTheme(task.category).icon" class="size-3" :class="getTaskDashboardTheme(task.category).text" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                          <p class="text-xs font-semibold text-highlighted truncate group-hover:text-amber-700 transition-colors">
+                            {{ task.title }}
+                          </p>
+                          <div class="flex items-center gap-1.5 text-[10px] text-muted">
+                            <span class="font-medium" :class="getTaskDashboardTheme(task.category).text">
+                              {{ task.category }}
+                            </span>
+                            <span v-if="task.dueText">·</span>
+                            <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <UIcon name="i-lucide-chevron-right" class="size-3.5 text-bread-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- 5-Status Classification: Space-efficient Grid -->
-            <div class="space-y-1.5 pt-2 border-t border-bread-200/60 shrink-0 w-full">
-              <div class="flex items-center justify-between text-[11px] font-semibold text-muted px-0.5">
-                <span>Classification</span>
-                <span>Count & Share</span>
+            <!-- Bottom Container: Tasks by Status (Compressed Pie Chart) -->
+            <div
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
+              <div class="flex items-center justify-between gap-3 border-b border-bread-200/60 pb-2 shrink-0">
+                <div>
+                  <h3 class="text-xl sm:text-2xl font-bold font-serif text-highlighted leading-tight">Tasks by Status</h3>
+                  <p class="text-[11px] text-muted">
+                    Classified into 5 operational statuses
+                  </p>
+                </div>
+                <UBadge variant="subtle" size="sm" color="neutral" class="font-medium shrink-0">
+                  {{ totalTasks }} Total Tasks
+                </UBadge>
               </div>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full">
-                <div v-for="(status, idx) in taskStatusBreakdown" :key="status.key"
-                  class="flex items-center justify-between px-2 py-1.5 rounded-md bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/50 transition-colors"
-                  :class="idx === 4 ? 'col-span-2 sm:col-span-1' : ''">
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="size-2 rounded-full shrink-0" :class="status.colorClass" />
-                    <span class="text-[11px] font-medium text-highlighted truncate">{{ status.label }}</span>
-                  </div>
-                  <div class="flex items-center gap-1 shrink-0 ml-1">
-                    <span class="text-[11px] font-bold text-highlighted">{{ status.count }}</span>
-                    <span class="text-[9px] text-muted">({{ totalTasks ? Math.round((status.count / totalTasks) * 100) : 0 }}%)</span>
+
+              <!-- Pie Chart Visual (Scales to fill space in container) -->
+              <div
+                class="flex flex-col items-center justify-center w-full min-h-0 flex-1 py-1 overflow-hidden relative">
+                <PieChart :data="taskStatusChartData" :colors="TASK_STATUS_COLORS" :show-legend="false" size="fill"
+                  class="w-full h-full flex-1 min-h-0" chart-class="w-full h-full flex-1 min-h-0" />
+              </div>
+
+              <!-- 5-Status Classification: Space-efficient Grid -->
+              <div class="space-y-1 pt-1.5 border-t border-bread-200/60 shrink-0 w-full">
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-1 w-full">
+                  <div v-for="status in taskStatusBreakdown" :key="status.key"
+                    class="flex items-center justify-between px-1.5 py-1 rounded-md bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/50 transition-colors">
+                    <div class="flex items-center gap-1 min-w-0">
+                      <span class="size-1.5 rounded-full shrink-0" :class="status.colorClass" />
+                      <span class="text-[10px] font-medium text-highlighted truncate">{{ status.label }}</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-highlighted ml-0.5 shrink-0">{{ status.count }}</span>
                   </div>
                 </div>
               </div>
