@@ -78,9 +78,19 @@ const dropitems: DropdownMenuItem[][] = [
       </template>
 
       <template #leading>
-        <NuxtLink to="/" class="flex items-center mr-2 sm:mr-3 shrink-0">
-          <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
-        </NuxtLink>
+        <div class="flex items-center gap-2 sm:gap-2.5 mr-2 sm:mr-3 shrink-0">
+          <NuxtLink to="/" class="flex items-center">
+            <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
+          </NuxtLink>
+          <UBadge
+            color="bread"
+            variant="subtle"
+            size="xs"
+            class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
+          >
+            Closed Testing
+          </UBadge>
+        </div>
         <span v-if="user?.firstName"
           class="text-white font-serif text-sm sm:text-xl font-semibold border-l-2 border-white pl-2 sm:pl-3 truncate">
           Welcome back, {{ user.firstName }}!

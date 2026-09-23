@@ -25,8 +25,14 @@ useHead({
 const searchQuery = ref('')
 const selectedCategoryId = ref<string>('all')
 const selectedTier = ref<string>('all') // 'all' | 'bread-basket' | 'loaf' | 'slice'
+const isMobileFilterOpen = ref(false)
 
-
+const activeFiltersCount = computed(() => {
+  let count = 0
+  if (selectedCategoryId.value !== 'all') count++
+  if (selectedTier.value !== 'all') count++
+  return count
+})
 
 const activeCategoryTitle = computed(() => {
   if (selectedCategoryId.value === 'all') return 'All Suppliers'
@@ -223,10 +229,132 @@ function getCategoryTheme(catId: string): CategoryTheme {
 
 <template>
   <div
-    class="min-h-screen bg-toast-700 text-white pt-20 pb-12 px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 w-full">
+    class="min-h-screen bg-toast-700 text-white pt-20 sm:pt-24 pb-16 sm:pb-20 px-3.5 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-4 gap-5 lg:gap-8 w-full">
 
-    <!-- Left Side: Inset Floating UDashboardPanel (1 column in 4-column layout) -->
-    <div class="lg:col-span-1 w-full py-4">
+    <!-- Mobile Filter Header & Expandable Drawer (lg:hidden) -->
+    <div class="lg:hidden w-full space-y-3 pt-1">
+      <!-- Search input on mobile -->
+      <div class="relative">
+        <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="Search suppliers or specialty..."
+          class="w-full bg-white/90 text-toast-900 border-toast-300 focus:border-toast-600 rounded-lg shadow-xs text-xs" />
+        <button v-if="searchQuery" type="button" @click="searchQuery = ''"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-toast-500 hover:text-toast-900 cursor-pointer p-1 rounded"
+          title="Clear search">
+          <UIcon name="i-lucide-x" class="size-3.5" />
+        </button>
+      </div>
+
+      <!-- Quick Controls: Filter toggle button + Quick Tier Pills -->
+      <div
+        class="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <button type="button" @click="isMobileFilterOpen = !isMobileFilterOpen" :class="[
+          'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-all cursor-pointer shadow-xs',
+          isMobileFilterOpen || activeFiltersCount > 0
+            ? 'bg-toast-800 text-white ring-1 ring-toast-600'
+            : 'bg-bread-400 text-toast-900 hover:bg-bread-300 border border-toast-400/50'
+        ]">
+          <UIcon name="i-lucide-sliders-horizontal" class="size-3.5" />
+          <span>Filters</span>
+          <UBadge v-if="activeFiltersCount > 0" size="xs" color="warning" variant="solid"
+            class="rounded-full px-1.5 py-0 text-[10px] font-bold">
+            {{ activeFiltersCount }}
+          </UBadge>
+          <UIcon :name="isMobileFilterOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3 ml-0.5" />
+        </button>
+
+        <!-- Quick Tier Chips for 1-tap mobile filtering -->
+        <button v-for="tier in ['all', 'bread-basket', 'loaf', 'slice']" :key="'mobile-tier-' + tier" type="button"
+          @click="selectedTier = tier" :class="[
+            'px-2.5 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer shadow-2xs',
+            selectedTier === tier
+              ? 'bg-toast-600 text-white font-semibold shadow-xs'
+              : 'bg-bread-400/90 text-toast-900 hover:bg-bread-400 border border-toast-400/40'
+          ]">
+          {{ getTierLabel(tier) }}
+        </button>
+      </div>
+
+      <!-- Collapsible Mobile Filters Drawer -->
+      <div v-if="isMobileFilterOpen"
+        class="bread-container w-full bg-bread-400 text-toast-900 p-4 rounded-xl shadow-lg border border-toast-400/30 space-y-4">
+        <div class="flex items-center justify-between border-b border-toast-600/20 pb-2.5">
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-sliders-horizontal" class="size-4 text-toast-800" />
+            <h3 class="text-sm font-bold font-serif text-toast-900">Filter Suppliers</h3>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button v-if="activeFiltersCount > 0 || searchQuery" type="button" @click="clearFilters"
+              class="text-xs font-semibold text-toast-700 hover:text-toast-950 underline cursor-pointer">
+              Reset
+            </button>
+            <button type="button" @click="isMobileFilterOpen = false"
+              class="size-6 rounded-md hover:bg-toast-500/20 flex items-center justify-center text-toast-800 cursor-pointer">
+              <UIcon name="i-lucide-x" class="size-4" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Tiers Section in Mobile Drawer -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 flex items-center gap-1.5">
+            <UIcon name="i-lucide-layers" class="size-3.5" />
+            Tier
+          </h4>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button v-for="t in ['all', 'bread-basket', 'loaf', 'slice']" :key="'drawer-tier-' + t" type="button"
+              @click="selectedTier = t" :class="[
+                'flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+                selectedTier === t
+                  ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                  : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
+              ]">
+              {{ getTierLabel(t) }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Categories Section in Mobile Drawer -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 flex items-center gap-1.5">
+            <UIcon name="i-lucide-store" class="size-3.5" />
+            Category
+          </h4>
+          <div class="max-h-60 overflow-y-auto space-y-1 pr-1">
+            <button type="button" @click="selectedCategoryId = 'all'" :class="[
+              'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
+              selectedCategoryId === 'all'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                : 'text-toast-800 hover:bg-toast-500/10'
+            ]">
+              <UIcon name="i-lucide-store" class="size-3.5 shrink-0" />
+              <span class="truncate">All Categories</span>
+            </button>
+            <button v-for="cat in SUPPLIERS_DIRECTORY_DATA" :key="'drawer-cat-' + cat.id" type="button"
+              @click="selectedCategoryId = cat.id" :class="[
+                'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
+                selectedCategoryId === cat.id
+                  ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                  : 'text-toast-800 hover:bg-toast-500/10'
+              ]">
+              <span class="size-2 rounded-full shrink-0" :class="getCategoryTheme(cat.id).dotClass" />
+              <UIcon :name="cat.icon" class="size-3.5 shrink-0" />
+              <span class="truncate">{{ cat.title }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <UButton block color="primary"
+            class="bg-toast-600 hover:bg-toast-700 text-white font-semibold py-2 text-xs rounded-lg cursor-pointer"
+            @click="isMobileFilterOpen = false">
+            Apply Filters ({{ totalVisibleSuppliersCount }} found)
+          </UButton>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left Side: Inset Floating UDashboardPanel (1 column in 4-column layout) - Desktop Only -->
+    <div class="hidden lg:block lg:col-span-1 w-full py-4">
       <UDashboardPanel id="suppliers-categories" :resizable="false"
         class="bread-container w-full bg-bread-400 text-toast-900 lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto p-6 sm:p-8 space-y-6 z-30 shadow-md border-none"
         :ui="{ root: '!sticky top-24 min-h-0 h-auto rounded-xl border-none shadow-md' }">
@@ -323,17 +451,17 @@ function getCategoryTheme(catId: string): CategoryTheme {
     </div>
 
     <!-- Right Side: Main Content Area spanning remaining 3 columns (Results Only) -->
-    <main class="lg:col-span-3 w-full min-w-0 py-4 space-y-6">
+    <main class="lg:col-span-3 w-full min-w-0 py-2 sm:py-4 space-y-5 sm:space-y-6">
       <!-- Results Header: Active Category Title and counts -->
       <div
-        class="bread-container bg-bread-400 text-toast-900 p-5 sm:p-6 shadow-md rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-6 shadow-md rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
         <div>
-          <h2 class="text-2xl font-bold font-serif text-toast-800">
+          <h2 class="text-xl sm:text-2xl font-bold font-serif text-toast-800">
             {{ activeCategoryTitle }}
           </h2>
           <p class="text-xs text-toast-700 mt-1 flex flex-wrap items-center gap-1.5">
             <span>Showing {{ totalVisibleSuppliersCount }} supplier{{ totalVisibleSuppliersCount === 1 ? '' : 's'
-              }}</span>
+            }}</span>
             <span v-if="selectedTier !== 'all'" class="font-semibold text-toast-900">
               • {{ getTierLabel(selectedTier) }} Tier
             </span>
@@ -344,7 +472,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
         </div>
 
         <UButton to="/user/login" color="primary" variant="solid"
-          class="font-semibold bg-toast-600 hover:bg-toast-700 text-white shrink-0 self-start sm:self-auto rounded-lg shadow-xs">
+          class="font-semibold bg-toast-600 hover:bg-toast-700 text-white shrink-0 self-stretch sm:self-auto justify-center text-center rounded-lg shadow-xs text-xs sm:text-sm">
           Contact our trusted suppliers
         </UButton>
       </div>
@@ -354,24 +482,24 @@ function getCategoryTheme(catId: string): CategoryTheme {
         v-if="(selectedTier === 'all' || selectedTier === 'bread-basket') && !searchQuery && breadBasketShowcase.length > 0"
         class="rounded-2xl overflow-hidden bg-bread-400 border-none shadow-md">
         <div
-          class="bg-amber-600 bg-gradient-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-5 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          class="bg-amber-600 bg-gradient-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
           <div class="space-y-0.5">
             <div class="inline-flex items-center gap-1.5 text-amber-100 text-[11px] font-bold uppercase tracking-wider">
               <span>🥖</span>
               <span>Spotlight Showcase</span>
             </div>
-            <h3 class="text-xl sm:text-2xl font-bold font-serif text-white">
+            <h3 class="text-lg sm:text-2xl font-bold font-serif text-white">
               Bread Basket Suppliers
             </h3>
           </div>
           <UButton to="/user/login" color="neutral" variant="solid"
-            class="font-bold bg-white hover:bg-amber-50 text-amber-900 rounded-lg shrink-0 self-start sm:self-auto shadow-xs">
+            class="font-bold bg-white hover:bg-amber-50 text-amber-900 rounded-lg shrink-0 self-stretch sm:self-auto justify-center text-center shadow-xs text-xs sm:text-sm">
             Book Spotlight Suppliers
           </UButton>
         </div>
 
         <!-- Bread Basket Cards Grid (Largest Size - 3 Columns) -->
-        <div class="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="p-3.5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div v-for="bb in breadBasketShowcase" :key="bb.name"
             class="bg-white rounded-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
             <div class="space-y-3">
@@ -443,44 +571,46 @@ function getCategoryTheme(catId: string): CategoryTheme {
             <div v-for="sub in cat.subcategories" :key="sub.title"
               class="rounded-xl overflow-hidden bg-bread-400 border-none shadow-md">
               <!-- Solid Color Header on top of container -->
-              <div class="px-4 sm:px-5 py-3 text-white flex items-center justify-between shadow-2xs"
+              <div class="px-3.5 sm:px-5 py-2.5 sm:py-3 text-white flex items-center justify-between shadow-2xs"
                 :class="getCategoryTheme(cat.id).solidHeaderClass">
-                <div class="flex items-center gap-2.5">
-                  <div class="size-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                    <UIcon :name="cat.icon" class="size-4 text-white" />
+                <div class="flex items-center gap-2 sm:gap-2.5">
+                  <div class="size-6 sm:size-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                    <UIcon :name="cat.icon" class="size-3.5 sm:size-4 text-white" />
                   </div>
                   <div>
-                    <h3 class="text-sm sm:text-base font-bold font-serif text-white flex items-center gap-2">
+                    <h3 class="text-xs sm:text-base font-bold font-serif text-white flex items-center gap-1.5 sm:gap-2">
                       {{ sub.title }}
                     </h3>
-                    <span v-if="selectedCategoryId === 'all'" class="text-[11px] text-white/85 font-medium block">
+                    <span v-if="selectedCategoryId === 'all'"
+                      class="text-[10px] sm:text-[11px] text-white/85 font-medium block">
                       {{ cat.title }}
                     </span>
                   </div>
                 </div>
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-black/20 text-white shrink-0">
+                <span
+                  class="text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-black/20 text-white shrink-0">
                   {{ sub.vendors.length }} supplier{{ sub.vendors.length === 1 ? '' : 's' }}
                 </span>
               </div>
 
               <!-- Container Body -->
-              <div class="p-4 sm:p-5 space-y-5">
+              <div class="p-3.5 sm:p-5 space-y-4 sm:space-y-5">
                 <!-- TIER 1: BREAD BASKET (Largest Size with Attached Logos - 3 Columns) -->
                 <div v-if="getVendorsByTier(sub, 'bread-basket').length > 0" class="space-y-2.5">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1.5 sm:gap-2">
                     <span class="text-sm">🥖</span>
                     <h4 class="text-xs font-bold uppercase tracking-wider text-amber-800">
                       Bread Basket
                     </h4>
                   </div>
 
-                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
                     <div v-for="vendor in getVendorsByTier(sub, 'bread-basket')" :key="vendor.name"
-                      class="bg-white rounded-xl p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
-                      <div class="space-y-3">
+                      class="bg-white rounded-xl p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
+                      <div class="space-y-2.5 sm:space-y-3">
                         <!-- Logo Image (Largest importance) -->
                         <div
-                          class="w-full h-20 rounded-lg bg-toast-950/5 flex items-center justify-center p-2 shrink-0 overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-200">
+                          class="w-full h-18 sm:h-20 rounded-lg bg-toast-950/5 flex items-center justify-center p-2 shrink-0 overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-200">
                           <img v-if="vendor.logo" :src="vendor.logo" :alt="vendor.name"
                             class="max-h-full max-w-full object-contain" loading="lazy" />
                           <div v-else class="text-center">
@@ -490,9 +620,9 @@ function getCategoryTheme(catId: string): CategoryTheme {
                         </div>
 
                         <!-- Vendor Info -->
-                        <div class="flex-1 space-y-1.5 w-full">
+                        <div class="flex-1 space-y-1 sm:space-y-1.5 w-full">
                           <h5
-                            class="text-base font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                            class="text-sm sm:text-base font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
                             {{ vendor.name }}
                           </h5>
 
@@ -522,7 +652,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
 
                 <!-- TIER 2: LOAF (Medium Size - 4 Columns) -->
                 <div v-if="getVendorsByTier(sub, 'loaf').length > 0" class="space-y-2.5">
-                  <div class="flex items-center gap-2 pt-1">
+                  <div class="flex items-center gap-1.5 sm:gap-2 pt-1">
                     <span class="text-sm">🍞</span>
                     <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700">
                       Loaf
@@ -531,10 +661,10 @@ function getCategoryTheme(catId: string): CategoryTheme {
 
                   <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                     <div v-for="vendor in getVendorsByTier(sub, 'loaf')" :key="vendor.name"
-                      class="bg-white rounded-lg p-3 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
-                      <div class="space-y-1.5">
+                      class="bg-white rounded-lg p-2.5 sm:p-3 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
+                      <div class="space-y-1 sm:space-y-1.5">
                         <h5
-                          class="text-sm font-bold font-serif text-toast-900 group-hover:text-toast-700 transition-colors">
+                          class="text-xs sm:text-sm font-bold font-serif text-toast-900 group-hover:text-toast-700 transition-colors">
                           {{ vendor.name }}
                         </h5>
 
@@ -556,20 +686,20 @@ function getCategoryTheme(catId: string): CategoryTheme {
 
                 <!-- TIER 3: SLICE (Smallest Size - Compact Chips) -->
                 <div v-if="getVendorsByTier(sub, 'slice').length > 0" class="space-y-2">
-                  <div class="flex items-center gap-2 pt-1">
+                  <div class="flex items-center gap-1.5 sm:gap-2 pt-1">
                     <span class="text-sm">🥪</span>
                     <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600">
                       Slice
                     </h4>
                   </div>
 
-                  <div class="flex flex-wrap gap-2 pt-0.5">
+                  <div class="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                     <div v-for="vendor in getVendorsByTier(sub, 'slice')" :key="vendor.name">
                       <!-- Special Subtle Highlight for Creative Preppers redirecting to login if slice -->
                       <NuxtLink v-if="isSpecialVendor(vendor.name)" to="/user/login"
-                        class="px-3 py-1.5 rounded-lg bg-white hover:bg-amber-50/70 text-xs font-bold text-amber-900 flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer border-none"
+                        class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white hover:bg-amber-50/70 text-xs font-bold text-amber-900 flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer border-none"
                         title="Log in to contact Creative Preppers">
-                        <UIcon name="i-ph-sparkle-fill" class="size-3.5 text-amber-600" />
+                        <UIcon name="i-ph-sparkle-fill" class="size-3 sm:size-3.5 text-amber-600" />
                         <span>{{ vendor.name }}</span>
                         <UBadge color="warning" variant="solid" size="xs"
                           class="text-[9px] py-0 px-1 font-bold uppercase">
@@ -579,7 +709,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
 
                       <!-- Standard Slice Mini-Chip (Smallest Size) -->
                       <div v-else
-                        class="px-2.5 py-1.5 rounded-md bg-white hover:bg-white/90 text-xs font-medium text-toast-900 shadow-2xs hover:shadow-xs transition-all flex items-center gap-2 group cursor-default border-none">
+                        class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md bg-white hover:bg-white/90 text-xs font-medium text-toast-900 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 sm:gap-2 group cursor-default border-none">
                         <span
                           class="size-1.5 rounded-full bg-toast-400 group-hover:bg-toast-600 transition-colors shrink-0"></span>
                         <span>{{ vendor.name }}</span>
@@ -595,21 +725,21 @@ function getCategoryTheme(catId: string): CategoryTheme {
       </div>
 
       <!-- Footer Callout -->
-      <div class="bread-container bg-bread-400 text-toast-900 rounded-xl p-6 sm:p-8 shadow-md text-center space-y-3">
-        <h3 class="text-xl font-bold font-serif text-toast-900">
+      <div class="bread-container bg-bread-400 text-toast-900 rounded-xl p-5 sm:p-8 shadow-md text-center space-y-3">
+        <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-900">
           Are you an event vendor or partner?
         </h3>
-        <p class="text-sm text-toast-800/80 max-w-lg mx-auto">
+        <p class="text-xs sm:text-sm text-toast-800/80 max-w-lg mx-auto leading-relaxed">
           Join the Bread + Butter supplier directory with our Slice, Loaf, or Bread Basket tiers to connect with
           celebrants, manage bookings, and coordinate directly with event planners.
         </p>
-        <div class="pt-2 flex justify-center gap-3">
+        <div class="pt-2 flex flex-col sm:flex-row justify-center gap-2.5 sm:gap-3">
           <UButton to="/partners/signup" color="primary" size="md"
-            class="font-bold shadow-md bg-toast-600 hover:bg-toast-700 text-white">
+            class="font-bold shadow-md bg-toast-600 hover:bg-toast-700 text-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2 sm:py-2.5">
             Partner With Us
           </UButton>
           <UButton to="/contact-us" variant="outline" color="neutral" size="md"
-            class="font-medium text-toast-800 border-toast-300 hover:bg-white">
+            class="font-medium text-toast-800 border-toast-300 hover:bg-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2 sm:py-2.5">
             Contact Support
           </UButton>
         </div>

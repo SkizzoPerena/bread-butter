@@ -7,22 +7,69 @@ import {
   notifyNotLoggedIn,
   notifyWrongRoleAccess
 } from '~/utils/authGuard'
+import {
+  buildPendingPaymentQuery,
+  getUiPendingPayment,
+  isSinglePendingEventAccount,
+  shouldRedirectToPaymentPending
+} from '~/utils/paymentPendingGuard'
 
 function loginRedirectTarget(to: { fullPath: string }) {
   return to.fullPath && to.fullPath !== '/' ? to.fullPath : undefined
+}
+
+async function checkPendingPaymentRestriction(targetPath: string) {
+  if (!shouldRedirectToPaymentPending(targetPath)) {
+    return null
+  }
+  const userOk = await ensureSession('user')
+  if (!userOk) {
+    return null
+  }
+  try {
+    const { fetchUserEvents } = useEvents()
+    const events = await fetchUserEvents()
+    if (isSinglePendingEventAccount(events)) {
+      return navigateTo({
+        path: '/user/payment-pending',
+        query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
+      }, { replace: true })
+    }
+  } catch {
+    // If fetching events fails, do not prematurely block navigation
+  }
+  return null
 }
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
 
   const { isUiOnlyMode } = useApiMode()
-  if (isUiOnlyMode.value) return
+  if (isUiOnlyMode.value) {
+    if (shouldRedirectToPaymentPending(to.path)) {
+      const uiPending = getUiPendingPayment()
+      if (uiPending) {
+        return navigateTo({
+          path: '/user/payment-pending',
+          query: uiPending as Record<string, string>,
+        }, { replace: true })
+      }
+    }
+    return
+  }
 
   if (to.path === '/user/dashboard') {
     return navigateTo('/', { replace: true })
   }
 
   const activeRole = getActiveAuthRole()
+
+  // If a single pending payment event exists, redirect any attempt to access user or event-related pages
+  // (allowed exceptions: /user/payment-pending, /user/profile, /user/transactions, /user/report-issue)
+  if (activeRole !== 'partner' && shouldRedirectToPaymentPending(to.path)) {
+    const pendingRedirect = await checkPendingPaymentRestriction(to.path)
+    if (pendingRedirect) return pendingRedirect
+  }
 
   // Home: partners land on partner dashboard; users keep the user home.
   if (to.path === '/') {

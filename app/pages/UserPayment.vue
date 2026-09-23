@@ -16,7 +16,9 @@ import {
   getProofSubmitPayload,
   type PaymentProofPanelExpose,
 } from '~/utils/paymentMethod'
-import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
+import { setUiPendingPayment } from '~/utils/paymentPendingGuard'
+// PayMongo integration (commented out for paymongoless version)
+// import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
 definePageMeta({
@@ -33,10 +35,14 @@ const { createEvent } = useEvents()
 const { resolvePriceTierId, fetchAvailablePriceTiers } = usePriceTiers()
 const { fetchAccount } = useAccount()
 const { validateVoucherForUser } = useVouchers()
-const { createEventFeeCheckoutSession } = usePayments()
 const { isUiOnlyMode } = useApiMode()
-const { isPaymongoActivated } = usePaymongoActivation()
-const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+// PayMongo hooks (commented out for paymongoless version)
+// const { createEventFeeCheckoutSession } = usePayments()
+// const { isPaymongoActivated } = usePaymongoActivation()
+// const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+
+// Paymongoless version: QR codes and proof-of-payment flow active
+const isPaymongoActivated = computed(() => false)
 const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
@@ -257,6 +263,13 @@ async function submitPayment() {
         return
       }
 
+      setUiPendingPayment({
+        ref: proofPayload?.transactionId || 'MOCK-REF',
+        eventName: eventName.value,
+        package: selectedPkgId.value,
+        method: proofPayload?.paymentMethod || 'GCASH',
+      })
+
       await navigateTo({
         path: '/user/payment-pending',
         query: {
@@ -315,19 +328,19 @@ async function submitPayment() {
       return
     }
 
-    if (!isPaymongoActivated.value) {
-      await navigateTo({
-        path: '/user/payment-pending',
-        query: {
-          ref: proofPayload?.transactionId || created.latestPayment?.transactionId || '',
-          eventName: eventName.value,
-          package: selectedPkgId.value,
-          method: proofPayload?.paymentMethod || '',
-        },
-      })
-      return
-    }
+    // Paymongoless version: redirect directly to payment-pending with receipt details
+    await navigateTo({
+      path: '/user/payment-pending',
+      query: {
+        ref: proofPayload?.transactionId || created.latestPayment?.transactionId || '',
+        eventName: eventName.value,
+        package: selectedPkgId.value,
+        method: proofPayload?.paymentMethod || '',
+      },
+    })
+    return
 
+    /* PayMongo Checkout redirection (commented out for paymongoless version)
     const idempotencyKey = getOrCreateIdempotencyKey(`event-fee:${eventId}`)
     const checkout = await createEventFeeCheckoutSession(eventId, {
       cancelPath: `/event/payment-review?eventId=${eventId}&cancelled=1`,
@@ -356,9 +369,10 @@ async function submitPayment() {
 
     rememberCheckoutIds(checkout.checkoutId, checkout.paymentId)
     redirectToCheckout(checkout.checkoutUrl)
+    */
   } catch (error) {
     reportApiError(toast, {
-      title: isPaymongoActivated.value ? 'Could not start checkout' : 'Could not submit payment',
+      title: 'Could not submit payment',
       error,
     })
   } finally {
@@ -381,9 +395,7 @@ async function submitPayment() {
           Complete Your Order
         </h1>
         <p class="text-xs text-bread-200">
-          {{ isPaymongoActivated
-            ? 'Review your order, then continue to PayMongo to complete payment.'
-            : 'Review your order, then scan the QR and upload your proof of payment.' }}
+          Review your order, then scan the QR and upload your proof of payment.
         </p>
       </div>
 
@@ -474,14 +486,17 @@ async function submitPayment() {
         </div>
 
         <div class="md:col-span-7">
+          <!-- PayMongo Container (commented out) -->
+          <!--
           <PaymentCheckoutPanel
-            v-if="isPaymongoActivated"
             :amount-due="amountDuePhp"
             :loading="isProcessing"
             @submit="submitPayment"
           />
+          -->
+
+          <!-- Paymongoless Version: QR codes for payment options & proof of transaction -->
           <PaymentProofPanel
-            v-else
             ref="proofPanel"
             :amount-due="amountDuePhp"
             :loading="isProcessing"

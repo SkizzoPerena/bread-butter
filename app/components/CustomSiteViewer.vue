@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import type { CustomSiteViewModel } from '~/utils/customSiteViewModel'
 import {
-  formatDateWithWeekday,
   getDynamicStyle,
   getGoogleMapsUrl,
 } from '~/utils/websiteTheme'
+import { formatDateWithWeekday } from '~/utils/invitationDisplay'
 
 const props = defineProps<{
   site: CustomSiteViewModel
@@ -18,7 +18,7 @@ const typography = computed(() => props.site.typography)
   <div
     class="min-h-screen w-full flex flex-col md:flex-row transition-colors duration-500 relative"
     :style="{
-      backgroundColor: paletteColors.background,
+      backgroundColor: paletteColors.primary,
       fontFamily: `'${typography.bodyFont}'`,
     }"
   >
@@ -96,7 +96,7 @@ const typography = computed(() => props.site.typography)
               v-if="site.headingContent"
               class="font-bold italic text-5xl"
               :style="{
-                color: paletteColors.heading,
+                color: paletteColors.text_color,
                 fontFamily: `'${typography.subheaderFont}'`,
               }"
             >
@@ -105,7 +105,7 @@ const typography = computed(() => props.site.typography)
             <div
               v-if="site.paragraphContent"
               class="prose max-w-none mx-auto text-center text-xl"
-              :style="{ color: paletteColors.text }"
+              :style="{ color: paletteColors.text_color }"
             >
               {{ site.paragraphContent }}
             </div>
@@ -339,19 +339,19 @@ const typography = computed(() => props.site.typography)
           <div
             class="py-10 flex flex-col items-center justify-center gap-3"
             :style="{
-              backgroundColor: paletteColors.heading,
-              borderColor: paletteColors.surface,
+              backgroundColor: paletteColors.text_color,
+              borderColor: paletteColors.primary,
             }"
           >
             <p
               class="text-xs font-semibold uppercase tracking-widest opacity-60"
-              :style="{ color: paletteColors.background }"
+              :style="{ color: paletteColors.primary }"
             >
               This website was made with
             </p>
             <div
               class="h-6 w-full opacity-80 mask-logo"
-              :style="{ backgroundColor: paletteColors.background }"
+              :style="{ backgroundColor: paletteColors.primary }"
               role="img"
               aria-label="Bread + Butter"
             />

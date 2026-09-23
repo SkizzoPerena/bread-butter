@@ -23,11 +23,11 @@ import {
     resolvePalette,
     resolveTypography,
     getDynamicStyle,
-    formatDateWithWeekday,
     getGoogleMapsUrl,
     type ColorPalette,
     type TypographySet,
 } from '~/utils/websiteTheme'
+import { formatDateWithWeekday } from '~/utils/invitationDisplay'
 
 const route = useRoute()
 const toast = useToast()

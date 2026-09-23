@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
@@ -14,7 +15,7 @@
     "@iconify-json/lucide": "^1.2.130",
     "@iconify-json/simple-icons": "^1.2.95",
     "@nuxt/icon": "2.2.1",
-    "@nuxt/image": "2.0.0",
+    "@nuxt/image": "^2.1.0",
     "@nuxt/ui": "^4.11.1",
     "chart.js": "^4.5.1",
     "motion-v": "^2.4.2",

@@ -92,7 +92,6 @@ export function getDynamicStyle(
   return { bg: secondary, heading: secondary_text_color, text: secondary_text_color };
 }
 
-export { formatDateWithWeekday } from './invitationDisplay'
 
 export function getGoogleMapsUrl(location: string): string {
   if (!location) return ''

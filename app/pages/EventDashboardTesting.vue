@@ -3,7 +3,6 @@ import { DateFormatter } from '@internationalized/date'
 import type {
   ChartSlice,
   EventRecord,
-  SelectedEventDetail,
   TasksSummary,
   GuestRecord,
   GuestStats,
@@ -11,7 +10,6 @@ import type {
   ChurchRequirementSummary,
 } from '~/types/event'
 import { isWeddingEventType, formatEventPriceTier } from '~/types/event'
-import { reportApiError } from '~/types/auth'
 import {
   isEventFullyPaid,
   isTierUpgradePending,
@@ -23,17 +21,15 @@ import {
   getAllowedFeaturesForEvent,
   isDashboardActionAllowed,
   resolveEventTierCode,
-  resolveEventDashboardPath,
 } from '~/utils/eventTierFeatures'
 
 definePageMeta({
   layout: 'event-navbar',
+  alias: ['/event/dashboard-testing', '/dashboard-testing', '/event-dashboard-testing'],
 })
 
 const toast = useToast()
 const route = useRoute()
-const { fetchEvent, getCachedEvent } = useEvents()
-const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 
 const df = new DateFormatter('en-US', {
@@ -42,17 +38,100 @@ const df = new DateFormatter('en-US', {
 
 const eventId = computed(() => {
   const value = route.query.eventId
-  return typeof value === 'string' ? value : ''
+  return typeof value === 'string' ? value : 'testing-event-id'
 })
 
-const eventRecord = ref<EventRecord | null>(null)
-const tasksSummary = ref<TasksSummary | null>(null)
+// ============================================================================
+// PLACEHOLDER / MOCK DATA (Playground: Edit these values directly to test UI)
+// ============================================================================
+
+const eventRecord = ref<EventRecord>({
+  _id: 'testing-event-id',
+  eventType: 'WEDDING',
+  eventName: "Jane & John's Wedding (Testing)",
+  description: 'Mock wedding event for testing dashboard components and layout changes.',
+  venue: 'Manila Cathedral & Palacio de Memoria',
+  eventDate: '2026-05-18T00:00:00.000Z',
+  status: 'ONGOING',
+  coverImageURL: null,
+  latestPayment: null,
+  paymentSummary: {
+    fee: 10000,
+    totalReceived: 6500,
+    balanceDue: 3500,
+    isFullyPaid: false,
+  },
+  priceTier: {
+    _id: 'mock-tier-id',
+    code: 'bread_butter',
+    name: 'Bread + Butter',
+    pricePhp: 10000,
+    isEnabled: true,
+  },
+  tierPricePhp: 10000,
+  allowedFeatures: getAllowedFeaturesForEvent({
+    priceTier: {
+      _id: 'mock-tier-id',
+      code: 'bread_butter',
+      name: 'Bread + Butter',
+      pricePhp: 10000,
+      isEnabled: true,
+    },
+    tierPricePhp: 10000,
+  }),
+})
+
+const tasksSummary = ref<TasksSummary>({
+  totalTasks: 21,
+  overdueCount: 1,
+  byStatus: {
+    'not-started': 4,
+    waiting: 2,
+    'in-progress': 6,
+    'on-hold': 1,
+    completed: 8,
+  },
+  preview: {
+    page: 1,
+    limit: 5,
+    subtasksLimit: 2,
+    tasks: [],
+  },
+})
+
 const guestList = ref<GuestRecord[]>([])
-const rsvpSummary = ref<RsvpSummary | null>(null)
-const guestStats = ref<GuestStats | null>(null)
-const supplierSummary = ref<SupplierSummary | null>(null)
-const churchRequirementSummary = ref<ChurchRequirementSummary | null>(null)
-const isLoadingEvent = ref(false)
+
+const rsvpSummary = ref<RsvpSummary>({
+  totalSent: 120,
+  going: 84,
+  notGoing: 12,
+  pending: 24,
+})
+
+const guestStats = ref<GuestStats>({
+  total: 120,
+  withoutTable: 12,
+  seated: 108,
+})
+
+const supplierSummary = ref<SupplierSummary>({
+  totalBudget: 500000,
+  totalPaid: 250000,
+  totalRemaining: 230000,
+  supplierCount: 8,
+})
+
+const churchRequirementSummary = ref<ChurchRequirementSummary>({
+  total: 10,
+  completed: 8,
+  pending: 2,
+})
+
+// Financial Snapshot placeholder metrics
+const placeholderTargetBudget = ref(500000)
+const placeholderForecast = ref(480000)
+const placeholderBudgetRemaining = ref(250000)
+const placeholderBudgetUsedPercent = ref(50)
 
 function toNonNegativeNumber(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value)
@@ -72,142 +151,28 @@ const isButterTier = computed(() => {
   return resolveEventTierCode(eventRecord.value) === 'BUTTER'
 })
 
-async function loadEventData() {
-  if (eventId.value) {
-    const cached = getCachedEvent(eventId.value)
-    if (cached) {
-      const cachedTier = resolveEventTierCode(cached)
-      if (cachedTier === 'BREAD') {
-        await navigateTo({ path: '/event/dashboard-bread', query: route.query }, { replace: true })
-        return
-      }
-      const targetPath = resolveEventDashboardPath(cached)
-      if (route.path !== targetPath && (route.path === '/user/event-dashboard' || route.path === '/event/dashboard-butter' || route.path === '/event/dashboard-bread-butter')) {
-        await navigateTo({ path: targetPath, query: route.query }, { replace: true })
-        return
-      }
+onMounted(() => {
+  setActiveEvent(eventRecord.value)
+  nextTick(() => {
+    updateVisibleTaskCount()
+    if (priorityTasksListRef.value && typeof ResizeObserver !== 'undefined') {
+      tasksResizeObserver = new ResizeObserver(() => {
+        updateVisibleTaskCount()
+      })
+      tasksResizeObserver.observe(priorityTasksListRef.value as unknown as Element)
     }
+  })
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', updateVisibleTaskCount)
   }
+})
 
-  if (!eventId.value && !isUiOnlyMode.value) {
-    // Set fallback display in event navbar
-    setActiveEvent({
-      _id: 'mock-event-id',
-      eventName: "Jane & John's Wedding",
-    })
-    return
+onBeforeUnmount(() => {
+  tasksResizeObserver?.disconnect()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateVisibleTaskCount)
   }
-
-  isLoadingEvent.value = true
-  try {
-    const detail = await loadPageData<SelectedEventDetail>({
-      mock: () => ({
-        event: {
-          _id: 'mock-event-id',
-          eventType: 'WEDDING',
-          eventName: "Jane & John's Wedding",
-          description: 'Mock event',
-          venue: 'Manila Cathedral & Palacio de Memoria',
-          eventDate: '2026-05-18T00:00:00.000Z',
-          status: 'ONGOING',
-          coverImageURL: null,
-          latestPayment: null,
-          paymentSummary: {
-            fee: 10000,
-            totalReceived: 6500,
-            balanceDue: 3500,
-            isFullyPaid: false,
-          },
-          priceTier: {
-            _id: 'mock-tier-id',
-            code: 'bread_butter',
-            name: 'Bread + Butter',
-            pricePhp: 10000,
-            isEnabled: true,
-          },
-          tierPricePhp: 10000,
-          allowedFeatures: getAllowedFeaturesForEvent({
-            priceTier: {
-              _id: 'mock-tier-id',
-              code: 'bread_butter',
-              name: 'Bread + Butter',
-              pricePhp: 10000,
-              isEnabled: true,
-            },
-            tierPricePhp: 10000,
-          }),
-        },
-        guestList: [],
-        rsvpSummary: {
-          totalSent: 120,
-          going: 84,
-          notGoing: 12,
-          pending: 24,
-        },
-        guestStats: {
-          total: 120,
-          withoutTable: 12,
-          seated: 108,
-        },
-        supplierSummary: {
-          totalBudget: 500000,
-          totalPaid: 250000,
-          totalRemaining: 230000,
-          supplierCount: 8,
-        },
-        churchRequirementSummary: {
-          total: 10,
-          completed: 8,
-          pending: 2,
-        },
-        tasks: {
-          totalTasks: 21,
-          overdueCount: 0,
-          byStatus: {
-            'not-started': 4,
-            waiting: 2,
-            'in-progress': 6,
-            'on-hold': 1,
-            completed: 8,
-          },
-          preview: {
-            page: 1,
-            limit: 5,
-            subtasksLimit: 2,
-            tasks: [],
-          },
-        },
-      }),
-      fetch: async () => fetchEvent(eventId.value, true),
-    })
-
-    if (detail.event) {
-      const tier = resolveEventTierCode(detail.event)
-      if (tier === 'BREAD') {
-        await navigateTo({ path: '/event/dashboard-bread', query: route.query }, { replace: true })
-        return
-      }
-      const targetPath = resolveEventDashboardPath(detail.event)
-      if (route.path !== targetPath && (route.path === '/user/event-dashboard' || route.path === '/event/dashboard-butter' || route.path === '/event/dashboard-bread-butter')) {
-        await navigateTo({ path: targetPath, query: route.query }, { replace: true })
-        return
-      }
-    }
-
-    eventRecord.value = detail.event
-    setActiveEvent(detail.event)
-    tasksSummary.value = detail.tasks
-    guestList.value = detail.guestList || []
-    rsvpSummary.value = detail.rsvpSummary || null
-    guestStats.value = detail.guestStats || null
-    supplierSummary.value = detail.supplierSummary || null
-    churchRequirementSummary.value = detail.churchRequirementSummary || null
-  } catch (error) {
-    reportApiError(toast, { title: 'Could not load event', error })
-  } finally {
-    isLoadingEvent.value = false
-  }
-}
+})
 
 // 1. Topmost Container Metrics
 const eventDateFormatted = computed(() => {
@@ -298,12 +263,7 @@ const rsvpResponseRate = computed(() => {
   return Math.round((responded / totalInvitedCount.value) * 100)
 })
 
-// 4. Financial Snapshot Metrics (Derives from API supplierSummary)
-const targetBudget = computed(() => {
-  const budget = toNonNegativeNumber(supplierSummary.value?.totalBudget)
-  return budget > 0 ? budget : 500000
-})
-
+// 4. Financial Snapshot Metrics
 const supplierAmountPaid = computed(() => {
   return toNonNegativeNumber(supplierSummary.value?.totalPaid)
 })
@@ -312,31 +272,11 @@ const remainingPayable = computed(() => {
   return toNonNegativeNumber(supplierSummary.value?.totalRemaining)
 })
 
-const forecast = computed(() => {
-  const calculated = supplierAmountPaid.value + remainingPayable.value
-  return calculated > 0 ? calculated : targetBudget.value
-})
-
-const budgetRemaining = computed(() => {
-  return Math.max(0, targetBudget.value - supplierAmountPaid.value)
-})
-
-const budgetUsedPercent = computed(() => {
-  if (targetBudget.value === 0) return 0
-  return Math.min(100, Math.round((supplierAmountPaid.value / targetBudget.value) * 100))
-})
-
 const budgetStatus = computed(() => {
-  if (supplierAmountPaid.value > targetBudget.value) {
-    return { label: 'Over Budget', color: 'error' as const }
+  return {
+    label: 'On Track',
+    color: 'success' as const,
   }
-  if (budgetUsedPercent.value >= 90) {
-    return { label: 'Near Limit', color: 'warning' as const }
-  }
-  if (budgetUsedPercent.value > 0) {
-    return { label: 'On Track', color: 'success' as const }
-  }
-  return { label: 'On Track', color: 'success' as const }
 })
 
 // 5. Planning Health Metrics
@@ -542,154 +482,60 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
 ]
 
 function isDashboardItemBlocked(item: QuickNavItem): boolean {
-  if (item.action === 'settings') {
-    return false
-  }
-  if (!eventRecord.value && isUiOnlyMode.value) {
-    return false
-  }
+  if (item.action === 'settings') return false
   return !isDashboardActionAllowed(eventRecord.value, item.action)
 }
 
 function getActiveEventQueryId(): string {
-  return eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  return eventId.value || 'testing-event-id'
 }
 
 function openWebsiteMaker() {
-  if (isEventCancelled.value) return
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/website-maker', query: { eventId: id } })
+  navigateTo({ path: '/website-maker', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openInvitationMaker() {
-  if (isEventCancelled.value) return
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/invitation-maker', query: { eventId: id } })
+  navigateTo({ path: '/invitation-maker', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openGuestList() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/guests', query: { eventId: id } })
+  navigateTo({ path: '/event/guests', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openTasksDashboard() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/tasks', query: { eventId: id } })
+  navigateTo({ path: '/event/tasks', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openRsvpDashboard() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/rsvp', query: { eventId: id } })
+  navigateTo({ path: '/event/rsvp', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openEventSettings() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/settings', query: { eventId: id } })
+  navigateTo({ path: '/event/settings', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openPayments() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/payment-review', query: { eventId: id } })
+  navigateTo({ path: '/event/payment-review', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openSchedulesDashboard() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/schedules', query: { eventId: id } })
+  navigateTo({ path: '/event/schedules', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openWishlistDashboard() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/wishlist', query: { eventId: id } })
+  navigateTo({ path: '/event/wishlist', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openEventPlaylist() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/playlist', query: { eventId: id } })
+  navigateTo({ path: '/event/playlist', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openChurchRequirementsDashboard() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/requirements', query: { eventId: id } })
+  navigateTo({ path: '/event/requirements', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openSuppliersDashboard() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-  navigateTo({ path: '/event/suppliers', query: { eventId: id } })
-}
-
-function openUpgradePage() {
-  const id = getActiveEventQueryId()
-  if (!id) {
-    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
-    return
-  }
-
-  if (!isUiOnlyMode.value && eventRecord.value && !isEventFullyPaid(eventRecord.value)) {
-    navigateTo({ path: '/event/payment-review', query: { eventId: id } })
-    return
-  }
-
-  if (!isUiOnlyMode.value && isUpgradePending.value) {
-    toast.add({
-      title: 'Upgrade pending review',
-      description: pendingUpgradeTargetName.value
-        ? `Your upgrade to ${pendingUpgradeTargetName.value} is being verified.`
-        : 'Your upgrade payment is being verified.',
-      color: 'warning',
-    })
-    navigateTo({ path: '/event/upgrade', query: { eventId: id } })
-    return
-  }
-
-  navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+  navigateTo({ path: '/event/suppliers', query: { eventId: getActiveEventQueryId() } })
 }
 
 const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
@@ -730,13 +576,6 @@ function onQuickNavItemClick(item: QuickNavItem) {
   if (isMobileViewport() && DESKTOP_ONLY_ACTIONS.includes(item.action)) {
     selectedDesktopOnlyFeature.value = item
     isDesktopOnlyModalOpen.value = true
-    return
-  }
-
-  if (
-    (item.action === 'website' || item.action === 'invitation') &&
-    (isEventCancelled.value || (!eventId.value && !isUiOnlyMode.value))
-  ) {
     return
   }
 
@@ -948,6 +787,8 @@ const tooltipPosition = computed(() => {
   }
 })
 
+
+
 interface PriorityDashboardTask {
   id: string
   title: string
@@ -1129,181 +970,107 @@ function getTaskDashboardTheme(category: string) {
   }
 }
 
-const urgentTasks = computed<PriorityDashboardTask[]>(() => {
-  const rawTasks = tasksSummary.value?.preview?.tasks || []
-  const urgentFromSummary = rawTasks
-    .filter((t: any) => t.priority <= 1 && t.status !== 'COMPLETED')
-    .map((t: any) => {
-      const titleLower = (t.title || '').toLowerCase()
-      let category = 'Tasks'
-      let action: DashboardAction = 'tasks'
-      if (titleLower.includes('pay') || titleLower.includes('budget') || titleLower.includes('fee')) {
-        category = 'Payments'; action = 'payments'
-      } else if (titleLower.includes('cater') || titleLower.includes('photo') || titleLower.includes('supplier') || titleLower.includes('band') || titleLower.includes('florist')) {
-        category = 'Suppliers'; action = 'suppliers'
-      } else if (titleLower.includes('church') || titleLower.includes('cert') || titleLower.includes('license') || titleLower.includes('require')) {
-        category = 'Requirements'; action = 'churchRequirements'
-      } else if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
-        category = 'Guest List'; action = 'guestList'
-      } else if (titleLower.includes('rsvp') || titleLower.includes('invite') || titleLower.includes('response')) {
-        category = 'RSVP'; action = 'rsvp'
-      } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
-        category = 'Playlist'; action = 'playlist'
-      } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
-        category = 'Schedules'; action = 'schedules'
-      }
-      return {
-        id: t._id || t.id,
-        title: t.title,
-        priority: 'urgent' as const,
-        category,
-        action,
-        dueText: t.deadline ? df.format(new Date(t.deadline)) : 'Due soon',
-      }
-    })
+const urgentTasks = ref<PriorityDashboardTask[]>([
+  {
+    id: 'urgent-1',
+    title: 'Settle caterer balance payment',
+    priority: 'urgent',
+    category: 'Payments',
+    action: 'payments',
+    dueText: 'Due in 3 days',
+  },
+  {
+    id: 'urgent-2',
+    title: 'Submit church baptismal certificate',
+    priority: 'urgent',
+    category: 'Requirements',
+    action: 'churchRequirements',
+    dueText: 'Due this week',
+  },
+  {
+    id: 'urgent-3',
+    title: 'Follow up unconfirmed RSVPs',
+    priority: 'urgent',
+    category: 'RSVP',
+    action: 'rsvp',
+    dueText: '24 pending',
+  },
+  {
+    id: 'urgent-4',
+    title: 'Confirm reception styling & floral mockups',
+    priority: 'urgent',
+    category: 'Suppliers',
+    action: 'suppliers',
+    dueText: 'Due tomorrow',
+  },
+  {
+    id: 'urgent-5',
+    title: 'Finalize bridal entourage lineup',
+    priority: 'urgent',
+    category: 'Guest List',
+    action: 'guestList',
+    dueText: 'Due in 2 days',
+  },
+  {
+    id: 'urgent-6',
+    title: 'Submit marriage license application',
+    priority: 'urgent',
+    category: 'Requirements',
+    action: 'churchRequirements',
+    dueText: 'Due in 5 days',
+  },
+])
 
-  if (urgentFromSummary.length > 0) {
-    return urgentFromSummary
-  }
-
-  return [
-    {
-      id: 'urgent-1',
-      title: 'Settle caterer balance payment',
-      priority: 'urgent',
-      category: 'Payments',
-      action: 'payments',
-      dueText: 'Due in 3 days',
-    },
-    {
-      id: 'urgent-2',
-      title: 'Submit church baptismal certificate',
-      priority: 'urgent',
-      category: 'Requirements',
-      action: 'churchRequirements',
-      dueText: 'Due this week',
-    },
-    {
-      id: 'urgent-3',
-      title: 'Follow up unconfirmed RSVPs',
-      priority: 'urgent',
-      category: 'RSVP',
-      action: 'rsvp',
-      dueText: '24 pending',
-    },
-    {
-      id: 'urgent-4',
-      title: 'Confirm reception styling & floral mockups',
-      priority: 'urgent',
-      category: 'Suppliers',
-      action: 'suppliers',
-      dueText: 'Due tomorrow',
-    },
-    {
-      id: 'urgent-5',
-      title: 'Finalize bridal entourage lineup',
-      priority: 'urgent',
-      category: 'Guest List',
-      action: 'guestList',
-      dueText: 'Due in 2 days',
-    },
-    {
-      id: 'urgent-6',
-      title: 'Submit marriage license application',
-      priority: 'urgent',
-      category: 'Requirements',
-      action: 'churchRequirements',
-      dueText: 'Due in 5 days',
-    },
-  ]
-})
-
-const importantTasks = computed<PriorityDashboardTask[]>(() => {
-  const rawTasks = tasksSummary.value?.preview?.tasks || []
-  const importantFromSummary = rawTasks
-    .filter((t: any) => t.priority === 2 && t.status !== 'COMPLETED')
-    .map((t: any) => {
-      const titleLower = (t.title || '').toLowerCase()
-      let category = 'Tasks'
-      let action: DashboardAction = 'tasks'
-      if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
-        category = 'Guest List'; action = 'guestList'
-      } else if (titleLower.includes('cater') || titleLower.includes('photo') || titleLower.includes('supplier') || titleLower.includes('band') || titleLower.includes('florist')) {
-        category = 'Suppliers'; action = 'suppliers'
-      } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
-        category = 'Playlist'; action = 'playlist'
-      } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
-        category = 'Schedules'; action = 'schedules'
-      } else if (titleLower.includes('pay') || titleLower.includes('budget')) {
-        category = 'Payments'; action = 'payments'
-      } else if (titleLower.includes('web') || titleLower.includes('site')) {
-        category = 'Website'; action = 'website'
-      }
-      return {
-        id: t._id || t.id,
-        title: t.title,
-        priority: 'important' as const,
-        category,
-        action,
-        dueText: t.deadline ? df.format(new Date(t.deadline)) : 'Upcoming',
-      }
-    })
-
-  if (importantFromSummary.length > 0) {
-    return importantFromSummary
-  }
-
-  return [
-    {
-      id: 'important-1',
-      title: 'Finalize reception seating arrangement',
-      priority: 'important',
-      category: 'Guest List',
-      action: 'guestList',
-      dueText: '12 unassigned',
-    },
-    {
-      id: 'important-2',
-      title: 'Review photographer & videographer shot list',
-      priority: 'important',
-      category: 'Suppliers',
-      action: 'suppliers',
-      dueText: 'Milestone review',
-    },
-    {
-      id: 'important-3',
-      title: 'Curate grand entrance & first dance songs',
-      priority: 'important',
-      category: 'Playlist',
-      action: 'playlist',
-      dueText: '3 songs needed',
-    },
-    {
-      id: 'important-4',
-      title: 'Review day-of timeline with coordinator',
-      priority: 'important',
-      category: 'Schedules',
-      action: 'schedules',
-      dueText: 'Pending review',
-    },
-    {
-      id: 'important-5',
-      title: 'Review wedding gift registry details',
-      priority: 'important',
-      category: 'Gifts',
-      action: 'wishlist',
-      dueText: '5 items pending',
-    },
-    {
-      id: 'important-6',
-      title: 'Publish event website & RSVP link',
-      priority: 'important',
-      category: 'Website',
-      action: 'website',
-      dueText: 'Ready to launch',
-    },
-  ]
-})
+const importantTasks = ref<PriorityDashboardTask[]>([
+  {
+    id: 'important-1',
+    title: 'Finalize reception seating arrangement',
+    priority: 'important',
+    category: 'Guest List',
+    action: 'guestList',
+    dueText: '12 unassigned',
+  },
+  {
+    id: 'important-2',
+    title: 'Review photographer & videographer shot list',
+    priority: 'important',
+    category: 'Suppliers',
+    action: 'suppliers',
+    dueText: 'Milestone review',
+  },
+  {
+    id: 'important-3',
+    title: 'Curate grand entrance & first dance songs',
+    priority: 'important',
+    category: 'Playlist',
+    action: 'playlist',
+    dueText: '3 songs needed',
+  },
+  {
+    id: 'important-4',
+    title: 'Review day-of timeline with coordinator',
+    priority: 'important',
+    category: 'Schedules',
+    action: 'schedules',
+    dueText: 'Pending review',
+  },
+  {
+    id: 'important-5',
+    title: 'Review wedding gift registry details',
+    priority: 'important',
+    category: 'Gifts',
+    action: 'wishlist',
+    dueText: '5 items pending',
+  },
+  {
+    id: 'important-6',
+    title: 'Publish event website & RSVP link',
+    priority: 'important',
+    category: 'Website',
+    action: 'website',
+    dueText: 'Ready to launch',
+  },
+])
 
 // Dynamic task count to fit container without scrollbar or partial clipping
 const priorityTasksListRef = ref<HTMLElement | null>(null)
@@ -1332,6 +1099,12 @@ const displayedImportantTasks = computed(() => {
 })
 
 function onPriorityTaskClick(task: PriorityDashboardTask) {
+  if (isMobileViewport() && DESKTOP_ONLY_ACTIONS.includes(task.action)) {
+    selectedDesktopOnlyFeature.value = QUICK_NAV_ITEMS.find(i => i.action === task.action) || null
+    isDesktopOnlyModalOpen.value = true
+    return
+  }
+
   switch (task.action) {
     case 'payments':
       openPayments()
@@ -1369,33 +1142,6 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
       break
   }
 }
-
-onMounted(() => {
-  loadEventData()
-  nextTick(() => {
-    updateVisibleTaskCount()
-    if (priorityTasksListRef.value && typeof ResizeObserver !== 'undefined') {
-      tasksResizeObserver = new ResizeObserver(() => {
-        updateVisibleTaskCount()
-      })
-      tasksResizeObserver.observe(priorityTasksListRef.value as unknown as Element)
-    }
-  })
-  if (typeof window !== 'undefined') {
-    window.addEventListener('resize', updateVisibleTaskCount)
-  }
-})
-
-onBeforeUnmount(() => {
-  tasksResizeObserver?.disconnect()
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', updateVisibleTaskCount)
-  }
-})
-
-watch(eventId, () => {
-  loadEventData()
-})
 </script>
 
 <template>
@@ -1404,6 +1150,9 @@ watch(eventId, () => {
     <ClientOnly>
       <Teleport to="#event-navbar-actions">
         <div class="flex items-center gap-2">
+          <UBadge color="info" variant="subtle" size="sm" class="font-bold">
+            PLAYGROUND
+          </UBadge>
           <UButton v-if="isUpgradePending" icon="i-lucide-clock" color="warning" variant="soft" size="sm"
             class="font-semibold" disabled>
             Upgrade pending
@@ -1723,7 +1472,7 @@ watch(eventId, () => {
                     <UIcon name="i-lucide-target" class="size-3 sm:size-3.5 text-red-500 shrink-0" />
                   </div>
                   <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ targetBudget.toLocaleString() }}
+                    ₱{{ placeholderTargetBudget.toLocaleString() }}
                   </div>
                   <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
                     Allocated budget limit
@@ -1738,7 +1487,7 @@ watch(eventId, () => {
                     <UIcon name="i-lucide-trending-up" class="size-3 sm:size-3.5 text-blue-500 shrink-0" />
                   </div>
                   <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ forecast.toLocaleString() }}
+                    ₱{{ placeholderForecast.toLocaleString() }}
                   </div>
                   <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
                     Projected total spend
@@ -1783,7 +1532,7 @@ watch(eventId, () => {
                     <UIcon name="i-lucide-wallet" class="size-3 sm:size-3.5 text-emerald-500 shrink-0" />
                   </div>
                   <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    ₱{{ budgetRemaining.toLocaleString() }}
+                    ₱{{ placeholderBudgetRemaining.toLocaleString() }}
                   </div>
                   <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
                     Available target balance
@@ -1798,10 +1547,10 @@ watch(eventId, () => {
                     <UIcon name="i-lucide-pie-chart" class="size-3.5 text-indigo-500 shrink-0" />
                   </div>
                   <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
-                    {{ budgetUsedPercent }}%
+                    {{ placeholderBudgetUsedPercent }}%
                   </div>
                   <div class="w-full">
-                    <UProgress :model-value="budgetUsedPercent" color="primary" size="2xs" />
+                    <UProgress :model-value="placeholderBudgetUsedPercent" color="primary" size="2xs" />
                   </div>
                 </div>
               </div>

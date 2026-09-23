@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { useEvents } from '~/composables/useEvents'
+import type { EventRecord } from '~/types/event'
+import { isEventPendingVerification } from '~/utils/paymentPendingGuard'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -10,11 +13,53 @@ useHead({
 })
 
 const route = useRoute()
+const { fetchUserEvents } = useEvents()
+const fallbackEvent = ref<EventRecord | null>(null)
 
-const referenceNumber = computed(() => (typeof route.query.ref === 'string' ? route.query.ref : '—'))
-const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : 'My Celebration'))
-const packageName = computed(() => (typeof route.query.package === 'string' ? route.query.package.replace(/-/g, ' ').toUpperCase() : 'BREAD + BUTTER'))
-const paymentMethod = computed(() => (typeof route.query.method === 'string' ? route.query.method : 'GCASH'))
+onMounted(async () => {
+  if (!route.query.ref) {
+    try {
+      const events = await fetchUserEvents()
+      const firstEvent = events[0]
+      if (events.length === 1 && firstEvent && isEventPendingVerification(firstEvent)) {
+        fallbackEvent.value = firstEvent
+      }
+    } catch {
+      // Ignore network errors in pending display
+    }
+  }
+})
+
+const referenceNumber = computed(() => {
+  if (typeof route.query.ref === 'string' && route.query.ref.trim()) {
+    return route.query.ref.trim()
+  }
+  return fallbackEvent.value?.latestPayment?.transactionId || fallbackEvent.value?.latestPayment?._id || '—'
+})
+
+const eventName = computed(() => {
+  if (typeof route.query.eventName === 'string' && route.query.eventName.trim()) {
+    return route.query.eventName.trim()
+  }
+  return fallbackEvent.value?.eventName || 'My Celebration'
+})
+
+const packageName = computed(() => {
+  if (typeof route.query.package === 'string' && route.query.package.trim()) {
+    return route.query.package.replace(/-/g, ' ').toUpperCase()
+  }
+  const tier = fallbackEvent.value?.priceTier
+  if (typeof tier === 'object' && tier?.name) return tier.name.toUpperCase()
+  if (typeof tier === 'string') return tier.replace(/-/g, ' ').toUpperCase()
+  return 'BREAD + BUTTER'
+})
+
+const paymentMethod = computed(() => {
+  if (typeof route.query.method === 'string' && route.query.method.trim()) {
+    return route.query.method.trim()
+  }
+  return fallbackEvent.value?.latestPayment?.paymentMethod || 'GCASH'
+})
 </script>
 
 <template>
@@ -74,10 +119,31 @@ const paymentMethod = computed(() => (typeof route.query.method === 'string' ? r
         <p>• You will receive a confirmation notice via email with access details.</p>
       </div>
 
-      <UButton to="/" block color="primary" size="md"
-        class="font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md">
-        Go to Dashboard
-      </UButton>
+      <!-- Allowed User Actions -->
+      <div class="w-full flex flex-col sm:flex-row items-center gap-2 pt-1">
+        <UButton
+          to="/user/transactions"
+          block
+          color="toast"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-receipt"
+          class="font-semibold text-toast-900 border-toast-600/30 hover:bg-toast-500/10 flex-1"
+        >
+          View Transactions
+        </UButton>
+        <UButton
+          to="/user/profile"
+          block
+          color="toast"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-user-cog"
+          class="font-semibold text-toast-900 hover:bg-toast-500/10 flex-1"
+        >
+          My Profile
+        </UButton>
+      </div>
 
     </UCard>
   </div>

@@ -690,46 +690,82 @@ function scrollToFaq(id: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-toast-700 text-white pt-24 lg:pt-28 pb-20 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto space-y-8">
+  <div class="min-h-screen bg-toast-700 text-white pt-20 sm:pt-24 lg:pt-28 pb-16 sm:pb-20 px-3.5 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto space-y-6 sm:space-y-8">
 
       <!-- Hero / Title Section -->
-      <div class="text-center space-y-4 max-w-3xl mx-auto">
-        <h1 id="faq-title" class="text-4xl sm:text-5xl font-bold font-serif text-bread-400">
+      <div class="text-center space-y-3 sm:space-y-4 max-w-3xl mx-auto px-2">
+        <h1 id="faq-title" class="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif text-bread-400">
           Frequently Asked Questions
         </h1>
-        <p class="text-lg text-white">
+        <p class="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed">
           Got questions? We've got the goods. Everything you need to know about getting started, choosing your portion, managing your celebration, payments, account access, and more.
         </p>
       </div>
 
-      <!-- Main FAQ Layout with UPageAside on left and container on right (4-grid layout) -->
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+      <!-- Mobile Horizontal Categories Bar (lg:hidden) -->
+      <div class="lg:hidden bread-container bg-bread-400 text-toast-900 p-3 sm:p-4 space-y-2">
+        <div class="flex items-center justify-between px-1 text-xs font-bold text-toast-800 uppercase tracking-wider">
+          <span class="flex items-center gap-1.5">
+            <UIcon name="i-lucide-layers" class="w-3.5 h-3.5" />
+            Categories
+          </span>
+          <span class="text-toast-600 font-normal text-[11px]">Swipe to select</span>
+        </div>
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-1 px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            v-for="cat in categories"
+            :key="'mobile-' + cat.id"
+            @click="activeCategory = cat.id"
+            :class="[
+              'flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer shadow-2xs',
+              activeCategory === cat.id
+                ? 'bg-toast-600 text-white shadow-xs ring-1 ring-toast-600'
+                : 'bg-white/85 text-toast-800 hover:bg-white border border-toast-300/60'
+            ]"
+          >
+            <UIcon :name="cat.icon" class="w-3 h-3 shrink-0" />
+            <span>{{ cat.label }}</span>
+            <span
+              :class="[
+                'ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold',
+                activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-toast-100 text-toast-700'
+              ]"
+            >
+              {{ getCategoryCount(cat.id) }}
+            </span>
+          </button>
+        </div>
+      </div>
 
-        <!-- Left Side: UPageAside using bread-container CSS class -->
-        <UPageAside class="bread-container bg-bread-400 text-toast-900 p-5 lg:col-span-1 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto space-y-6">
+      <!-- Main FAQ Layout with UPageAside on left and container on right (4-grid layout) -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 items-start">
+
+        <!-- Left Side: Desktop Sticky UPageAside using bread-container CSS class -->
+        <UPageAside class="hidden lg:block lg:col-span-1 bread-container bg-bread-400 text-toast-900 p-5 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto space-y-6">
           <div>
-            <h2 class="text-xl font-bold font-serif text-toast-800 border-b border-toast-600/20 pb-3 mb-4">
+            <h2 class="text-xl font-bold font-serif text-toast-800 border-b border-toast-600/20 pb-3 mb-4 flex items-center gap-2">
+              <UIcon name="i-lucide-layers" class="w-5 h-5 text-toast-700" />
               Categories
             </h2>
 
             <!-- Categories Filter Navigation -->
-            <div class="space-y-1">
+            <div class="space-y-0.5">
               <button v-for="cat in categories" :key="cat.id" @click="activeCategory = cat.id" :class="[
-                'w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all text-left',
+                'w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
                 activeCategory === cat.id
-                  ? 'bg-toast-600 text-white shadow-md font-semibold'
+                  ? 'bg-toast-600 text-white shadow-xs font-semibold'
                   : 'text-toast-800 hover:bg-toast-500/10'
               ]">
-                <div class="flex items-center gap-2.5 truncate">
-                  <UIcon :name="cat.icon" class="w-4 h-4 shrink-0" />
+                <div class="flex items-center gap-2 truncate">
+                  <UIcon :name="cat.icon" class="w-3.5 h-3.5 shrink-0" />
                   <span class="truncate">{{ cat.label }}</span>
                 </div>
                 <UBadge
                   size="xs"
                   :color="activeCategory === cat.id ? 'bread' : 'neutral'"
                   variant="subtle"
-                  class="rounded-full px-2 shrink-0"
+                  class="rounded-full px-1.5 py-0 text-[10px] shrink-0"
                 >
                   {{ getCategoryCount(cat.id) }}
                 </UBadge>
@@ -739,10 +775,10 @@ function scrollToFaq(id: string) {
         </UPageAside>
 
         <!-- Right Side: Main FAQ Container using bread-container CSS class (Topic Results) -->
-        <div class="bread-container bg-bread-400 text-toast-900 p-6 sm:p-8 lg:col-span-3 space-y-6">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-toast-600/20 pb-4">
+        <div class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-6 lg:p-8 lg:col-span-3 space-y-5 sm:space-y-6 w-full">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-toast-600/20 pb-4">
             <div>
-              <h2 class="text-2xl font-bold font-serif text-toast-800">
+              <h2 class="text-xl sm:text-2xl font-bold font-serif text-toast-800">
                 {{ activeCategoryLabel }}
               </h2>
               <p class="text-xs text-toast-700 mt-1">
@@ -757,33 +793,33 @@ function scrollToFaq(id: string) {
                 icon="i-lucide-search"
                 placeholder="Search questions or categories..."
                 size="md"
-                class="w-full bg-white/90 text-toast-900 border-toast-300 focus:border-toast-600 rounded-lg shadow-sm"
+                class="w-full bg-white/90 text-toast-900 border-toast-300 focus:border-toast-600 rounded-lg shadow-xs text-sm"
               />
             </div>
           </div>
 
-          <div v-if="filteredFaqs.length === 0" class="py-12 text-center text-toast-800 space-y-3">
-            <UIcon name="i-lucide-help-circle" class="w-12 h-12 mx-auto text-toast-600 opacity-60" />
-            <p class="text-lg font-semibold">No questions found</p>
-            <p class="text-sm text-toast-700">Try adjusting your search query or category filter.</p>
+          <div v-if="filteredFaqs.length === 0" class="py-10 sm:py-12 text-center text-toast-800 space-y-3">
+            <UIcon name="i-lucide-help-circle" class="w-10 sm:w-12 h-10 sm:h-12 mx-auto text-toast-600 opacity-60" />
+            <p class="text-base sm:text-lg font-semibold">No questions found</p>
+            <p class="text-xs sm:text-sm text-toast-700">Try adjusting your search query or category filter.</p>
             <UButton size="xs" color="toast" variant="outline" @click="searchQuery = ''; activeCategory = 'all'">
               Reset Filters
             </UButton>
           </div>
 
-          <div v-else class="space-y-4">
+          <div v-else class="space-y-3 sm:space-y-4">
             <!-- Each FAQ item in individual container with bread-container class -->
             <div v-for="faq in filteredFaqs" :key="faq.id" :id="faq.id" :class="[
-              'bread-container transition-all p-5 bg-white/95 border-l-4 cursor-pointer',
+              'bread-container transition-all p-4 sm:p-5 bg-white/95 border-l-4 cursor-pointer',
               activeFaqId === faq.id ? 'border-toast-600 shadow-md ring-2 ring-toast-600/20' : 'border-toast-300 hover:border-toast-500'
             ]" @click="activeFaqId = faq.id">
-              <div class="flex items-start justify-between gap-4">
-                <h3 class="text-lg font-bold text-toast-900 font-serif flex items-start gap-3">
-                  <span class="w-2 h-2 rounded-full bg-toast-600 shrink-0 mt-2.5"></span>
+              <div class="flex items-start justify-between gap-3 sm:gap-4">
+                <h3 class="text-base sm:text-lg font-bold text-toast-900 font-serif flex items-start gap-2.5 sm:gap-3 leading-snug">
+                  <span class="w-2 h-2 rounded-full bg-toast-600 shrink-0 mt-2"></span>
                   <span>{{ faq.question }}</span>
                 </h3>
               </div>
-              <p class="mt-2 text-sm text-toast-800 leading-relaxed pl-5">
+              <p class="mt-2 text-xs sm:text-sm text-toast-800 leading-relaxed pl-4.5 sm:pl-5">
                 {{ faq.answer }}
               </p>
             </div>

@@ -140,46 +140,32 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               <UInput v-model="state.email" class="w-full text-xs sm:text-sm" placeholder="Enter your email" />
             </UFormField>
             <UFormField label="Gender" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="gender" required>
-              <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full text-xs sm:text-sm" />
+              <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender"
+                class="w-full text-xs sm:text-sm" />
+            </UFormField>
+
+            <UFormField label="Create your own Promo Code" :ui="{ label: 'text-white text-xs sm:text-sm' }"
+              name="promocode" required>
+              <UInput class="w-full text-xs sm:text-sm" placeholder="ex: BREADBUTTER10" />
             </UFormField>
 
             <UFormField label="Password" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="password" required>
-              <UInput
-                v-model="state.password"
-                :type="isPasswordVisible ? 'text' : 'password'"
-                class="w-full text-xs sm:text-sm"
-                placeholder="Enter your password"
-              >
+              <UInput v-model="state.password" :type="isPasswordVisible ? 'text' : 'password'"
+                class="w-full text-xs sm:text-sm" placeholder="Enter your password">
                 <template #trailing>
-                  <UButton
-                    color="neutral"
-                    variant="link"
-                    size="sm"
-                    :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                    :padded="false"
-                    aria-label="Toggle password visibility"
-                    @click="isPasswordVisible = !isPasswordVisible"
-                  />
+                  <UButton color="neutral" variant="link" size="sm"
+                    :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
+                    aria-label="Toggle password visibility" @click="isPasswordVisible = !isPasswordVisible" />
                 </template>
               </UInput>
             </UFormField>
             <UFormField label="Verify password" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="repass" required>
-              <UInput
-                v-model="state.repass"
-                :type="isRepassVisible ? 'text' : 'password'"
-                class="w-full text-xs sm:text-sm"
-                placeholder="Re-enter your password"
-              >
+              <UInput v-model="state.repass" :type="isRepassVisible ? 'text' : 'password'"
+                class="w-full text-xs sm:text-sm" placeholder="Re-enter your password">
                 <template #trailing>
-                  <UButton
-                    color="neutral"
-                    variant="link"
-                    size="sm"
-                    :icon="isRepassVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                    :padded="false"
-                    aria-label="Toggle verify password visibility"
-                    @click="isRepassVisible = !isRepassVisible"
-                  />
+                  <UButton color="neutral" variant="link" size="sm"
+                    :icon="isRepassVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
+                    aria-label="Toggle verify password visibility" @click="isRepassVisible = !isRepassVisible" />
                 </template>
               </UInput>
             </UFormField>
@@ -190,7 +176,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                   <template #label>
                     <span class="text-xs sm:text-sm text-white">
                       I agree to Bread+Butter's
-                      <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }" class="text-bread-400 font-medium">
+                      <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }"
+                        class="text-bread-400 font-medium">
                         Terms and Conditions.
                       </ULink>
                     </span>
@@ -198,19 +185,18 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                 </UCheckbox>
               </UFormField>
               <UFormField name="updates">
-                <UCheckbox
-                  v-model="state.updates"
-                  name="updates"
-                  :ui="{ label: 'text-white text-xs sm:text-sm' }"
-                  label="I want to receive updates from Bread+Butter."
-                />
+                <UCheckbox v-model="state.updates" name="updates" :ui="{ label: 'text-white text-xs sm:text-sm' }"
+                  label="I want to receive updates from Bread+Butter." />
               </UFormField>
             </div>
 
             <div class="sm:col-span-2 space-y-2 pt-1">
-              <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign up</UButton>
+              <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">
+                Sign up
+              </UButton>
               <div class="text-xs sm:text-sm text-center">
-                Already a partner? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink> instead.
+                Already a partner? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink>
+                instead.
               </div>
             </div>
           </div>

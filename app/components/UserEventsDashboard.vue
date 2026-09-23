@@ -7,6 +7,7 @@ import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
 import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
+import { isSinglePendingEventAccount, buildPendingPaymentQuery } from '~/utils/paymentPendingGuard'
 
 const toast = useToast()
 const { fetchUserEvents } = useEvents()
@@ -73,6 +74,14 @@ async function loadUserEvents() {
       mock: () => [],
       fetch: () => fetchUserEvents(true),
     })
+
+    if (!isUiOnlyMode.value && isSinglePendingEventAccount(userEvents.value)) {
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: buildPendingPaymentQuery(userEvents.value[0]) as Record<string, string>,
+      }, { replace: true })
+      return
+    }
 
     if (!isUiOnlyMode.value && userEvents.value.length === 0) {
       await navigateTo('/user/create-event')

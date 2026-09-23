@@ -5,6 +5,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useEvents } from '~/composables/useEvents'
 import { getApiErrorMessage } from '~/types/auth'
 import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
+import { isSinglePendingEventAccount, buildPendingPaymentQuery } from '~/utils/paymentPendingGuard'
 
 const toast = useToast()
 const route = useRoute()
@@ -16,6 +17,14 @@ onMounted(async () => {
   const authenticated = await ensureSession()
   if (!authenticated) return
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
+  const events = await fetchUserEvents().catch(() => [])
+  if (isSinglePendingEventAccount(events) && (!redirect || redirect === '/')) {
+    await navigateTo({
+      path: '/user/payment-pending',
+      query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
+    })
+    return
+  }
   await navigateTo(redirect || '/')
 })
 
@@ -69,6 +78,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const events = await fetchUserEvents(true)
     if (events.length === 0) {
       await navigateTo('/user/create-event')
+    } else if (isSinglePendingEventAccount(events)) {
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
+      })
     } else {
       await navigateTo('/')
     }

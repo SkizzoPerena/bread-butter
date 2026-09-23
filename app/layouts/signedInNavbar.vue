@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
 
@@ -9,8 +9,32 @@ const { user, logout } = useAuth()
 const isScrolled = ref(false)
 const isMobileMenuOpen = ref(false)
 
+function toggleMobileMenu() {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value
+}
+
 function closeMobileMenu() {
   isMobileMenuOpen.value = false
+}
+
+function scrollToSection(hash: string) {
+  isMobileMenuOpen.value = false
+  if (route.path === '/') {
+    const target = document.querySelector(hash)
+    if (target) {
+      const navbar = document.querySelector('header')
+      const navbarHeight = navbar ? navbar.getBoundingClientRect().height : 80
+      const elementPosition = target.getBoundingClientRect().top + window.scrollY
+      const offsetPosition = elementPosition - navbarHeight - 16
+
+      window.scrollTo({
+        top: Math.max(0, offsetPosition),
+        behavior: 'smooth'
+      })
+      return
+    }
+  }
+  navigateTo(`/${hash}`)
 }
 
 function handleScroll() {
@@ -28,6 +52,13 @@ watch(() => route.path, () => {
 onMounted(() => {
   handleScroll()
   window.addEventListener('scroll', handleScroll, { passive: true })
+  if (route.hash) {
+    nextTick(() => {
+      setTimeout(() => {
+        scrollToSection(route.hash)
+      }, 150)
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -76,11 +107,106 @@ const dropitems: DropdownMenuItem[][] = [
   }]
 ]
 
+// Cluster 1: About
+const aboutItems: DropdownMenuItem[][] = [
+  [
+    {
+      label: 'What is Bread + Butter',
+      icon: 'i-lucide-sparkles',
+      to: '/about',
+      active: false
+    },
+    {
+      label: 'Company Behind',
+      icon: 'i-lucide-hexagon',
+      to: 'https://www.blinkpunch.com',
+      target: '_blank',
+      active: false
+    }
+  ]
+]
+
+// Cluster 2: Features
+const featuresItems: DropdownMenuItem[][] = [
+  [
+    {
+      label: 'Pricing',
+      icon: 'i-lucide-tag',
+      onSelect: () => scrollToSection('#pricing'),
+      active: false
+    },
+    {
+      label: 'Benefits',
+      icon: 'i-lucide-award',
+      onSelect: () => scrollToSection('#benefits'),
+      active: false
+    }
+  ]
+]
+
+// Cluster 3: Partners
+const partnersItems: DropdownMenuItem[][] = [
+  [
+    {
+      label: 'Our Bakery',
+      icon: 'i-lucide-store',
+      to: '/our-suppliers',
+      active: false
+    },
+    {
+      label: 'Dough Makers',
+      icon: 'i-lucide-handshake',
+      to: '/partners/login',
+      active: false
+    },
+    {
+      label: 'Bakers',
+      icon: 'i-lucide-chef-hat',
+      to: '/bakers/login',
+      active: false
+    }
+  ]
+]
+
+// Cluster 4: More Information
+const moreInfoItems: DropdownMenuItem[][] = [
+  [
+    {
+      label: 'FAQs',
+      icon: 'i-lucide-help-circle',
+      to: '/faqs',
+      active: false
+    },
+    {
+      label: 'News and Events',
+      icon: 'i-lucide-calendar-days',
+      to: '/news-and-events',
+      active: false
+    },
+    {
+      label: 'Useful Tips',
+      icon: 'i-lucide-lightbulb',
+      to: '/useful-tips',
+      active: false
+    },
+    {
+      label: 'Contact us',
+      icon: 'i-lucide-mail',
+      to: '/contact-us',
+      active: false
+    }
+  ]
+]
+
 const links = [
+  { label: 'About', to: '/about' },
   { label: 'Features', to: '/#introduction' },
   { label: 'Pricing', to: '/#pricing' },
-  { label: 'About', to: 'https://www.blinkpunch.com' },
+  { label: 'Our Suppliers', to: '/our-suppliers' },
   { label: 'FAQ', to: '/faqs' },
+  { label: 'News & Events', to: '/news-and-events' },
+  { label: 'Useful Tips', to: '/useful-tips' },
+  { label: 'Terms', to: '/terms' },
   { label: 'Contact', to: '/contact-us' }
 ]
 </script>
@@ -92,28 +218,81 @@ const links = [
       'fixed top-0 w-full transition-all duration-300 z-50 border-none hidden lg:flex',
       isScrolled ? 'bg-toast-500/70 backdrop-blur-lg' : 'bg-transparent backdrop-blur-none'
     ]">
-      <template #left>
-        <div></div>
+      <template #title>
+        <div class="flex items-center gap-2.5">
+          <NuxtLink to="/" class="flex items-center">
+            <img class="h-10 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
+          </NuxtLink>
+          <UBadge
+            color="bread"
+            variant="subtle"
+            size="xs"
+            class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
+          >
+            Closed Testing
+          </UBadge>
+        </div>
       </template>
 
-      <div class="flex items-center gap-x-8">
-        <UButton to="https://www.blinkpunch.com" variant="link" color="bread" class="font-semibold text-base text-white">
-          About
-        </UButton>
-        <UButton to="/" variant="link" color="bread" class="font-semibold text-base text-white">
-          Dashboard
-        </UButton>
-        <NuxtLink to="/" class="mx-4">
-          <img src="../assets/bpb-icons/logo-white.svg" class="h-8" />
-        </NuxtLink>
-        <UButton to="/faqs" variant="link" color="bread" class="font-semibold text-base text-white">
-          FAQ
-        </UButton>
-        <UButton to="/contact-us" variant="link" color="bread" class="font-semibold text-base text-white">
-          Contact
-        </UButton>
+      <div class="flex items-center gap-1 sm:gap-2">
+        <!-- Cluster 1: About -->
+        <UDropdownMenu v-slot="{ open }" :items="aboutItems" :modal="false"
+          :content="{ align: 'start', side: 'bottom', sideOffset: 8 }" :ui="{
+            content: 'bg-toast-600/70 backdrop-blur-md border border-toast-400/20 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-56 text-white z-50',
+            item: 'text-white hover:text-bread-400 hover:bg-toast-500/50 rounded-lg text-sm transition-colors cursor-pointer',
+            itemLeadingIcon: 'text-bread-400 size-4'
+          }">
+          <UButton label="About" variant="ghost" trailing-icon="i-lucide-chevron-down"
+            class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5"
+            :class="[open && 'text-bread-400 bg-white/10']" :ui="{
+              trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
+            }" />
+        </UDropdownMenu>
+
+        <!-- Cluster 2: Features -->
+        <UDropdownMenu v-slot="{ open }" :items="featuresItems" :modal="false"
+          :content="{ align: 'start', side: 'bottom', sideOffset: 8 }" :ui="{
+            content: 'bg-toast-600/70 backdrop-blur-md border border-toast-400/20 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-56 text-white z-50',
+            item: 'text-white hover:text-bread-400 hover:bg-toast-500/50 rounded-lg text-sm transition-colors cursor-pointer',
+            itemLeadingIcon: 'text-bread-400 size-4'
+          }">
+          <UButton label="Features" variant="ghost" trailing-icon="i-lucide-chevron-down"
+            class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5"
+            :class="[open && 'text-bread-400 bg-white/10']" :ui="{
+              trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
+            }" />
+        </UDropdownMenu>
+
+        <!-- Cluster 3: Partners -->
+        <UDropdownMenu v-slot="{ open }" :items="partnersItems" :modal="false"
+          :content="{ align: 'start', side: 'bottom', sideOffset: 8 }" :ui="{
+            content: 'bg-toast-600/70 backdrop-blur-md border border-toast-400/20 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-56 text-white z-50',
+            item: 'text-white hover:text-bread-400 hover:bg-toast-500/50 rounded-lg text-sm transition-colors cursor-pointer',
+            itemLeadingIcon: 'text-bread-400 size-4'
+          }">
+          <UButton label="Partners" variant="ghost" trailing-icon="i-lucide-chevron-down"
+            class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5"
+            :class="[open && 'text-bread-400 bg-white/10']" :ui="{
+              trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
+            }" />
+        </UDropdownMenu>
+
+        <!-- Cluster 4: More Information -->
+        <UDropdownMenu v-slot="{ open }" :items="moreInfoItems" :modal="false"
+          :content="{ align: 'start', side: 'bottom', sideOffset: 8 }" :ui="{
+            content: 'bg-toast-600/70 backdrop-blur-md border border-toast-400/20 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-56 text-white z-50',
+            item: 'text-white hover:text-bread-400 hover:bg-toast-500/50 rounded-lg text-sm transition-colors cursor-pointer',
+            itemLeadingIcon: 'text-bread-400 size-4'
+          }">
+          <UButton label="More Information" variant="ghost" trailing-icon="i-lucide-chevron-down"
+            class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5"
+            :class="[open && 'text-bread-400 bg-white/10']" :ui="{
+              trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
+            }" />
+        </UDropdownMenu>
       </div>
 
+      <!-- Right Side Untouched -->
       <template #right>
         <div class="flex items-center gap-x-4">
           <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
@@ -136,33 +315,153 @@ const links = [
       </template>
     </UHeader>
 
-    <!-- Mobile and Tablet Header -->
-    <UHeader :toggle="false" :ui="{ container: 'max-w-none w-full px-4 sm:px-6' }"
-      class="lg:hidden bg-toast-500 text-white border-none">
-      <template #title>
-        <UPopover v-model:open="isMobileMenuOpen"
-          :ui="{ content: 'bread-container w-56 bg-toast-600/90 text-white p-2 border-none ring-0 shadow-2xl shadow-black/40' }">
-          <UButton :icon="isMobileMenuOpen ? 'i-lucide-x' : 'i-lucide-menu'" color="bread" variant="ghost" size="md"
-            aria-label="Toggle menu" />
+    <!-- Mobile Header (hidden on lg and up) -->
+    <UHeader :ui="{ container: 'max-w-none w-full px-4 sm:px-6', toggle: 'hidden' }" :class="[
+      'fixed top-0 w-full transition-all duration-300 z-50 border-none flex lg:hidden',
+      isScrolled ? 'bg-toast-500/70 backdrop-blur-lg' : 'bg-transparent backdrop-blur-none'
+    ]">
+      <template #left>
+        <div class="flex items-center gap-2">
+          <UPopover v-model:open="isMobileMenuOpen"
+            :ui="{ content: 'bread-container w-72 max-h-[85vh] overflow-y-auto bg-toast-600/95 backdrop-blur-md text-white p-3 border border-toast-400/20 shadow-2xl' }">
+            <UButton :icon="isMobileMenuOpen ? 'i-lucide-x' : 'i-lucide-menu'" color="bread" variant="ghost" size="md"
+              aria-label="Toggle menu" />
 
-          <template #content>
-            <div class="flex flex-col space-y-1">
-              <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
-                to="/" @click="closeMobileMenu">Dashboard</UButton>
-              <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
-                to="https://www.blinkpunch.com" @click="closeMobileMenu">About Us</UButton>
-              <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
-                to="/faqs" @click="closeMobileMenu">FAQ</UButton>
-              <UButton variant="link" class="w-full justify-start text-base font-medium text-white" color="bread"
-                to="/contact-us" @click="closeMobileMenu">Contact Us</UButton>
-            </div>
-          </template>
-        </UPopover>
-        <NuxtLink to="/" class="flex items-center gap-2" @click="closeMobileMenu">
-          <img class="h-7 w-auto" src="../assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
-        </NuxtLink>
+            <template #content>
+              <div class="flex flex-col space-y-4">
+                <!-- Cluster 1: About -->
+                <div class="space-y-1">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-bread-400 px-2 py-0.5">About</div>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/about" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-sparkles" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    What is Bread + Butter
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="https://www.blinkpunch.com" target="_blank" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-building-2" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Company Behind
+                  </UButton>
+                </div>
+
+                <div class="h-px bg-toast-500/50 -mx-1" />
+
+                <!-- Cluster 2: Features -->
+                <div class="space-y-1">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-bread-400 px-2 py-0.5">Features</div>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    @click="scrollToSection('#pricing')">
+                    <template #leading>
+                      <UIcon name="i-lucide-tag" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Pricing
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    @click="scrollToSection('#benefits')">
+                    <template #leading>
+                      <UIcon name="i-lucide-award" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Benefits
+                  </UButton>
+                </div>
+
+                <div class="h-px bg-toast-500/50 -mx-1" />
+
+                <!-- Cluster 3: Partners -->
+                <div class="space-y-1">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-bread-400 px-2 py-0.5">Partners</div>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/our-suppliers" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-store" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Our Suppliers
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/partners/login" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-handshake" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Partners
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/bakers/login" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-chef-hat" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Bakers
+                  </UButton>
+                </div>
+
+                <div class="h-px bg-toast-500/50 -mx-1" />
+
+                <!-- Cluster 4: More Information -->
+                <div class="space-y-1">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-bread-400 px-2 py-0.5">More Information</div>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/faqs" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-help-circle" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    FAQs
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/news-and-events" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-calendar-days" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    News and Events
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/useful-tips" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-lightbulb" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Useful Tips
+                  </UButton>
+                  <UButton variant="ghost"
+                    class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
+                    to="/contact-us" @click="closeMobileMenu">
+                    <template #leading>
+                      <UIcon name="i-lucide-mail" class="size-4 text-bread-400 mr-2" />
+                    </template>
+                    Contact us
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UPopover>
+          <div class="flex items-center gap-2">
+            <NuxtLink to="/" class="flex items-center" @click="closeMobileMenu">
+              <img class="h-7 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
+            </NuxtLink>
+            <UBadge
+              color="bread"
+              variant="subtle"
+              size="xs"
+              class="text-[10px] font-medium tracking-wide px-1.5 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
+            >
+              Closed Testing
+            </UBadge>
+          </div>
+        </div>
       </template>
 
+      <!-- Right Side Untouched -->
       <template #right>
         <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
           content: 'bg-toast-600/90 ring ring-transparent mt-1 min-w-40 rounded-xl',
@@ -184,7 +483,7 @@ const links = [
       <slot />
     </main>
 
-    <UFooter class="bg-bread-400">
+    <UFooter v-if="!route.meta.hideFooter" class="bg-bread-400">
       <template #left>
         <p class="text-sm text-toast-600">
           Copyright © {{ new Date().getFullYear() }} Bread+Butter. All rights reserved.
@@ -192,7 +491,8 @@ const links = [
       </template>
 
       <template #right>
-        <UButton v-for="link in links" :key="link.to" :to="link.to" color="neutral" variant="ghost">{{ link.label }}
+        <UButton v-for="link in links" :key="link.to" :to="link.to" color="neutral" variant="ghost">
+          {{ link.label }}
         </UButton>
       </template>
     </UFooter>

@@ -161,6 +161,7 @@ export default defineNuxtConfig({
 
       // Set paths for /event/* routes
       setPath('EventDashboard v1', '/event/dashboard-bread')
+      setPath('EventDashboardTesting', '/event/dashboard-testing')
       setPath('EventChurchRequirementsDashboard', '/event/requirements')
       setPath('EventGuestsDashboard', '/event/guests')
       setPath('EventPaymentReview', '/event/payment-review')
