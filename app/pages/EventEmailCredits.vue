@@ -58,7 +58,7 @@ const isPaymongoPending = computed(() => {
     && latest?.status === 'PENDING'
 })
 
-const usePaymongoCheckout = computed(() => isPaymongoActivated.value || isPaymongoPending.value)
+const usePaymongoCheckout = computed(() => isPaymongoActivated.value)
 
 const pendingEmailCreditMessage = computed(() =>
   isPaymongoPending.value

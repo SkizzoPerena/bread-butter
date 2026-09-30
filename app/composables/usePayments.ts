@@ -65,7 +65,27 @@ export function usePayments() {
     const formData = new FormData()
     formData.append('transactionId', payload.transactionId.trim())
     formData.append('paymentMethod', payload.paymentMethod.trim())
-    formData.append('proofOfPayment', payload.proofOfPayment)
+    formData.append(
+      'proofOfPayment',
+      payload.proofOfPayment,
+      payload.proofOfPayment.name || 'payment-proof.png',
+    )
+    if (payload.provider) {
+      formData.append('provider', String(payload.provider).trim())
+    } else {
+      formData.append('provider', 'MANUAL')
+    }
+    if (payload.type) {
+      formData.append('type', String(payload.type).trim())
+    } else {
+      formData.append('type', 'EVENT_CREATION_FEE')
+    }
+    if (typeof payload.amount === 'number') {
+      formData.append('amount', String(payload.amount))
+    }
+    if (typeof payload.convenienceFeePhp === 'number') {
+      formData.append('convenienceFeePhp', String(payload.convenienceFeePhp))
+    }
 
     const response = await apiUpload<PaymentMessageResponse>(
       `/user/events/${eventId}/payment-proof`,

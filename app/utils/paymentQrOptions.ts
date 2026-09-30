@@ -16,8 +16,8 @@ export const PAYMENT_QR_OPTIONS: QrOption[] = [
     icon: 'i-lucide-smartphone',
     badgeText: 'GCash QR',
     accountName: 'Bread + Butter Events',
-    accountNumber: '0917 839 2883',
-    instructions: 'Open your GCash app and scan this QR code',
+    accountNumber: '09209328080',
+    instructions: 'Open your GCash app and scan this QR code or send to the number below',
     logoText: 'GCash',
   },
   {

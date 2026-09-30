@@ -2,6 +2,11 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import {
+  resolveUserPostLoginRedirect,
+  getUiPendingPayment,
+  getUiUnpaidEvent,
+} from '~/utils/paymentPendingGuard'
 
 definePageMeta({
   layout: false,
@@ -94,6 +99,7 @@ function onPaste(event: ClipboardEvent) {
 }
 
 const { verifyEmail } = useAuth()
+const { fetchUserEvents } = useEvents()
 
 async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
   isSubmitting.value = true
@@ -105,6 +111,16 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
           description: 'Your identity has been confirmed.',
           color: 'success',
         })
+        const uiPending = getUiPendingPayment()
+        if (uiPending) {
+          await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
+          return
+        }
+        const uiUnpaid = getUiUnpaidEvent()
+        if (uiUnpaid) {
+          await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })
+          return
+        }
         const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/user/create-event'
         await navigateTo(target)
       },
@@ -115,8 +131,10 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
           description: res?.message ?? 'Verification successful.',
           color: 'success',
         })
-        const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/user/create-event'
-        await navigateTo(target)
+        const events = await fetchUserEvents(true).catch(() => [])
+        const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+        const dest = resolveUserPostLoginRedirect(events, redirect)
+        await navigateTo(dest)
       },
     })
   } catch (error: any) {

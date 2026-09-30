@@ -9,17 +9,25 @@ import {
 } from '~/utils/authGuard'
 import {
   buildPendingPaymentQuery,
+  buildUserPaymentQuery,
   getUiPendingPayment,
+  getUiUnpaidEvent,
   isSinglePendingEventAccount,
-  shouldRedirectToPaymentPending
+  isSingleUnpaidEventAccount,
+  shouldRedirectToCreateEvent,
+  shouldRedirectToPaymentPending,
+  shouldRedirectToUserPayment
 } from '~/utils/paymentPendingGuard'
 
 function loginRedirectTarget(to: { fullPath: string }) {
   return to.fullPath && to.fullPath !== '/' ? to.fullPath : undefined
 }
 
-async function checkPendingPaymentRestriction(targetPath: string) {
-  if (!shouldRedirectToPaymentPending(targetPath)) {
+async function checkPaymentRestriction(targetPath: string) {
+  const needsCreateEventCheck = shouldRedirectToCreateEvent(targetPath)
+  const needsPendingCheck = shouldRedirectToPaymentPending(targetPath)
+  const needsUnpaidCheck = shouldRedirectToUserPayment(targetPath)
+  if (!needsCreateEventCheck && !needsPendingCheck && !needsUnpaidCheck) {
     return null
   }
   const userOk = await ensureSession('user')
@@ -29,11 +37,24 @@ async function checkPendingPaymentRestriction(targetPath: string) {
   try {
     const { fetchUserEvents } = useEvents()
     const events = await fetchUserEvents()
-    if (isSinglePendingEventAccount(events)) {
-      return navigateTo({
-        path: '/user/payment-pending',
-        query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
-      }, { replace: true })
+    if (events.length === 0) {
+      if (needsCreateEventCheck) {
+        return navigateTo('/user/create-event', { replace: true })
+      }
+    } else if (isSinglePendingEventAccount(events)) {
+      if (needsPendingCheck) {
+        return navigateTo({
+          path: '/user/payment-pending',
+          query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
+        }, { replace: true })
+      }
+    } else if (isSingleUnpaidEventAccount(events)) {
+      if (needsUnpaidCheck) {
+        return navigateTo({
+          path: '/user/payment',
+          query: buildUserPaymentQuery(events[0]) as Record<string, string>,
+        }, { replace: true })
+      }
     }
   } catch {
     // If fetching events fails, do not prematurely block navigation
@@ -55,20 +76,29 @@ export default defineNuxtRouteMiddleware(async (to) => {
         }, { replace: true })
       }
     }
+    if (shouldRedirectToUserPayment(to.path)) {
+      const uiUnpaid = getUiUnpaidEvent()
+      if (uiUnpaid) {
+        return navigateTo({
+          path: '/user/payment',
+          query: uiUnpaid as Record<string, string>,
+        }, { replace: true })
+      }
+    }
     return
-  }
-
-  if (to.path === '/user/dashboard') {
-    return navigateTo('/', { replace: true })
   }
 
   const activeRole = getActiveAuthRole()
 
-  // If a single pending payment event exists, redirect any attempt to access user or event-related pages
-  // (allowed exceptions: /user/payment-pending, /user/profile, /user/transactions, /user/report-issue)
-  if (activeRole !== 'partner' && shouldRedirectToPaymentPending(to.path)) {
-    const pendingRedirect = await checkPendingPaymentRestriction(to.path)
-    if (pendingRedirect) return pendingRedirect
+  // If a single pending payment or unpaid event exists, redirect any attempt to access restricted pages
+  // (allowed exceptions: /user/payment-pending for pending, /user/payment for unpaid, plus /user/profile, /user/transactions, /user/report-issue)
+  if (activeRole !== 'partner') {
+    const paymentRedirect = await checkPaymentRestriction(to.path)
+    if (paymentRedirect) return paymentRedirect
+  }
+
+  if (to.path === '/user/dashboard' || to.path === '/userdashboard' || to.path === '/user-dashboard') {
+    return navigateTo('/', { replace: true })
   }
 
   // Home: partners land on partner dashboard; users keep the user home.

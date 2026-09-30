@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import { setUiUnpaidEvent } from '~/utils/paymentPendingGuard'
 
 useHead({
   title: 'Create Event - Bread + Butter',
 })
 
 const toast = useToast()
+const { isUiOnlyMode } = useApiMode()
 
 type ViewStep = 'packages' | 'details'
 
@@ -190,17 +192,23 @@ function submitEventSetup() {
     return
   }
 
+  const queryParams: Record<string, string> = {
+    package: selectedPackage.value,
+    eventName: eventForm.eventName.trim(),
+    eventType: eventForm.eventType,
+    eventDate: eventForm.eventDate,
+    venue: eventForm.venue.trim(),
+    description: buildDescription(),
+    isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding ? 'true' : 'false',
+  }
+
+  if (isUiOnlyMode.value) {
+    setUiUnpaidEvent(queryParams)
+  }
+
   navigateTo({
     path: '/user/payment',
-    query: {
-      package: selectedPackage.value,
-      eventName: eventForm.eventName.trim(),
-      eventType: eventForm.eventType,
-      eventDate: eventForm.eventDate,
-      venue: eventForm.venue.trim(),
-      description: buildDescription(),
-      isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding ? 'true' : 'false',
-    },
+    query: queryParams,
   })
 }
 

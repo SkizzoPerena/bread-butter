@@ -162,6 +162,10 @@ export interface CreateEventPayload {
   payLater?: boolean
   isCatholicWedding?: boolean
   voucherCode?: string
+  provider?: string
+  amount?: number
+  convenienceFeePhp?: number
+  type?: string
 }
 
 export interface UpdateEventPayload {
@@ -179,6 +183,7 @@ export interface UpdateEventResponse {
   success: boolean
   status: number
   message: string
+  event?: EventRecord
 }
 
 export function mapEventTypeToApi(value: string): string {

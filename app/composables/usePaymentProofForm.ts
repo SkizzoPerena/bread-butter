@@ -11,7 +11,12 @@ export function usePaymentProofForm() {
   const transactionId = ref('')
 
   function triggerFileInput() {
-    fileInput.value?.click()
+    if (fileInput.value) {
+      fileInput.value.click()
+    } else if (typeof document !== 'undefined') {
+      const el = document.getElementById('proof-file-input') as HTMLInputElement | null
+      el?.click()
+    }
   }
 
   function processFile(file: File) {

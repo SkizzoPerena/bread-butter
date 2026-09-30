@@ -51,7 +51,7 @@ const isSubmitting = ref(false)
 
 const isPaymongoPending = computed(() => pendingUpgrade.value?.provider === 'PAYMONGO')
 
-const usePaymongoCheckout = computed(() => isPaymongoActivated.value || isPaymongoPending.value)
+const usePaymongoCheckout = computed(() => isPaymongoActivated.value)
 
 const paymentPendingReview = computed(() =>
   hasPendingPaymentBlockingUpgrade(eventRecord.value),

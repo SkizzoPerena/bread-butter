@@ -98,13 +98,16 @@ export function useEvents() {
         status: 'ONGOING',
         isCatholicWedding: payload.isCatholicWedding ?? false,
         coverImageURL: null,
-        tierPricePhp: 10000,
+        tierPricePhp: payload.amount ?? 10000,
         latestPayment: payload.payLater
           ? null
           : {
               _id: 'mock-payment-id',
               type: 'EVENT_CREATION_FEE',
-              amount: 10000,
+              amount: payload.amount ?? 10000,
+              convenienceFeePhp: payload.convenienceFeePhp ?? 0,
+              provider: payload.provider ?? 'MANUAL',
+              paymentMethod: payload.paymentMethod ?? 'BANK_TRANSFER',
               transactionId: payload.transactionId ?? '',
               proofOfPaymentURL: 'mock-proof-url',
               status: 'PENDING'
@@ -114,9 +117,9 @@ export function useEvents() {
 
     const formData = new FormData()
     formData.append('eventType', payload.eventType)
-    formData.append('eventName', payload.eventName)
-    formData.append('description', payload.description)
-    formData.append('venue', payload.venue)
+    formData.append('eventName', payload.eventName.trim())
+    formData.append('description', payload.description.trim())
+    formData.append('venue', payload.venue.trim())
     formData.append('eventDate', payload.eventDate)
     formData.append('priceTierId', payload.priceTierId)
 
@@ -132,6 +135,14 @@ export function useEvents() {
     }
 
     if (!payload.payLater) {
+      formData.append('provider', payload.provider?.trim() || 'MANUAL')
+      formData.append('type', payload.type?.trim() || 'EVENT_CREATION_FEE')
+      if (typeof payload.amount === 'number') {
+        formData.append('amount', String(payload.amount))
+      }
+      if (typeof payload.convenienceFeePhp === 'number') {
+        formData.append('convenienceFeePhp', String(payload.convenienceFeePhp))
+      }
       if (payload.transactionId?.trim()) {
         formData.append('transactionId', payload.transactionId.trim())
       }
@@ -139,7 +150,11 @@ export function useEvents() {
         formData.append('paymentMethod', payload.paymentMethod.trim())
       }
       if (payload.proofOfPayment) {
-        formData.append('proofOfPayment', payload.proofOfPayment)
+        formData.append(
+          'proofOfPayment',
+          payload.proofOfPayment,
+          payload.proofOfPayment.name || 'payment-proof.png',
+        )
       }
     }
 
@@ -148,9 +163,17 @@ export function useEvents() {
     return response.event
   }
 
-  async function updateEvent(eventId: string, payload: UpdateEventPayload): Promise<void> {
+  async function updateEvent(eventId: string, payload: UpdateEventPayload): Promise<EventRecord | undefined> {
     if (isUiOnlyMode.value) {
-      return
+      const match = userEventsCache.value.find((e) => e._id === eventId)
+      if (match) {
+        if (payload.coverImage) {
+          match.coverImageURL = URL.createObjectURL(payload.coverImage)
+        } else if (payload.coverImageURL !== undefined) {
+          match.coverImageURL = payload.coverImageURL
+        }
+      }
+      return match
     }
 
     const formData = new FormData()
@@ -167,12 +190,23 @@ export function useEvents() {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
     }
 
-    await apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
+    if (payload.coverImage) {
+      formData.append(
+        'coverImage',
+        payload.coverImage,
+        payload.coverImage.name || 'cover.png',
+      )
+    } else if (payload.coverImageURL !== undefined) {
+      formData.append('coverImageURL', payload.coverImageURL)
+    }
+
+    const response = await apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
       method: 'PATCH'
     })
 
     delete eventCache.value[eventId]
     userEventsCache.value = []
+    return response.event
   }
 
   function getCachedEvent(id: string): EventRecord | null {

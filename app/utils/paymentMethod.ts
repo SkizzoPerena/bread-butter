@@ -23,10 +23,10 @@ export function getProofSubmitPayload(panel: PaymentProofPanelExpose | null | un
   proofOfPayment: File
 } | null {
   if (!panel) return null
-  const paymentMethod = mapUiPaymentMethodToApi(panel.selectedQrId)
+  const paymentMethod = mapUiPaymentMethodToApi(panel.selectedQrId) ?? 'GCASH'
   const transactionId = panel.transactionId?.trim() ?? ''
   const proofOfPayment = panel.proofFile ?? null
-  if (!paymentMethod || !transactionId || !proofOfPayment) return null
+  if (!transactionId || !proofOfPayment) return null
   return { paymentMethod, transactionId, proofOfPayment }
 }
 

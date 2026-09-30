@@ -1,3 +1,5 @@
+export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
+
 export type PaymentMethod = 'GCASH' | 'PAYMAYA' | 'BANK_TRANSFER' | 'CARD' | 'QRPH' | 'GRAB_PAY'
 
 export type PaymentProvider = 'MANUAL' | 'PAYMONGO'
@@ -47,6 +49,7 @@ export interface PaymentRecord {
   upgrade?: PaymentUpgrade | null
   amount: number
   amountReceived?: number | null
+  convenienceFeePhp?: number
   partnerCreditAppliedPhp?: number | null
   platformCreditAppliedPhp?: number | null
   transactionId: string
@@ -55,6 +58,9 @@ export interface PaymentRecord {
   provider?: PaymentProvider | string
   paymongoCheckoutId?: string | null
   paymongoPaymentId?: string | null
+  paymongoEventIds?: string[]
+  paymongoIdempotencyKey?: string | null
+  paymongoCheckoutUrl?: string
   status: PaymentStatus
   denialReason?: string
   reviewedAt?: string | null
@@ -115,6 +121,10 @@ export interface SubmitEventPaymentPayload {
   transactionId: string
   proofOfPayment: File
   paymentMethod: string
+  provider?: PaymentProvider | string
+  amount?: number
+  convenienceFeePhp?: number
+  type?: PaymentType | string
 }
 
 export interface CheckoutSessionResponse {
