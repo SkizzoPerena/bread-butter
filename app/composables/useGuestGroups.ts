@@ -9,6 +9,7 @@ import type {
   UpdateGuestGroupResponse,
   DeleteGuestGroupResponse,
 } from '~/types/guest_group'
+import { GUEST_GROUP_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 export function useGuestGroups() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
@@ -55,9 +56,16 @@ export function useGuestGroups() {
       }
     }
 
-    return apiRequest<CreateGuestGroupResponse>('/user/guest-groups', {
+    return tracked(actorRole(), () => apiRequest<CreateGuestGroupResponse>('/user/guest-groups', {
       method: 'POST',
       body,
+    }), {
+      event: 'guest_group_saved',
+      props: { event_id: eventId },
+    }, {
+      event: 'guest_group_rejected',
+      reasons: GUEST_GROUP_REASONS,
+      props: { event_id: eventId },
     })
   }
 
@@ -84,9 +92,12 @@ export function useGuestGroups() {
       }
     }
 
-    return apiRequest<AddGuestsToGroupResponse>(`/user/guest-groups/${groupId}/guests`, {
+    return tracked(actorRole(), () => apiRequest<AddGuestsToGroupResponse>(`/user/guest-groups/${groupId}/guests`, {
       method: 'POST',
       body: { guestIds },
+    }), { event: 'guest_group_saved' }, {
+      event: 'guest_group_rejected',
+      reasons: GUEST_GROUP_REASONS,
     })
   }
 
@@ -113,10 +124,10 @@ export function useGuestGroups() {
       }
     }
 
-    return apiRequest<UpdateGuestGroupResponse>(`/user/guest-groups/${groupId}`, {
+    return tracked(actorRole(), () => apiRequest<UpdateGuestGroupResponse>(`/user/guest-groups/${groupId}`, {
       method: 'PATCH',
       body: payload,
-    })
+    }), { event: 'guest_group_saved' })
   }
 
   async function deleteGuestGroup(groupId: string): Promise<DeleteGuestGroupResponse> {

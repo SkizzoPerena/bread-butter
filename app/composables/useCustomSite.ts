@@ -4,6 +4,7 @@ import type {
   CustomSiteResponse,
   CustomSitesListResponse,
 } from '~/types/customSite'
+import { NOT_FULLY_PAID_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 const MOCK_CUSTOM_SITE_ID = 'mock-custom-site-id'
 
@@ -70,10 +71,13 @@ export function useCustomSite() {
       const eventId = formData.get('event')?.toString() ?? 'mock-event-id'
       return { ...mockCustomSite(eventId), isPublished: false }
     }
-    const response = await apiUpload<CustomSiteMutationResponse>(
+    const response = await tracked(actorRole(), () => apiUpload<CustomSiteMutationResponse>(
       '/user/custom-site',
       formData
-    )
+    ), {
+      event: 'custom_site_saved',
+      props: { event_id: formData.get('event')?.toString() || undefined },
+    })
     if (!response.customSite) {
       throw new Error(response.message || 'Custom site was not returned.')
     }
@@ -88,11 +92,14 @@ export function useCustomSite() {
       const eventId = formData.get('event')?.toString() ?? 'mock-event-id'
       return mockCustomSite(eventId)
     }
-    const response = await apiUpload<CustomSiteMutationResponse>(
+    const response = await tracked(actorRole(), () => apiUpload<CustomSiteMutationResponse>(
       `/user/custom-site/${customSiteId}`,
       formData,
       { method: 'PATCH' }
-    )
+    ), {
+      event: 'custom_site_saved',
+      props: { event_id: formData.get('event')?.toString() || undefined },
+    })
     if (!response.customSite) {
       return await fetchCustomSite(customSiteId)
     }
@@ -103,10 +110,13 @@ export function useCustomSite() {
     if (isUiOnlyMode.value) {
       return
     }
-    await apiRequest<CustomSiteMutationResponse>(
+    await tracked(actorRole(), () => apiRequest<CustomSiteMutationResponse>(
       `/user/custom-site/${customSiteId}/publish`,
       { method: 'PATCH' }
-    )
+    ), { event: 'custom_site_published' }, {
+      event: 'custom_site_publish_rejected',
+      reasons: NOT_FULLY_PAID_REASONS,
+    })
   }
 
   async function unpublishCustomSite(customSiteId: string): Promise<void> {

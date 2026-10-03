@@ -1,6 +1,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AuthRole } from '~/composables/useAuth'
+import { AUTH_OTP_REASONS, capture, matchReason } from '~/utils/analytics'
 
 export type ForgotPasswordStep = 'email' | 'otp' | 'password'
 export type ForgotPasswordVariant = 'user' | 'partner'
@@ -119,6 +120,8 @@ export function useForgotPasswordFlow(variant: ForgotPasswordVariant) {
         },
       })
     } catch (error: unknown) {
+      const reason = matchReason(error, AUTH_OTP_REASONS)
+      if (reason) capture('auth_otp_rejected', { role, reason })
       const msg = getErrorMessage(error, 'Invalid or expired OTP.')
       toast.add({ title: 'Verification failed', description: msg, color: 'error' })
     } finally {
@@ -178,6 +181,7 @@ export function useForgotPasswordFlow(variant: ForgotPasswordVariant) {
             },
           }),
         onApiSuccess: async (res) => {
+          capture('auth_password_reset_completed', { role })
           toast.add({
             title: 'Password updated',
             description: res?.message ?? 'Sign in with your new password.',

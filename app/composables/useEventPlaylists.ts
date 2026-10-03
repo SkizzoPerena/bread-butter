@@ -6,6 +6,7 @@ import type {
   PlaylistsByEventResponse,
   UpdatePlaylistPayload,
 } from '~/types/playlist'
+import { actorRole, tracked } from '~/utils/analytics'
 
 let mockPlaylists: PlaylistRecord[] = []
 let mockEventId: string | null = null
@@ -46,10 +47,10 @@ export function useEventPlaylists() {
     try {
       return await executeAction({
         api: () =>
-          apiRequest<PlaylistResponse>('/user/playlists', {
+          tracked(actorRole(), () => apiRequest<PlaylistResponse>('/user/playlists', {
             method: 'POST',
             body: { eventId, ...payload },
-          }),
+          }), { event: 'playlist_url_saved' }),
         uiOnly: () => {
           const playlist: PlaylistRecord = {
             _id: `mock-playlist-${Date.now()}`,
@@ -76,10 +77,10 @@ export function useEventPlaylists() {
     try {
       return await executeAction({
         api: () =>
-          apiRequest<PlaylistResponse>(`/user/playlists/${playlistId}`, {
+          tracked(actorRole(), () => apiRequest<PlaylistResponse>(`/user/playlists/${playlistId}`, {
             method: 'PATCH',
             body: payload,
-          }),
+          }), { event: 'playlist_url_saved' }),
         uiOnly: () => {
           const index = mockPlaylists.findIndex((item) => item._id === playlistId)
           if (index === -1) {

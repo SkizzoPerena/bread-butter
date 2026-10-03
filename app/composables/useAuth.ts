@@ -10,6 +10,18 @@ import type {
 } from '~/types/auth'
 import { RestrictedAccountError } from '~/utils/restrictedAccount'
 import { normalizeReferralCode } from '~/utils/referralCode'
+import {
+  AUTH_LOGIN_REASONS,
+  AUTH_OTP_REASONS,
+  EMAIL_TAKEN_REASONS,
+  REFERRAL_REASONS,
+  capture,
+  identifyUser,
+  matchReason,
+  resetAnalytics,
+  tracked,
+  userIdFromAccessToken,
+} from '~/utils/analytics'
 
 export type AuthRole = 'user' | 'partner' | 'admin'
 
@@ -309,6 +321,10 @@ export function useAuth(role: AuthRole = 'user') {
         clearConflictingRoleSessions(role)
       }
       scheduleSilentRefresh(role, cleanToken)
+      if (role === 'user' || role === 'partner') {
+        const userId = userIdFromAccessToken(cleanToken)
+        if (userId) identifyUser(userId, role)
+      }
     }
     if (newUser !== undefined) {
       user.value = newUser
@@ -323,6 +339,7 @@ export function useAuth(role: AuthRole = 'user') {
       removeAccessToken(role)
       clearActiveAuthRole(role)
       cancelSilentRefresh(role)
+      if (role === 'user' || role === 'partner') resetAnalytics()
     }
     if (role === 'user') {
       clearUserSessionData()
@@ -337,6 +354,9 @@ export function useAuth(role: AuthRole = 'user') {
 
   async function logout() {
     const { apiRequest, isUiOnlyMode } = useApiMode()
+    if (!isUiOnlyMode.value && (role === 'user' || role === 'partner')) {
+      capture('auth_logged_out', { role }, true)
+    }
     if (!isUiOnlyMode.value) {
       try {
         await apiRequest(`/${role}/auth/logout`, {
@@ -371,25 +391,40 @@ export function useAuth(role: AuthRole = 'user') {
     clearSession()
     sessionEnsured[role] = true
 
-    const response = await apiRequest<AuthLoginResponse>(`/${role}/login`, {
-      method: 'POST',
-      authenticated: false,
-      body: {
-        email: credentials.email.trim(),
-        password: credentials.password
+    try {
+      const response = await apiRequest<AuthLoginResponse>(`/${role}/login`, {
+        method: 'POST',
+        authenticated: false,
+        body: {
+          email: credentials.email.trim(),
+          password: credentials.password
+        }
+      })
+
+      if (response.user?.isRestricted === true) {
+        if (role === 'user' || role === 'partner') {
+          capture('auth_login_rejected', { role, reason: 'restricted' }, true)
+        }
+        clearSession()
+        throw new RestrictedAccountError()
       }
-    })
 
-    if (response.user?.isRestricted === true) {
-      clearSession()
-      throw new RestrictedAccountError()
+      if (response.accessToken) {
+        setSession(response.accessToken, response.user ?? null)
+      }
+
+      if (role === 'user' || role === 'partner') {
+        capture('auth_logged_in', { role })
+      }
+
+      return response
+    } catch (error) {
+      if ((role === 'user' || role === 'partner') && !(error instanceof RestrictedAccountError)) {
+        const reason = matchReason(error, AUTH_LOGIN_REASONS)
+        if (reason) capture('auth_login_rejected', { role, reason })
+      }
+      throw error
     }
-
-    if (response.accessToken) {
-      setSession(response.accessToken, response.user ?? null)
-    }
-
-    return response
   }
 
   async function register(credentials: RegisterCredentials) {
@@ -415,13 +450,27 @@ export function useAuth(role: AuthRole = 'user') {
       body.referralCode = normalizedReferral
     }
 
-    const response = await apiRequest<AuthRegisterResponse>(`/${role}/register`, {
-      method: 'POST',
-      authenticated: false,
-      body
-    })
+    try {
+      const response = await apiRequest<AuthRegisterResponse>(`/${role}/register`, {
+        method: 'POST',
+        authenticated: false,
+        body
+      })
 
-    return response
+      if ((role === 'user' || role === 'partner') && normalizedReferral) {
+        capture('referral_code_applied', { role })
+      }
+
+      return response
+    } catch (error) {
+      if (role === 'user' || role === 'partner') {
+        const signupReason = matchReason(error, EMAIL_TAKEN_REASONS)
+        if (signupReason) capture('auth_signup_rejected', { role, reason: signupReason })
+        const referralReason = normalizedReferral ? matchReason(error, REFERRAL_REASONS) : null
+        if (referralReason) capture('referral_apply_rejected', { role, reason: referralReason })
+      }
+      throw error
+    }
   }
 
   async function verifyEmail(otpId: string, pinCode: string) {
@@ -431,11 +480,16 @@ export function useAuth(role: AuthRole = 'user') {
       return null
     }
 
-    const response = await apiRequest<AuthVerifyEmailResponse>(`/${role}/otp/verify-email/${otpId}`, {
-      method: 'PATCH',
-      authenticated: false,
-      body: { pinCode }
-    })
+    const response = await tracked(
+      role === 'admin' ? null : role,
+      () => apiRequest<AuthVerifyEmailResponse>(`/${role}/otp/verify-email/${otpId}`, {
+        method: 'PATCH',
+        authenticated: false,
+        body: { pinCode }
+      }),
+      { event: 'auth_signed_up' },
+      { event: 'auth_otp_rejected', reasons: AUTH_OTP_REASONS },
+    )
 
     if (response.accessToken) {
       setSession(response.accessToken, response.user ?? null)
@@ -493,6 +547,10 @@ export function useAuth(role: AuthRole = 'user') {
     if (stored && !isTokenExpiredOrExpiring(stored, 60)) {
       if (syncSessionFromStorage()) {
         scheduleSilentRefresh(role, stored)
+        if (role === 'user' || role === 'partner') {
+          const userId = userIdFromAccessToken(stored)
+          if (userId) identifyUser(userId, role)
+        }
         return true
       }
     }
@@ -513,6 +571,10 @@ export function useAuth(role: AuthRole = 'user') {
     if (result === 'transient' && stored && !isTokenExpired(stored)) {
       if (syncSessionFromStorage()) {
         scheduleSilentRefresh(role, stored)
+        if (role === 'user' || role === 'partner') {
+          const userId = userIdFromAccessToken(stored)
+          if (userId) identifyUser(userId, role)
+        }
         return true
       }
     }

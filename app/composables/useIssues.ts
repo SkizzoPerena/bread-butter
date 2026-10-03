@@ -1,4 +1,5 @@
 import type { CreateIssuePayload, CreateIssueResponse } from '~/types/issue'
+import { actorRole, tracked } from '~/utils/analytics'
 
 export function useIssues() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
@@ -21,13 +22,15 @@ export function useIssues() {
       formData.append('description', description)
       formData.append('supplementaryFile', payload.supplementaryFile, payload.supplementaryFile.name)
 
-      return apiUpload<CreateIssueResponse>('/user/issues', formData)
+      return tracked(actorRole(), () => apiUpload<CreateIssueResponse>('/user/issues', formData), {
+        event: 'issue_report_submitted',
+      })
     }
 
-    return apiRequest<CreateIssueResponse>('/user/issues', {
+    return tracked(actorRole(), () => apiRequest<CreateIssueResponse>('/user/issues', {
       method: 'POST',
       body: { title, description },
-    })
+    }), { event: 'issue_report_submitted' })
   }
 
   return {

@@ -9,6 +9,7 @@ import type {
   UpgradePaymentMessageResponse,
 } from '~/types/upgrade'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
+import { ALREADY_PAID_REASONS, NOT_FULLY_PAID_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 export function useUpgrade() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
@@ -150,10 +151,17 @@ export function useUpgrade() {
       payload.proofOfPayment.name || 'payment-proof.png',
     )
 
-    return apiUpload<UpgradePaymentMessageResponse>(
+    return tracked(actorRole(), () => apiUpload<UpgradePaymentMessageResponse>(
       `/user/events/${eventId}/tier-upgrade/payment-proof`,
       formData,
-    )
+    ), {
+      event: 'tier_upgrade_submitted',
+      props: { event_id: eventId },
+    }, {
+      event: 'tier_upgrade_rejected',
+      reasons: [...NOT_FULLY_PAID_REASONS, ...ALREADY_PAID_REASONS],
+      props: { event_id: eventId },
+    })
   }
 
   async function getEmailCreditPackages(): Promise<EmailCreditPackagesResponse> {
@@ -201,10 +209,17 @@ export function useUpgrade() {
       payload.proofOfPayment.name || 'payment-proof.png',
     )
 
-    return apiUpload<UpgradePaymentMessageResponse>(
+    return tracked(actorRole(), () => apiUpload<UpgradePaymentMessageResponse>(
       `/user/events/${eventId}/email-credits/payment-proof`,
       formData,
-    )
+    ), {
+      event: 'email_credits_purchased',
+      props: { event_id: eventId },
+    }, {
+      event: 'email_credits_rejected',
+      reasons: [...NOT_FULLY_PAID_REASONS, ...ALREADY_PAID_REASONS],
+      props: { event_id: eventId },
+    })
   }
 
   async function createTierUpgradeCheckoutSession(
