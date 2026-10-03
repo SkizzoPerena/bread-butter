@@ -44,6 +44,10 @@ const MOCK_PUBLISHED: PublicCustomSiteRecord = {
   },
   whereToStay: { location: 'Intramuros, Manila' },
   isPublished: true,
+  invertColors: false,
+  simplifiedColors: false,
+  singlePageSite: true,
+  diyComponents: [],
 }
 
 const MOCK_PROTECTED: PublicCustomSiteRecord = {

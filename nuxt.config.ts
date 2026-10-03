@@ -1,4 +1,4 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// https://nuxt.com/docs/api/configuration/nuxt-config - geocode API route enabled
 type NuxtHookPage = {
   name?: string
   path: string

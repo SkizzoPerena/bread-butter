@@ -1,4 +1,4 @@
-import { ensureSession, getActiveAuthRole } from '~/composables/useAuth'
+import { ensureSession, getActiveAuthRole, getStoredAccessToken } from '~/composables/useAuth'
 import {
   isPartnerEventWorkspace,
   isPartnerPath,
@@ -135,6 +135,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
       return navigateTo(redirect || '/partners')
     }
     return
+  }
+
+  // If viewing a page configured with landing-navbar while logged in as a user, switch to signed-in-navbar
+  if (to.meta.layout === 'landing-navbar') {
+    const isUserLoggedIn = Boolean(getStoredAccessToken('user'))
+    if (isUserLoggedIn) {
+      await ensureSession('user')
+      setPageLayout('signed-in-navbar')
+    }
   }
 
   if (isPublicPath(to.path)) {

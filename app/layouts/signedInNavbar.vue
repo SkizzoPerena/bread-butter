@@ -2,9 +2,10 @@
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
+import { useAuth, ensureSession } from '~/composables/useAuth'
 
 const route = useRoute()
-const { user, logout } = useAuth()
+const { user, logout } = useAuth('user')
 
 const isScrolled = ref(false)
 const isMobileMenuOpen = ref(false)
@@ -38,20 +39,25 @@ function scrollToSection(hash: string) {
 }
 
 function handleScroll() {
+  onPartnerItemMouseLeave()
   if (route.path !== '/') {
     isScrolled.value = true
     return
   }
+  // On index page (/), transition when scrolled past 50vh
   isScrolled.value = window.scrollY > window.innerHeight * 0.5
 }
 
 watch(() => route.path, () => {
+  onPartnerItemMouseLeave()
   handleScroll()
 })
 
 onMounted(() => {
+  void ensureSession('user')
   handleScroll()
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('resize', onPartnerItemMouseLeave, { passive: true })
   if (route.hash) {
     nextTick(() => {
       setTimeout(() => {
@@ -63,6 +69,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', onPartnerItemMouseLeave)
 })
 
 const displayName = computed(() => {
@@ -145,28 +152,110 @@ const featuresItems: DropdownMenuItem[][] = [
 ]
 
 // Cluster 3: Partners
-const partnersItems: DropdownMenuItem[][] = [
+interface PartnerNavItem extends DropdownMenuItem {
+  descriptionText: string
+  iconBgClass: string
+  badge?: string
+}
+
+const partnersItems: PartnerNavItem[][] = [
   [
     {
       label: 'Our Bakery',
       icon: 'i-lucide-store',
       to: '/our-suppliers',
-      active: false
+      active: false,
+      iconBgClass: 'bg-amber-600',
+      badge: 'Supplier Directory',
+      descriptionText: 'Browse our curated directory of trusted wedding suppliers, venues, and caterers categorized across signature service tiers.'
     },
     {
       label: 'Dough Makers',
       icon: 'i-lucide-handshake',
       to: '/partners/login',
-      active: false
+      active: false,
+      iconBgClass: 'bg-emerald-600',
+      badge: 'Referral Partners',
+      descriptionText: 'All partners welcome! Access your dashboard here to manage your referrals and finances.'
     },
     {
       label: 'Bakers',
       icon: 'i-lucide-chef-hat',
       to: '/bakers/login',
-      active: false
+      active: false,
+      iconBgClass: 'bg-toast-600',
+      badge: 'Supplier Portal',
+      descriptionText: 'Are you a part of our bakery? Sign in here to access your partnership portal.'
     }
   ]
 ]
+
+const hoveredPartnerItem = ref<PartnerNavItem | null>(null)
+const cursorPosition = ref({ x: 0, y: 0 })
+const isHoverTooltipVisible = ref(false)
+
+function isMobileViewport() {
+  return typeof window !== 'undefined' && window.innerWidth < 1024
+}
+
+function onPartnerItemMouseEnter(event: MouseEvent, item: PartnerNavItem) {
+  if (isMobileViewport()) return
+  hoveredPartnerItem.value = item
+  cursorPosition.value = { x: event.clientX, y: event.clientY }
+  isHoverTooltipVisible.value = true
+}
+
+function onPartnerItemMouseMove(event: MouseEvent) {
+  if (isMobileViewport() || !isHoverTooltipVisible.value) return
+  cursorPosition.value = { x: event.clientX, y: event.clientY }
+}
+
+function onPartnerItemMouseLeave() {
+  isHoverTooltipVisible.value = false
+  hoveredPartnerItem.value = null
+}
+
+const activeTooltipData = computed(() => {
+  if (!hoveredPartnerItem.value) return null
+  return {
+    label: hoveredPartnerItem.value.label,
+    description: hoveredPartnerItem.value.descriptionText,
+    icon: hoveredPartnerItem.value.icon || 'i-lucide-sparkles',
+    iconBgClass: hoveredPartnerItem.value.iconBgClass || 'bg-toast-600',
+    badge: hoveredPartnerItem.value.badge
+  }
+})
+
+const tooltipPosition = computed(() => {
+  const x = cursorPosition.value.x
+  const y = cursorPosition.value.y
+
+  if (typeof window === 'undefined') {
+    return {
+      left: `${x + 18}px`,
+      top: `${y}px`,
+      arrowTop: '50%',
+      transform: 'translate(0, -50%)',
+      isRight: true
+    }
+  }
+
+  const tooltipWidth = 336
+  const placeRight = x + tooltipWidth + 24 <= window.innerWidth
+
+  const minY = 75
+  const maxY = window.innerHeight - 75
+  const clampedY = Math.max(minY, Math.min(maxY, y))
+  const arrowOffset = Math.max(-45, Math.min(45, y - clampedY))
+
+  return {
+    left: placeRight ? `${x + 18}px` : `${x - 18}px`,
+    top: `${clampedY}px`,
+    arrowTop: `calc(50% + ${arrowOffset}px)`,
+    transform: placeRight ? 'translate(0, -50%)' : 'translate(-100%, -50%)',
+    isRight: placeRight
+  }
+})
 
 // Cluster 4: More Information
 const moreInfoItems: DropdownMenuItem[][] = [
@@ -196,18 +285,6 @@ const moreInfoItems: DropdownMenuItem[][] = [
       active: false
     }
   ]
-]
-
-const links = [
-  { label: 'About', to: '/about' },
-  { label: 'Features', to: '/#introduction' },
-  { label: 'Pricing', to: '/#pricing' },
-  { label: 'Our Suppliers', to: '/our-suppliers' },
-  { label: 'FAQ', to: '/faqs' },
-  { label: 'News & Events', to: '/news-and-events' },
-  { label: 'Useful Tips', to: '/useful-tips' },
-  { label: 'Terms', to: '/terms' },
-  { label: 'Contact', to: '/contact-us' }
 ]
 </script>
 
@@ -264,17 +341,29 @@ const links = [
         </UDropdownMenu>
 
         <!-- Cluster 3: Partners -->
-        <UDropdownMenu v-slot="{ open }" :items="partnersItems" :modal="false"
-          :content="{ align: 'start', side: 'bottom', sideOffset: 8 }" :ui="{
+        <UDropdownMenu :items="partnersItems" :modal="false" :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+          @update:open="(val: boolean) => { if (!val) onPartnerItemMouseLeave() }" :ui="{
             content: 'bg-toast-600/70 backdrop-blur-md border border-toast-400/20 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-56 text-white z-50',
             item: 'text-white hover:text-bread-400 hover:bg-toast-500/50 rounded-lg text-sm transition-colors cursor-pointer',
             itemLeadingIcon: 'text-bread-400 size-4'
           }">
-          <UButton label="Partners" variant="ghost" trailing-icon="i-lucide-chevron-down"
-            class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5"
-            :class="[open && 'text-bread-400 bg-white/10']" :ui="{
-              trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
-            }" />
+          <template #default="{ open }">
+            <UButton label="Partners" variant="ghost" trailing-icon="i-lucide-chevron-down"
+              class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5"
+              :class="[open && 'text-bread-400 bg-white/10']" :ui="{
+                trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
+              }" />
+          </template>
+
+          <template #item="{ item }">
+            <div class="flex items-center gap-2 w-full py-0.5 select-none"
+              @mouseenter="onPartnerItemMouseEnter($event, item as PartnerNavItem)"
+              @mousemove="onPartnerItemMouseMove($event)" @mouseleave="onPartnerItemMouseLeave"
+              @click="onPartnerItemMouseLeave">
+              <UIcon :name="item.icon" class="text-bread-400 size-4 shrink-0" />
+              <span class="truncate">{{ item.label }}</span>
+            </div>
+          </template>
         </UDropdownMenu>
 
         <!-- Cluster 4: More Information -->
@@ -292,7 +381,7 @@ const links = [
         </UDropdownMenu>
       </div>
 
-      <!-- Right Side Untouched -->
+      <!-- Right Side (Avatar and User Name) -->
       <template #right>
         <div class="flex items-center gap-x-4">
           <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
@@ -384,7 +473,7 @@ const links = [
                     <template #leading>
                       <UIcon name="i-lucide-store" class="size-4 text-bread-400 mr-2" />
                     </template>
-                    Our Suppliers
+                    Our Bakery
                   </UButton>
                   <UButton variant="ghost"
                     class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
@@ -392,7 +481,7 @@ const links = [
                     <template #leading>
                       <UIcon name="i-lucide-handshake" class="size-4 text-bread-400 mr-2" />
                     </template>
-                    Partners
+                    Dough Makers
                   </UButton>
                   <UButton variant="ghost"
                     class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
@@ -461,14 +550,16 @@ const links = [
         </div>
       </template>
 
-      <!-- Right Side Untouched -->
+      <!-- Mobile Right Side (Avatar Menu) -->
       <template #right>
         <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
           content: 'bg-toast-600/90 ring ring-transparent mt-1 min-w-40 rounded-xl',
           itemLeadingIcon: 'text-white',
           item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
         }">
-          <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" class="cursor-pointer" />
+          <div class="flex items-center gap-2 cursor-pointer">
+            <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
+          </div>
           <template #account>
             <div class="flex items-center gap-2 text-white">
               <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
@@ -483,19 +574,55 @@ const links = [
       <slot />
     </main>
 
-    <UFooter v-if="!route.meta.hideFooter" class="bg-bread-400">
-      <template #left>
-        <p class="text-sm text-toast-600">
-          Copyright © {{ new Date().getFullYear() }} Bread+Butter. All rights reserved.
-        </p>
-      </template>
-
-      <template #right>
-        <UButton v-for="link in links" :key="link.to" :to="link.to" color="neutral" variant="ghost">
-          {{ link.label }}
-        </UButton>
-      </template>
+    <UFooter v-if="!route.meta.hideFooter" class="bg-bread-400 flex flex-col items-center">
+      <p class="text-sm text-toast-600">
+        Copyright © {{ new Date().getFullYear() }} Bread+Butter. All rights reserved.
+      </p>
     </UFooter>
+
+    <!-- Desktop Hover Tooltip Pop-up for Partners subitems -->
+    <ClientOnly>
+      <Teleport to="body">
+        <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="opacity-0 scale-95"
+          enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-100 ease-in"
+          leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+          <div v-if="isHoverTooltipVisible && activeTooltipData" id="partner-nav-cursor-tooltip" role="tooltip"
+            aria-hidden="true" class="hidden lg:block fixed z-9999 pointer-events-none select-none w-80 sm:w-84" :style="{
+              left: tooltipPosition.left,
+              top: tooltipPosition.top,
+              transform: tooltipPosition.transform,
+            }">
+            <div class="relative rounded-xl bg-toast-500 text-bread-50 p-4 shadow-xl ring-1 ring-toast-400/20">
+              <!-- Arrow notch pointing right when tooltip is to the left of cursor -->
+              <div v-if="!tooltipPosition.isRight"
+                class="absolute -right-1.5 w-3 h-3 bg-toast-500 rotate-45 border-t border-r border-toast-400/20 -translate-y-1/2"
+                :style="{ top: tooltipPosition.arrowTop }" />
+              <!-- Arrow notch pointing left when tooltip is to the right of cursor -->
+              <div v-else
+                class="absolute -left-1.5 w-3 h-3 bg-toast-500 rotate-45 border-b border-l border-toast-400/20 -translate-y-1/2"
+                :style="{ top: tooltipPosition.arrowTop }" />
+
+              <div class="flex items-center gap-2.5 mb-2">
+                <div class="size-6.5 rounded-full flex items-center justify-center shrink-0 shadow-xs"
+                  :class="activeTooltipData.iconBgClass">
+                  <UIcon :name="activeTooltipData.icon" class="size-4 text-white" />
+                </div>
+                <div class="font-semibold text-sm tracking-wide text-white flex-1 truncate font-serif">
+                  {{ activeTooltipData.label }}
+                </div>
+                <UBadge v-if="activeTooltipData.badge" color="neutral" size="xs" variant="subtle"
+                  class="text-[10px] font-semibold text-bread-200 bg-white/10 border border-white/15">
+                  {{ activeTooltipData.badge }}
+                </UBadge>
+              </div>
+              <p class="text-xs sm:text-sm text-bread-100/95 leading-relaxed">
+                {{ activeTooltipData.description }}
+              </p>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+    </ClientOnly>
   </div>
 </template>
 

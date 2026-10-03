@@ -1,8 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { useAuth, getStoredAccessToken, ensureSession } from '~/composables/useAuth'
 
 const route = useRoute()
+const { isAuthenticated } = useAuth('user')
+
+if (isAuthenticated.value || (import.meta.client && Boolean(getStoredAccessToken('user')))) {
+  setPageLayout('signed-in-navbar')
+}
+
+watch(isAuthenticated, (authed) => {
+  if (authed) {
+    setPageLayout('signed-in-navbar')
+  }
+})
 
 const isScrolled = ref(false)
 const isMobileMenuOpen = ref(false)
@@ -51,7 +63,12 @@ watch(() => route.path, () => {
   handleScroll()
 })
 
-onMounted(() => {
+onMounted(async () => {
+  if (isAuthenticated.value || Boolean(getStoredAccessToken('user'))) {
+    await ensureSession('user')
+    setPageLayout('signed-in-navbar')
+    return
+  }
   handleScroll()
   window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('resize', onPartnerItemMouseLeave, { passive: true })
