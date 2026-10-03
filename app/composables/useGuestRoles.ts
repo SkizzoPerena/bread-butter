@@ -8,6 +8,7 @@ import type {
   RemoveGuestFromRoleResponse,
   UpdateGuestRoleResponse,
 } from '~/types/guest_role'
+import { GUEST_ROLE_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 export function useGuestRoles() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
@@ -46,9 +47,16 @@ export function useGuestRoles() {
       }
     }
 
-    return apiRequest<CreateGuestRoleResponse>('/user/guest-roles', {
+    return tracked(actorRole(), () => apiRequest<CreateGuestRoleResponse>('/user/guest-roles', {
       method: 'POST',
       body,
+    }), {
+      event: 'guest_role_saved',
+      props: { event_id: eventId },
+    }, {
+      event: 'guest_role_rejected',
+      reasons: GUEST_ROLE_REASONS,
+      props: { event_id: eventId },
     })
   }
 
@@ -70,9 +78,12 @@ export function useGuestRoles() {
       }
     }
 
-    return apiRequest<UpdateGuestRoleResponse>(`/user/guest-roles/${roleId}`, {
+    return tracked(actorRole(), () => apiRequest<UpdateGuestRoleResponse>(`/user/guest-roles/${roleId}`, {
       method: 'PATCH',
       body: { name: name.trim() },
+    }), { event: 'guest_role_saved' }, {
+      event: 'guest_role_rejected',
+      reasons: GUEST_ROLE_REASONS,
     })
   }
 
@@ -113,10 +124,10 @@ export function useGuestRoles() {
       }
     }
 
-    return apiRequest<AddGuestsToRoleResponse>(`/user/guest-roles/${roleId}/guests`, {
+    return tracked(actorRole(), () => apiRequest<AddGuestsToRoleResponse>(`/user/guest-roles/${roleId}/guests`, {
       method: 'POST',
       body: { guestIds },
-    })
+    }), { event: 'guest_role_saved' })
   }
 
   async function removeGuestFromRole(

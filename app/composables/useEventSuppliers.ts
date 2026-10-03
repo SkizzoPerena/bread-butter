@@ -10,6 +10,7 @@ import type {
 } from '~/types/supplier'
 import { computeSupplierSummary } from '~/types/supplier'
 import suppliersSeed from '~/data/suppliers.json'
+import { SUPPLIER_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 type SupplierSeedEntry = {
   supplierType: SupplierRecord['supplierType']
@@ -84,9 +85,12 @@ export function useEventSuppliers() {
     try {
       return await executeAction({
         api: () =>
-          apiRequest<SupplierResponse>('/user/suppliers', {
+          tracked(actorRole(), () => apiRequest<SupplierResponse>('/user/suppliers', {
             method: 'POST',
             body: { eventId, ...payload },
+          }), { event: 'supplier_saved' }, {
+            event: 'supplier_save_rejected',
+            reasons: SUPPLIER_REASONS,
           }),
         uiOnly: () => {
           const supplier: SupplierRecord = {
@@ -119,9 +123,12 @@ export function useEventSuppliers() {
     try {
       return await executeAction({
         api: () =>
-          apiRequest<SupplierResponse>(`/user/suppliers/${supplierId}`, {
+          tracked(actorRole(), () => apiRequest<SupplierResponse>(`/user/suppliers/${supplierId}`, {
             method: 'PATCH',
             body: payload,
+          }), { event: 'supplier_saved' }, {
+            event: 'supplier_save_rejected',
+            reasons: SUPPLIER_REASONS,
           }),
         uiOnly: () => {
           const index = mockSuppliers.findIndex((item) => item._id === supplierId)
@@ -159,8 +166,11 @@ export function useEventSuppliers() {
     try {
       return await executeAction({
         api: () =>
-          apiRequest<DeleteSupplierResponse>(`/user/suppliers/${supplierId}`, {
+          tracked(actorRole(), () => apiRequest<DeleteSupplierResponse>(`/user/suppliers/${supplierId}`, {
             method: 'DELETE',
+          }), { event: 'supplier_removed' }, {
+            event: 'supplier_save_rejected',
+            reasons: SUPPLIER_REASONS,
           }),
         uiOnly: () => {
           mockSuppliers = mockSuppliers.filter((item) => item._id !== supplierId)

@@ -3,6 +3,12 @@ import type {
   CollaborationInvite,
   CollaborationListResponse
 } from '~/types/collaboration'
+import {
+  COLLABORATION_ACCEPT_REASONS,
+  COLLABORATION_INVITE_REASONS,
+  actorRole,
+  tracked,
+} from '~/utils/analytics'
 
 const mockCollaborations: CollaborationInvite[] = [
   {
@@ -43,8 +49,11 @@ export function useCollaborations() {
       }
     }
 
-    return apiRequest<CollaborationActionResponse>(`/partner/collaborations/${collaborationId}/accept`, {
+    return tracked('partner', () => apiRequest<CollaborationActionResponse>(`/partner/collaborations/${collaborationId}/accept`, {
       method: 'PATCH'
+    }), { event: 'collaboration_accepted' }, {
+      event: 'collaboration_accept_rejected',
+      reasons: COLLABORATION_ACCEPT_REASONS,
     })
   }
 
@@ -62,9 +71,31 @@ export function useCollaborations() {
     })
   }
 
+  async function inviteCollaborator(eventId: string, email: string): Promise<{ success: boolean; message?: string }> {
+    if (isUiOnlyMode.value) {
+      return { success: true, message: 'Collaboration invite sent.' }
+    }
+
+    return tracked(actorRole(), () => apiRequest<{ success: boolean; message?: string }>(
+      `/user/events/${eventId}/collaborations`,
+      {
+        method: 'POST',
+        body: { email },
+      }
+    ), {
+      event: 'collaborator_invited',
+      props: { event_id: eventId },
+    }, {
+      event: 'collaborator_invite_rejected',
+      reasons: COLLABORATION_INVITE_REASONS,
+      props: { event_id: eventId },
+    })
+  }
+
   return {
     listIncomingCollaborations,
     acceptCollaboration,
-    denyCollaboration
+    denyCollaboration,
+    inviteCollaborator,
   }
 }

@@ -6,6 +6,7 @@ import type {
 } from '~/types/voucher'
 import { PACKAGE_SLUG_TO_TIER_CODE } from '~/composables/usePriceTiers'
 import { normalizeVoucherCode } from '~/utils/referralCode'
+import { VOUCHER_CREATE_REASONS, VOUCHER_REDEEM_REASONS, capture, matchReason, tracked } from '~/utils/analytics'
 
 const mockVouchers = [
   {
@@ -55,10 +56,16 @@ export function useVouchers() {
       })
     }
 
-    return apiRequest<VoucherValidateResponse>('/user/vouchers/validate', {
-      method: 'POST',
-      body: { code: normalized, priceTierCode }
-    })
+    try {
+      return await apiRequest<VoucherValidateResponse>('/user/vouchers/validate', {
+        method: 'POST',
+        body: { code: normalized, priceTierCode }
+      })
+    } catch (error) {
+      const reason = matchReason(error, VOUCHER_REDEEM_REASONS)
+      if (reason) capture('voucher_redeem_rejected', { role: 'user', reason })
+      throw error
+    }
   }
 
   async function createVoucher(payload: VoucherPayload): Promise<VoucherResponse> {
@@ -77,9 +84,18 @@ export function useVouchers() {
       }
     }
 
-    return apiRequest<VoucherResponse>('/partner/vouchers', {
+    return tracked('partner', () => apiRequest<VoucherResponse>('/partner/vouchers', {
       method: 'POST',
       body: payload
+    }), {
+      event: 'voucher_created',
+      props: {
+        has_expiry: Boolean(payload.expiresAt),
+        has_max_uses: typeof payload.maxUses === 'number',
+      },
+    }, {
+      event: 'voucher_create_rejected',
+      reasons: VOUCHER_CREATE_REASONS,
     })
   }
 
@@ -99,9 +115,12 @@ export function useVouchers() {
       }
     }
 
-    return apiRequest<VoucherResponse>(`/partner/vouchers/${voucherId}`, {
+    return tracked('partner', () => apiRequest<VoucherResponse>(`/partner/vouchers/${voucherId}`, {
       method: 'PATCH',
       body: payload
+    }), { event: 'voucher_updated' }, {
+      event: 'voucher_create_rejected',
+      reasons: VOUCHER_CREATE_REASONS,
     })
   }
 
@@ -120,9 +139,9 @@ export function useVouchers() {
       }
     }
 
-    return apiRequest<VoucherResponse>(`/partner/vouchers/${voucherId}/deactivate`, {
+    return tracked('partner', () => apiRequest<VoucherResponse>(`/partner/vouchers/${voucherId}/deactivate`, {
       method: 'PATCH'
-    })
+    }), { event: 'voucher_deactivated' })
   }
 
   async function reactivateVoucher(voucherId: string): Promise<VoucherResponse> {
@@ -140,9 +159,9 @@ export function useVouchers() {
       }
     }
 
-    return apiRequest<VoucherResponse>(`/partner/vouchers/${voucherId}/reactivate`, {
+    return tracked('partner', () => apiRequest<VoucherResponse>(`/partner/vouchers/${voucherId}/reactivate`, {
       method: 'PATCH'
-    })
+    }), { event: 'voucher_reactivated' })
   }
 
   async function deleteVoucher(voucherId: string): Promise<{ success: boolean; status?: number; message: string }> {
@@ -154,9 +173,9 @@ export function useVouchers() {
       }
     }
 
-    return apiRequest<{ success: boolean; status?: number; message: string }>(`/partner/vouchers/${voucherId}`, {
+    return tracked('partner', () => apiRequest<{ success: boolean; status?: number; message: string }>(`/partner/vouchers/${voucherId}`, {
       method: 'DELETE'
-    })
+    }), { event: 'voucher_deleted' })
   }
 
   return {

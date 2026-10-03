@@ -1,4 +1,5 @@
 import type { CashoutRequestPayload, CashoutResponse, CashoutsListResponse } from '~/types/cashout'
+import { CASHOUT_REASONS, tracked } from '~/utils/analytics'
 
 const mockCashouts = [
   {
@@ -36,9 +37,12 @@ export function useCashouts() {
       }
     }
 
-    return apiRequest<CashoutResponse>('/partner/cashouts', {
+    return tracked('partner', () => apiRequest<CashoutResponse>('/partner/cashouts', {
       method: 'POST',
       body: payload
+    }), { event: 'cashout_requested' }, {
+      event: 'cashout_request_rejected',
+      reasons: CASHOUT_REASONS,
     })
   }
 

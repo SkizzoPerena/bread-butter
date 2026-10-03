@@ -9,6 +9,7 @@ import type {
   UpdateRequirementDetailsPayload,
 } from '~/types/churchRequirement'
 import churchRequirementsSeed from '~/data/church_requirements.json'
+import { CHURCH_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 let mockRequirements: ChurchRequirementRecord[] = []
 
@@ -88,9 +89,12 @@ export function useEventChurchRequirements() {
         } satisfies RequirementResponse
       }
 
-      return await apiRequest<RequirementResponse>('/user/church-requirements', {
+      return await tracked(actorRole(), () => apiRequest<RequirementResponse>('/user/church-requirements', {
         method: 'POST',
         body: payload,
+      }), { event: 'church_requirement_updated' }, {
+        event: 'church_requirement_rejected',
+        reasons: CHURCH_REASONS,
       })
     } finally {
       isSubmitting.value = false
@@ -118,13 +122,16 @@ export function useEventChurchRequirements() {
         } satisfies RequirementResponse
       }
 
-      return await apiRequest<RequirementResponse>(
+      return await tracked(actorRole(), () => apiRequest<RequirementResponse>(
         `/user/church-requirements/${requirementId}/details`,
         {
           method: 'PATCH',
           body: payload,
         }
-      )
+      ), { event: 'church_requirement_updated' }, {
+        event: 'church_requirement_rejected',
+        reasons: CHURCH_REASONS,
+      })
     } finally {
       isSubmitting.value = false
     }
@@ -181,20 +188,26 @@ export function useEventChurchRequirements() {
         }
         formData.append('file', file)
 
-        return await apiUpload<RequirementResponse>(
+        return await tracked(actorRole(), () => apiUpload<RequirementResponse>(
           `/user/church-requirements/${requirementId}/party/${party}`,
           formData,
           { method: 'PATCH' }
-        )
+        ), { event: 'church_requirement_updated' }, {
+          event: 'church_requirement_rejected',
+          reasons: CHURCH_REASONS,
+        })
       }
 
-      return await apiRequest<RequirementResponse>(
+      return await tracked(actorRole(), () => apiRequest<RequirementResponse>(
         `/user/church-requirements/${requirementId}/party/${party}`,
         {
           method: 'PATCH',
           body: payload,
         }
-      )
+      ), { event: 'church_requirement_updated' }, {
+        event: 'church_requirement_rejected',
+        reasons: CHURCH_REASONS,
+      })
     } finally {
       isSubmitting.value = false
     }
@@ -221,10 +234,13 @@ export function useEventChurchRequirements() {
         } satisfies RequirementResponse
       }
 
-      return await apiRequest<RequirementResponse>(
+      return await tracked(actorRole(), () => apiRequest<RequirementResponse>(
         `/user/church-requirements/${requirementId}/party/${party}/file`,
         { method: 'DELETE' }
-      )
+      ), { event: 'church_requirement_updated' }, {
+        event: 'church_requirement_rejected',
+        reasons: CHURCH_REASONS,
+      })
     } finally {
       isSubmitting.value = false
     }

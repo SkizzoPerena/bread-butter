@@ -12,11 +12,30 @@ import type { PriceTierRecord } from '~/types/priceTier'
 import { usePriceTiers } from '~/composables/usePriceTiers'
 import { useApiRole } from '~/composables/useApiRole'
 import { normalizeVoucherCode } from '~/utils/referralCode'
+import {
+  EVENT_PAST_REASONS,
+  VOUCHER_REDEEM_REASONS,
+  capture,
+  tracked,
+  type AnalyticsRole,
+} from '~/utils/analytics'
+
+function tierCode(event: EventRecord): string | undefined {
+  const tier = event.priceTier
+  if (tier && typeof tier === 'object' && typeof tier.code === 'string') return tier.code
+  return undefined
+}
 
 export function useEvents() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
   const { fetchAvailablePriceTiers } = usePriceTiers()
   const { role } = useApiRole()
+
+  function currentRole(): AnalyticsRole | null {
+    if (role.value === 'partner') return 'partner'
+    if (role.value === 'admin') return null
+    return 'user'
+  }
 
   const eventCache = useState<Record<string, SelectedEventDetail>>(`bpb-${role.value}-events-detail-cache`, () => ({}))
   const userEventsCache = useState<EventRecord[]>(`bpb-${role.value}-events-list-cache`, () => [])
@@ -140,7 +159,22 @@ export function useEvents() {
       }
     }
 
-    const response = await apiUpload<EventResponse>('/user/events', formData)
+    const actor = currentRole()
+    const response = await tracked(actor, () => apiUpload<EventResponse>('/user/events', formData), {
+      event: 'event_created',
+      props: (value) => ({
+        event_id: value.event._id,
+        event_type: value.event.eventType,
+        tier: tierCode(value.event),
+        is_catholic_wedding: Boolean(value.event.isCatholicWedding),
+      }),
+    }, normalizedVoucher ? {
+      event: 'voucher_redeem_rejected',
+      reasons: VOUCHER_REDEEM_REASONS,
+    } : undefined)
+    if (actor && normalizedVoucher) {
+      capture('voucher_redeemed', { role: actor, event_id: response.event._id })
+    }
     userEventsCache.value = [] // Invalidate cache
     return response.event
   }
@@ -164,10 +198,51 @@ export function useEvents() {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
     }
 
-    await apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
+    await tracked(currentRole(), () => apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
       method: 'PATCH'
+    }), {
+      event: 'event_updated',
+      props: {
+        event_id: eventId,
+        event_type: payload.eventType,
+        is_catholic_wedding: payload.isCatholicWedding === undefined
+          ? undefined
+          : Boolean(payload.isCatholicWedding),
+      },
     })
 
+    delete eventCache.value[eventId]
+    userEventsCache.value = []
+  }
+
+  async function cancelEvent(eventId: string): Promise<void> {
+    if (isUiOnlyMode.value) return
+    await tracked(currentRole(), () => apiRequest(`/user/events/${eventId}/cancel`, {
+      method: 'PATCH',
+    }), {
+      event: 'event_cancelled',
+      props: { event_id: eventId },
+    }, {
+      event: 'event_cancel_rejected',
+      reasons: EVENT_PAST_REASONS,
+      props: { event_id: eventId },
+    })
+    delete eventCache.value[eventId]
+    userEventsCache.value = []
+  }
+
+  async function resumeEvent(eventId: string): Promise<void> {
+    if (isUiOnlyMode.value) return
+    await tracked(currentRole(), () => apiRequest(`/user/events/${eventId}/resume`, {
+      method: 'PATCH',
+    }), {
+      event: 'event_resumed',
+      props: { event_id: eventId },
+    }, {
+      event: 'event_resume_rejected',
+      reasons: EVENT_PAST_REASONS,
+      props: { event_id: eventId },
+    })
     delete eventCache.value[eventId]
     userEventsCache.value = []
   }
@@ -176,6 +251,8 @@ export function useEvents() {
     fetchUserEvents,
     fetchEvent,
     createEvent,
-    updateEvent
+    updateEvent,
+    cancelEvent,
+    resumeEvent,
   }
 }

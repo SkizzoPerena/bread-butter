@@ -5,6 +5,7 @@ import type {
   AuthUser,
   UserAccount
 } from '~/types/auth'
+import { PASSWORD_REASONS, tracked } from '~/utils/analytics'
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024
 
@@ -51,10 +52,10 @@ export function useAccount() {
       return { success: true, message: 'Account updated successfully.' }
     }
 
-    const response = await apiRequest<AccountMessageResponse>('/user/account', {
+    const response = await tracked('user', () => apiRequest<AccountMessageResponse>('/user/account', {
       method: 'PATCH',
       body: payload
-    })
+    }), { event: 'account_profile_updated' })
 
     updateUser(payload)
     return response
@@ -76,7 +77,7 @@ export function useAccount() {
     const formData = new FormData()
     formData.append('image', file)
 
-    const response = await apiUpload<AccountMessageResponse>('/user/account/profile-picture', formData)
+    const response = await tracked('user', () => apiUpload<AccountMessageResponse>('/user/account/profile-picture', formData), { event: 'account_profile_updated' })
     const account = await fetchAccount()
     updateUser({ profileImageURL: account.profileImageURL })
 
@@ -88,9 +89,12 @@ export function useAccount() {
       return { success: true, message: 'Password changed successfully.' }
     }
 
-    return apiRequest<AccountMessageResponse>('/user/account/change-password', {
+    return tracked('user', () => apiRequest<AccountMessageResponse>('/user/account/change-password', {
       method: 'PATCH',
       body: { currentPassword, newPassword }
+    }), { event: 'account_password_changed' }, {
+      event: 'account_password_rejected',
+      reasons: PASSWORD_REASONS,
     })
   }
 
@@ -100,10 +104,10 @@ export function useAccount() {
       return { success: true, message: 'Email notifications enabled.' }
     }
 
-    const response = await apiRequest<AccountMessageResponse>(
+    const response = await tracked('user', () => apiRequest<AccountMessageResponse>(
       '/user/account/email-notifications/enable',
       { method: 'PATCH' }
-    )
+    ), { event: 'account_email_notifications_toggled', props: { enabled: true } })
     updateUser({ emailNotifEnabled: true })
     return response
   }
@@ -114,10 +118,10 @@ export function useAccount() {
       return { success: true, message: 'Email notifications disabled.' }
     }
 
-    const response = await apiRequest<AccountMessageResponse>(
+    const response = await tracked('user', () => apiRequest<AccountMessageResponse>(
       '/user/account/email-notifications/disable',
       { method: 'PATCH' }
-    )
+    ), { event: 'account_email_notifications_toggled', props: { enabled: false } })
     updateUser({ emailNotifEnabled: false })
     return response
   }

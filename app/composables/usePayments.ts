@@ -7,6 +7,7 @@ import type {
   SubmitEventPaymentPayload
 } from '~/types/payment'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
+import { ALREADY_PAID_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 export function usePayments() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
@@ -67,10 +68,22 @@ export function usePayments() {
     formData.append('paymentMethod', payload.paymentMethod.trim())
     formData.append('proofOfPayment', payload.proofOfPayment)
 
-    const response = await apiUpload<PaymentMessageResponse>(
+    const response = await tracked(actorRole(), () => apiUpload<PaymentMessageResponse>(
       `/user/events/${eventId}/payment-proof`,
       formData
-    )
+    ), {
+      event: 'payment_submitted',
+      props: (value) => ({
+        event_id: eventId,
+        tier: value.event && typeof value.event.priceTier === 'object' && value.event.priceTier
+          ? value.event.priceTier.code
+          : undefined,
+      }),
+    }, {
+      event: 'payment_submit_rejected',
+      reasons: ALREADY_PAID_REASONS,
+      props: { event_id: eventId },
+    })
 
     if (response.event) {
       return response.event

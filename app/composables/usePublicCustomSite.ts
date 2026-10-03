@@ -5,6 +5,7 @@ import type {
   UnlockCustomSiteResponse,
 } from '~/types/customSite'
 import { PublicCustomSiteError } from '~/types/customSite'
+import { capture } from '~/utils/analytics'
 
 const MOCK_PUBLISHED: PublicCustomSiteRecord = {
   _id: 'mock-public-site-1',
@@ -141,10 +142,12 @@ export function usePublicCustomSite() {
       const query = accessToken
         ? `?accessToken=${encodeURIComponent(accessToken)}`
         : ''
-      return await apiRequest<PublicCustomSiteMeta>(
+      const meta = await apiRequest<PublicCustomSiteMeta>(
         `/guest/custom-site/site/${encodeURIComponent(siteName)}${query}`,
         { authenticated: false }
       )
+      capture('custom_site_viewed', { role: 'guest' })
+      return meta
     } catch (error) {
       throw parsePublicSiteError(error)
     }
