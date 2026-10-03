@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#0A0A0A"/>
+  <rect x="26" y="24" width="34" height="32" rx="6" stroke="#D97706" stroke-width="2"/>
+  <polygon points="39,32 50,40 39,48" fill="#F59E0B"/>
+  <text x="72" y="37" font-family="'Fraunces', serif" font-size="15" font-weight="700" fill="#FFFFFF" letter-spacing="1.5">BOB NICOLAS</text>
+  <text x="73" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#FBBF24" letter-spacing="2.5">WEDDING FILMS</text>
+</svg>

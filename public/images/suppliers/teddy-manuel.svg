@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#1C2826"/>
+  <!-- floral motif -->
+  <path d="M42 28c3 5 1 11-3 12 5 2 7 8 4 12-5-2-9-7-8-12-4 3-10 1-11-4 5-1 10-1 13 3 1-5 4-9 5-11z" fill="#A7D7C5"/>
+  <circle cx="39" cy="40" r="3" fill="#F4E8C1"/>
+  <text x="70" y="36" font-family="'Fraunces', serif" font-size="15" font-weight="700" fill="#E8F1F5" letter-spacing="1.5">TEDDY MANUEL</text>
+  <text x="71" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#A7D7C5" letter-spacing="3">FLORAL &amp; EVENT DESIGN</text>
+</svg>

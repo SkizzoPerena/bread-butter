@@ -12,5 +12,6 @@
     { "rule": "*comma-dangle*", "severity": "off" },
     { "rule": "comma-dangle", "severity": "off" },
     { "rule": "nuxt/nuxt-config-keys-order", "severity": "off" }
-  ]
+  ],
+  "css.lint.unknownAtRules": "ignore"
 }

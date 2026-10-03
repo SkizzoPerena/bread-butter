@@ -6,7 +6,13 @@ import { isEventFullyPaid, hasPendingPaymentBlockingUpgrade, getPendingUpgradeTa
 import type { PendingUpgradeInfo } from '~/types/upgrade'
 import { reportApiError } from '~/types/auth'
 import { formatPhp, getTierFeatureBullets } from '~/utils/tierUpgradeFeatures'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
+import {
+  getProofSubmitPayload,
+  type PaymentProofPanelExpose,
+} from '~/utils/paymentMethod'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
+import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -19,9 +25,11 @@ definePageMeta({
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
-const { getTierUpgradeOptions, createTierUpgradeCheckoutSession } = useUpgrade()
+const { getTierUpgradeOptions, createTierUpgradeCheckoutSession, submitTierUpgradePayment } = useUpgrade()
 const { isUiOnlyMode, loadPageData } = useApiMode()
+const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 type ViewStep = 'select' | 'pay'
 
@@ -42,6 +50,8 @@ const isLoading = ref(true)
 const isSubmitting = ref(false)
 
 const isPaymongoPending = computed(() => pendingUpgrade.value?.provider === 'PAYMONGO')
+
+const usePaymongoCheckout = computed(() => isPaymongoActivated.value)
 
 const paymentPendingReview = computed(() =>
   hasPendingPaymentBlockingUpgrade(eventRecord.value),
@@ -69,6 +79,8 @@ const isEventPaid = computed(() =>
 )
 
 const hasAvailableUpgrades = computed(() => upgradeOptions.value.length > 0)
+
+const dashboardPath = computed(() => resolveEventDashboardPath(eventRecord.value))
 
 const amountDue = computed(() => {
   if (!selectedUpgrade.value) return 0
@@ -131,7 +143,7 @@ async function loadPage() {
     }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load upgrade options', error })
-    await navigateTo({ path: '/user/event-dashboard', query: { eventId: id } })
+    await navigateTo({ path: dashboardPath.value, query: { eventId: id } })
   } finally {
     isLoading.value = false
   }
@@ -171,6 +183,30 @@ async function submitUpgradePayment() {
 
   isSubmitting.value = true
   try {
+    if (!usePaymongoCheckout.value) {
+      const proofPayload = getProofSubmitPayload(proofPanel.value)
+      if (!proofPayload) {
+        toast.add({
+          title: 'Incomplete payment proof',
+          description: 'Select a payment method, enter a reference ID, and upload your receipt.',
+          color: 'warning',
+        })
+        return
+      }
+
+      await submitTierUpgradePayment(id, {
+        targetTierId: upgrade.targetTierId,
+        ...proofPayload,
+      })
+      toast.add({
+        title: 'Upgrade payment submitted',
+        description: 'Your proof is awaiting admin review.',
+        color: 'success',
+      })
+      await loadPage()
+      return
+    }
+
     const idempotencyKey = getOrCreateIdempotencyKey(`upgrade:${id}:${upgrade.targetTierId}`)
     const checkout = await createTierUpgradeCheckoutSession(id, {
       targetTierId: upgrade.targetTierId,
@@ -201,7 +237,10 @@ async function submitUpgradePayment() {
     }
     redirectToCheckout(checkout.checkoutUrl)
   } catch (error) {
-    reportApiError(toast, { title: 'Could not start checkout', error })
+    reportApiError(toast, {
+      title: usePaymongoCheckout.value ? 'Could not start checkout' : 'Could not submit payment',
+      error,
+    })
   } finally {
     isSubmitting.value = false
   }
@@ -379,7 +418,7 @@ onMounted(() => {
             Continue to checkout
           </UButton>
           <UButton
-            :to="{ path: '/user/event-dashboard', query: { eventId: eventId || undefined } }"
+            :to="{ path: dashboardPath, query: { eventId: eventId || undefined } }"
             color="neutral"
             variant="outline"
           >
@@ -398,7 +437,7 @@ onMounted(() => {
             your event may already be on the highest tier in the database.
           </p>
           <UButton
-            :to="{ path: '/user/event-dashboard', query: { eventId: eventId || undefined } }"
+            :to="{ path: dashboardPath, query: { eventId: eventId || undefined } }"
             color="neutral"
             variant="outline"
           >
@@ -444,6 +483,15 @@ onMounted(() => {
 
           <div class="md:col-span-7">
             <PaymentCheckoutPanel
+              v-if="usePaymongoCheckout"
+              :amount-due="amountDue"
+              :loading="isSubmitting"
+              :disabled="(hasPendingUpgrade && !isPaymongoPending) || !isEventPaid"
+              @submit="submitUpgradePayment"
+            />
+            <PaymentProofPanel
+              v-else
+              ref="proofPanel"
               :amount-due="amountDue"
               :loading="isSubmitting"
               :disabled="(hasPendingUpgrade && !isPaymongoPending) || !isEventPaid"

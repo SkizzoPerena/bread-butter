@@ -1,4 +1,4 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// https://nuxt.com/docs/api/configuration/nuxt-config - geocode API route enabled
 type NuxtHookPage = {
   name?: string
   path: string
@@ -27,8 +27,8 @@ export default defineNuxtConfig({
 
   modules: [['@nuxt/eslint', {
     stylistic: false
-  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image' ,   'motion-v/nuxt',
-],
+  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image', 'motion-v/nuxt',
+  ],
 
   app: {
     head: {
@@ -84,6 +84,7 @@ export default defineNuxtConfig({
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
       useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',
+      isPaymongoActivated: process.env.NUXT_PUBLIC_IS_PAYMONGO_ACTIVATED === 'true',
       apiBase:
         process.env.NUXT_PUBLIC_API_BASE_URL ||
         'https://bread-butter-backend.onrender.com/api',
@@ -99,6 +100,10 @@ export default defineNuxtConfig({
     // post-login navigation with a failed `_payload.json` fetch.
     '/': { ssr: false },
     '/user/dashboard': { redirect: { to: '/', statusCode: 301 } },
+    '/event-dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
+    '/event/dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
+    '/event/dashboard-v1': { redirect: { to: '/event/dashboard-bread', statusCode: 301 } },
+    '/event/dashboard-bread+butter': { redirect: { to: '/event/dashboard-bread-butter', statusCode: 301 } },
   },
 
   compatibilityDate: '2025-01-15',
@@ -155,6 +160,8 @@ export default defineNuxtConfig({
       }
 
       // Set paths for /event/* routes
+      setPath('EventDashboard v1', '/event/dashboard-bread')
+      setPath('EventDashboardTesting', '/event/dashboard-testing')
       setPath('EventChurchRequirementsDashboard', '/event/requirements')
       setPath('EventGuestsDashboard', '/event/guests')
       setPath('EventPaymentReview', '/event/payment-review')
@@ -172,8 +179,21 @@ export default defineNuxtConfig({
 
       // Set paths for /user/* routes
       setPath('UserCreateEvent', '/user/create-event')
-      // UserDashboard merged into `/` (index.vue); legacy path redirects via routeRules
-      setPath('UserEventDashboard', '/user/event-dashboard')
+      // EventDashboard v2 serves Butter and Bread + Butter packages, and bridges legacy /user/event-dashboard
+      const v2Page = pages.find(p => p.name === 'EventDashboard v2')
+      if (v2Page) {
+        v2Page.path = '/event/dashboard-butter'
+        pages.push({
+          ...v2Page,
+          name: 'EventDashboardBreadButter',
+          path: '/event/dashboard-bread-butter',
+        })
+        pages.push({
+          ...v2Page,
+          name: 'EventDashboardUserLegacy',
+          path: '/user/event-dashboard',
+        })
+      }
       setPath('UserForgotPassword', '/user/forgot-password')
       setPath('UserLogin', '/user/login')
       setPath('UserOtp', '/user/otp')
@@ -197,6 +217,8 @@ export default defineNuxtConfig({
       setPath('PartnerSignup', '/partners/signup')
       setPath('PartnerOtp', '/partners/otp')
       setPath('PartnerForgotPassword', '/partners/forgot-password')
+      setPath('BakerLogin', '/bakers/login')
+      setPath('BakerSignup', '/bakers/signup')
 
       // Set paths for standalone pages
       setPath('ContactUs', '/contact-us')

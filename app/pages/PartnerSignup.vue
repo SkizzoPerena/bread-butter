@@ -115,11 +115,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 </script>
 
 <template>
-  <div class="flex items-center justify-center p-4 bpb-pattern h-screen text-white">
-    <UPageCard class="bread-container w-full max-w-md ring ring-transparent p-2 sm:p-4 bg-toast-700 text-white">
-      <div class="gap-8">
-        <UForm :schema="schema" :state="state" class="space-y-5" @submit="onSubmit">
-          <div class="flex justify-between mt-1 mb-6 items-center">
+  <div class="flex items-center justify-center p-4 bpb-pattern min-h-screen py-6 sm:py-8 text-white">
+    <UPageCard class="bread-container w-full max-w-2xl ring ring-transparent p-4 sm:p-6 bg-toast-700 text-white">
+      <div>
+        <UForm :schema="schema" :state="state" class="space-y-3 sm:space-y-4" @submit="onSubmit">
+          <div class="flex justify-between items-center mb-2 sm:mb-4">
             <div class="text-left text-sm text-bread-400">
               <div class="text-xl font-serif font-semibold text-white">Become a Partner</div>
               Create your partner account
@@ -127,83 +127,78 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
             <img src="~/assets/bpb-icons/logomark.svg" class="h-10" />
           </div>
-          <UFormField label="First name" :ui="{ label: ' text-white' }" name="firstName" required>
-            <UInput v-model="state.firstName" class="w-full" placeholder="First name" />
-          </UFormField>
-          <UFormField label="Last name" :ui="{ label: ' text-white' }" name="lastName" required>
-            <UInput v-model="state.lastName" class="w-full" placeholder="Last name" />
-          </UFormField>
-          <UFormField label="Email" :ui="{ label: ' text-white' }" name="email" required>
-            <UInput v-model="state.email" class="w-full" placeholder="Enter your email" />
-          </UFormField>
-          <UFormField label="Gender" :ui="{ label: ' text-white' }" name="gender" required>
-            <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender" class="w-full" />
-          </UFormField>
-          <UFormField label="Password" :ui="{ label: ' text-white' }" name="password" required>
-            <UInput
-              v-model="state.password"
-              :type="isPasswordVisible ? 'text' : 'password'"
-              class="w-full"
-              placeholder="Enter your password"
-            >
-              <template #trailing>
-                <UButton
-                  color="neutral"
-                  variant="link"
-                  size="sm"
-                  :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                  :padded="false"
-                  aria-label="Toggle password visibility"
-                  @click="isPasswordVisible = !isPasswordVisible"
-                />
-              </template>
-            </UInput>
-          </UFormField>
-          <UFormField label="Verify password" :ui="{ label: ' text-white' }" name="repass" required>
-            <UInput
-              v-model="state.repass"
-              :type="isRepassVisible ? 'text' : 'password'"
-              class="w-full"
-              placeholder="Re-enter your password"
-            >
-              <template #trailing>
-                <UButton
-                  color="neutral"
-                  variant="link"
-                  size="sm"
-                  :icon="isRepassVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                  :padded="false"
-                  aria-label="Toggle verify password visibility"
-                  @click="isRepassVisible = !isRepassVisible"
-                />
-              </template>
-            </UInput>
-          </UFormField>
-          <div class="space-y-1">
-            <UFormField name="tnc">
-              <UCheckbox v-model="state.tnc" name="tnc">
-                <template #label>
-                  <span class="text-sm text-white">
-                    I agree to Bread+Butter's
-                    <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }" class="text-bread-400 font-medium">
-                      Terms and Conditions.
-                    </ULink>
-                  </span>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 sm:gap-y-4">
+            <UFormField label="First name" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="firstName" required>
+              <UInput v-model="state.firstName" class="w-full text-xs sm:text-sm" placeholder="First name" />
+            </UFormField>
+            <UFormField label="Last name" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="lastName" required>
+              <UInput v-model="state.lastName" class="w-full text-xs sm:text-sm" placeholder="Last name" />
+            </UFormField>
+
+            <UFormField label="Email" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="email" required>
+              <UInput v-model="state.email" class="w-full text-xs sm:text-sm" placeholder="Enter your email" />
+            </UFormField>
+            <UFormField label="Gender" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="gender" required>
+              <USelect v-model="state.gender" :items="genderOptions" placeholder="Select gender"
+                class="w-full text-xs sm:text-sm" />
+            </UFormField>
+
+            <UFormField label="Create your own Promo Code" :ui="{ label: 'text-white text-xs sm:text-sm' }"
+              name="promocode" required>
+              <UInput class="w-full text-xs sm:text-sm" placeholder="ex: BREADBUTTER10" />
+            </UFormField>
+
+            <UFormField label="Password" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="password" required>
+              <UInput v-model="state.password" :type="isPasswordVisible ? 'text' : 'password'"
+                class="w-full text-xs sm:text-sm" placeholder="Enter your password">
+                <template #trailing>
+                  <UButton color="neutral" variant="link" size="sm"
+                    :icon="isPasswordVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
+                    aria-label="Toggle password visibility" @click="isPasswordVisible = !isPasswordVisible" />
                 </template>
-              </UCheckbox>
+              </UInput>
             </UFormField>
-            <UFormField name="updates">
-              <UCheckbox
-                v-model="state.updates"
-                name="updates"
-                :ui="{ label: ' text-white' }"
-                label="I want to receive updates from Bread+Butter."
-              />
+            <UFormField label="Verify password" :ui="{ label: 'text-white text-xs sm:text-sm' }" name="repass" required>
+              <UInput v-model="state.repass" :type="isRepassVisible ? 'text' : 'password'"
+                class="w-full text-xs sm:text-sm" placeholder="Re-enter your password">
+                <template #trailing>
+                  <UButton color="neutral" variant="link" size="sm"
+                    :icon="isRepassVisible ? 'i-lucide-eye-off' : 'i-lucide-eye'" :padded="false"
+                    aria-label="Toggle verify password visibility" @click="isRepassVisible = !isRepassVisible" />
+                </template>
+              </UInput>
             </UFormField>
-          </div>
-          <UButton type="submit" block :loading="isSubmitting">Sign up</UButton>
-          <div class="text-sm text-center mt-1">
-            Already a partner? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink> instead.
+
+            <div class="space-y-1 sm:col-span-2">
+              <UFormField name="tnc">
+                <UCheckbox v-model="state.tnc" name="tnc">
+                  <template #label>
+                    <span class="text-xs sm:text-sm text-white">
+                      I agree to Bread+Butter's
+                      <ULink :to="{ path: '/terms', query: { from: 'partner-signup' } }"
+                        class="text-bread-400 font-medium">
+                        Terms and Conditions.
+                      </ULink>
+                    </span>
+                  </template>
+                </UCheckbox>
+              </UFormField>
+              <UFormField name="updates">
+                <UCheckbox v-model="state.updates" name="updates" :ui="{ label: 'text-white text-xs sm:text-sm' }"
+                  label="I want to receive updates from Bread+Butter." />
+              </UFormField>
+            </div>
+
+            <div class="sm:col-span-2 space-y-2 pt-1">
+              <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">
+                Sign up
+              </UButton>
+              <div class="text-xs sm:text-sm text-center">
+                Already a partner? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink>
+                instead.
+              </div>
+            </div>
           </div>
         </UForm>
       </div>

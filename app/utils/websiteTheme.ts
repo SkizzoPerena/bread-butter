@@ -22,9 +22,7 @@ export const colorPalettes: ColorPalette[] = [
   { name: 'Maritime', colors: { primary: '#BDDDFC', secondary: '#88BDF2', text_color: '#112236', secondary_text_color: '#2A3A4A' } },
   { name: 'Aura', colors: { primary: '#F2E3D5', secondary: '#F2D0D9', text_color: '#B76E79', secondary_text_color: '#4A232D' } },
   { name: 'Deco', colors: { primary: '#FFFFFF', secondary: '#1A1A1A', text_color: '#1C543A', secondary_text_color: '#F0F5F1' } },
-  { name: 'Nocturne', colors: { primary: '#BFA2B8', secondary: '#D4AF37', text_color: '#5A3143', secondary_text_color: '#2C1621' } },
   { name: 'Cabernet', colors: { primary: '#F2D0D9', secondary: '#D4AF37', text_color: '#641E24', secondary_text_color: '#3B1015' } },
-  { name: 'Retrograde', colors: { primary: '#DDA74F', secondary: '#A84724', text_color: '#112236', secondary_text_color: '#F4E1C1' } },
   { name: 'Zest', colors: { primary: '#FFFFFF', secondary: '#F9F1C7', text_color: '#B5C135', secondary_text_color: '#2B330C' } },
   { name: 'Monolith', colors: { primary: '#FFFFFF', secondary: '#E6DFD3', text_color: '#1A1A1A', secondary_text_color: '#3B3631' } },
 ]
@@ -50,14 +48,15 @@ export function resolvePaletteFromRecord(
   paletteName?: string | null,
   stored?: Record<string, string> | null
 ): ColorPalette {
-  if (stored && stored.primary && stored.secondary && stored.text_color && stored.secondary_text_color) {
+  if (stored && stored.primary && stored.secondary && stored.text_color) {
     return {
       name: paletteName || 'Custom',
       colors: {
         primary: stored.primary,
         secondary: stored.secondary,
         text_color: stored.text_color,
-        secondary_text_color: stored.secondary_text_color,
+        secondary_text_color:
+          stored.secondary_text_color || (stored.primary === '#1A1A1A' ? '#FFFFFF' : '#333333'),
       },
     }
   }
@@ -92,9 +91,20 @@ export function getDynamicStyle(
   return { bg: secondary, heading: secondary_text_color, text: secondary_text_color };
 }
 
-export { formatDateWithWeekday } from './invitationDisplay'
 
-export function getGoogleMapsUrl(location: string): string {
+export function getGoogleMapsUrl(
+  location: string,
+  coordinates?: { lat?: number | null; lng?: number | null } | null
+): string {
+  if (
+    coordinates &&
+    typeof coordinates.lat === 'number' &&
+    typeof coordinates.lng === 'number' &&
+    !isNaN(coordinates.lat) &&
+    !isNaN(coordinates.lng)
+  ) {
+    return `https://maps.google.com/maps?q=${coordinates.lat},${coordinates.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+  }
   if (!location) return ''
   return `https://maps.google.com/maps?q=hotels+near+${encodeURIComponent(location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`
 }

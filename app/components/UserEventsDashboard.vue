@@ -5,10 +5,20 @@ import { formatEventPriceTier } from '~/types/event'
 import { getEventBalanceDue, isEventFullyPaid, isTierUpgradePending, getPendingUpgradeStatusLabel } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
-import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
+import { defaultCover } from '~/utils/eventImage'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
+import {
+  isEventPendingVerification,
+  isSinglePendingEventAccount,
+  isSingleUnpaidEventAccount,
+  buildPendingPaymentQuery,
+  buildUserPaymentQuery,
+  getUiPendingPayment,
+  getUiUnpaidEvent
+} from '~/utils/paymentPendingGuard'
 
 const toast = useToast()
-const { fetchUserEvents } = useEvents()
+const { fetchUserEvents, updateEvent } = useEvents()
 const { loadPageData, isUiOnlyMode } = useApiMode()
 
 const df = new DateFormatter('en-US', {
@@ -73,6 +83,41 @@ async function loadUserEvents() {
       fetch: () => fetchUserEvents(true),
     })
 
+    if (isUiOnlyMode.value) {
+      const uiPending = getUiPendingPayment()
+      if (uiPending) {
+        await navigateTo({
+          path: '/user/payment-pending',
+          query: uiPending as Record<string, string>,
+        }, { replace: true })
+        return
+      }
+      const uiUnpaid = getUiUnpaidEvent()
+      if (uiUnpaid) {
+        await navigateTo({
+          path: '/user/payment',
+          query: uiUnpaid as Record<string, string>,
+        }, { replace: true })
+        return
+      }
+    }
+
+    if (!isUiOnlyMode.value && isSinglePendingEventAccount(userEvents.value)) {
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: buildPendingPaymentQuery(userEvents.value[0]) as Record<string, string>,
+      }, { replace: true })
+      return
+    }
+
+    if (!isUiOnlyMode.value && isSingleUnpaidEventAccount(userEvents.value)) {
+      await navigateTo({
+        path: '/user/payment',
+        query: buildUserPaymentQuery(userEvents.value[0]) as Record<string, string>,
+      }, { replace: true })
+      return
+    }
+
     if (!isUiOnlyMode.value && userEvents.value.length === 0) {
       await navigateTo('/user/create-event')
     }
@@ -112,9 +157,126 @@ function getPaymentStatusLabel(event: EventRecord): string {
   return `Balance due: Php ${balanceDue.toLocaleString()}`
 }
 
-function onCoverImageError(event: Event) {
-  const img = event.target as HTMLImageElement
-  img.src = defaultCover
+const eventUploadFiles = ref<Record<string, any>>({})
+const uploadingEventId = ref<string | null>(null)
+
+function hasEventCover(event: EventRecord): boolean {
+  if (!event.coverImageURL) return false
+  const trimmed = event.coverImageURL.trim()
+  if (!trimmed) return false
+  if (trimmed === defaultCover || trimmed.includes('/assets/bpb-images/') || trimmed.includes('wedding-1.jpg')) {
+    return false
+  }
+  return true
+}
+
+function onCoverImageError(event: EventRecord) {
+  event.coverImageURL = null
+}
+
+
+function extractSingleFile(val: unknown): File | null {
+  if (!val) return null
+  if (val instanceof File) return val
+  if (Array.isArray(val) && val.length > 0) {
+    return val[0] instanceof File ? val[0] : (val[0] as File) || null
+  }
+  if (typeof (val as any)?.item === 'function') {
+    const f = (val as any).item(0)
+    return f instanceof File ? f : (f as File) || null
+  }
+  return (val as File) || null
+}
+
+async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
+  const file = extractSingleFile(rawFile)
+  if (!file) return
+
+  uploadingEventId.value = event._id
+  try {
+    if (isUiOnlyMode.value) {
+      event.coverImageURL = URL.createObjectURL(file)
+      toast.add({
+        title: 'Image added',
+        description: 'Event image updated successfully.',
+        color: 'success',
+      })
+      return
+    }
+
+    const updated = await updateEvent(event._id, {
+      eventName: event.eventName,
+      eventType: event.eventType,
+      venue: event.venue,
+      description: event.description,
+      eventDate: event.eventDate,
+      isCatholicWedding: event.isCatholicWedding,
+      coverImage: file,
+    })
+
+    if (updated?.coverImageURL) {
+      event.coverImageURL = updated.coverImageURL
+    } else {
+      event.coverImageURL = URL.createObjectURL(file)
+    }
+
+    toast.add({
+      title: 'Image uploaded',
+      description: 'Event cover image updated successfully.',
+      color: 'success',
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not upload image', error })
+  } finally {
+    uploadingEventId.value = null
+    delete eventUploadFiles.value[event._id]
+  }
+}
+
+
+function getEventDashboardLink(event: EventRecord) {
+  return {
+    path: resolveEventDashboardPath(event),
+    query: { eventId: event._id },
+  }
+}
+
+function getEventAction(event: EventRecord): {
+  label: string
+  to: { path: string; query: Record<string, string> }
+  color?: 'primary' | 'warning' | 'neutral'
+  icon?: string
+} {
+  if (isEventFullyPaid(event)) {
+    return {
+      label: 'Open Dashboard',
+      to: getEventDashboardLink(event),
+      color: 'primary',
+      icon: 'i-lucide-arrow-right',
+    }
+  }
+
+  if (isEventPendingVerification(event)) {
+    return {
+      label: 'Payment Pending',
+      to: {
+        path: '/user/payment-pending',
+        query: buildPendingPaymentQuery(event) as Record<string, string>,
+      },
+      color: 'warning',
+      icon: 'i-lucide-clock',
+    }
+  }
+
+  return {
+    label: 'Complete Payment',
+    to: {
+      path: '/user/payment',
+      query: buildUserPaymentQuery(event),
+    },
+    color: 'neutral',
+    icon: 'i-lucide-credit-card',
+  }
 }
 
 onMounted(() => {
@@ -177,9 +339,25 @@ onMounted(() => {
             <div v-for="event in ongoingEvents" :key="event._id"
               class="white-bread-container rounded-lg flex flex-col justify-between">
               <div>
-                <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
-                  <img :src="resolveEventCoverImageUrl(event.coverImageURL)" :alt="event.eventName"
-                    class="h-full w-full object-cover" @error="onCoverImageError">
+                <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg relative bg-toast-900/5">
+                  <!-- If event has a custom cover image -->
+                  <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
+                    class="h-full w-full object-cover" @error="() => onCoverImageError(event)">
+
+                  <!-- If no event image inserted: UFileUpload filling the same size of the image area -->
+                  <div v-else class="h-full w-full">
+                    <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*" variant="area"
+                      label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
+                      icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
+                      class="h-full w-full rounded-none border-0 border-b p-4 border-toast-300/40 bg-toast-50/60 hover:bg-toast-50 transition-colors"
+                      :ui="{
+                        root: 'h-full w-full',
+                        base: 'h-full w-full flex flex-col items-center justify-center text-center p-3 cursor-pointer',
+                        label: 'text-xs font-bold text-toast-900',
+                        description: 'text-[10px] text-toast-600',
+                        icon: 'w-5 h-5 text-toast-600 mb-1',
+                      }" @update:model-value="(val) => handleEventImageUpload(event, val)" />
+                  </div>
                 </div>
                 <div class="p-2.5 sm:px-6 sm:pb-4 sm:pt-4 space-y-1 sm:space-y-1.5">
                   <div class="flex items-start justify-between gap-1.5 pb-1 min-w-0">
@@ -199,9 +377,10 @@ onMounted(() => {
                 </div>
               </div>
               <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
-                <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2"
-                  :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }">
-                  Open Dashboard
+                <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2 font-semibold"
+                  :color="getEventAction(event).color" :icon="getEventAction(event).icon"
+                  :to="getEventAction(event).to">
+                  {{ getEventAction(event).label }}
                 </UButton>
               </div>
             </div>
@@ -237,9 +416,25 @@ onMounted(() => {
             <div v-for="event in pastEvents" :key="event._id"
               class="white-bread-container rounded-lg flex flex-col justify-between">
               <div>
-                <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg">
-                  <img :src="resolveEventCoverImageUrl(event.coverImageURL)" :alt="event.eventName"
-                    class="h-full w-full object-cover" @error="onCoverImageError">
+                <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg relative bg-toast-900/5">
+                  <!-- If event has a custom cover image -->
+                  <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
+                    class="h-full w-full object-cover" @error="() => onCoverImageError(event)">
+
+                  <!-- If no event image inserted: UFileUpload filling the same size of the image area -->
+                  <div v-else class="h-full w-full">
+                    <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*" variant="area"
+                      label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
+                      icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
+                      class="h-full w-full rounded-none border-0 border-b border-toast-300/40 bg-toast-50/60 hover:bg-toast-50 transition-colors"
+                      :ui="{
+                        root: 'h-full w-full',
+                        base: 'h-full w-full flex flex-col items-center justify-center text-center p-3 cursor-pointer',
+                        label: 'text-xs font-bold text-toast-900',
+                        description: 'text-[10px] text-toast-600',
+                        icon: 'w-5 h-5 text-toast-600 mb-1',
+                      }" @update:model-value="(val) => handleEventImageUpload(event, val)" />
+                  </div>
                 </div>
                 <div class="p-2.5 sm:px-6 sm:pb-4 sm:pt-4 space-y-1 sm:space-y-1.5">
                   <div class="flex items-start justify-between gap-1.5 pb-1 min-w-0">
@@ -259,9 +454,10 @@ onMounted(() => {
                 </div>
               </div>
               <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
-                <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2"
-                  :to="{ path: '/user/event-dashboard', query: { eventId: event._id } }">
-                  Open Dashboard
+                <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2 font-semibold"
+                  :color="getEventAction(event).color" :icon="getEventAction(event).icon"
+                  :to="getEventAction(event).to">
+                  {{ getEventAction(event).label }}
                 </UButton>
               </div>
             </div>

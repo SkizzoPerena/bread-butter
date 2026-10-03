@@ -21,10 +21,12 @@ const fromSource = computed(() => {
   const from = route.query.from as string | undefined
   if (from === 'user-signup' || from === 'signup') return 'user'
   if (from === 'partner-signup') return 'partner'
+  if (from === 'baker-signup') return 'baker'
   return null
 })
 
 const returnUrl = computed(() => {
+  if (fromSource.value === 'baker') return '/bakers/signup'
   if (fromSource.value === 'partner') return '/partners/signup'
   return '/user/signup'
 })

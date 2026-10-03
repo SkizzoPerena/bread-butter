@@ -15,6 +15,10 @@ export interface CustomSiteScheduleItem {
   title: string
   description: string
   location?: string
+  date?: string
+  startTime?: string
+  endTime?: string
+  isAllDay?: boolean
 }
 
 export interface CustomSiteClosing {
@@ -22,8 +26,28 @@ export interface CustomSiteClosing {
   message?: string
 }
 
+export interface CustomSiteWeddingPartyMember {
+  id?: string
+  name: string
+  role: string
+  notes?: string
+}
+
+export interface CustomSiteAccommodation {
+  id?: string
+  name: string
+  rating?: string
+  distance?: string
+  description?: string
+  link?: string
+  image?: string
+}
+
 export interface CustomSiteWhereToStay {
   location?: string
+  latitude?: number | null
+  longitude?: number | null
+  accommodations?: CustomSiteAccommodation[]
 }
 
 export interface CustomSiteTypography {
@@ -65,6 +89,11 @@ export interface CustomSiteRecord {
   enabledComponents?: string[]
   isPublished?: boolean
   gallery?: { imageURL: string; caption?: string }[]
+  invertColors?: boolean
+  simplifiedColors?: boolean
+  singlePageSite?: boolean
+  diyComponents?: { id: string; name: string; header: string; content?: string; description?: string }[]
+  weddingParty?: CustomSiteWeddingPartyMember[]
 }
 
 export interface CustomSitesListResponse {

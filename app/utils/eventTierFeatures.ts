@@ -122,24 +122,52 @@ export function normalizeTierCode(value: unknown): TierCode | null {
   return null
 }
 
-export function resolveEventTierCode(event?: any): TierCode {
-  if (!event) return 'BREAD'
+type EventLike = {
+  priceTier?: unknown
+  priceTierId?: unknown
+  package?: unknown
+  packageName?: unknown
+  packageId?: unknown
+  tier?: unknown
+  tierName?: unknown
+  tierCode?: unknown
+  plan?: unknown
+  planName?: unknown
+  tierPricePhp?: unknown
+  eventName?: unknown
+}
+
+export function resolveEventTierCode(event?: unknown): TierCode {
+  if (!event || typeof event !== 'object') return 'BREAD'
+  const record = event as EventLike
+
+  const tierObj =
+    typeof record.priceTier === 'object' && record.priceTier !== null
+      ? (record.priceTier as {
+          _id?: unknown
+          code?: unknown
+          name?: unknown
+          title?: unknown
+          id?: unknown
+          pricePhp?: unknown
+        })
+      : null
 
   // 1. Direct string candidates
   const stringCandidates = [
-    typeof event.priceTier === 'string' ? event.priceTier : null,
-    typeof event.priceTier === 'object' ? event.priceTier?.code : null,
-    typeof event.priceTier === 'object' ? event.priceTier?.name : null,
-    typeof event.priceTier === 'object' ? event.priceTier?.title : null,
-    typeof event.priceTier === 'object' ? event.priceTier?.id : null,
-    event.package,
-    event.packageName,
-    event.packageId,
-    event.tier,
-    event.tierName,
-    event.tierCode,
-    event.plan,
-    event.planName,
+    typeof record.priceTier === 'string' ? record.priceTier : null,
+    typeof tierObj?.code === 'string' ? tierObj.code : null,
+    typeof tierObj?.name === 'string' ? tierObj.name : null,
+    typeof tierObj?.title === 'string' ? tierObj.title : null,
+    typeof tierObj?.id === 'string' ? tierObj.id : null,
+    typeof record.package === 'string' ? record.package : null,
+    typeof record.packageName === 'string' ? record.packageName : null,
+    typeof record.packageId === 'string' ? record.packageId : null,
+    typeof record.tier === 'string' ? record.tier : null,
+    typeof record.tierName === 'string' ? record.tierName : null,
+    typeof record.tierCode === 'string' ? record.tierCode : null,
+    typeof record.plan === 'string' ? record.plan : null,
+    typeof record.planName === 'string' ? record.planName : null,
   ]
 
   for (const candidate of stringCandidates) {
@@ -150,8 +178,9 @@ export function resolveEventTierCode(event?: any): TierCode {
   }
 
   // 2. Check if event.priceTier or event.priceTierId is an ObjectId and match against cached price tiers
-  const tierId = typeof event.priceTier === 'string' ? event.priceTier : (event.priceTier?._id || event.priceTierId)
-  if (typeof tierId === 'string' && tierId.trim()) {
+  const tierIdCandidate = typeof record.priceTier === 'string' ? record.priceTier : (tierObj?._id || record.priceTierId)
+  const tierId = typeof tierIdCandidate === 'string' ? tierIdCandidate : null
+  if (tierId && tierId.trim()) {
     const { cachedPriceTiers } = usePriceTiers()
     const match = cachedPriceTiers.value?.find((t) => t._id === tierId)
     if (match) {
@@ -161,7 +190,6 @@ export function resolveEventTierCode(event?: any): TierCode {
   }
 
   // 3. Object price inspection
-  const tierObj = typeof event.priceTier === 'object' ? event.priceTier : null
   if (tierObj && typeof tierObj.pricePhp === 'number') {
     if (tierObj.pricePhp >= 10000) return 'BREAD_BUTTER'
     if (tierObj.pricePhp >= 7000) return 'BUTTER'
@@ -169,7 +197,7 @@ export function resolveEventTierCode(event?: any): TierCode {
   }
 
   // 4. Standalone tierPricePhp / payments
-  const price = typeof event.tierPricePhp === 'number' && event.tierPricePhp > 0 ? event.tierPricePhp : null
+  const price = typeof record.tierPricePhp === 'number' && record.tierPricePhp > 0 ? record.tierPricePhp : null
   if (typeof price === 'number') {
     if (price >= 10000) return 'BREAD_BUTTER'
     if (price >= 7000) return 'BUTTER'
@@ -177,8 +205,8 @@ export function resolveEventTierCode(event?: any): TierCode {
   }
 
   // 5. Check eventName as fallback helper
-  if (typeof event.eventName === 'string' && event.eventName.trim()) {
-    const fromName = normalizeTierCode(event.eventName)
+  if (typeof record.eventName === 'string' && record.eventName.trim()) {
+    const fromName = normalizeTierCode(record.eventName)
     if (fromName) return fromName
   }
 
@@ -255,4 +283,28 @@ export function isDashboardActionAllowed(
   }
 
   return isEventFeatureAllowed(event, feature)
+}
+
+export function getPackageSlugFromTier(tier: TierCode): 'bread' | 'butter' | 'bread-butter' {
+  if (tier === 'BREAD') return 'bread'
+  if (tier === 'BUTTER') return 'butter'
+  return 'bread-butter'
+}
+
+export function resolveEventDashboardPath(event?: unknown): string {
+  const tier = resolveEventTierCode(event)
+  const slug = getPackageSlugFromTier(tier)
+  return `/event/dashboard-${slug}`
+}
+
+export function getEventDashboardRoute(
+  event?: { _id?: string } | null,
+  eventId?: string
+): { path: string; query?: { eventId?: string } } {
+  const path = resolveEventDashboardPath(event)
+  const id = event?._id || eventId
+  return {
+    path,
+    query: id ? { eventId: id } : undefined,
+  }
 }

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#18181B"/>
+  <circle cx="44" cy="40" r="18" stroke="#F43F5E" stroke-width="2.5" stroke-dasharray="4 2"/>
+  <circle cx="44" cy="40" r="11" fill="#F43F5E" fill-opacity="0.2" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="44" cy="40" r="4" fill="#FFFFFF"/>
+  <text x="74" y="36" font-family="'Figtree', sans-serif" font-size="16" font-weight="800" fill="#FFFFFF" letter-spacing="1.5">NICE PRINT</text>
+  <text x="75" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#FDA4AF" letter-spacing="3">PHOTOGRAPHY &amp; EXJ</text>
+</svg>

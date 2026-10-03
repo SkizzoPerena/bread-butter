@@ -1,10 +1,48 @@
 <script setup lang="ts">
+import { ref, reactive } from 'vue'
 
 definePageMeta({
   layout: 'landing-navbar',
 })
 
+const toast = useToast()
+const phoneNumber = '+639175869442'
+const isCopied = ref(false)
 
+async function copyPhoneNumber() {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(phoneNumber)
+    } else {
+      const textArea = document.createElement('textarea')
+      textArea.value = phoneNumber
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+    }
+
+    isCopied.value = true
+    setTimeout(() => {
+      isCopied.value = false
+    }, 2000)
+
+    toast.add({
+      title: 'Phone number copied!',
+      description: `Our mobile hotline has been copied to your clipboard.`,
+      color: 'success',
+      icon: 'i-lucide-check'
+    })
+  } catch (error) {
+    toast.add({
+      title: 'Failed to copy',
+      description: `Please copy manually: +63 917 586 9442`,
+      color: 'error'
+    })
+  }
+}
 
 const state = reactive({
   name: undefined,
@@ -19,7 +57,7 @@ const state = reactive({
   <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-toast-700 text-white">
     <UCard class="w-full max-w-md mx-auto p-6 space-y-6 bg-bread-400 text-black shadow-lg rounded-lg">
 
-        <h1 class="text-3xl font-bold text-center font-serif text-toast-800">Contact Us</h1>
+      <h1 class="text-3xl font-bold text-center font-serif text-toast-800">Contact Us</h1>
 
 
       <div class="space-y-4">
@@ -27,33 +65,15 @@ const state = reactive({
 
         <!-- Social Media Links -->
         <div class="flex justify-center space-x-4">
-          <UButton
-            icon="i-mdi-facebook"
-            to="https://facebook.com/yourpage"
-            target="_blank"
-            variant="ghost"
-            color="neutral"
-            size="xl"
-            aria-label="Facebook"
-          />
-          <UButton
-            icon="i-mdi-instagram"
-            to="https://instagram.com/yourpage"
-            target="_blank"
-            variant="ghost"
-            color="neutral"
-            size="xl"
-            aria-label="Instagram"
-          />
-          <UButton
-            icon="i-heroicons-globe-alt"
-            to="https://yourwebsite.com"
-            target="_blank"
-            variant="ghost"
-            color="neutral"
-            size="xl"
-            aria-label="Website"
-          />
+          <UButton :icon="isCopied ? 'i-lucide-check' : 'i-lucide-phone-call'" variant="ghost" color="neutral" size="xl"
+            :aria-label="isCopied ? 'Phone number copied' : 'Copy phone number'"
+            :title="isCopied ? 'Copied!' : 'Click to copy phone number'" @click="copyPhoneNumber" />
+          <UButton icon="i-mdi-facebook" to="https://facebook.com/yourpage" target="_blank" variant="ghost"
+            color="neutral" size="xl" aria-label="Facebook" />
+          <UButton icon="i-mdi-instagram" to="https://instagram.com/yourpage" target="_blank" variant="ghost"
+            color="neutral" size="xl" aria-label="Instagram" />
+          <UButton icon="i-heroicons-globe-alt" to="https://yourwebsite.com" target="_blank" variant="ghost"
+            color="neutral" size="xl" aria-label="Website" />
         </div>
 
         <UDivider label="OR" class="text-gray-500" />
@@ -65,15 +85,15 @@ const state = reactive({
           </UFormField>
 
           <UFormField label="Your Email" name="email">
-            <UInput v-model="state.email" type="email" placeholder="you@example.com"  class="w-full" />
+            <UInput v-model="state.email" type="email" placeholder="you@example.com" class="w-full" />
           </UFormField>
 
           <UFormField label="Subject" name="subject">
-            <UInput v-model="state.subject" placeholder="Inquiry about services" class="w-full"  />
+            <UInput v-model="state.subject" placeholder="Inquiry about services" class="w-full" />
           </UFormField>
 
           <UFormField label="Message" name="message">
-            <UTextarea v-model="state.message" placeholder="Type your message here..."  class="w-full" />
+            <UTextarea v-model="state.message" placeholder="Type your message here..." class="w-full" />
           </UFormField>
 
           <UButton type="submit" block color="neutral" variant="solid" class="font-bold">

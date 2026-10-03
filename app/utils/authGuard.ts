@@ -38,7 +38,13 @@ const PUBLIC_PATHS = new Set([
   '/partners/login',
   '/partners/signup',
   '/partners/forgot-password',
-  '/partners/otp'
+  '/partners/otp',
+  '/bakers/login',
+  '/bakers/signup',
+  '/baker/login',
+  '/baker/signup',
+  '/event/dashboard',
+  '/event-dashboard'
 ])
 
 const USER_AUTH_PUBLIC_PATHS = new Set([
@@ -52,7 +58,11 @@ const PARTNER_AUTH_PUBLIC_PATHS = new Set([
   '/partners/login',
   '/partners/signup',
   '/partners/forgot-password',
-  '/partners/otp'
+  '/partners/otp',
+  '/bakers/login',
+  '/bakers/signup',
+  '/baker/login',
+  '/baker/signup'
 ])
 
 export function isPublicPath(path: string): boolean {
@@ -83,6 +93,7 @@ export function isUserExclusivePath(
   if (roleQuery === 'partner') return false
 
   if (path.startsWith('/user/') && !isUserAuthPublicPath(path)) return true
+  if (path === '/event/dashboard' || path === '/event-dashboard') return false
   if (path.startsWith('/event/')) return true
   return false
 }

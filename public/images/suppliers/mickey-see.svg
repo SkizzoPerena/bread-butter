@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none">
+  <rect width="200" height="80" rx="12" fill="#1C1412"/>
+  <circle cx="44" cy="40" r="16" stroke="#E0A96D" stroke-width="2"/>
+  <path d="M44 32v16M36 40h16" stroke="#E0A96D" stroke-width="1.5"/>
+  <circle cx="44" cy="40" r="8" fill="#E0A96D" fill-opacity="0.25"/>
+  <text x="72" y="37" font-family="'Fraunces', serif" font-size="16" font-weight="700" fill="#FBF7F4" letter-spacing="2">MICKEY SEE</text>
+  <text x="73" y="52" font-family="'Figtree', sans-serif" font-size="8.5" font-weight="600" fill="#E0A96D" letter-spacing="3.5">CELEBRITY &amp; BRIDAL HMU</text>
+</svg>

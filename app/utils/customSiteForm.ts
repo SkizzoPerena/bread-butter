@@ -1,4 +1,5 @@
-import type { CustomSiteRecord } from '~/types/customSite'
+import type { CustomSiteRecord, CustomSiteAccommodation, CustomSiteWhereToStay } from '~/types/customSite'
+import { resolveTypography } from '~/utils/websiteTheme'
 
 export interface WebsiteEditorWebsiteData {
   format: string
@@ -9,12 +10,20 @@ export interface WebsiteEditorWebsiteData {
   motif: string
   colorPalette: string
   typography: string
+  headerFont?: string
+  subheaderFont?: string
+  bodyFont?: string
   headerImage: string
   endingTitle: string
   endingMessage: string
   isPasswordProtected: boolean
   sitePassword: string
   whereToStayLocation: string
+  whereToStayLatitude?: number | null
+  whereToStayLongitude?: number | null
+  invertColors?: boolean
+  simplifiedColors?: boolean
+  singlePageSite?: boolean
 }
 
 export interface WebsiteEditorSection {
@@ -34,6 +43,10 @@ export interface WebsiteEditorScheduleItem {
   title: string
   description: string
   location: string
+  date?: string
+  startTime?: string
+  endTime?: string
+  isAllDay?: boolean
 }
 
 export interface WebsiteEditorDiyComponent {
@@ -57,6 +70,34 @@ export interface TypographySetInput {
   bodyFont: string
 }
 
+export interface CustomSiteMotifConfig {
+  invertColors?: boolean
+  simplifiedColors?: boolean
+  singlePageSite?: boolean
+  diyComponents?: Array<{ id: string; name: string; header: string; content?: string; description?: string }>
+  motif?: string
+  customColors?: ColorPaletteColors
+  colorPaletteName?: string
+  weddingParty?: Array<{ id: string; name: string; role: string; notes?: string }>
+  weddingPartyIntro?: string
+  whereToStay?: CustomSiteWhereToStay
+}
+
+export function parseMotifConfig(motif?: string | null): CustomSiteMotifConfig | null {
+  if (!motif || typeof motif !== 'string') return null
+  const trimmed = motif.trim()
+  if (!trimmed.startsWith('{')) return null
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed as CustomSiteMotifConfig
+    }
+  } catch {
+    // Ignore legacy motif string
+  }
+  return null
+}
+
 export interface BuildCustomSiteFormInput {
   eventId: string
   websiteData: WebsiteEditorWebsiteData
@@ -68,6 +109,9 @@ export interface BuildCustomSiteFormInput {
   selectedTypography: TypographySetInput
   selectedHeaderFile?: File
   diyComponents: WebsiteEditorDiyComponent[]
+  weddingPartyMembers?: Array<{ id: string; name: string; role: string; notes?: string }>
+  weddingPartyIntro?: string
+  whereToStayAccommodations?: CustomSiteAccommodation[]
 }
 
 export interface WebsiteEditorContext {
@@ -78,6 +122,15 @@ export interface WebsiteEditorContext {
   selectedComponents: { value: string[] }
   diyComponents: { value: WebsiteEditorDiyComponent[] }
   isLive: { value: boolean }
+  customColors?: {
+    primary: string
+    secondary: string
+    text_color: string
+    secondary_text_color: string
+  }
+  customWeddingPartyMembers?: { value: Array<{ id: string; name: string; role: string; notes?: string }> }
+  weddingPartyIntro?: { value: string }
+  whereToStayAccommodations?: { value: CustomSiteAccommodation[] }
 }
 
 function slugifySiteName(title: string, domain: string): string {
@@ -109,6 +162,9 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
     selectedTypography,
     selectedHeaderFile,
     diyComponents,
+    weddingPartyMembers,
+    weddingPartyIntro,
+    whereToStayAccommodations,
   } = input
 
   const formData = new FormData()
@@ -119,7 +175,16 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
   formData.append('subtitle', websiteData.siteDescription.trim())
   formData.append('passwordProtected', String(websiteData.isPasswordProtected))
   formData.append('passcode', websiteData.sitePassword.trim())
-  formData.append('colorPalette', JSON.stringify(selectedPalette))
+  const palettePayload = {
+    ...selectedPalette,
+    invertColors: Boolean(websiteData.invertColors),
+    simplifiedColors: Boolean(websiteData.simplifiedColors),
+    singlePageSite: Boolean(websiteData.singlePageSite),
+  }
+  formData.append('colorPalette', JSON.stringify(palettePayload))
+  formData.append('invertColors', String(Boolean(websiteData.invertColors)))
+  formData.append('simplifiedColors', String(Boolean(websiteData.simplifiedColors)))
+  formData.append('singlePageSite', String(Boolean(websiteData.singlePageSite)))
   formData.append('colorPaletteName', websiteData.colorPalette)
   formData.append(
     'typography',
@@ -131,7 +196,30 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
     })
   )
   formData.append('fontFamily', selectedTypography.name)
-  formData.append('motif', websiteData.motif)
+  const motifPayload: CustomSiteMotifConfig = {
+    invertColors: Boolean(websiteData.invertColors),
+    simplifiedColors: Boolean(websiteData.simplifiedColors),
+    singlePageSite: Boolean(websiteData.singlePageSite),
+    diyComponents: diyComponents.map((c) => ({
+      id: c.id,
+      name: c.name.trim(),
+      header: c.header.trim(),
+      content: c.description.trim(),
+    })),
+    motif: websiteData.motif && !websiteData.motif.startsWith('{') ? websiteData.motif : '',
+    customColors: websiteData.colorPalette === 'Custom' ? selectedPalette : undefined,
+    colorPaletteName: websiteData.colorPalette,
+    weddingParty: input.weddingPartyMembers,
+    weddingPartyIntro: input.weddingPartyIntro?.trim(),
+    whereToStay: {
+      location: websiteData.whereToStayLocation.trim(),
+      latitude: websiteData.whereToStayLatitude ?? null,
+      longitude: websiteData.whereToStayLongitude ?? null,
+      accommodations: (whereToStayAccommodations || []).slice(0, 4),
+    },
+  }
+  formData.append('motif', JSON.stringify(motifPayload))
+  formData.append('weddingParty', JSON.stringify(input.weddingPartyMembers ?? []))
   formData.append('contactEmail', websiteData.contactEmail)
   formData.append(
     'tidbits',
@@ -157,14 +245,24 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
       scheduleItems.map((item) => ({
         title: item.title.trim(),
         description: item.description.trim(),
-        location: item.location.trim(),
+        location: (item.location || '').trim(),
+        date: item.date || '',
+        startTime: item.startTime || '',
+        endTime: item.endTime || '',
+        isAllDay: Boolean(item.isAllDay),
       }))
     )
   )
   formData.append('enabledComponents', JSON.stringify(selectedComponents))
+  const whereToStayPayload: CustomSiteWhereToStay = {
+    location: websiteData.whereToStayLocation.trim(),
+    latitude: websiteData.whereToStayLatitude ?? null,
+    longitude: websiteData.whereToStayLongitude ?? null,
+    accommodations: (whereToStayAccommodations || []).slice(0, 4),
+  }
   formData.append(
     'whereToStay',
-    JSON.stringify({ location: websiteData.whereToStayLocation.trim() })
+    JSON.stringify(whereToStayPayload)
   )
   formData.append(
     'closing',
@@ -206,14 +304,49 @@ export function applyCustomSiteToEditor(
   websiteData.domainName = site.siteName ?? ''
   websiteData.contactEmail = site.contactEmail ?? ''
   websiteData.motif = site.motif ?? websiteData.motif
-  websiteData.colorPalette = site.colorPaletteName || websiteData.colorPalette
   websiteData.typography = site.typography?.name || site.fontFamily || websiteData.typography
+  const resolvedTypo = resolveTypography(websiteData.typography)
+  websiteData.headerFont = site.typography?.headerFont || resolvedTypo.headerFont || 'Parisienne'
+  websiteData.subheaderFont = site.typography?.subheaderFont || resolvedTypo.subheaderFont || 'Cormorant Garamond'
+  websiteData.bodyFont = site.typography?.bodyFont || resolvedTypo.bodyFont || 'Montserrat'
   websiteData.headerImage = site.headerImageURL ?? ''
   websiteData.endingTitle = site.closing?.title ?? ''
   websiteData.endingMessage = site.closing?.message ?? ''
   websiteData.isPasswordProtected = Boolean(site.passwordProtected)
   websiteData.sitePassword = site.passwordProtected ? site.passcode ?? '' : ''
-  websiteData.whereToStayLocation = site.whereToStay?.location ?? ''
+  const motifConfig = parseMotifConfig(site.motif)
+  websiteData.whereToStayLocation = site.whereToStay?.location ?? motifConfig?.whereToStay?.location ?? ''
+  websiteData.whereToStayLatitude = site.whereToStay?.latitude ?? motifConfig?.whereToStay?.latitude ?? null
+  websiteData.whereToStayLongitude = site.whereToStay?.longitude ?? motifConfig?.whereToStay?.longitude ?? null
+  const paletteRecord = (typeof site.colorPalette === 'object' && site.colorPalette !== null)
+    ? (site.colorPalette as Record<string, unknown>)
+    : {}
+  websiteData.colorPalette = motifConfig?.colorPaletteName || site.colorPaletteName || websiteData.colorPalette
+  if (ctx.customColors) {
+    const rawPalette = (typeof site.colorPalette === 'object' && site.colorPalette !== null)
+      ? (site.colorPalette as Record<string, string>)
+      : null
+    const savedColors = motifConfig?.customColors || (rawPalette?.primary && rawPalette?.secondary ? (rawPalette as unknown as ColorPaletteColors) : null)
+    if (savedColors) {
+      if (savedColors.primary) ctx.customColors.primary = savedColors.primary
+      if (savedColors.secondary) ctx.customColors.secondary = savedColors.secondary
+      if (savedColors.text_color) ctx.customColors.text_color = savedColors.text_color
+      if (savedColors.secondary_text_color) ctx.customColors.secondary_text_color = savedColors.secondary_text_color
+    }
+  }
+  websiteData.motif = motifConfig?.motif ?? (site.motif && !site.motif.startsWith('{') ? site.motif : '')
+  const rawInvert = site.invertColors ?? paletteRecord.invertColors ?? motifConfig?.invertColors
+  websiteData.invertColors = Boolean(rawInvert)
+
+  const rawSimplified = site.simplifiedColors ?? paletteRecord.simplifiedColors ?? motifConfig?.simplifiedColors
+  websiteData.simplifiedColors = Boolean(rawSimplified)
+
+  const rawSinglePage = site.singlePageSite ?? paletteRecord.singlePageSite ?? motifConfig?.singlePageSite
+  if (rawSinglePage !== undefined) {
+    websiteData.singlePageSite = Boolean(rawSinglePage)
+  } else {
+    websiteData.singlePageSite = true
+  }
 
   sections.value = (site.contentSections ?? []).map((s, i) => ({
     id: Date.now() + i,
@@ -238,17 +371,54 @@ export function applyCustomSiteToEditor(
     title: item.title,
     description: item.description,
     location: item.location ?? '',
+    date: item.date ?? '',
+    startTime: item.startTime ?? '',
+    endTime: item.endTime ?? '',
+    isAllDay: Boolean(item.isAllDay),
   }))
 
-  diyComponents.value = ((site as any).diyComponents ?? []).map((c: { id: string, name: string, header: string, content: string }, i: number) => ({
+  const rawDiy = (site.diyComponents && site.diyComponents.length > 0)
+    ? site.diyComponents
+    : (motifConfig?.diyComponents ?? [])
+
+  diyComponents.value = rawDiy.map((c, i) => ({
     id: c.id || `diy-${Date.now() + i}`,
-    name: c.name,
-    header: c.header,
-    description: c.content,
+    name: c.name || 'Custom',
+    header: c.header || 'Custom Header',
+    description: c.content || c.description || '',
   }))
 
   selectedComponents.value = [...(site.enabledComponents ?? [])]
   isLive.value = Boolean(site.isPublished)
+
+  if (ctx.customWeddingPartyMembers) {
+    const rawParty = site.weddingParty || motifConfig?.weddingParty || []
+    if (rawParty.length > 0) {
+      ctx.customWeddingPartyMembers.value = rawParty.map((m, i) => ({
+        id: m.id || `wp-${Date.now() + i}`,
+        name: m.name || '',
+        role: m.role || 'Wedding Party',
+        notes: m.notes || '',
+      }))
+    }
+  }
+  if (ctx.weddingPartyIntro && motifConfig?.weddingPartyIntro) {
+    ctx.weddingPartyIntro.value = motifConfig.weddingPartyIntro
+  }
+  if (ctx.whereToStayAccommodations) {
+    const rawAccs = site.whereToStay?.accommodations || motifConfig?.whereToStay?.accommodations || []
+    if (rawAccs.length > 0) {
+      ctx.whereToStayAccommodations.value = rawAccs.slice(0, 4).map((a, i) => ({
+        id: a.id || `acc-${Date.now() + i}`,
+        name: a.name || '',
+        rating: a.rating || '',
+        distance: a.distance || '',
+        description: a.description || '',
+        link: a.link || '',
+        image: a.image || '',
+      }))
+    }
+  }
 }
 
 export function validateWebsiteEditorForSave(

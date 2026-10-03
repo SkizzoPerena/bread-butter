@@ -4,14 +4,26 @@ import { useEvents } from '~/composables/useEvents'
 import { usePriceTiers, PACKAGE_SLUG_TO_TIER_CODE } from '~/composables/usePriceTiers'
 import { useAccount } from '~/composables/useAccount'
 import { useVouchers } from '~/composables/useVouchers'
+import { usePayments } from '~/composables/usePayments'
+import { usePaymongoActivation } from '~/composables/usePaymongoActivation'
+import { usePayMongoCheckout } from '~/composables/usePayMongoCheckout'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
+import type { EventRecord } from '~/types/event'
+import { mapApiToEventTypeLabel } from '~/types/event'
 import { hasVoucherCode, normalizeVoucherCode } from '~/utils/referralCode'
 import {
   REFERRAL_DISCOUNT_PERCENT,
   PROMO_DISCOUNT_PERCENT,
   percentOf,
 } from '~/utils/pricing'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
+import {
+  getProofSubmitPayload,
+  type PaymentProofPanelExpose,
+} from '~/utils/paymentMethod'
+import { setUiPendingPayment } from '~/utils/paymentPendingGuard'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
+import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
 definePageMeta({
   layout: 'signed-in-navbar',
@@ -23,30 +35,85 @@ useHead({
 
 const route = useRoute()
 const toast = useToast()
-const { createEvent } = useEvents()
+const { createEvent, fetchEvent, updateEvent } = useEvents()
 const { resolvePriceTierId, fetchAvailablePriceTiers } = usePriceTiers()
 const { fetchAccount } = useAccount()
 const { validateVoucherForUser } = useVouchers()
-const { createEventFeeCheckoutSession } = usePayments()
+const { createEventFeeCheckoutSession, submitEventPaymentProof } = usePayments()
 const { isUiOnlyMode } = useApiMode()
+const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const proofPanel = ref<PaymentProofPanelExpose | null>(null)
+
+const existingEventId = computed(() =>
+  typeof route.query.eventId === 'string' && route.query.eventId.trim()
+    ? route.query.eventId.trim()
+    : ''
+)
+
+const loadedEvent = ref<EventRecord | null>(null)
 
 const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
 const isBreadButterPackage = computed(() => selectedPkgId.value === 'bread-butter')
 
-const eventName = computed(() => (typeof route.query.eventName === 'string' ? route.query.eventName : ''))
-const eventType = computed(() => (typeof route.query.eventType === 'string' ? route.query.eventType : 'WEDDING'))
-const eventDate = computed(() => (typeof route.query.eventDate === 'string' ? route.query.eventDate : ''))
-const venue = computed(() => (typeof route.query.venue === 'string' ? route.query.venue : ''))
+const eventName = computed(() => {
+  if (typeof route.query.eventName === 'string' && route.query.eventName.trim()) {
+    return route.query.eventName.trim()
+  }
+  return loadedEvent.value?.eventName || ''
+})
+const eventType = computed(() => {
+  if (typeof route.query.eventType === 'string' && route.query.eventType.trim()) {
+    return route.query.eventType.trim()
+  }
+  return loadedEvent.value?.eventType || 'WEDDING'
+})
+const eventTypeLabel = computed(() => mapApiToEventTypeLabel(eventType.value))
+
+const eventDate = computed(() => {
+  if (typeof route.query.eventDate === 'string' && route.query.eventDate.trim()) {
+    return route.query.eventDate.trim()
+  }
+  return loadedEvent.value?.eventDate ? String(loadedEvent.value.eventDate).slice(0, 10) : ''
+})
+
+const formattedEventDate = computed(() => {
+  if (!eventDate.value) return ''
+  try {
+    const d = new Date(`${eventDate.value}T00:00:00`)
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return eventDate.value
+  }
+})
+
+const venue = computed(() => {
+  if (typeof route.query.venue === 'string' && route.query.venue.trim()) {
+    return route.query.venue.trim()
+  }
+  return loadedEvent.value?.venue || ''
+})
+
 const isCatholicWedding = computed(() => {
   const raw = route.query.isCatholicWedding
-  const value = Array.isArray(raw) ? raw[0] : raw
-  const flagged = value === 'true' || value === '1'
-  return String(eventType.value || '').trim().toUpperCase() === 'WEDDING' && flagged
+  if (raw !== undefined) {
+    const value = Array.isArray(raw) ? raw[0] : raw
+    const flagged = value === 'true' || value === '1'
+    return String(eventType.value || '').trim().toUpperCase() === 'WEDDING' && flagged
+  }
+  return loadedEvent.value?.isCatholicWedding === true
 })
+
 const description = computed(() => {
   if (typeof route.query.description === 'string' && route.query.description.trim()) {
     return route.query.description.trim()
+  }
+  if (loadedEvent.value?.description) {
+    return loadedEvent.value.description
   }
   const name = eventName.value.trim()
   const loc = venue.value.trim()
@@ -189,6 +256,18 @@ async function validateEnteredVoucher() {
 
 onMounted(async () => {
   if (isUiOnlyMode.value) return
+
+  if (existingEventId.value && /^[0-9a-fA-F]{24}$/.test(existingEventId.value)) {
+    try {
+      const detail = await fetchEvent(existingEventId.value)
+      if (detail?.event) {
+        loadedEvent.value = detail.event
+      }
+    } catch (err) {
+      console.warn('Could not load existing event detail:', err)
+    }
+  }
+
   try {
     const [account, tiers] = await Promise.all([
       fetchAccount(),
@@ -224,15 +303,45 @@ async function submitPayment() {
     return
   }
 
+  const proofPayload = isPaymongoActivated.value ? null : getProofSubmitPayload(proofPanel.value)
+  if (!isPaymongoActivated.value && !proofPayload) {
+    toast.add({
+      title: 'Incomplete payment proof',
+      description: 'Select a payment method, enter a reference ID, and upload your receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
   isProcessing.value = true
 
   try {
     if (isUiOnlyMode.value) {
+      if (isPaymongoActivated.value) {
+        await navigateTo({
+          path: '/user/payment/success',
+          query: {
+            payment_id: 'mock-payment-id',
+            checkout_id: 'cs_mock',
+          },
+        })
+        return
+      }
+
+      setUiPendingPayment({
+        ref: proofPayload?.transactionId || 'MOCK-REF',
+        eventName: eventName.value,
+        package: selectedPkgId.value,
+        method: proofPayload?.paymentMethod || 'GCASH',
+      })
+
       await navigateTo({
-        path: '/user/payment/success',
+        path: '/user/payment-pending',
         query: {
-          payment_id: 'mock-payment-id',
-          checkout_id: 'cs_mock',
+          ref: proofPayload?.transactionId || 'MOCK-REF',
+          eventName: eventName.value,
+          package: selectedPkgId.value,
+          method: proofPayload?.paymentMethod || 'GCASH',
         },
       })
       return
@@ -254,26 +363,120 @@ async function submitPayment() {
     }
 
     const priceTierId = await resolvePriceTierId(selectedPkgId.value)
-    const created = await createEvent({
-      eventType: eventType.value,
-      eventName: eventName.value.trim(),
-      description: description.value,
-      venue: venue.value.trim(),
-      eventDate: eventDate.value,
-      isCatholicWedding: isCatholicWedding.value,
-      priceTierId,
-      payLater: true,
-      ...(normalizedVoucher ? { voucherCode: normalizedVoucher } : {}),
-    })
+    const targetEventId = existingEventId.value
+    const paymentProvider = isPaymongoActivated.value ? 'PAYMONGO' : 'MANUAL'
 
-    const eventId = created._id
+    let created: any = null
+
+    if (targetEventId && /^[0-9a-fA-F]{24}$/.test(targetEventId)) {
+      // Ensure existing event details are updated on the API
+      await updateEvent(targetEventId, {
+        eventType: eventType.value,
+        eventName: eventName.value.trim(),
+        description: description.value,
+        venue: venue.value.trim(),
+        eventDate: eventDate.value,
+        isCatholicWedding: isCatholicWedding.value,
+      }).catch((err) => {
+        console.warn('Could not update existing event details:', err)
+      })
+
+      if (proofPayload) {
+        created = await submitEventPaymentProof(targetEventId, {
+          transactionId: proofPayload.transactionId,
+          paymentMethod: proofPayload.paymentMethod,
+          proofOfPayment: proofPayload.proofOfPayment,
+          provider: paymentProvider,
+          type: 'EVENT_CREATION_FEE',
+          amount: amountDuePhp.value,
+          convenienceFeePhp: 0,
+        })
+      }
+    } else {
+      // Create new event sending all event details and initial payment schema fields
+      created = await createEvent({
+        eventType: eventType.value,
+        eventName: eventName.value.trim(),
+        description: description.value,
+        venue: venue.value.trim(),
+        eventDate: eventDate.value,
+        isCatholicWedding: isCatholicWedding.value,
+        priceTierId,
+        payLater: isPaymongoActivated.value,
+        provider: paymentProvider,
+        type: 'EVENT_CREATION_FEE',
+        amount: amountDuePhp.value,
+        convenienceFeePhp: 0,
+        ...(normalizedVoucher ? { voucherCode: normalizedVoucher } : {}),
+        ...(!isPaymongoActivated.value && proofPayload
+          ? {
+            transactionId: proofPayload.transactionId,
+            paymentMethod: proofPayload.paymentMethod,
+            proofOfPayment: proofPayload.proofOfPayment,
+          }
+          : {}),
+      })
+
+      // If manual proof was provided, guarantee that the payment record is created in the backend.
+      // If POST /user/events did not attach a pending latestPayment, submit to the dedicated payment-proof endpoint.
+      if (!isPaymongoActivated.value && proofPayload && created?._id) {
+        if (!created.latestPayment || created.latestPayment.status !== 'PENDING') {
+          const paymentResult = await submitEventPaymentProof(created._id, {
+            transactionId: proofPayload.transactionId,
+            paymentMethod: proofPayload.paymentMethod,
+            proofOfPayment: proofPayload.proofOfPayment,
+            provider: 'MANUAL',
+            type: 'EVENT_CREATION_FEE',
+            amount: amountDuePhp.value,
+            convenienceFeePhp: 0,
+          })
+          if (paymentResult) {
+            created = { ...created, ...paymentResult }
+          }
+        }
+      }
+    }
+
+    const eventId = created?._id || targetEventId
     if (amountDuePhp.value <= 0) {
       toast.add({
         title: 'Event created',
         description: 'There is no remaining balance to collect.',
         color: 'success',
       })
-      await navigateTo({ path: '/user/event-dashboard', query: { eventId } })
+      if (created) {
+        await navigateTo({ path: resolveEventDashboardPath(created), query: { eventId } })
+      }
+      return
+    }
+
+    if (!isPaymongoActivated.value) {
+      const finalTransactionId = proofPayload?.transactionId || created?.latestPayment?.transactionId || ''
+      const finalMethod = proofPayload?.paymentMethod || created?.latestPayment?.paymentMethod || ''
+      const finalEventName = eventName.value || created?.eventName || ''
+
+      setUiPendingPayment({
+        ref: finalTransactionId,
+        eventName: finalEventName,
+        package: selectedPkgId.value,
+        method: finalMethod,
+      })
+
+      toast.add({
+        title: 'Proof of Payment Submitted',
+        description: 'Your payment transaction is currently being verified.',
+        color: 'success',
+      })
+
+      await navigateTo({
+        path: '/user/payment-pending',
+        query: {
+          ref: finalTransactionId,
+          eventName: finalEventName,
+          package: selectedPkgId.value,
+          method: finalMethod,
+        },
+      })
       return
     }
 
@@ -307,7 +510,7 @@ async function submitPayment() {
     redirectToCheckout(checkout.checkoutUrl)
   } catch (error) {
     reportApiError(toast, {
-      title: 'Could not start checkout',
+      title: isPaymongoActivated.value ? 'Could not start checkout' : 'Could not submit payment',
       error,
     })
   } finally {
@@ -330,7 +533,9 @@ async function submitPayment() {
           Complete Your Order
         </h1>
         <p class="text-xs text-bread-200">
-          Review your order, then continue to PayMongo to complete payment.
+          {{ isPaymongoActivated
+            ? 'Review your order, then continue to PayMongo to complete payment.'
+            : 'Review your order, then scan the QR and upload your proof of payment.' }}
         </p>
       </div>
 
@@ -343,9 +548,32 @@ async function submitPayment() {
           </h2>
 
           <div class="space-y-3">
-            <div>
-              <span class="text-[10px] text-toast-600 font-bold uppercase tracking-wider">Event Name</span>
-              <p class="font-bold text-toast-900 text-sm truncate">{{ eventName }}</p>
+            <!-- Event Details Summary -->
+            <div class="bg-white/80 p-3 rounded-xl border border-toast-600/20 space-y-2 text-xs">
+              <div class="space-y-1">
+                <div>
+                  <span class="text-[10px] text-toast-600 font-semibold block uppercase">Event Name</span>
+                  <div class="flex justify-between">
+                    <p class="font-bold text-toast-900 text-sm truncate">{{ eventName || 'Untitled Event' }}</p>
+                    <UBadge color="toast" variant="subtle" size="sm">{{ eventTypeLabel }}</UBadge>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-0.5">
+                  <div>
+                    <span class="text-[10px] text-toast-600 font-semibold block uppercase">Date</span>
+                    <p class="font-medium text-toast-900">{{ formattedEventDate || '—' }}</p>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-toast-600 font-semibold block uppercase">Venue</span>
+                    <p class="font-medium text-toast-900 truncate" :title="venue">{{ venue || '—' }}</p>
+                  </div>
+                </div>
+                <div v-if="isCatholicWedding" class="pt-1">
+                  <UBadge color="primary" variant="subtle" size="xs" class="text-[10px]">
+                    Catholic Wedding
+                  </UBadge>
+                </div>
+              </div>
             </div>
 
             <div class="bg-white/80 p-3 rounded-xl border border-toast-600/20 space-y-1.5">
@@ -360,21 +588,13 @@ async function submitPayment() {
               <label class="text-[10px] text-toast-600 font-bold uppercase tracking-wider">
                 Partner promo code
               </label>
-              <UInput
-                v-model="voucherCode"
-                placeholder="Enter voucher code"
-                size="sm"
-                class="w-full uppercase bg-white text-toast-900"
-              />
-              <p
-                v-if="voucherMessage"
-                class="text-[10px] leading-snug"
-                :class="{
-                  'text-toast-700': voucherStatus === 'checking' || voucherStatus === 'idle',
-                  'text-green-800': voucherStatus === 'valid',
-                  'text-red-700': voucherStatus === 'invalid'
-                }"
-              >
+              <UInput v-model="voucherCode" placeholder="Enter voucher code" size="sm"
+                class="w-full uppercase bg-white text-toast-900" />
+              <p v-if="voucherMessage" class="text-[10px] leading-snug" :class="{
+                'text-toast-700': voucherStatus === 'checking' || voucherStatus === 'idle',
+                'text-green-800': voucherStatus === 'valid',
+                'text-red-700': voucherStatus === 'invalid'
+              }">
                 {{ voucherMessage }}
               </p>
               <p v-else class="text-[10px] text-toast-700 leading-snug">
@@ -395,10 +615,7 @@ async function submitPayment() {
                 <span>Package total</span>
                 <span class="font-semibold text-toast-900">{{ formatPhp(baseFeePhp) }}</span>
               </div>
-              <div
-                v-if="promoApplies"
-                class="flex justify-between text-green-800"
-              >
+              <div v-if="promoApplies" class="flex justify-between text-green-800">
                 <span>Partner promo {{ PROMO_DISCOUNT_PERCENT }}% ({{ voucherCode }})</span>
                 <span class="font-semibold">-{{ formatPhp(voucherDiscountPhp) }}</span>
               </div>
@@ -406,10 +623,7 @@ async function submitPayment() {
                 <span>Referral discount {{ REFERRAL_DISCOUNT_PERCENT }}%</span>
                 <span class="font-semibold text-toast-900">-{{ formatPhp(referralDiscountPhp) }}</span>
               </div>
-              <p
-                v-else-if="referralDiscountEligible"
-                class="text-[10px] text-toast-600 italic"
-              >
+              <p v-else-if="referralDiscountEligible" class="text-[10px] text-toast-600 italic">
                 Referral {{ REFERRAL_DISCOUNT_PERCENT }}% applies on this first event unless a promo is better.
               </p>
               <div class="flex justify-between font-bold text-toast-900 text-sm">
@@ -420,13 +634,11 @@ async function submitPayment() {
           </div>
         </div>
 
-        <!-- Right Side: PayMongo checkout -->
         <div class="md:col-span-7">
-          <PaymentCheckoutPanel
-            :amount-due="amountDuePhp"
-            :loading="isProcessing"
-            @submit="submitPayment"
-          />
+          <PaymentCheckoutPanel v-if="isPaymongoActivated" :amount-due="amountDuePhp" :loading="isProcessing"
+            @submit="submitPayment" />
+          <PaymentProofPanel v-else ref="proofPanel" :amount-due="amountDuePhp" :loading="isProcessing"
+            @submit="submitPayment" />
         </div>
 
       </div>
@@ -434,4 +646,3 @@ async function submitPayment() {
     </div>
   </div>
 </template>
-

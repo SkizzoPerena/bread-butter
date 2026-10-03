@@ -33,6 +33,16 @@ const viewModel = computed(() =>
   siteRecord.value ? customSiteToViewModel(siteRecord.value) : null
 )
 
+useHead(() => ({
+  title: siteRecord.value?.title ? `${siteRecord.value.title} | Bread + Butter` : 'Wedding Website',
+  meta: [
+    {
+      name: 'description',
+      content: siteRecord.value?.subtitle || 'Welcome to our wedding website.',
+    },
+  ],
+}))
+
 async function loadSite() {
   if (!siteName.value) {
     pageState.value = 'not-found'

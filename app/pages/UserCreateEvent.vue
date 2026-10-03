@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-
-definePageMeta({
-  layout: 'signed-in-navbar',
-})
+import { setUiUnpaidEvent } from '~/utils/paymentPendingGuard'
 
 useHead({
   title: 'Create Event - Bread + Butter',
 })
 
 const toast = useToast()
+const { isUiOnlyMode } = useApiMode()
 
 type ViewStep = 'packages' | 'details'
 
@@ -194,17 +192,23 @@ function submitEventSetup() {
     return
   }
 
+  const queryParams: Record<string, string> = {
+    package: selectedPackage.value,
+    eventName: eventForm.eventName.trim(),
+    eventType: eventForm.eventType,
+    eventDate: eventForm.eventDate,
+    venue: eventForm.venue.trim(),
+    description: buildDescription(),
+    isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding ? 'true' : 'false',
+  }
+
+  if (isUiOnlyMode.value) {
+    setUiUnpaidEvent(queryParams)
+  }
+
   navigateTo({
     path: '/user/payment',
-    query: {
-      package: selectedPackage.value,
-      eventName: eventForm.eventName.trim(),
-      eventType: eventForm.eventType,
-      eventDate: eventForm.eventDate,
-      venue: eventForm.venue.trim(),
-      description: buildDescription(),
-      isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding ? 'true' : 'false',
-    },
+    query: queryParams,
   })
 }
 
@@ -296,19 +300,14 @@ function submitEventSetup() {
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
 
-              <UFormField label="Target Event Date" required
-                description="Must be at least one year from today">
+              <UFormField label="Target Event Date" required description="Must be at least one year from today">
                 <UInput v-model="eventForm.eventDate" type="date" size="lg" :min="minEventDate"
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
             </div>
 
-            <UCheckbox
-              v-if="isWeddingEventType"
-              v-model="eventForm.isCatholicWedding"
-              label="Is this a Catholic wedding?"
-              class="text-toast-900"
-            />
+            <UCheckbox v-if="isWeddingEventType" v-model="eventForm.isCatholicWedding"
+              label="Is this a Catholic wedding?" class="text-toast-900" />
 
             <UFormField label="Venue / Location" required>
               <UInput v-model="eventForm.venue" placeholder="e.g. Manila Cathedral / Grand Ballroom" size="lg"

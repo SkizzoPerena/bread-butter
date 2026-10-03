@@ -122,7 +122,7 @@ const items = [
                 <div>{{ eventCard.tasks }}</div>
               </div>
               <UProgress v-model="eventCard.progress" :max="100" class="mt-2" />
-              <UButton block class="mt-6">More Information</UButton>
+              <UButton block class="mt-6" to="/event/dashboard-butter">Open Dashboard</UButton>
             </div>
           </div>
         </UPageGrid>

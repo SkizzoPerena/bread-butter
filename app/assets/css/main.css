@@ -24,6 +24,7 @@
   --color-toast-400: #af5d32;
   --color-toast-500: #9c3500;
   /* base color */
+  --color-toast: #7c2a00;
   --color-toast-600: #7c2a00;
   --color-toast-700: #5d1f00;
   --color-toast-800: #3e1500;
@@ -35,6 +36,7 @@
   --color-bread-200: #fdf7ef;
   --color-bread-300: #fcf3e7;
   --color-bread-400: #fbefdf;
+  --color-bread: #fbefdf;
   --color-bread-500: #faebd7;
   /* base color */
   --color-bread-600: #c8bcac;
@@ -49,6 +51,7 @@
   --color-charcoal-300: #c38566;
   --color-charcoal-400: #af5d32;
   --color-charcoal-500: #9c3500;
+  --color-charcoal: #1f0a00;
   /* base color */
   --color-charcoal-600: #7c2a00;
   --color-charcoal-700: #5d1f00;
@@ -140,7 +143,7 @@
 }
 
 html, body {
-  overflow-x: hidden;
+  overflow-x: clip;
   scrollbar-gutter: auto;
 }
 
@@ -150,5 +153,5 @@ html[data-scroll-locked],
 [data-radix-scroll-lock-disabled] {
   padding-right: 0px !important;
   margin-right: 0px !important;
-  overflow-x: hidden !important;
+  overflow-x: clip !important;
 }

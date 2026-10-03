@@ -11,7 +11,12 @@ import {
 import { reportApiError } from '~/types/auth'
 import demoCoverImage from '~/assets/bpb-images/wedding-1.jpg'
 import { useEvents } from '~/composables/useEvents'
+import {
+  getProofSubmitPayload,
+  type PaymentProofPanelExpose,
+} from '~/utils/paymentMethod'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
+import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -25,8 +30,10 @@ const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
-const { createEventFeeCheckoutSession, getEventPayments } = usePayments()
+const { createEventFeeCheckoutSession, getEventPayments, submitEventPaymentProof } = usePayments()
+const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -43,6 +50,8 @@ const isPaymongoPending = computed(() =>
   && (eventRecord.value?.latestPayment?.provider === 'PAYMONGO'
     || eventRecord.value?.pendingPayment?.provider === 'PAYMONGO'),
 )
+
+const usePaymongoCheckout = computed(() => isPaymongoActivated.value || isPaymongoPending.value)
 
 const refundStatusColor: Record<RefundStatus, 'warning' | 'success' | 'error'> = {
   PENDING: 'warning',
@@ -105,6 +114,40 @@ function isUnderpaid(payment: PaymentRecord): boolean {
     typeof payment.amountReceived === 'number' &&
     payment.amountReceived < payment.amount
   )
+}
+
+async function handleSubmitProof() {
+  if (!eventId.value && !isUiOnlyMode.value) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+
+  const proofPayload = getProofSubmitPayload(proofPanel.value)
+  if (!proofPayload) {
+    toast.add({
+      title: 'Incomplete payment proof',
+      description: 'Select a payment method, enter a reference ID, and upload your receipt.',
+      color: 'warning',
+    })
+    return
+  }
+
+  isSubmittingPayment.value = true
+  try {
+    const targetEventId = eventId.value || 'mock-event-id'
+    const updated = await submitEventPaymentProof(targetEventId, proofPayload)
+    eventRecord.value = updated
+    toast.add({
+      title: 'Payment submitted',
+      description: 'Your proof is awaiting admin review.',
+      color: 'success',
+    })
+    await loadEventData()
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not submit payment', error })
+  } finally {
+    isSubmittingPayment.value = false
+  }
 }
 
 async function handleProceedToCheckout() {
@@ -284,14 +327,24 @@ watch(eventId, () => {
               <p class="text-sm text-muted">
                 Amount to pay now:
                 <span class="font-semibold text-default">Php {{ paymentBalanceDue.toLocaleString() }}</span>.
-                Continue to PayMongo to complete this payment.
+                {{ usePaymongoCheckout
+                  ? 'Continue to PayMongo to complete this payment.'
+                  : 'Scan the QR code, then upload your proof of payment for admin review.' }}
               </p>
 
               <PaymentCheckoutPanel
+                v-if="usePaymongoCheckout"
                 :amount-due="paymentBalanceDue"
                 :loading="isSubmittingPayment"
                 :submit-label="isPaymongoPending ? 'Continue to checkout' : 'Proceed to checkout'"
                 @submit="handleProceedToCheckout"
+              />
+              <PaymentProofPanel
+                v-else
+                ref="proofPanel"
+                :amount-due="paymentBalanceDue"
+                :loading="isSubmittingPayment"
+                @submit="handleSubmitProof"
               />
             </div>
           </UPageCard>

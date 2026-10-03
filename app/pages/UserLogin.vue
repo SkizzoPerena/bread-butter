@@ -5,6 +5,15 @@ import { useAuth } from '~/composables/useAuth'
 import { useEvents } from '~/composables/useEvents'
 import { getApiErrorMessage } from '~/types/auth'
 import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
+import {
+  isSinglePendingEventAccount,
+  isSingleUnpaidEventAccount,
+  buildPendingPaymentQuery,
+  buildUserPaymentQuery,
+  getUiPendingPayment,
+  getUiUnpaidEvent,
+  resolveUserPostLoginRedirect
+} from '~/utils/paymentPendingGuard'
 
 const toast = useToast()
 const route = useRoute()
@@ -16,7 +25,23 @@ onMounted(async () => {
   const authenticated = await ensureSession()
   if (!authenticated) return
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
-  await navigateTo(redirect || '/')
+  if (isUiOnlyMode.value) {
+    const uiPending = getUiPendingPayment()
+    if (uiPending) {
+      await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
+      return
+    }
+    const uiUnpaid = getUiUnpaidEvent()
+    if (uiUnpaid) {
+      await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })
+      return
+    }
+    await navigateTo(redirect || '/')
+    return
+  }
+  const events = await fetchUserEvents().catch(() => [])
+  const dest = resolveUserPostLoginRedirect(events, redirect)
+  await navigateTo(dest)
 })
 
 const isSubmitting = ref(false)
@@ -56,22 +81,25 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     toast.add({ title: 'Welcome back!', description: 'You are signed in.' })
 
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
-    if (redirect) {
-      await navigateTo(redirect)
-      return
-    }
 
     if (isUiOnlyMode.value) {
-      await navigateTo('/')
+      const uiPending = getUiPendingPayment()
+      if (uiPending) {
+        await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
+        return
+      }
+      const uiUnpaid = getUiUnpaidEvent()
+      if (uiUnpaid) {
+        await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })
+        return
+      }
+      await navigateTo(redirect || '/')
       return
     }
 
-    const events = await fetchUserEvents(true)
-    if (events.length === 0) {
-      await navigateTo('/user/create-event')
-    } else {
-      await navigateTo('/')
-    }
+    const events = await fetchUserEvents(true).catch(() => [])
+    const dest = resolveUserPostLoginRedirect(events, redirect)
+    await navigateTo(dest)
   } catch (error) {
     const isRestricted = isRestrictedAccountError(error)
     toast.add({

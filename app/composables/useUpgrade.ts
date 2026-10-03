@@ -144,7 +144,11 @@ export function useUpgrade() {
     formData.append('targetTierId', payload.targetTierId)
     formData.append('transactionId', payload.transactionId.trim())
     formData.append('paymentMethod', payload.paymentMethod.trim())
-    formData.append('proofOfPayment', payload.proofOfPayment)
+    formData.append(
+      'proofOfPayment',
+      payload.proofOfPayment,
+      payload.proofOfPayment.name || 'payment-proof.png',
+    )
 
     return apiUpload<UpgradePaymentMessageResponse>(
       `/user/events/${eventId}/tier-upgrade/payment-proof`,
@@ -191,7 +195,11 @@ export function useUpgrade() {
     formData.append('emailCreditPackageId', payload.emailCreditPackageId)
     formData.append('transactionId', payload.transactionId.trim())
     formData.append('paymentMethod', payload.paymentMethod.trim())
-    formData.append('proofOfPayment', payload.proofOfPayment)
+    formData.append(
+      'proofOfPayment',
+      payload.proofOfPayment,
+      payload.proofOfPayment.name || 'payment-proof.png',
+    )
 
     return apiUpload<UpgradePaymentMessageResponse>(
       `/user/events/${eventId}/email-credits/payment-proof`,

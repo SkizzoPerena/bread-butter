@@ -39,12 +39,22 @@ async function handleLogout() {
   <div class="min-h-screen flex flex-col bg-toast-50">
     <UDashboardNavbar class="bg-toast-600/95 w-full sticky top-0 z-50 shrink-0 border-b border-toast-700/20">
       <template #leading>
-        <NuxtLink to="/partners" class="flex items-center gap-3 shrink-0">
-          <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" alt="Bread + Butter partner logo" />
-          <span class="hidden sm:inline text-white font-serif text-lg font-semibold">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          <NuxtLink to="/partners" class="flex items-center">
+            <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" alt="Bread + Butter partner logo" />
+          </NuxtLink>
+          <UBadge
+            color="bread"
+            variant="subtle"
+            size="xs"
+            class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
+          >
+            Closed Testing
+          </UBadge>
+          <span class="hidden sm:inline text-white font-serif text-lg font-semibold border-l border-white/20 pl-2.5">
             Partner Portal
           </span>
-        </NuxtLink>
+        </div>
       </template>
 
       <template #default>

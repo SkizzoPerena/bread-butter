@@ -1,6 +1,7 @@
 import type { EventPaymentSummary, PaymentRecord, PendingPaymentSummary } from '~/types/payment'
 import type { PriceTierRecord } from '~/types/priceTier'
 import type { TaskAssigneeRef } from '~/types/task'
+import type { SupplierSummary } from '~/types/supplier'
 
 export interface EventQuestion {
   question: string
@@ -103,6 +104,7 @@ export interface TaskPreview {
 export interface TasksSummary {
   totalTasks: number
   byStatus: Record<string, number>
+  overdueCount?: number
   preview: {
     page: number
     limit: number
@@ -111,11 +113,26 @@ export interface TasksSummary {
   }
 }
 
+export interface GuestStats {
+  total: number
+  withoutTable: number
+  seated: number
+}
+
+export interface ChurchRequirementSummary {
+  total: number
+  completed: number
+  pending: number
+}
+
 export interface SelectedEventDetail {
   event: EventRecord
   guestList: GuestRecord[]
   rsvpSummary: RsvpSummary | null
   tasks: TasksSummary | null
+  guestStats?: GuestStats | null
+  supplierSummary?: SupplierSummary | null
+  churchRequirementSummary?: ChurchRequirementSummary | null
 }
 
 export interface SelectedEventResponse {
@@ -125,6 +142,9 @@ export interface SelectedEventResponse {
   rsvpSummary: RsvpSummary | null
   tasks: TasksSummary | null
   subEvents?: unknown[]
+  guestStats?: GuestStats | null
+  supplierSummary?: SupplierSummary | null
+  churchRequirementSummary?: ChurchRequirementSummary | null
 }
 
 export interface CreateEventPayload {
@@ -142,6 +162,10 @@ export interface CreateEventPayload {
   payLater?: boolean
   isCatholicWedding?: boolean
   voucherCode?: string
+  provider?: string
+  amount?: number
+  convenienceFeePhp?: number
+  type?: string
 }
 
 export interface UpdateEventPayload {
@@ -159,6 +183,7 @@ export interface UpdateEventResponse {
   success: boolean
   status: number
   message: string
+  event?: EventRecord
 }
 
 export function mapEventTypeToApi(value: string): string {

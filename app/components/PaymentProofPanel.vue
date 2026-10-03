@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { PAYMENT_QR_OPTIONS, PAYMENT_QR_TABS } from '~/utils/paymentQrOptions'
-import { usePaymentProofForm } from '~/composables/usePaymentProofForm'
 import MockPaymentQrGraphic from '~/components/MockPaymentQrGraphic.vue'
 
 const props = defineProps<{
@@ -15,32 +14,78 @@ const emit = defineEmits<{
   submit: []
 }>()
 
-const {
-  selectedQrId,
-  proofFile,
-  proofPreview,
-  fileInput,
-  isDragging,
-  transactionId,
-  triggerFileInput,
-  handleFileChange,
-  handleDrop,
-  removeFile,
-} = usePaymentProofForm()
+const toast = useToast()
+
+const selectedQrId = ref<string>('gcash')
+const transactionId = ref('')
+const proofFile = ref<any>(null)
+
+const gcashAccountName = 'Bread + Butter'
+const gcashAccountNumber = '+639209328080'
+const isCopied = ref(false)
+
+async function copyGcashNumber() {
+  try {
+    await navigator.clipboard.writeText(gcashAccountNumber)
+    isCopied.value = true
+    toast.add({
+      title: 'Copied to clipboard',
+      description: `GCash number ${gcashAccountNumber} copied!`,
+      color: 'success',
+    })
+    setTimeout(() => {
+      isCopied.value = false
+    }, 2500)
+  } catch {
+    toast.add({
+      title: 'Could not copy',
+      description: 'Please copy +639209328080 manually.',
+      color: 'warning',
+    })
+  }
+}
+
+function extractSingleFile(val: unknown): File | null {
+  if (!val) return null
+  if (val instanceof File) return val
+  if (Array.isArray(val) && val.length > 0) {
+    return val[0] instanceof File ? val[0] : (val[0] as File) || null
+  }
+  if (typeof (val as any)?.item === 'function') {
+    const f = (val as any).item(0)
+    return f instanceof File ? f : (f as File) || null
+  }
+  return (val as File) || null
+}
+
+function handleSubmit() {
+  if (props.disabled || props.loading) return
+
+  if (!transactionId.value.trim()) {
+    toast.add({
+      title: 'Reference number required',
+      description: 'Please enter your payment reference / transaction ID.',
+      color: 'warning',
+    })
+    return
+  }
+
+  const file = extractSingleFile(proofFile.value)
+  if (!file) {
+    toast.add({
+      title: 'Proof of payment required',
+      description: 'Please upload an image of your payment receipt or screenshot.',
+      color: 'warning',
+    })
+    return
+  }
+
+  emit('submit')
+}
 
 const activeQr = computed(() => PAYMENT_QR_OPTIONS.find((o) => o.id === selectedQrId.value) ?? null)
 
 const formattedAmount = computed(() => `Php ${props.amountDue.toLocaleString()}`)
-
-const canSubmit = computed(() =>
-  Boolean(
-    !props.disabled
-    && !props.loading
-    && selectedQrId.value
-    && transactionId.value.trim()
-    && proofFile.value,
-  ),
-)
 
 defineExpose({
   get selectedQrId() {
@@ -49,8 +94,8 @@ defineExpose({
   get transactionId() {
     return transactionId.value
   },
-  get proofFile() {
-    return proofFile.value
+  get proofFile(): File | null {
+    return extractSingleFile(proofFile.value)
   },
 })
 </script>
@@ -61,6 +106,8 @@ defineExpose({
       Scan & Pay
     </h2>
 
+    <!-- Commented out UTabs as requested -->
+    <!--
     <div class="space-y-1.5">
       <div class="text-[11px] font-bold text-toast-800 uppercase tracking-wider">
         Select QR Payment Method
@@ -77,7 +124,36 @@ defineExpose({
         }"
       />
     </div>
+    -->
 
+    <!-- GCash Account Details Card with Copy Option -->
+    <div class="bg-white/90 p-3.5 sm:p-4 rounded-xl border border-toast-600/20 space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5 text-toast-900 font-bold text-xs sm:text-sm">
+          <UIcon name="i-lucide-smartphone" class="w-4 h-4 text-toast-600" />
+          <span>GCash Account Details</span>
+        </div>
+
+      </div>
+
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-toast-600 font-bold uppercase text-[10px] tracking-wider">Account Name</span>
+        <span class="font-bold text-toast-900 text-sm">{{ gcashAccountName }}</span>
+      </div>
+
+      <div class="flex justify-between items-center text-xs">
+        <div>
+          <span class="text-toast-600 font-bold uppercase text-[10px] tracking-wider block">GCash Number</span>
+          <span class="font-mono font-bold text-toast-900 text-sm tracking-wide">{{ gcashAccountNumber }}</span>
+        </div>
+        <UButton color="toast" variant="solid" size="xs" :icon="isCopied ? 'i-lucide-check' : 'i-lucide-copy'"
+          class="font-bold text-xs cursor-pointer gap-1 transition-all" @click="copyGcashNumber">
+          {{ isCopied ? 'Copied' : 'Copy' }}
+        </UButton>
+      </div>
+
+    </div>
+    <!-- QR CODES
     <div
       v-if="activeQr"
       class="bg-white/85 p-3.5 sm:p-4 rounded-xl border border-toast-600/20 flex flex-col items-center text-center space-y-2.5"
@@ -85,98 +161,50 @@ defineExpose({
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-1.5 text-toast-900 font-bold text-xs sm:text-sm">
           <UIcon :name="activeQr.icon" class="w-4 h-4 text-toast-600" />
-          <span>{{ activeQr.label }} QR</span>
+          <span>Scan GCash QR</span>
         </div>
         <UBadge color="toast" variant="subtle" size="xs" class="text-[10px] font-semibold">
-          {{ activeQr.badgeText }}
+          Instant
         </UBadge>
       </div>
 
       <MockPaymentQrGraphic :logo-text="activeQr.logoText" />
 
-      <p class="text-[11px] text-toast-700">{{ activeQr.instructions }}</p>
+      <p class="text-[11px] text-toast-700">Open your GCash app and scan this QR code or send directly to the number above</p>
 
       <div class="space-y-0.5 text-center text-xs w-full">
-        <p class="font-bold text-toast-900">{{ activeQr.accountName }}</p>
-        <p class="text-[11px] font-mono text-toast-800">{{ activeQr.accountNumber }}</p>
+        <p class="font-bold text-toast-900">{{ gcashAccountName }}</p>
+        <p class="text-[11px] font-mono text-toast-800">{{ gcashAccountNumber }}</p>
         <p class="text-[11px] text-toast-700 pt-0.5">
           {{ amountLabel ?? 'Amount Due' }}:
           <span class="font-bold text-toast-900">{{ formattedAmount }}</span>
         </p>
       </div>
     </div>
-
+-->
     <UFormField label="Transaction / Reference ID" required>
-      <UInput
-        v-model="transactionId"
-        placeholder="e.g. GCASH reference number"
-        size="md"
-        class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
-        :disabled="disabled"
-      />
+      <UInput v-model="transactionId" placeholder="e.g. GCASH reference number" size="md"
+        class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" :disabled="disabled" />
     </UFormField>
 
-    <div class="space-y-2">
-      <label class="font-bold text-xs text-toast-900 flex items-center gap-1.5">
-        <UIcon name="i-lucide-upload" class="w-3.5 h-3.5 text-toast-600" />
-        <span>Upload Proof of Payment</span>
-      </label>
+    <!-- Upload Proof of Payment Section using native Nuxt UI UFileUpload -->
+    <UFormField label="Upload Proof of Payment" required :ui="{ label: 'font-bold text-xs text-toast-900' }">
+      <UFileUpload v-model="proofFile" :multiple="false" accept="image/*" size="md" variant="area"
+        label="Click or drag receipt image here" description="Supports PNG, JPG, or WEBP (screenshots or photos)"
+        icon="i-lucide-image-up" :disabled="disabled"
+        class="w-full bg-white/80 hover:bg-white/95 border-2 border-dashed border-toast-400/80 hover:border-toast-600 rounded-xl transition-all shadow-xs"
+        :ui="{
+          wrapper: 'text-toast-900',
+          label: 'text-xs font-bold text-toast-900',
+          description: 'text-[11px] text-toast-700',
+          icon: 'text-toast-600',
+        }" />
+    </UFormField>
 
-      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileChange">
-
-      <div
-        v-if="!proofFile"
-        :class="[
-          'border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-1.5',
-          disabled ? 'opacity-50 cursor-not-allowed' : '',
-          isDragging
-            ? 'border-toast-600 bg-white/90 shadow-sm scale-[1.01]'
-            : 'border-toast-400/80 bg-white/60 hover:bg-white/85 hover:border-toast-600',
-        ]"
-        @click="!disabled && triggerFileInput()"
-        @dragover.prevent="!disabled && (isDragging = true)"
-        @dragleave.prevent="isDragging = false"
-        @drop.prevent="!disabled && handleDrop($event)"
-      >
-        <div class="w-9 h-9 rounded-full bg-toast-500/10 text-toast-600 flex items-center justify-center">
-          <UIcon name="i-lucide-image-up" class="w-5 h-5" />
-        </div>
-        <p class="text-xs font-bold text-toast-900">Click or drag receipt image here</p>
-      </div>
-
-      <div
-        v-else
-        class="bg-white/90 p-3 rounded-xl border-2 border-toast-600/30 flex items-center justify-between gap-3"
-      >
-        <div class="flex items-center gap-3 min-w-0">
-          <img
-            v-if="proofPreview"
-            :src="proofPreview"
-            alt="Proof Preview"
-            class="w-12 h-12 object-cover rounded-lg border border-toast-300 shrink-0"
-          >
-          <p class="text-xs font-bold text-toast-900 truncate">{{ proofFile.name }}</p>
-        </div>
-        <UButton
-          color="error"
-          variant="ghost"
-          size="xs"
-          icon="i-lucide-trash-2"
-          :disabled="disabled"
-          @click="removeFile"
-        />
-      </div>
-    </div>
-
-    <UButton
-      block
-      color="primary"
-      size="md"
-      :disabled="!canSubmit"
-      :loading="loading"
-      class="font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md"
-      @click="emit('submit')"
-    >
+    <!-- Submit Button -->
+    <UButton block color="primary" size="md" :loading="loading" :disabled="disabled"
+      class="font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md cursor-pointer transition-all"
+      @click="handleSubmit">
       Submit Proof of Payment
     </UButton>
   </div>
