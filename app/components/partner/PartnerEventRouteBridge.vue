@@ -7,9 +7,6 @@ const props = defineProps<{
   description: string
 }>()
 
-definePageMeta({
-  layout: 'partner-navbar'
-})
 
 const route = useRoute()
 const { withRoleQuery } = useApiRole()

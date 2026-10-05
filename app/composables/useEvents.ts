@@ -86,6 +86,15 @@ export function useEvents() {
     return detail
   }
 
+  function getCachedEvent(eventId: string): EventRecord | null {
+    if (!eventId) return null
+    if (eventCache.value[eventId]?.event) {
+      return eventCache.value[eventId].event
+    }
+    const fromList = userEventsCache.value.find((e) => e._id === eventId)
+    return fromList || null
+  }
+
   async function createEvent(payload: CreateEventPayload): Promise<EventRecord> {
     if (isUiOnlyMode.value) {
       return {
@@ -218,6 +227,7 @@ export function useEvents() {
   return {
     fetchUserEvents,
     fetchEvent,
+    getCachedEvent,
     createEvent,
     updateEvent,
     getCachedEvent,

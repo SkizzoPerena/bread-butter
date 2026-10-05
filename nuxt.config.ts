@@ -27,8 +27,7 @@ export default defineNuxtConfig({
 
   modules: [['@nuxt/eslint', {
     stylistic: false
-  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image', 'motion-v/nuxt',
-  ],
+  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image', 'motion-v/nuxt', 'nuxt-posthog'],
 
   app: {
     head: {

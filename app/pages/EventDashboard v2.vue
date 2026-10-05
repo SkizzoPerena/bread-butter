@@ -76,16 +76,8 @@ async function loadEventData() {
   if (eventId.value) {
     const cached = getCachedEvent(eventId.value)
     if (cached) {
-      const cachedTier = resolveEventTierCode(cached)
-      if (cachedTier === 'BREAD') {
-        await navigateTo({ path: '/event/dashboard-bread', query: route.query }, { replace: true })
-        return
-      }
-      const targetPath = resolveEventDashboardPath(cached)
-      if (route.path !== targetPath && (route.path === '/user/event-dashboard' || route.path === '/event/dashboard-butter' || route.path === '/event/dashboard-bread-butter')) {
-        await navigateTo({ path: targetPath, query: route.query }, { replace: true })
-        return
-      }
+      eventRecord.value = cached
+      setActiveEvent(cached)
     }
   }
 
@@ -182,26 +174,15 @@ async function loadEventData() {
     })
 
     if (detail.event) {
-      const tier = resolveEventTierCode(detail.event)
-      if (tier === 'BREAD') {
-        await navigateTo({ path: '/event/dashboard-bread', query: route.query }, { replace: true })
-        return
-      }
-      const targetPath = resolveEventDashboardPath(detail.event)
-      if (route.path !== targetPath && (route.path === '/user/event-dashboard' || route.path === '/event/dashboard-butter' || route.path === '/event/dashboard-bread-butter')) {
-        await navigateTo({ path: targetPath, query: route.query }, { replace: true })
-        return
-      }
+      eventRecord.value = detail.event
+      setActiveEvent(detail.event)
+      tasksSummary.value = detail.tasks
+      guestList.value = detail.guestList || []
+      rsvpSummary.value = detail.rsvpSummary || null
+      guestStats.value = detail.guestStats || null
+      supplierSummary.value = detail.supplierSummary || null
+      churchRequirementSummary.value = detail.churchRequirementSummary || null
     }
-
-    eventRecord.value = detail.event
-    setActiveEvent(detail.event)
-    tasksSummary.value = detail.tasks
-    guestList.value = detail.guestList || []
-    rsvpSummary.value = detail.rsvpSummary || null
-    guestStats.value = detail.guestStats || null
-    supplierSummary.value = detail.supplierSummary || null
-    churchRequirementSummary.value = detail.churchRequirementSummary || null
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -545,10 +526,14 @@ function isDashboardItemBlocked(item: QuickNavItem): boolean {
   if (item.action === 'settings') {
     return false
   }
-  if (!eventRecord.value && isUiOnlyMode.value) {
-    return false
+  const event = eventRecord.value || (eventId.value ? getCachedEvent(eventId.value) : null)
+  if (event) {
+    return !isDashboardActionAllowed(event, item.action)
   }
-  return !isDashboardActionAllowed(eventRecord.value, item.action)
+  if (route.path.includes('bread') && !route.path.includes('butter')) {
+    return !isDashboardActionAllowed({ priceTier: 'BREAD' }, item.action)
+  }
+  return false
 }
 
 function getActiveEventQueryId(): string {
@@ -720,6 +705,10 @@ function navigateFromModal(item: QuickNavItem | null) {
 function onQuickNavItemClick(item: QuickNavItem) {
   isHoverTooltipVisible.value = false
   hoveredDashboardItem.value = null
+
+  if (isLoadingEvent.value) {
+    return
+  }
 
   if (isDashboardItemBlocked(item)) {
     selectedLockedFeature.value = item

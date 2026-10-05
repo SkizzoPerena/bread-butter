@@ -208,6 +208,8 @@ async function loadEventData() {
   if (eventId.value) {
     const cached = getCachedEvent(eventId.value)
     if (cached) {
+      eventRecord.value = cached
+      setActiveEvent(cached)
       const cachedTier = resolveEventTierCode(cached)
       if (cachedTier !== 'BREAD') {
         const targetPath = resolveEventDashboardPath(cached)
@@ -218,6 +220,16 @@ async function loadEventData() {
   }
 
   if (!eventId.value && !isUiOnlyMode.value) {
+    eventRecord.value = {
+      _id: 'mock-event-id',
+      eventType: 'WEDDING',
+      eventName: "Jane & John's Wedding",
+      venue: 'Manila Cathedral',
+      eventDate: '2026-05-18T00:00:00.000Z',
+      priceTier: { code: 'BREAD', name: 'Bread', pricePhp: 5000 },
+      tierPricePhp: 5000,
+    } as any
+    setActiveEvent(eventRecord.value)
     return
   }
 
@@ -661,7 +673,8 @@ function isDashboardItemBlocked(item: DashboardItem): boolean {
   if (item.action === 'settings') {
     return false
   }
-  return !isDashboardActionAllowed(eventRecord.value, item.action)
+  const event = eventRecord.value || (eventId.value ? getCachedEvent(eventId.value) : null) || { priceTier: 'BREAD' }
+  return !isDashboardActionAllowed(event, item.action)
 }
 
 const dashboardItems = computed(() => {
@@ -702,6 +715,9 @@ const showTasksChecklist = computed(() =>
 
 function handleDashboardItemClick(item: DashboardItem) {
   isHoverTooltipVisible.value = false
+  if (isLoadingEvent.value) {
+    return
+  }
   if (isDashboardItemBlocked(item)) {
     selectedLockedFeature.value = item
     isUpgradeModalOpen.value = true
