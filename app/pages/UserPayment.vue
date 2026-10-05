@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useEvents } from '~/composables/useEvents'
-import { usePriceTiers, PACKAGE_SLUG_TO_TIER_CODE } from '~/composables/usePriceTiers'
+import { usePriceTiers, resolvePackageSlug, resolvePackageTierCode } from '~/composables/usePriceTiers'
 import { useAccount } from '~/composables/useAccount'
 import { useVouchers } from '~/composables/useVouchers'
 import { usePayments } from '~/composables/usePayments'
@@ -53,7 +53,12 @@ const existingEventId = computed(() =>
 
 const loadedEvent = ref<EventRecord | null>(null)
 
-const selectedPkgId = computed(() => (typeof route.query.package === 'string' ? route.query.package : 'bread-butter'))
+const selectedPkgId = computed(() => {
+  const raw = typeof route.query.package === 'string' && route.query.package.trim()
+    ? route.query.package
+    : 'bread-butter'
+  return resolvePackageSlug(raw) ?? raw
+})
 const isBreadButterPackage = computed(() => selectedPkgId.value === 'bread-butter')
 
 const eventName = computed(() => {
@@ -275,7 +280,7 @@ onMounted(async () => {
     ])
     referralDiscountEligible.value = account.referralDiscountEligible === true
 
-    const tierCode = PACKAGE_SLUG_TO_TIER_CODE[selectedPkgId.value]
+    const tierCode = resolvePackageTierCode(selectedPkgId.value)
     const match = tiers.find(tier => tier.code === tierCode && tier.isEnabled !== false)
     if (typeof match?.pricePhp === 'number' && match.pricePhp > 0) {
       tierBaseFeePhp.value = match.pricePhp

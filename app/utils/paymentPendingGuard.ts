@@ -1,6 +1,7 @@
 import type { EventRecord } from '~/types/event'
 import { isEventFullyPaid } from '~/types/payment'
 import { isPartnerAuthPublicPath, isPartnerPath, isUserAuthPublicPath } from '~/utils/authGuard'
+import { getPackageSlugFromTier, resolveEventTierCode } from '~/utils/eventTierFeatures'
 
 export interface PendingPaymentQueryParams {
   ref?: string
@@ -204,17 +205,10 @@ export function shouldRedirectToUserPayment(path: string): boolean {
  * Extracts standard query parameters for /user/payment-pending from an EventRecord.
  */
 export function buildPendingPaymentQuery(event: EventRecord): PendingPaymentQueryParams {
-  const pkgCode =
-    typeof event.priceTier === 'object' && event.priceTier
-      ? (event.priceTier as any).code || (event.priceTier as any).name || ''
-      : typeof event.priceTier === 'string'
-        ? event.priceTier
-        : ''
-
   return {
     ref: event.latestPayment?.transactionId || event.latestPayment?._id || '',
     eventName: event.eventName || '',
-    package: pkgCode,
+    package: getPackageSlugFromTier(resolveEventTierCode(event)),
     method: event.latestPayment?.paymentMethod || '',
   }
 }
@@ -223,20 +217,13 @@ export function buildPendingPaymentQuery(event: EventRecord): PendingPaymentQuer
  * Extracts standard query parameters for /user/payment from an EventRecord.
  */
 export function buildUserPaymentQuery(event: EventRecord): Record<string, string> {
-  const pkgCode =
-    typeof event.priceTier === 'object' && event.priceTier
-      ? (event.priceTier as any).code || (event.priceTier as any).name || ''
-      : typeof event.priceTier === 'string'
-        ? event.priceTier
-        : ''
-
   const query: Record<string, string> = {
     eventId: event._id || '',
     eventName: event.eventName || '',
     eventType: event.eventType || 'WEDDING',
     eventDate: event.eventDate || '',
     venue: event.venue || '',
-    package: pkgCode || 'bread-butter',
+    package: getPackageSlugFromTier(resolveEventTierCode(event)),
   }
   if (event.isCatholicWedding) {
     query.isCatholicWedding = 'true'
