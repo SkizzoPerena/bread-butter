@@ -6,6 +6,36 @@ export const PACKAGE_SLUG_TO_TIER_CODE: Record<string, string> = {
   'bread-butter': 'BREAD_BUTTER',
 }
 
+const TIER_CODE_TO_PACKAGE_SLUG: Record<string, 'bread' | 'butter' | 'bread-butter'> = {
+  BREAD: 'bread',
+  BUTTER: 'butter',
+  BREAD_BUTTER: 'bread-butter',
+}
+
+/** Accepts checkout slugs, tier codes, and display names such as "Bread + Butter". */
+export function resolvePackageTierCode(packageValue: string): string | null {
+  const raw = packageValue.trim()
+  if (!raw) return null
+
+  const slug = PACKAGE_SLUG_TO_TIER_CODE[raw.toLowerCase()]
+  if (slug) return slug
+
+  const compact = raw.toLowerCase().replace(/[\s_+-]+/g, '')
+  if (compact === 'breadbutter') return 'BREAD_BUTTER'
+  if (compact === 'bread') return 'BREAD'
+  if (compact === 'butter') return 'BUTTER'
+
+  const code = raw.toUpperCase().replace(/[\s\-_+]+/g, '_')
+  if (code === 'BREAD' || code === 'BUTTER' || code === 'BREAD_BUTTER') return code
+  return null
+}
+
+export function resolvePackageSlug(packageValue: string): 'bread' | 'butter' | 'bread-butter' | null {
+  const code = resolvePackageTierCode(packageValue)
+  if (!code) return null
+  return TIER_CODE_TO_PACKAGE_SLUG[code] ?? null
+}
+
 export function usePriceTiers() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
   const cachedPriceTiers = useState<PriceTierRecord[]>('app-cached-price-tiers', () => [])
@@ -39,7 +69,7 @@ export function usePriceTiers() {
   }
 
   async function resolvePriceTierId(packageSlug: string): Promise<string> {
-    const tierCode = PACKAGE_SLUG_TO_TIER_CODE[packageSlug]
+    const tierCode = resolvePackageTierCode(packageSlug)
     if (!tierCode) {
       throw new Error(`Unknown package: ${packageSlug}`)
     }

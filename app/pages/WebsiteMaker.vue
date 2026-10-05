@@ -45,18 +45,11 @@ const { fetchGuestsByEvent } = useGuests()
 
 function displaySaveWebsiteEndpoint(customSiteIdForSave: string | null) {
     if (isUiOnlyMode.value) {
-        const message = 'UI-only mode — no API request'
-        console.info('[Save Website]', message)
-        toast.add({ title: 'Save Website', description: message, color: 'info' })
+        console.info('[Save Website] UI-only mode — no API request')
         return
     }
     const { method, url } = getSaveWebsiteEndpoint(customSiteIdForSave)
     console.info(`[Save Website] ${method} ${url}`)
-    toast.add({
-        title: 'Save Website',
-        description: `${method} ${url}`,
-        color: 'info',
-    })
 }
 
 const eventId = computed(() => {
@@ -69,6 +62,9 @@ const eventRecord = ref<EventRecord | null>(null)
 const isLoadingSite = ref(false)
 const isLoadingEvent = ref(false)
 const isSaving = ref(false)
+const saveModalTitle = ref('Saving your website...')
+const saveModalDescription = ref('Please wait while we save your design and content.')
+const saveModalMode = ref<'save' | 'publish'>('save')
 
 const canPublishWebsite = computed(() => {
     if (isUiOnlyMode.value) {
@@ -1722,10 +1718,8 @@ watch(selectedHeaderFile, (newFile) => {
             websiteData.headerImage = e.target?.result as string;
         };
         reader.readAsDataURL(newFile);
-    } else {
-        websiteData.headerImage = ''; // Clear image if no file selected
     }
-}, { immediate: true }); // Watch immediately to handle initial state if any
+});
 
 
 async function loadEventContext() {
@@ -1886,12 +1880,17 @@ async function loadCustomSite() {
 }
 
 onMounted(async () => {
-    await loadEventContext()
-    await loadCustomSite()
+    await Promise.all([loadEventContext(), loadCustomSite()])
     seedWebsiteDefaultsFromEvent()
 })
 
-async function saveCustomSite(): Promise<boolean> {
+interface SaveCustomSiteOptions {
+    silent?: boolean
+    keepSavingOpen?: boolean
+    mode?: 'save' | 'publish'
+}
+
+async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean> {
     const validationError = validateWebsiteEditorForSave(
         websiteData,
         selectedHeaderFile.value
@@ -1911,7 +1910,17 @@ async function saveCustomSite(): Promise<boolean> {
         return false
     }
 
+    if (options?.mode === 'publish') {
+        saveModalMode.value = 'publish'
+        saveModalTitle.value = 'Publishing your website...'
+        saveModalDescription.value = 'Saving your latest changes...'
+    } else {
+        saveModalMode.value = 'save'
+        saveModalTitle.value = 'Saving your website...'
+        saveModalDescription.value = 'Please wait while we save your design and content.'
+    }
     isSaving.value = true
+
     try {
         const formData = buildCustomSiteFormData({
             eventId: targetEventId,
@@ -1933,29 +1942,55 @@ async function saveCustomSite(): Promise<boolean> {
         if (customSiteId.value) {
             displaySaveWebsiteEndpoint(customSiteId.value)
             savedSite = await updateCustomSite(customSiteId.value, formData)
-            customSiteId.value = savedSite._id
-        } else {
-            try {
-                displaySaveWebsiteEndpoint(null)
-                savedSite = await createCustomSite(formData)
+            if (savedSite?._id) {
                 customSiteId.value = savedSite._id
-            } catch (error) {
-                const err = error as { status?: number; statusCode?: number; data?: { message?: string } }
-                const status = err.status ?? err.statusCode
-                const message = err.data?.message ?? getApiErrorMessage(error)
-                if (status === 409 || message.toLowerCase().includes('already has a custom site')) {
-                    const sites = await fetchCustomSitesByEvent(targetEventId)
-                    const existing = sites[0]
-                    if (existing) {
-                        customSiteId.value = existing._id
-                        displaySaveWebsiteEndpoint(existing._id)
-                        savedSite = await updateCustomSite(existing._id, formData)
+            }
+        } else {
+            // Check if site already exists before creating to avoid 409 conflict
+            let existingId: string | null = null
+            try {
+                const sites = await fetchCustomSitesByEvent(targetEventId)
+                if (sites[0]?._id) {
+                    existingId = sites[0]._id
+                }
+            } catch {
+                // Ignore fetch error, proceed with create
+            }
+
+            if (existingId) {
+                customSiteId.value = existingId
+                displaySaveWebsiteEndpoint(existingId)
+                savedSite = await updateCustomSite(existingId, formData)
+                if (savedSite?._id) {
+                    customSiteId.value = savedSite._id
+                }
+            } else {
+                displaySaveWebsiteEndpoint(null)
+                try {
+                    savedSite = await createCustomSite(formData)
+                    if (savedSite?._id) {
                         customSiteId.value = savedSite._id
+                    }
+                } catch (error) {
+                    const err = error as { status?: number; statusCode?: number; data?: { message?: string } }
+                    const status = err.status ?? err.statusCode
+                    const message = err.data?.message ?? getApiErrorMessage(error)
+                    if (status === 409 || message.toLowerCase().includes('already has a custom site')) {
+                        const sites = await fetchCustomSitesByEvent(targetEventId)
+                        const existing = sites[0]
+                        if (existing?._id) {
+                            customSiteId.value = existing._id
+                            displaySaveWebsiteEndpoint(existing._id)
+                            savedSite = await updateCustomSite(existing._id, formData)
+                            if (savedSite?._id) {
+                                customSiteId.value = savedSite._id
+                            }
+                        } else {
+                            throw error
+                        }
                     } else {
                         throw error
                     }
-                } else {
-                    throw error
                 }
             }
         }
@@ -1963,14 +1998,20 @@ async function saveCustomSite(): Promise<boolean> {
         if (savedSite?.headerImageURL) {
             websiteData.headerImage = savedSite.headerImageURL
         }
+        // Clear local File reference after successful upload to prevent redundant heavy re-uploads
+        selectedHeaderFile.value = undefined
 
-        toast.add({ title: 'Website saved', color: 'success' })
+        if (!options?.silent) {
+            toast.add({ title: 'Website saved', color: 'success' })
+        }
         return true
     } catch (error) {
         reportApiError(toast, { title: 'Could not save website', error })
         return false
     } finally {
-        isSaving.value = false
+        if (!options?.keepSavingOpen) {
+            isSaving.value = false
+        }
     }
 }
 
@@ -1987,15 +2028,31 @@ async function handleGoLive() {
         })
         return
     }
-    const saved = await saveCustomSite()
-    if (!saved || !customSiteId.value) {
-        return
-    }
+
+    saveModalMode.value = 'publish'
+    saveModalTitle.value = 'Publishing your website...'
+    saveModalDescription.value = 'Saving your latest changes...'
     isSaving.value = true
+
     try {
+        const saved = await saveCustomSite({
+            silent: true,
+            keepSavingOpen: true,
+            mode: 'publish',
+        })
+        if (!saved || !customSiteId.value) {
+            isSaving.value = false
+            return
+        }
+
+        saveModalDescription.value = 'Making your website live...'
         await publishCustomSite(customSiteId.value)
         isLive.value = true
-        toast.add({ title: 'Website is live', color: 'success' })
+        toast.add({
+            title: 'Website is live!',
+            description: 'Your website is now published and accessible.',
+            color: 'success',
+        })
     } catch (error) {
         reportApiError(toast, { title: 'Could not publish website', error })
     } finally {
@@ -2004,6 +2061,9 @@ async function handleGoLive() {
 }
 
 async function handleSaveWebsite() {
+    saveModalMode.value = 'save'
+    saveModalTitle.value = 'Saving your website...'
+    saveModalDescription.value = 'Please wait while we save your design and content.'
     await saveCustomSite()
 }
 
@@ -4167,6 +4227,45 @@ function togglePreview() {
                         @click="isAccommodationPickerOpen = false">
                         Cancel
                     </UButton>
+                </div>
+            </div>
+        </template>
+    </UModal>
+
+    <!-- Automatic Save & Publish Loading Modal (Blocks interaction while saving/publishing) -->
+    <UModal v-model:open="isSaving" :dismissible="false" :ui="{
+        content: 'w-[90vw] sm:max-w-md bg-white dark:bg-toast-900 border border-toast-200/80 dark:border-toast-700/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-50',
+        overlay: 'bg-toast-950/50 backdrop-blur-xs',
+    }">
+        <template #content>
+            <div class="relative z-10 flex flex-col items-center justify-center text-center py-4 px-2 space-y-5">
+                <!-- Animated Spinner & Icon -->
+                <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-inner">
+                    <UIcon
+                        :name="saveModalMode === 'publish' ? 'i-lucide-rocket' : 'i-lucide-cloud-upload'"
+                        class="w-8 h-8 animate-pulse"
+                    />
+                    <div class="absolute -inset-1 rounded-2xl border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
+                </div>
+
+                <!-- Title & Status Text -->
+                <div class="space-y-1.5">
+                    <h3 class="text-xl font-bold font-serif text-toast-900 dark:text-toast-100">
+                        {{ saveModalTitle }}
+                    </h3>
+                    <p class="text-sm text-toast-600 dark:text-toast-400 max-w-xs mx-auto leading-relaxed">
+                        {{ saveModalDescription }}
+                    </p>
+                </div>
+
+                <!-- Reassuring subtle indicator -->
+                <div class="w-full max-w-xs space-y-2 pt-1">
+                    <div class="h-1.5 w-full bg-toast-100 dark:bg-toast-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-linear-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
+                    </div>
+                    <p class="text-[11px] text-toast-400 dark:text-toast-500 font-medium">
+                        Please do not close or refresh this window while saving.
+                    </p>
                 </div>
             </div>
         </template>
