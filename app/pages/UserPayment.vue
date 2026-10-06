@@ -367,13 +367,15 @@ async function submitPayment() {
       }
     }
 
-    const priceTierId = await resolvePriceTierId(selectedPkgId.value)
     const targetEventId = existingEventId.value
+    const hasExistingEvent = Boolean(targetEventId && /^[0-9a-fA-F]{24}$/.test(targetEventId))
     const paymentProvider = isPaymongoActivated.value ? 'PAYMONGO' : 'MANUAL'
 
     let created: any = null
 
-    if (targetEventId && /^[0-9a-fA-F]{24}$/.test(targetEventId)) {
+    if (hasExistingEvent) {
+      // The event already has a price tier. Do not resolve the checkout slug
+      // (a tier code such as BREAD is not a package slug).
       // Ensure existing event details are updated on the API
       await updateEvent(targetEventId, {
         eventType: eventType.value,
@@ -398,7 +400,8 @@ async function submitPayment() {
         })
       }
     } else {
-      // Create new event sending all event details and initial payment schema fields
+      // New events still resolve slugs and tier codes (BREAD, BUTTER, BREAD_BUTTER).
+      const priceTierId = await resolvePriceTierId(selectedPkgId.value)
       created = await createEvent({
         eventType: eventType.value,
         eventName: eventName.value.trim(),
