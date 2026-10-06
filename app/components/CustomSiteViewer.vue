@@ -5,6 +5,10 @@ import {
   getGoogleMapsUrl,
 } from '~/utils/websiteTheme'
 import { formatDateWithWeekday } from '~/utils/invitationDisplay'
+import {
+  defaultAccommodations,
+  getAccommodationImage,
+} from '~/data/destinationHotels'
 
 const props = defineProps<{
   site: CustomSiteViewModel
@@ -210,67 +214,6 @@ const otherWeddingPartyMembers = computed(() => {
   ])
   return effectiveViewerPartyMembers.value.filter((m) => !matchedNames.has(m.name))
 })
-
-const defaultAccommodations = [
-  {
-    id: 'acc-1',
-    name: 'The Grand Hotel & Suites',
-    rating: '4.8 ★',
-    distance: '5 mins from venue',
-    description: 'Luxury rooms & suites with grand ballroom and fine dining.',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-  {
-    id: 'acc-2',
-    name: 'Boutique Garden Resort',
-    rating: '4.7 ★',
-    distance: '10 mins away',
-    description: 'Scenic garden view, private verandas & pool lounge.',
-    image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-  {
-    id: 'acc-3',
-    name: 'City Center Hotel & Spa',
-    rating: '4.6 ★',
-    distance: '15 mins away',
-    description: 'Modern central amenities with full luxury wellness spa.',
-    image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-  {
-    id: 'acc-4',
-    name: 'Cozy Inn & Bed & Breakfast',
-    rating: '4.9 ★',
-    distance: '8 mins away',
-    description: 'Charming breakfast stay with scenic hillside views.',
-    image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-]
-
-function getAccommodationImage(hotel?: { name?: string; image?: string }): string {
-  if (hotel?.image && hotel.image.trim()) {
-    return hotel.image.trim()
-  }
-  const fallbacks = [
-    'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=700&q=80'
-  ]
-  const name = hotel?.name || ''
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
-  }
-  return fallbacks[hash % fallbacks.length] || fallbacks[0]!
-}
 
 const effectiveAccommodations = computed(() => {
   const accs = props.site.whereToStayAccommodations
