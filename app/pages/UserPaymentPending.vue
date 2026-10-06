@@ -17,6 +17,12 @@ const { fetchUserEvents } = useEvents()
 const fallbackEvent = ref<EventRecord | null>(null)
 
 onMounted(async () => {
+  const userOk = await ensureSession('user')
+  if (userOk) {
+    await navigateTo('/', { replace: true })
+    return
+  }
+
   if (!route.query.ref) {
     try {
       const events = await fetchUserEvents()

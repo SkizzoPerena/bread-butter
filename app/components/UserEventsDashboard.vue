@@ -11,7 +11,6 @@ import {
   isEventPendingVerification,
   isSingleUnpaidEventAccount,
   buildUserPaymentQuery,
-  getUiPendingPayment,
   getUiUnpaidEvent
 } from '~/utils/paymentPendingGuard'
 
@@ -82,14 +81,6 @@ async function loadUserEvents() {
     })
 
     if (isUiOnlyMode.value) {
-      const uiPending = getUiPendingPayment()
-      if (uiPending) {
-        await navigateTo({
-          path: '/user/payment-pending',
-          query: uiPending as Record<string, string>,
-        }, { replace: true })
-        return
-      }
       const uiUnpaid = getUiUnpaidEvent()
       if (uiUnpaid) {
         await navigateTo({

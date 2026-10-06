@@ -4,7 +4,6 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import {
   resolveUserPostLoginRedirect,
-  getUiPendingPayment,
   getUiUnpaidEvent,
 } from '~/utils/paymentPendingGuard'
 
@@ -111,11 +110,6 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
           description: 'Your identity has been confirmed.',
           color: 'success',
         })
-        const uiPending = getUiPendingPayment()
-        if (uiPending) {
-          await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
-          return
-        }
         const uiUnpaid = getUiUnpaidEvent()
         if (uiUnpaid) {
           await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })

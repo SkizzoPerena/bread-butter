@@ -239,7 +239,8 @@ export function resolveUserPostLoginRedirect(
   redirect?: string,
 ): string | { path: string; query: Record<string, string> } {
   if (events.length === 0) {
-    return redirect && redirect !== '/' ? redirect : '/user/create-event'
+    if (redirect && redirect !== '/' && !isPaymentHoldingPath(redirect)) return redirect
+    return '/user/create-event'
   }
 
   // A submitted proof stays PENDING until an admin approves it. That event
@@ -251,11 +252,17 @@ export function resolveUserPostLoginRedirect(
     }
   }
 
-  if (redirect && redirect !== '/') {
+  if (redirect && redirect !== '/' && !isPaymentHoldingPath(redirect)) {
     return redirect
   }
 
   return '/'
+}
+
+/** Checkout and the verification holding page. A pending payment must not return here. */
+export function isPaymentHoldingPath(path: string): boolean {
+  const clean = path.split('?')[0] || ''
+  return clean === '/user/payment' || clean === '/user/payment-pending'
 }
 
 /**

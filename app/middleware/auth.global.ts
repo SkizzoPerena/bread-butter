@@ -9,12 +9,11 @@ import {
 } from '~/utils/authGuard'
 import {
   buildUserPaymentQuery,
-  getUiPendingPayment,
   getUiUnpaidEvent,
   isSinglePendingEventAccount,
   isSingleUnpaidEventAccount,
+  isPaymentHoldingPath,
   shouldRedirectToCreateEvent,
-  shouldRedirectToPaymentPending,
   shouldRedirectToUserPayment
 } from '~/utils/paymentPendingGuard'
 
@@ -25,7 +24,7 @@ function loginRedirectTarget(to: { fullPath: string }) {
 async function checkPaymentRestriction(targetPath: string) {
   const needsCreateEventCheck = shouldRedirectToCreateEvent(targetPath)
   const needsUnpaidCheck = shouldRedirectToUserPayment(targetPath)
-  const onCheckoutPage = targetPath === '/user/payment' || targetPath === '/user/payment-pending'
+  const onCheckoutPage = isPaymentHoldingPath(targetPath)
   if (!needsCreateEventCheck && !needsUnpaidCheck && !onCheckoutPage) {
     return null
   }
@@ -62,16 +61,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
 
   const { isUiOnlyMode } = useApiMode()
-  if (isUiOnlyMode.value) {
-    if (shouldRedirectToPaymentPending(to.path)) {
-      const uiPending = getUiPendingPayment()
-      if (uiPending) {
-        return navigateTo({
-          path: '/user/payment-pending',
-          query: uiPending as Record<string, string>,
-        }, { replace: true })
-      }
+  if (to.path === '/user/payment-pending') {
+    const userOk = await ensureSession('user')
+    if (userOk) {
+      return navigateTo('/', { replace: true })
     }
+  }
+
+  if (isUiOnlyMode.value) {
     if (shouldRedirectToUserPayment(to.path)) {
       const uiUnpaid = getUiUnpaidEvent()
       if (uiUnpaid) {

@@ -6,7 +6,6 @@ import { useEvents } from '~/composables/useEvents'
 import { getApiErrorMessage } from '~/types/auth'
 import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
 import {
-  getUiPendingPayment,
   getUiUnpaidEvent,
   resolveUserPostLoginRedirect
 } from '~/utils/paymentPendingGuard'
@@ -22,11 +21,6 @@ onMounted(async () => {
   if (!authenticated) return
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
   if (isUiOnlyMode.value) {
-    const uiPending = getUiPendingPayment()
-    if (uiPending) {
-      await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
-      return
-    }
     const uiUnpaid = getUiUnpaidEvent()
     if (uiUnpaid) {
       await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })
@@ -79,11 +73,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : ''
 
     if (isUiOnlyMode.value) {
-      const uiPending = getUiPendingPayment()
-      if (uiPending) {
-        await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
-        return
-      }
       const uiUnpaid = getUiUnpaidEvent()
       if (uiUnpaid) {
         await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })

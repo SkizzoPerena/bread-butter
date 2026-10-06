@@ -21,7 +21,7 @@ import {
   getProofSubmitPayload,
   type PaymentProofPanelExpose,
 } from '~/utils/paymentMethod'
-import { setUiPendingPayment } from '~/utils/paymentPendingGuard'
+import { clearUiPendingPayment } from '~/utils/paymentPendingGuard'
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
@@ -333,22 +333,8 @@ async function submitPayment() {
         return
       }
 
-      setUiPendingPayment({
-        ref: proofPayload?.transactionId || 'MOCK-REF',
-        eventName: eventName.value,
-        package: selectedPkgId.value,
-        method: proofPayload?.paymentMethod || 'GCASH',
-      })
-
-      await navigateTo({
-        path: '/user/payment-pending',
-        query: {
-          ref: proofPayload?.transactionId || 'MOCK-REF',
-          eventName: eventName.value,
-          package: selectedPkgId.value,
-          method: proofPayload?.paymentMethod || 'GCASH',
-        },
-      })
+      clearUiPendingPayment()
+      await navigateTo('/')
       return
     }
 
@@ -459,16 +445,7 @@ async function submitPayment() {
     }
 
     if (!isPaymongoActivated.value) {
-      const finalTransactionId = proofPayload?.transactionId || created?.latestPayment?.transactionId || ''
-      const finalMethod = proofPayload?.paymentMethod || created?.latestPayment?.paymentMethod || ''
-      const finalEventName = eventName.value || created?.eventName || ''
-
-      setUiPendingPayment({
-        ref: finalTransactionId,
-        eventName: finalEventName,
-        package: selectedPkgId.value,
-        method: finalMethod,
-      })
+      clearUiPendingPayment()
 
       toast.add({
         title: 'Proof of Payment Submitted',
