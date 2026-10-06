@@ -4,7 +4,7 @@ import type { PricingPlanProps } from '@nuxt/ui'
 
 useHead({
   link: [
-    { rel: 'preload', href: '/videos/Hero-bg.mp4', as: 'video', type: 'video/mp4' },
+    { rel: 'preload', href: '/images/hero-poster.webp', as: 'image', type: 'image/webp', fetchpriority: 'high' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=La+Belle+Aurore&display=swap' }
@@ -137,7 +137,7 @@ function scrollMotion(delay: number = 0) {
       class=" 100vh landing-bg landing-bg-overlay flex justify-center items-end"
       :ui="{ title: 'font-serif text-white', description: 'text-white' }">
 
-      <video autoplay loop muted playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover -z-10">
+      <video autoplay loop muted playsinline poster="/images/hero-poster.webp" preload="metadata" class="absolute inset-0 w-full h-full object-cover -z-10">
         <source src="/videos/Hero-bg.mp4" type="video/mp4">
       </video>
       <div class="space-y-8">
@@ -338,7 +338,7 @@ function scrollMotion(delay: number = 0) {
     </UPageSection>
 
     <UPageSection class="h-screen flex flex-col justify-center 100vh landing-bg landing-bg-overlay">
-      <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
+      <video autoplay loop muted playsinline preload="none" class="absolute inset-0 w-full h-full object-cover -z-10">
         <source src="../assets/CTA-bg.mp4" type="video/mp4">
       </video>
       <UPageGrid :ui="{ base: 'lg:grid-cols-5' }">

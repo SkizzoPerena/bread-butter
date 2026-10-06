@@ -31,9 +31,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      link: [
-        { rel: 'preload', href: '/videos/Hero-bg.mp4', as: 'video', type: 'video/mp4' }
-      ]
+      link: []
     }
   },
 

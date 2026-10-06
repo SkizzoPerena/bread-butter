@@ -28,6 +28,7 @@ definePageMeta({
     bgClass: 'bg-blue-50'
 })
 
+useWeddingFonts()
 const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode, loadPageData } = useApiMode()

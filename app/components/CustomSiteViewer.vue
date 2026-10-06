@@ -10,6 +10,8 @@ const props = defineProps<{
   site: CustomSiteViewModel
 }>()
 
+useWeddingFonts()
+
 const paletteColors = computed(() => props.site.palette.colors)
 const typography = computed(() => props.site.typography)
 
