@@ -256,6 +256,10 @@ export function useEvents() {
     userEventsCache.value = []
   }
 
+  function invalidateUserEventsCache() {
+    userEventsCache.value = []
+  }
+
   return {
     fetchUserEvents,
     fetchEvent,
@@ -264,5 +268,6 @@ export function useEvents() {
     updateEvent,
     cancelEvent,
     resumeEvent,
+    invalidateUserEventsCache,
   }
 }

@@ -242,13 +242,8 @@ export function resolveUserPostLoginRedirect(
     return redirect && redirect !== '/' ? redirect : '/user/create-event'
   }
 
-  if (isSinglePendingEventAccount(events)) {
-    return {
-      path: '/user/payment-pending',
-      query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
-    }
-  }
-
+  // A submitted proof stays PENDING until an admin approves it. That event
+  // belongs on the events dashboard, not back on checkout.
   if (isSingleUnpaidEventAccount(events)) {
     return {
       path: '/user/payment',

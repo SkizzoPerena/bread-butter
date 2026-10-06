@@ -8,7 +8,6 @@ import {
   notifyWrongRoleAccess
 } from '~/utils/authGuard'
 import {
-  buildPendingPaymentQuery,
   buildUserPaymentQuery,
   getUiPendingPayment,
   getUiUnpaidEvent,
@@ -25,9 +24,9 @@ function loginRedirectTarget(to: { fullPath: string }) {
 
 async function checkPaymentRestriction(targetPath: string) {
   const needsCreateEventCheck = shouldRedirectToCreateEvent(targetPath)
-  const needsPendingCheck = shouldRedirectToPaymentPending(targetPath)
   const needsUnpaidCheck = shouldRedirectToUserPayment(targetPath)
-  if (!needsCreateEventCheck && !needsPendingCheck && !needsUnpaidCheck) {
+  const onCheckoutPage = targetPath === '/user/payment' || targetPath === '/user/payment-pending'
+  if (!needsCreateEventCheck && !needsUnpaidCheck && !onCheckoutPage) {
     return null
   }
   const userOk = await ensureSession('user')
@@ -36,17 +35,14 @@ async function checkPaymentRestriction(targetPath: string) {
   }
   try {
     const { fetchUserEvents } = useEvents()
-    const events = await fetchUserEvents()
+    const events = await fetchUserEvents(true)
     if (events.length === 0) {
       if (needsCreateEventCheck) {
         return navigateTo('/user/create-event', { replace: true })
       }
     } else if (isSinglePendingEventAccount(events)) {
-      if (needsPendingCheck) {
-        return navigateTo({
-          path: '/user/payment-pending',
-          query: buildPendingPaymentQuery(events[0]) as Record<string, string>,
-        }, { replace: true })
+      if (onCheckoutPage) {
+        return navigateTo('/', { replace: true })
       }
     } else if (isSingleUnpaidEventAccount(events)) {
       if (needsUnpaidCheck) {
@@ -90,8 +86,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const activeRole = getActiveAuthRole()
 
-  // If a single pending payment or unpaid event exists, redirect any attempt to access restricted pages
-  // (allowed exceptions: /user/payment-pending for pending, /user/payment for unpaid, plus /user/profile, /user/transactions, /user/report-issue)
+  // An event with no payment yet is sent to checkout. A PENDING proof stays on the events dashboard.
   if (activeRole !== 'partner') {
     const paymentRedirect = await checkPaymentRestriction(to.path)
     if (paymentRedirect) return paymentRedirect

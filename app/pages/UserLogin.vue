@@ -6,10 +6,6 @@ import { useEvents } from '~/composables/useEvents'
 import { getApiErrorMessage } from '~/types/auth'
 import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
 import {
-  isSinglePendingEventAccount,
-  isSingleUnpaidEventAccount,
-  buildPendingPaymentQuery,
-  buildUserPaymentQuery,
   getUiPendingPayment,
   getUiUnpaidEvent,
   resolveUserPostLoginRedirect
@@ -39,7 +35,7 @@ onMounted(async () => {
     await navigateTo(redirect || '/')
     return
   }
-  const events = await fetchUserEvents().catch(() => [])
+  const events = await fetchUserEvents(true).catch(() => [])
   const dest = resolveUserPostLoginRedirect(events, redirect)
   await navigateTo(dest)
 })

@@ -473,15 +473,7 @@ async function submitPayment() {
         color: 'success',
       })
 
-      await navigateTo({
-        path: '/user/payment-pending',
-        query: {
-          ref: finalTransactionId,
-          eventName: finalEventName,
-          package: selectedPkgId.value,
-          method: finalMethod,
-        },
-      })
+      await navigateTo('/')
       return
     }
 

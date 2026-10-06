@@ -9,9 +9,7 @@ import { defaultCover } from '~/utils/eventImage'
 import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 import {
   isEventPendingVerification,
-  isSinglePendingEventAccount,
   isSingleUnpaidEventAccount,
-  buildPendingPaymentQuery,
   buildUserPaymentQuery,
   getUiPendingPayment,
   getUiUnpaidEvent
@@ -100,14 +98,6 @@ async function loadUserEvents() {
         }, { replace: true })
         return
       }
-    }
-
-    if (!isUiOnlyMode.value && isSinglePendingEventAccount(userEvents.value)) {
-      await navigateTo({
-        path: '/user/payment-pending',
-        query: buildPendingPaymentQuery(userEvents.value[0]) as Record<string, string>,
-      }, { replace: true })
-      return
     }
 
     if (!isUiOnlyMode.value && isSingleUnpaidEventAccount(userEvents.value)) {
@@ -258,11 +248,8 @@ function getEventAction(event: EventRecord): {
 
   if (isEventPendingVerification(event)) {
     return {
-      label: 'Payment Pending',
-      to: {
-        path: '/user/payment-pending',
-        query: buildPendingPaymentQuery(event) as Record<string, string>,
-      },
+      label: 'Open Dashboard',
+      to: getEventDashboardLink(event),
       color: 'warning',
       icon: 'i-lucide-clock',
     }

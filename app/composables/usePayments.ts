@@ -11,6 +11,7 @@ import { ALREADY_PAID_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 export function usePayments() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
+  const { invalidateUserEventsCache } = useEvents()
 
   async function getMyPayments(page = 1, limit = 20): Promise<PaymentsListResponse> {
     if (isUiOnlyMode.value) {
@@ -105,6 +106,8 @@ export function usePayments() {
       props: { event_id: eventId },
     })
 
+    invalidateUserEventsCache()
+
     if (response.event) {
       return response.event
     }
@@ -135,7 +138,7 @@ export function usePayments() {
       }
     }
 
-    return apiRequest<CheckoutSessionResponse>(`/user/events/${eventId}/checkout-session`, {
+    const checkout = await apiRequest<CheckoutSessionResponse>(`/user/events/${eventId}/checkout-session`, {
       method: 'POST',
       body: {
         ...(options?.cancelPath ? { cancelPath: options.cancelPath } : {}),
@@ -144,6 +147,8 @@ export function usePayments() {
         ? { 'Idempotency-Key': options.idempotencyKey }
         : undefined,
     })
+    invalidateUserEventsCache()
+    return checkout
   }
 
   async function getCheckoutStatus(checkoutId: string): Promise<CheckoutSessionResponse> {
