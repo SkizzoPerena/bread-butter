@@ -95,9 +95,6 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    // Auth decides landing vs dashboard on the client; prerendering `/` breaks
-    // post-login navigation with a failed `_payload.json` fetch.
-    '/': { ssr: false },
     '/user/dashboard': { redirect: { to: '/', statusCode: 301 } },
     '/event-dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
     '/event/dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },

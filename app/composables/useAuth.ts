@@ -266,6 +266,13 @@ export async function ensureSession(role: AuthRole = 'user'): Promise<boolean> {
     return isAuthenticated.value
   }
 
+  const stored = getStoredAccessToken(role)
+  const activeRole = getActiveAuthRole()
+  if (!stored && activeRole !== role) {
+    sessionEnsured[role] = true
+    return false
+  }
+
   if (!ensurePromises[role]) {
     ensurePromises[role] = (async () => {
       try {
@@ -553,6 +560,11 @@ export function useAuth(role: AuthRole = 'user') {
         }
         return true
       }
+    }
+
+    const activeRole = getActiveAuthRole()
+    if (!stored && activeRole !== role) {
+      return false
     }
 
     const result = await refreshSession()

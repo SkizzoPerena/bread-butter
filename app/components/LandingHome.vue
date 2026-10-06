@@ -198,7 +198,7 @@ function scrollMotion(delay: number = 0) {
             class="w-64 h-78 sm:w-80 sm:h-95 bg-bread-400 bread-container transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-2xl hover:z-10"
             :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'" :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
-              <img width="200" height="300" class="w-full h-full object-cover" :src="img.file" :alt="img.title" />
+              <img width="200" height="300" class="w-full h-full object-cover" loading="lazy" decoding="async" :src="img.file" :alt="img.title" />
             </div>
             <div class="text-center font-medium la-belle-aurore-regular text-xl sm:text-3xl -mt-2 text-black"
               :class="index % 2 === 0 ? 'rotate-2' : '-rotate-3'">{{ img.title }}</div>
@@ -210,7 +210,7 @@ function scrollMotion(delay: number = 0) {
     <UPageSection class="bg-toast-500">
 
       <UContainer class="font-regular text-sm sm:text-xl text-center text-white">
-        <img class="max-h-4/5 mb-4 sm:mb-6 mx-auto"
+        <img class="max-h-4/5 mb-4 sm:mb-6 mx-auto" loading="lazy" decoding="async"
           src="https://lh3.googleusercontent.com/d/1gwoHSTP-QKnTnMOFFMVQuWVRiCnwDz-9" />
         <Motion v-bind="scrollMotion(0.1)">
 

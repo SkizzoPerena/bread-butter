@@ -24,14 +24,26 @@ useHead({
 const { isAuthenticated, syncSessionFromStorage } = useAuth()
 const { isUiOnlyMode } = useApiMode()
 const { fetchUserEvents } = useEvents()
-const authReady = ref(false)
-const layoutName = computed(() => (isAuthenticated.value ? 'user-navbar' : 'landing-navbar'))
 
 if (import.meta.client) {
   syncSessionFromStorage()
 }
 
+const activeRole = import.meta.client ? getActiveAuthRole() : null
+const hasStoredUserToken = import.meta.client ? Boolean(getStoredAccessToken('user')) : false
+const hasStoredPartnerToken = import.meta.client ? Boolean(getStoredAccessToken('partner')) : false
+const hasAnyStoredSession = Boolean(activeRole || hasStoredUserToken || hasStoredPartnerToken)
+
+// Anonymous visitors show LandingHome immediately with zero artificial loader delay
+const authReady = ref(!hasAnyStoredSession)
+const layoutName = computed(() => (isAuthenticated.value ? 'user-navbar' : 'landing-navbar'))
+
 onMounted(async () => {
+  if (!hasAnyStoredSession) {
+    authReady.value = true
+    return
+  }
+
   if (isUiOnlyMode.value) {
     const uiPending = getUiPendingPayment()
     if (uiPending) {
@@ -51,7 +63,6 @@ onMounted(async () => {
     }
   }
 
-  const activeRole = getActiveAuthRole()
   if (activeRole === 'partner') {
     const partnerOk = await ensureSession('partner')
     if (partnerOk) {

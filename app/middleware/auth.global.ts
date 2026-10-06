@@ -89,6 +89,31 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   const activeRole = getActiveAuthRole()
+  const hasUserSession = Boolean(getStoredAccessToken('user'))
+  const hasPartnerSession = Boolean(getStoredAccessToken('partner'))
+  const hasAnySession = Boolean(activeRole || hasUserSession || hasPartnerSession)
+
+  // Fast path for unauthenticated visitors: never block public routes with session or payment checks
+  if (!hasAnySession) {
+    if (to.path === '/user/dashboard' || to.path === '/userdashboard' || to.path === '/user-dashboard') {
+      return navigateTo('/', { replace: true })
+    }
+    if (isPublicPath(to.path)) {
+      return
+    }
+    if (isPartnerPath(to.path) || isPartnerEventWorkspace(to.path, to.query as Record<string, unknown>)) {
+      notifyNotLoggedIn()
+      return navigateTo({
+        path: '/partners/login',
+        query: { redirect: loginRedirectTarget(to) }
+      })
+    }
+    notifyNotLoggedIn()
+    return navigateTo({
+      path: '/user/login',
+      query: { redirect: loginRedirectTarget(to) }
+    })
+  }
 
   // If a single pending payment or unpaid event exists, redirect any attempt to access restricted pages
   // (allowed exceptions: /user/payment-pending for pending, /user/payment for unpaid, plus /user/profile, /user/transactions, /user/report-issue)
