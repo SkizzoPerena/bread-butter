@@ -1,5 +1,6 @@
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const { token, user, restoreSession } = useAuth('partner')
+  const { fetchAccount } = usePartnerAccount()
   const { isUiOnlyMode } = useApiMode()
 
   const hydrated = useState<boolean>('auth-partner-hydrated', () => false)
@@ -13,14 +14,13 @@ export default defineNuxtPlugin(async () => {
     return
   }
 
-  await restoreSession()
-
-  if (token.value && !user.value?.email) {
-    try {
-      const { fetchAccount } = usePartnerAccount()
-      await fetchAccount()
-    } catch {
-      // Keep the token and let pages retry if the backend is unavailable.
+  void restoreSession().then(async () => {
+    if (token.value && !user.value?.email) {
+      try {
+        await fetchAccount()
+      } catch {
+        // Keep the token and let pages retry if the backend is unavailable.
+      }
     }
-  }
+  })
 })

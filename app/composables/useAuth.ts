@@ -63,6 +63,7 @@ export function isTokenExpiredOrExpiring(token: string, thresholdSeconds = 120):
 export type RefreshSessionResult = 'success' | 'expired' | 'transient'
 
 const TRANSIENT_REFRESH_RETRY_MS = 30_000
+const REFRESH_REQUEST_TIMEOUT_MS = 8_000
 const refreshPromises: Partial<Record<AuthRole, Promise<RefreshSessionResult>>> = {}
 
 export function getErrorStatus(error: unknown): number | undefined {
@@ -513,7 +514,8 @@ export function useAuth(role: AuthRole = 'user') {
       try {
         const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
           method: 'POST',
-          authenticated: false
+          authenticated: false,
+          timeout: REFRESH_REQUEST_TIMEOUT_MS,
         })
 
         if (response?.accessToken) {
@@ -544,7 +546,7 @@ export function useAuth(role: AuthRole = 'user') {
     }
 
     const stored = getStoredAccessToken(role)
-    if (stored && !isTokenExpiredOrExpiring(stored, 60)) {
+    if (stored && !isTokenExpired(stored)) {
       if (syncSessionFromStorage()) {
         scheduleSilentRefresh(role, stored)
         if (role === 'user' || role === 'partner') {
@@ -568,15 +570,17 @@ export function useAuth(role: AuthRole = 'user') {
       return true
     }
 
-    if (result === 'transient' && stored && !isTokenExpired(stored)) {
-      if (syncSessionFromStorage()) {
+    // A timeout or network failure is not a 401. Keep the stored access token
+    // so the page can paint, and let a later 401 send the user to login.
+    if (result === 'transient' && stored && syncSessionFromStorage()) {
+      if (!isTokenExpired(stored)) {
         scheduleSilentRefresh(role, stored)
         if (role === 'user' || role === 'partner') {
           const userId = userIdFromAccessToken(stored)
           if (userId) identifyUser(userId, role)
         }
-        return true
       }
+      return true
     }
 
     return false
