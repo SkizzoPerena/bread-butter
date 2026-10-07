@@ -92,21 +92,11 @@ export function useCustomSite() {
       `/user/custom-site/${customSiteId}`,
       formData,
       { method: 'PATCH' }
-<<<<<<< Updated upstream
     )
     if (!response.customSite) {
       return await fetchCustomSite(customSiteId)
-=======
-    ), {
-      event: 'custom_site_saved',
-      props: { event_id: formData.get('event')?.toString() || undefined },
-    })
-    const site = response.customSite || (response as any).site || (response as any).data
-    if (!site) {
-      return { _id: customSiteId } as CustomSiteRecord
->>>>>>> Stashed changes
     }
-    return site
+    return response.customSite
   }
 
   async function publishCustomSite(customSiteId: string): Promise<void> {
