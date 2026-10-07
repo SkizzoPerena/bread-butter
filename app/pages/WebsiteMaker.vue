@@ -1105,6 +1105,7 @@ function clearSlotAccommodation(idx: number) {
             rating: '',
             distance: '',
             description: '',
+            image: '',
             link: ''
         }
     }
@@ -1711,7 +1712,7 @@ function togglePreview() {
 
                     <!-- Steps Vertical List -->
                     <div
-                        class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-center gap-1 sm:gap-1.5 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden font-sans">
+                        class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-center gap-1 sm:gap-1.5 scrollbar-none font-sans">
                         <button v-for="(step, idx) in websiteSteps" :key="step.id" type="button" :title="step.label"
                             class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 cursor-pointer relative group text-center font-sans"
                             :class="currentStep === idx
@@ -3355,7 +3356,7 @@ function togglePreview() {
                                                         }" :ui="{ container: 'p-0 flex flex-col h-full ring-0' }">
                                                         <!-- Venue Image Section -->
                                                         <div
-                                                            class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5 dark:bg-white/5">
+                                                            class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5">
                                                             <img :src="getAccommodationImage(hotel)"
                                                                 :alt="hotel.name || 'Venue Accommodation'"
                                                                 class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -3366,7 +3367,7 @@ function togglePreview() {
 
                                                             <!-- Star Rating Badge -->
                                                             <div v-if="hotel.rating"
-                                                                class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 dark:bg-toast-900/95 text-amber-600 dark:text-amber-400 shadow-md backdrop-blur-xs flex items-center gap-1">
+                                                                class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-amber-600 shadow-md backdrop-blur-xs flex items-center gap-1">
                                                                 <UIcon name="i-lucide-star"
                                                                     class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                                                 <span>{{ hotel.rating }}</span>

@@ -109,15 +109,14 @@ function getSectionStyle(index: number) {
 
 function formatTime12h(timeStr?: string): string {
   if (!timeStr) return ''
-  const parts = timeStr.split(':')
-  if (parts.length < 2) return timeStr
-  let hours = parseInt(parts[0], 10)
-  const minutes = parts[1]
+  const [hoursStr, minutesStr] = timeStr.split(':')
+  if (!hoursStr || !minutesStr) return timeStr
+  let hours = parseInt(hoursStr, 10)
   if (isNaN(hours)) return timeStr
   const ampm = hours >= 12 ? 'PM' : 'AM'
   hours = hours % 12
   hours = hours ? hours : 12
-  return `${hours}:${minutes} ${ampm}`
+  return `${hours}:${minutesStr} ${ampm}`
 }
 
 function formatScheduleTime(item: { isAllDay?: boolean; startTime?: string; endTime?: string }): string {
@@ -132,11 +131,11 @@ function formatScheduleTime(item: { isAllDay?: boolean; startTime?: string; endT
 function formatScheduleDate(dateStr?: string): string {
   if (!dateStr) return ''
   try {
-    const parts = dateStr.split('-')
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10)
-      const month = parseInt(parts[1], 10) - 1
-      const day = parseInt(parts[2], 10)
+    const [yearStr, monthStr, dayStr] = dateStr.split('-')
+    if (yearStr && monthStr && dayStr) {
+      const year = parseInt(yearStr, 10)
+      const month = parseInt(monthStr, 10) - 1
+      const day = parseInt(dayStr, 10)
       const d = new Date(year, month, day)
       return d.toLocaleDateString(undefined, {
         weekday: 'long',
@@ -787,19 +786,19 @@ function getVenueGoogleMapsUrl(
                     :ui="{ container: 'p-0 flex flex-col h-full ring-0' }"
                   >
                     <!-- Venue Image Section -->
-                    <div class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5 dark:bg-white/5">
+                    <div class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5">
                       <img
                         :src="getAccommodationImage(hotel)"
                         :alt="hotel.name || 'Venue Accommodation'"
                         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
-                      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent"></div>
+                      <div class="absolute inset-0 bg-linear-to-t from-black/70 via-black/15 to-transparent"></div>
 
                       <!-- Star Rating Badge -->
                       <div
                         v-if="hotel.rating"
-                        class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 dark:bg-toast-900/95 text-amber-600 dark:text-amber-400 shadow-md backdrop-blur-xs flex items-center gap-1"
+                        class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-amber-600 shadow-md backdrop-blur-xs flex items-center gap-1"
                       >
                         <UIcon name="i-lucide-star" class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                         <span>{{ hotel.rating }}</span>

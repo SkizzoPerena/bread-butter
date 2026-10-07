@@ -1,10 +1,10 @@
 export interface WhereToStayAccommodation {
     id: string
     name: string
-    rating: string
-    distance: string
-    description: string
-    image: string
+    rating?: string
+    distance?: string
+    description?: string
+    image?: string
     link?: string
     phone?: string
     notes?: string
