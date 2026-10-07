@@ -1,4 +1,4 @@
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const { token, user, restoreSession } = useAuth()
   const { isUiOnlyMode } = useApiMode()
 
@@ -14,17 +14,19 @@ export default defineNuxtPlugin(async () => {
     return
   }
 
-  // Restore session: checks stored token validity, schedules silent refresh or calls refresh endpoint
-  await restoreSession()
-
-  // If we have an access token but user details are not yet loaded, fetch account details
-  if (token.value && !user.value?.email) {
-    try {
-      const { fetchAccount } = useAccount()
-      await fetchAccount()
-    } catch {
-      // If the backend is asleep/unreachable, keep the token and let pages retry later.
-    }
+  const stored = getStoredAccessToken('user')
+  const activeRole = getActiveAuthRole()
+  if (stored || activeRole === 'user') {
+    restoreSession().then(async () => {
+      if (token.value && !user.value?.email) {
+        try {
+          const { fetchAccount } = useAccount()
+          await fetchAccount()
+        } catch {
+          // If the backend is asleep/unreachable, keep the token and let pages retry later.
+        }
+      }
+    }).catch(() => {})
   }
 })
 

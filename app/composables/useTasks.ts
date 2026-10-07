@@ -9,6 +9,7 @@ import type {
   UpdateTaskMessageResponse,
 } from '~/types/task'
 import type { TaskStatus } from '~/types/task'
+import { EVENT_CANCELLED_REASONS, TASK_DELETE_REASONS, actorRole, matchReason, capture, tracked } from '~/utils/analytics'
 
 const MOCK_ASSIGNEE = { _id: 'mock-assignee-1', name: 'Florist' }
 
@@ -129,7 +130,14 @@ export function useTasks() {
       formData.append('images', file)
     }
 
-    const response = await apiUpload<CreateTaskResponse>('/user/tasks', formData)
+    const response = await tracked(actorRole(), () => apiUpload<CreateTaskResponse>('/user/tasks', formData), {
+      event: 'task_created',
+      props: { event_id: payload.eventId },
+    }, {
+      event: 'task_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+      props: { event_id: payload.eventId },
+    })
     return { ...response, task: normalizeTask(response.task) }
   }
 
@@ -147,9 +155,12 @@ export function useTasks() {
       }
     }
 
-    const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/status`, {
+    const response = await tracked(actorRole(), () => apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/status`, {
       method: 'PATCH',
       body: { status },
+    }), { event: 'task_status_changed', props: { status } }, {
+      event: 'task_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
     })
     return response.task
       ? { ...response, task: normalizeTask(response.task) }
@@ -168,10 +179,19 @@ export function useTasks() {
       }
     }
 
-    return apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/priority`, {
-      method: 'PATCH',
-      body: { priority },
-    })
+    const role = actorRole()
+    try {
+      return await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/priority`, {
+        method: 'PATCH',
+        body: { priority },
+      })
+    } catch (error) {
+      if (role) {
+        const reason = matchReason(error, EVENT_CANCELLED_REASONS)
+        if (reason) capture('task_rejected', { role, reason })
+      }
+      throw error
+    }
   }
 
   async function updateTaskAssignee(
@@ -192,10 +212,20 @@ export function useTasks() {
       }
     }
 
-    const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/assignee`, {
-      method: 'PATCH',
-      body: { assigneeId },
-    })
+    const role = actorRole()
+    let response: UpdateTaskMessageResponse
+    try {
+      response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/assignee`, {
+        method: 'PATCH',
+        body: { assigneeId },
+      })
+    } catch (error) {
+      if (role) {
+        const reason = matchReason(error, EVENT_CANCELLED_REASONS)
+        if (reason) capture('task_rejected', { role, reason })
+      }
+      throw error
+    }
     return response.task
       ? { ...response, task: normalizeTask(response.task) }
       : response
@@ -228,9 +258,19 @@ export function useTasks() {
       formData.append('images', file)
     }
 
-    const response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
-      method: 'PATCH',
-    })
+    const role = actorRole()
+    let response: UpdateTaskMessageResponse
+    try {
+      response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
+        method: 'PATCH',
+      })
+    } catch (error) {
+      if (role) {
+        const reason = matchReason(error, EVENT_CANCELLED_REASONS)
+        if (reason) capture('task_rejected', { role, reason })
+      }
+      throw error
+    }
     return response.task
       ? { ...response, task: normalizeTask(response.task) }
       : response
@@ -246,9 +286,22 @@ export function useTasks() {
       }
     }
 
-    return apiRequest<DeleteTaskResponse>(`/user/tasks/${taskId}`, {
-      method: 'DELETE',
-    })
+    const role = actorRole()
+    try {
+      const response = await apiRequest<DeleteTaskResponse>(`/user/tasks/${taskId}`, {
+        method: 'DELETE',
+      })
+      if (role) capture('task_deleted', { role })
+      return response
+    } catch (error) {
+      if (role) {
+        const notTodo = matchReason(error, TASK_DELETE_REASONS)
+        if (notTodo) capture('task_delete_rejected', { role, reason: notTodo })
+        const cancelled = matchReason(error, EVENT_CANCELLED_REASONS)
+        if (cancelled) capture('task_rejected', { role, reason: cancelled })
+      }
+      throw error
+    }
   }
 
   return {

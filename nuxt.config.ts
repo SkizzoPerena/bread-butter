@@ -27,13 +27,11 @@ export default defineNuxtConfig({
 
   modules: [['@nuxt/eslint', {
     stylistic: false
-  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image', 'motion-v/nuxt', 'nuxt-posthog'],
+  }], '@nuxt/ui', '@nuxt/icon', '@nuxt/image', 'motion-v/nuxt'],
 
   app: {
     head: {
-      link: [
-        { rel: 'preload', href: '/videos/Hero-bg.mp4', as: 'video', type: 'video/mp4' }
-      ]
+      link: []
     }
   },
 
@@ -87,6 +85,8 @@ export default defineNuxtConfig({
       apiBase:
         process.env.NUXT_PUBLIC_API_BASE_URL ||
         'https://bread-butter-backend.onrender.com/api',
+      posthogKey: process.env.NUXT_PUBLIC_POSTHOG_KEY || '',
+      posthogHost: process.env.NUXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
     }
   },
 
@@ -95,9 +95,6 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    // Auth decides landing vs dashboard on the client; prerendering `/` breaks
-    // post-login navigation with a failed `_payload.json` fetch.
-    '/': { ssr: false },
     '/user/dashboard': { redirect: { to: '/', statusCode: 301 } },
     '/event-dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
     '/event/dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },

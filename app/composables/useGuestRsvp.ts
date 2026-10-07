@@ -5,6 +5,7 @@ import type {
 } from '~/types/rsvp'
 import { GuestRsvpError } from '~/types/rsvp'
 import { isValidRsvpObjectId } from '~/types/rsvp'
+import { capture } from '~/utils/analytics'
 
 export const MOCK_RSVP_PENDING_ID = '664f1a2b3c4d5e6f7a8b9c0d'
 export const MOCK_RSVP_RESPONDED_ID = '664f1a2b3c4d5e6f7a8b9c0e'
@@ -206,7 +207,7 @@ export function useGuestRsvp() {
     }
 
     try {
-      return await apiRequest<GuestRsvpRespondResponse>(
+      const response = await apiRequest<GuestRsvpRespondResponse>(
         `/guest/rsvps/${encodeURIComponent(rsvpId)}/respond`,
         {
           method: 'PATCH',
@@ -214,6 +215,8 @@ export function useGuestRsvp() {
           authenticated: false,
         }
       )
+      capture('rsvp_submitted', { role: 'guest' })
+      return response
     } catch (error) {
       throw parseGuestRsvpError(error)
     }

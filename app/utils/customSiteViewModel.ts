@@ -1,5 +1,5 @@
 import type { PublicCustomSiteRecord } from '~/types/customSite'
-import aisleImage from '~/assets/bpb-images/login-aisle.jpg'
+import aisleImage from '~/assets/bpb-images/login-aisle.webp'
 import {
   resolvePaletteFromRecord,
   resolveTypography,

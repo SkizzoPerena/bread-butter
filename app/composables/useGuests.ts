@@ -13,6 +13,7 @@ import type {
 import type { GuestRecord } from '~/types/event'
 import { findMockSubEventRsvpByEmail } from '~/composables/useSubEventRsvps'
 import type { TableAssignmentValue } from '~/utils/tableCode'
+import { GUEST_ADD_REASONS, INVITE_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 function normalizeGuestEntry(entry: GuestEntryInput) {
   return {
@@ -47,9 +48,16 @@ export function useGuests() {
       }
     }
 
-    return apiRequest<CreateGuestResponse>('/user/guests', {
+    return tracked(actorRole(), () => apiRequest<CreateGuestResponse>('/user/guests', {
       method: 'POST',
       body: { eventId, ...normalized },
+    }), {
+      event: 'guests_added',
+      props: { event_id: eventId, guest_count: 1, source: 'single' },
+    }, {
+      event: 'guests_add_rejected',
+      reasons: GUEST_ADD_REASONS,
+      props: { event_id: eventId },
     })
   }
 
@@ -70,9 +78,20 @@ export function useGuests() {
       }
     }
 
-    return apiRequest<CreateGuestsBulkResponse>(`/user/guests/event/${eventId}/bulk`, {
+    return tracked(actorRole(), () => apiRequest<CreateGuestsBulkResponse>(`/user/guests/event/${eventId}/bulk`, {
       method: 'POST',
       body: { guests: normalized },
+    }), {
+      event: 'guests_added',
+      props: (value) => ({
+        event_id: eventId,
+        guest_count: value.created ?? normalized.length,
+        source: 'bulk',
+      }),
+    }, {
+      event: 'guests_add_rejected',
+      reasons: GUEST_ADD_REASONS,
+      props: { event_id: eventId },
     })
   }
 
@@ -107,10 +126,10 @@ export function useGuests() {
       }
     }
 
-    return apiRequest<UpdateGuestResponse>(`/user/guests/${guestId}`, {
+    return tracked(actorRole(), () => apiRequest<UpdateGuestResponse>(`/user/guests/${guestId}`, {
       method: 'PATCH',
       body,
-    })
+    }), { event: 'guest_updated' })
   }
 
   async function fetchGuestsByEvent(
@@ -193,9 +212,15 @@ export function useGuests() {
       }
     }
 
-    return apiRequest<SendInviteResponse>(`/user/rsvps/event/${eventId}/send`, {
+    return tracked(actorRole(), () => apiRequest<SendInviteResponse>(`/user/rsvps/event/${eventId}/send`, {
       method: 'POST',
       body: {},
+    }), {
+      event: 'rsvp_invite_sent',
+      props: (value) => ({ event_id: eventId, invite_count: value.created ?? 0 }),
+    }, {
+      event: 'rsvp_invite_rejected',
+      reasons: INVITE_REASONS,
     })
   }
 
@@ -212,8 +237,14 @@ export function useGuests() {
       }
     }
 
-    return apiRequest<SendInviteResponse>(`/user/rsvps/guest/${guestId}/send`, {
+    return tracked(actorRole(), () => apiRequest<SendInviteResponse>(`/user/rsvps/guest/${guestId}/send`, {
       method: 'POST',
+    }), {
+      event: 'rsvp_invite_sent',
+      props: (value) => ({ invite_count: value.created ?? 1 }),
+    }, {
+      event: 'rsvp_invite_rejected',
+      reasons: INVITE_REASONS,
     })
   }
 
@@ -226,9 +257,9 @@ export function useGuests() {
       }
     }
 
-    return apiRequest<DeleteGuestResponse>(`/user/guests/${guestId}`, {
+    return tracked(actorRole(), () => apiRequest<DeleteGuestResponse>(`/user/guests/${guestId}`, {
       method: 'DELETE',
-    })
+    }), { event: 'guest_removed' })
   }
 
   async function fetchEventTables(eventId: string): Promise<string[]> {

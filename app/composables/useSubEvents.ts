@@ -7,6 +7,7 @@ import type {
   UpdateSubEventPayload,
   UpdateSubEventResponse,
 } from '~/types/subEvent'
+import { SUB_EVENT_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 const MOCK_SUB_EVENTS: SubEventRecord[] = [
   {
@@ -78,9 +79,16 @@ export function useSubEvents() {
       return created
     }
 
-    const response = await apiRequest<CreateSubEventResponse>('/user/sub-events', {
+    const response = await tracked(actorRole(), () => apiRequest<CreateSubEventResponse>('/user/sub-events', {
       method: 'POST',
       body,
+    }), {
+      event: 'sub_event_saved',
+      props: { event_id: payload.eventId },
+    }, {
+      event: 'sub_event_rejected',
+      reasons: SUB_EVENT_REASONS,
+      props: { event_id: payload.eventId },
     })
     return response.subEvent
   }
@@ -108,10 +116,13 @@ export function useSubEvents() {
       return updated
     }
 
-    const response = await apiRequest<UpdateSubEventResponse>(
+    const response = await tracked(actorRole(), () => apiRequest<UpdateSubEventResponse>(
       `/user/sub-events/${subEventId}`,
       { method: 'PATCH', body: payload }
-    )
+    ), { event: 'sub_event_saved' }, {
+      event: 'sub_event_rejected',
+      reasons: SUB_EVENT_REASONS,
+    })
     return response.subEvent
   }
 

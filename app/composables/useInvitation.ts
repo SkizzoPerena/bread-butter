@@ -4,6 +4,7 @@ import type {
   InvitationResponse,
   InvitationSavePayload,
 } from '~/types/invitation'
+import { actorRole, tracked } from '~/utils/analytics'
 
 const MOCK_INVITATION_ID = 'mock-invitation-id'
 
@@ -39,10 +40,10 @@ export function useInvitation() {
     if (isUiOnlyMode.value) {
       return mockInvitation(payload.eventId, payload)
     }
-    const response = await apiRequest<InvitationMutationResponse>('/user/invitations', {
+    const response = await tracked(actorRole(), () => apiRequest<InvitationMutationResponse>('/user/invitations', {
       method: 'POST',
       body: payload,
-    })
+    }), { event: 'invitation_saved' })
     if (!response.invitation) {
       throw new Error(response.message || 'Invitation was not returned.')
     }
@@ -59,13 +60,13 @@ export function useInvitation() {
         ...payload,
       })
     }
-    const response = await apiRequest<InvitationMutationResponse>(
+    const response = await tracked(actorRole(), () => apiRequest<InvitationMutationResponse>(
       `/user/invitations/${invitationId}`,
       {
         method: 'PATCH',
         body: payload,
       }
-    )
+    ), { event: 'invitation_saved' })
     if (!response.invitation) {
       throw new Error(response.message || 'Invitation was not returned.')
     }

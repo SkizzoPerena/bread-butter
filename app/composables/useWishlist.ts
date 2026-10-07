@@ -9,6 +9,7 @@ import type {
   WishlistRecord,
   WishlistResponse,
 } from '~/types/wishlist'
+import { EVENT_CANCELLED_REASONS, actorRole, tracked } from '~/utils/analytics'
 
 function mockWishlist(eventId: string): WishlistRecord {
   return {
@@ -172,10 +173,13 @@ export function useWishlist() {
     }
 
     const formData = buildQrFormData(payload, file)
-    return apiUpload<WishlistMutationResponse>(
+    return tracked(actorRole(), () => apiUpload<WishlistMutationResponse>(
       `/user/wishlists/event/${eventId}/qr-codes`,
       formData
-    )
+    ), { event: 'wishlist_item_saved' }, {
+      event: 'wishlist_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+    })
   }
 
   async function updateQrCode(
@@ -197,20 +201,26 @@ export function useWishlist() {
 
     if (file) {
       const formData = buildQrFormData(payload, file)
-      return apiUpload<WishlistMutationResponse>(
+      return tracked(actorRole(), () => apiUpload<WishlistMutationResponse>(
         `/user/wishlists/event/${eventId}/qr-codes/${qrCodeId}`,
         formData,
         { method: 'PATCH' }
-      )
+      ), { event: 'wishlist_item_saved' }, {
+        event: 'wishlist_rejected',
+        reasons: EVENT_CANCELLED_REASONS,
+      })
     }
 
-    return apiRequest<WishlistMutationResponse>(
+    return tracked(actorRole(), () => apiRequest<WishlistMutationResponse>(
       `/user/wishlists/event/${eventId}/qr-codes/${qrCodeId}`,
       {
         method: 'PATCH',
         body: payload,
       }
-    )
+    ), { event: 'wishlist_item_saved' }, {
+      event: 'wishlist_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+    })
   }
 
   async function deleteQrCode(
@@ -232,10 +242,13 @@ export function useWishlist() {
       }
     }
 
-    return apiRequest<WishlistMutationResponse>(
+    return tracked(actorRole(), () => apiRequest<WishlistMutationResponse>(
       `/user/wishlists/event/${eventId}/qr-codes/${qrCodeId}`,
       { method: 'DELETE' }
-    )
+    ), { event: 'wishlist_item_removed' }, {
+      event: 'wishlist_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+    })
   }
 
   async function addGiftItem(
@@ -253,13 +266,16 @@ export function useWishlist() {
       }
     }
 
-    return apiRequest<WishlistMutationResponse>(
+    return tracked(actorRole(), () => apiRequest<WishlistMutationResponse>(
       `/user/wishlists/event/${eventId}/gift-items`,
       {
         method: 'POST',
         body: payload,
       }
-    )
+    ), { event: 'wishlist_item_saved' }, {
+      event: 'wishlist_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+    })
   }
 
   async function updateGiftItem(
@@ -278,13 +294,16 @@ export function useWishlist() {
       }
     }
 
-    return apiRequest<WishlistMutationResponse>(
+    return tracked(actorRole(), () => apiRequest<WishlistMutationResponse>(
       `/user/wishlists/event/${eventId}/gift-items/${giftItemId}`,
       {
         method: 'PATCH',
         body: payload,
       }
-    )
+    ), { event: 'wishlist_item_saved' }, {
+      event: 'wishlist_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+    })
   }
 
   async function deleteGiftItem(
@@ -306,10 +325,13 @@ export function useWishlist() {
       }
     }
 
-    return apiRequest<WishlistMutationResponse>(
+    return tracked(actorRole(), () => apiRequest<WishlistMutationResponse>(
       `/user/wishlists/event/${eventId}/gift-items/${giftItemId}`,
       { method: 'DELETE' }
-    )
+    ), { event: 'wishlist_item_removed' }, {
+      event: 'wishlist_rejected',
+      reasons: EVENT_CANCELLED_REASONS,
+    })
   }
 
   return {

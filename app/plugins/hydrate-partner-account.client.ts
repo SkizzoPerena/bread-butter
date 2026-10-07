@@ -1,4 +1,4 @@
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const { token, user, restoreSession } = useAuth('partner')
   const { isUiOnlyMode } = useApiMode()
 
@@ -13,14 +13,18 @@ export default defineNuxtPlugin(async () => {
     return
   }
 
-  await restoreSession()
-
-  if (token.value && !user.value?.email) {
-    try {
-      const { fetchAccount } = usePartnerAccount()
-      await fetchAccount()
-    } catch {
-      // Keep the token and let pages retry if the backend is unavailable.
-    }
+  const stored = getStoredAccessToken('partner')
+  const activeRole = getActiveAuthRole()
+  if (stored || activeRole === 'partner') {
+    restoreSession().then(async () => {
+      if (token.value && !user.value?.email) {
+        try {
+          const { fetchAccount } = usePartnerAccount()
+          await fetchAccount()
+        } catch {
+          // Keep the token and let pages retry if the backend is unavailable.
+        }
+      }
+    }).catch(() => {})
   }
 })

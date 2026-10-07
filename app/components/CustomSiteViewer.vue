@@ -5,10 +5,16 @@ import {
   getGoogleMapsUrl,
 } from '~/utils/websiteTheme'
 import { formatDateWithWeekday } from '~/utils/invitationDisplay'
+import {
+  defaultAccommodations,
+  getAccommodationImage,
+} from '~/data/destinationHotels'
 
 const props = defineProps<{
   site: CustomSiteViewModel
 }>()
+
+useWeddingFonts()
 
 const paletteColors = computed(() => props.site.palette.colors)
 const typography = computed(() => props.site.typography)
@@ -103,15 +109,14 @@ function getSectionStyle(index: number) {
 
 function formatTime12h(timeStr?: string): string {
   if (!timeStr) return ''
-  const parts = timeStr.split(':')
-  if (parts.length < 2) return timeStr
-  let hours = parseInt(parts[0], 10)
-  const minutes = parts[1]
+  const [hoursStr, minutesStr] = timeStr.split(':')
+  if (!hoursStr || !minutesStr) return timeStr
+  let hours = parseInt(hoursStr, 10)
   if (isNaN(hours)) return timeStr
   const ampm = hours >= 12 ? 'PM' : 'AM'
   hours = hours % 12
   hours = hours ? hours : 12
-  return `${hours}:${minutes} ${ampm}`
+  return `${hours}:${minutesStr} ${ampm}`
 }
 
 function formatScheduleTime(item: { isAllDay?: boolean; startTime?: string; endTime?: string }): string {
@@ -126,11 +131,11 @@ function formatScheduleTime(item: { isAllDay?: boolean; startTime?: string; endT
 function formatScheduleDate(dateStr?: string): string {
   if (!dateStr) return ''
   try {
-    const parts = dateStr.split('-')
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10)
-      const month = parseInt(parts[1], 10) - 1
-      const day = parseInt(parts[2], 10)
+    const [yearStr, monthStr, dayStr] = dateStr.split('-')
+    if (yearStr && monthStr && dayStr) {
+      const year = parseInt(yearStr, 10)
+      const month = parseInt(monthStr, 10) - 1
+      const day = parseInt(dayStr, 10)
       const d = new Date(year, month, day)
       return d.toLocaleDateString(undefined, {
         weekday: 'long',
@@ -208,67 +213,6 @@ const otherWeddingPartyMembers = computed(() => {
   ])
   return effectiveViewerPartyMembers.value.filter((m) => !matchedNames.has(m.name))
 })
-
-const defaultAccommodations = [
-  {
-    id: 'acc-1',
-    name: 'The Grand Hotel & Suites',
-    rating: '4.8 ★',
-    distance: '5 mins from venue',
-    description: 'Luxury rooms & suites with grand ballroom and fine dining.',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-  {
-    id: 'acc-2',
-    name: 'Boutique Garden Resort',
-    rating: '4.7 ★',
-    distance: '10 mins away',
-    description: 'Scenic garden view, private verandas & pool lounge.',
-    image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-  {
-    id: 'acc-3',
-    name: 'City Center Hotel & Spa',
-    rating: '4.6 ★',
-    distance: '15 mins away',
-    description: 'Modern central amenities with full luxury wellness spa.',
-    image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-  {
-    id: 'acc-4',
-    name: 'Cozy Inn & Bed & Breakfast',
-    rating: '4.9 ★',
-    distance: '8 mins away',
-    description: 'Charming breakfast stay with scenic hillside views.',
-    image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=700&q=80',
-    link: '',
-  },
-]
-
-function getAccommodationImage(hotel?: { name?: string; image?: string }): string {
-  if (hotel?.image && hotel.image.trim()) {
-    return hotel.image.trim()
-  }
-  const fallbacks = [
-    'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=700&q=80'
-  ]
-  const name = hotel?.name || ''
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
-  }
-  return fallbacks[hash % fallbacks.length] || fallbacks[0]!
-}
 
 const effectiveAccommodations = computed(() => {
   const accs = props.site.whereToStayAccommodations
@@ -842,19 +786,19 @@ function getVenueGoogleMapsUrl(
                     :ui="{ container: 'p-0 flex flex-col h-full ring-0' }"
                   >
                     <!-- Venue Image Section -->
-                    <div class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5 dark:bg-white/5">
+                    <div class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5">
                       <img
                         :src="getAccommodationImage(hotel)"
                         :alt="hotel.name || 'Venue Accommodation'"
                         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
-                      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent"></div>
+                      <div class="absolute inset-0 bg-linear-to-t from-black/70 via-black/15 to-transparent"></div>
 
                       <!-- Star Rating Badge -->
                       <div
                         v-if="hotel.rating"
-                        class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 dark:bg-toast-900/95 text-amber-600 dark:text-amber-400 shadow-md backdrop-blur-xs flex items-center gap-1"
+                        class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-amber-600 shadow-md backdrop-blur-xs flex items-center gap-1"
                       >
                         <UIcon name="i-lucide-star" class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                         <span>{{ hotel.rating }}</span>

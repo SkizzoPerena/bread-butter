@@ -4,7 +4,7 @@ import type { PricingPlanProps } from '@nuxt/ui'
 
 useHead({
   link: [
-    { rel: 'preload', href: '/videos/Hero-bg.mp4', as: 'video', type: 'video/mp4' },
+    { rel: 'preload', href: '/images/hero-poster.webp', as: 'image', type: 'image/webp', fetchpriority: 'high' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=La+Belle+Aurore&display=swap' }
@@ -137,7 +137,7 @@ function scrollMotion(delay: number = 0) {
       class=" 100vh landing-bg landing-bg-overlay flex justify-center items-end"
       :ui="{ title: 'font-serif text-white', description: 'text-white' }">
 
-      <video autoplay loop muted playsinline preload="auto" class="absolute inset-0 w-full h-full object-cover -z-10">
+      <video autoplay loop muted playsinline poster="/images/hero-poster.webp" preload="metadata" class="absolute inset-0 w-full h-full object-cover -z-10">
         <source src="/videos/Hero-bg.mp4" type="video/mp4">
       </video>
       <div class="space-y-8">
@@ -198,7 +198,7 @@ function scrollMotion(delay: number = 0) {
             class="w-64 h-78 sm:w-80 sm:h-95 bg-bread-400 bread-container transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-2xl hover:z-10"
             :class="index % 2 === 0 ? '-rotate-2' : 'rotate-2'" :ui="{ root: 'rounded-sm', container: 'p-1 sm:p-3' }">
             <div class="relative aspect-square overflow-hidden">
-              <img width="200" height="300" class="w-full h-full object-cover" :src="img.file" :alt="img.title" />
+              <img width="200" height="300" class="w-full h-full object-cover" loading="lazy" decoding="async" :src="img.file" :alt="img.title" />
             </div>
             <div class="text-center font-medium la-belle-aurore-regular text-xl sm:text-3xl -mt-2 text-black"
               :class="index % 2 === 0 ? 'rotate-2' : '-rotate-3'">{{ img.title }}</div>
@@ -210,7 +210,7 @@ function scrollMotion(delay: number = 0) {
     <UPageSection class="bg-toast-500">
 
       <UContainer class="font-regular text-sm sm:text-xl text-center text-white">
-        <img class="max-h-4/5 mb-4 sm:mb-6 mx-auto"
+        <img class="max-h-4/5 mb-4 sm:mb-6 mx-auto" loading="lazy" decoding="async"
           src="https://lh3.googleusercontent.com/d/1gwoHSTP-QKnTnMOFFMVQuWVRiCnwDz-9" />
         <Motion v-bind="scrollMotion(0.1)">
 
@@ -338,7 +338,7 @@ function scrollMotion(delay: number = 0) {
     </UPageSection>
 
     <UPageSection class="h-screen flex flex-col justify-center 100vh landing-bg landing-bg-overlay">
-      <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
+      <video autoplay loop muted playsinline preload="none" class="absolute inset-0 w-full h-full object-cover -z-10">
         <source src="../assets/CTA-bg.mp4" type="video/mp4">
       </video>
       <UPageGrid :ui="{ base: 'lg:grid-cols-5' }">

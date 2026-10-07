@@ -111,7 +111,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 <style>
 .login-bg {
-  background-image: url('../assets/bpb-images/login-aisle.jpg');
+  background-image: url('../assets/bpb-images/login-aisle.webp');
   background-size: cover;
 }
 </style>
