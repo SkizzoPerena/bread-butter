@@ -3590,9 +3590,17 @@ function togglePreview() {
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }">
                                             This website was made
                                             with</p>
-                                        <div class="h-6 w-full opacity-80 mask-logo"
-                                            :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }"
-                                            role="img" aria-label="Bread + Butter"></div>
+                                        <a
+                                            href="https://bread-plus-butter.com"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="w-full flex justify-center cursor-pointer transition-opacity hover:opacity-100 focus:outline-none"
+                                            aria-label="Bread + Butter"
+                                        >
+                                            <div class="h-6 w-full opacity-80 hover:opacity-100 transition-opacity mask-logo"
+                                                :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }"
+                                                role="img" aria-label="Bread + Butter"></div>
+                                        </a>
                                     </div>
                                 </div>
                             </div>

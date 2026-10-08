@@ -869,11 +869,19 @@ function getVenueGoogleMapsUrl(
             }">
               This website was made with
             </p>
-            <div class="h-6 w-full opacity-80 mask-logo" :style="{
-              backgroundColor: site.invertColors
-                ? paletteColors.text_color
-                : paletteColors.primary,
-            }" role="img" aria-label="Bread + Butter" />
+            <a
+              href="https://bread-plus-butter.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full flex justify-center cursor-pointer transition-opacity hover:opacity-100 focus:outline-none"
+              aria-label="Bread + Butter"
+            >
+              <div class="h-6 w-full opacity-80 hover:opacity-100 transition-opacity mask-logo" :style="{
+                backgroundColor: site.invertColors
+                  ? paletteColors.text_color
+                  : paletteColors.primary,
+              }" role="img" aria-label="Bread + Butter" />
+            </a>
           </div>
         </div>
       </div>
