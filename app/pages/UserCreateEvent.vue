@@ -121,18 +121,15 @@ function formatDateInputValue(date: Date): string {
 }
 
 const minEventDate = computed(() => {
-  const min = new Date()
-  min.setFullYear(min.getFullYear() + 1)
-  return formatDateInputValue(min)
+  return formatDateInputValue(new Date())
 })
 
-function isEventDateAtLeastOneYearOut(dateStr: string): boolean {
+function isEventDateInPast(dateStr: string): boolean {
   if (!dateStr.trim()) return false
   const selected = new Date(`${dateStr}T00:00:00`)
-  const min = new Date()
-  min.setFullYear(min.getFullYear() + 1)
-  min.setHours(0, 0, 0, 0)
-  return selected >= min
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return selected < today
 }
 
 function switchView(view: ViewStep) {
@@ -174,10 +171,10 @@ function submitEventSetup() {
     return
   }
 
-  if (!isEventDateAtLeastOneYearOut(eventForm.eventDate)) {
+  if (isEventDateInPast(eventForm.eventDate)) {
     toast.add({
-      title: 'Event date too soon',
-      description: 'Please select a date at least one year from today.',
+      title: 'Event date in the past',
+      description: 'Please select today or a future date for your event.',
       color: 'warning',
     })
     return
@@ -300,7 +297,7 @@ function submitEventSetup() {
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
 
-              <UFormField label="Target Event Date" required description="Must be at least one year from today">
+              <UFormField label="Target Event Date" required>
                 <UInput v-model="eventForm.eventDate" type="date" size="lg" :min="minEventDate"
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>

@@ -75,7 +75,7 @@ export interface CustomSiteRecord {
   title: string
   subtitle: string
   headerImageURL: string
-  colorPalette?: CustomSiteColorPalette | Record<string, string>
+  colorPalette?: string | CustomSiteColorPalette | Record<string, string>
   colorPaletteName?: string
   typography?: CustomSiteTypography | null
   fontFamily?: string | null

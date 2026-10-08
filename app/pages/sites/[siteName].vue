@@ -43,7 +43,7 @@ useHead(() => ({
   ],
 }))
 
-async function loadSite() {
+async function loadSite(tokenOverride?: string | null) {
   if (!siteName.value) {
     pageState.value = 'not-found'
     return
@@ -53,7 +53,7 @@ async function loadSite() {
   pinError.value = ''
 
   try {
-    const accessToken = getSiteAccessToken(siteName.value)
+    const accessToken = tokenOverride !== undefined ? tokenOverride : getSiteAccessToken(siteName.value)
     const response = await fetchPublicSiteMeta(siteName.value, accessToken)
 
     if (response.passwordProtected && !response.customSite) {
@@ -101,13 +101,36 @@ async function handlePinSubmit() {
 
   try {
     const response = await unlockPublicSite(siteName.value, passcode)
-    if (!response.accessToken) {
+    const resAny = response as unknown as {
+      accessToken?: string
+      token?: string
+      customSite?: PublicCustomSiteRecord
+      data?: {
+        accessToken?: string
+        token?: string
+        customSite?: PublicCustomSiteRecord
+      }
+    }
+    const token = resAny.accessToken || resAny.token || resAny.data?.accessToken || resAny.data?.token
+    const returnedSite = resAny.customSite || resAny.data?.customSite
+
+    if (!token && !returnedSite) {
       pinError.value = 'Could not unlock this site.'
       return
     }
-    setSiteAccessToken(siteName.value, response.accessToken)
+
+    if (token) {
+      setSiteAccessToken(siteName.value, token)
+    }
     pinInput.value = ''
-    await loadSite()
+
+    if (returnedSite) {
+      siteRecord.value = returnedSite
+      pageState.value = 'ready'
+      return
+    }
+
+    await loadSite(token)
   } catch (error) {
     if (error instanceof PublicCustomSiteError && error.status === 401) {
       pinError.value = 'Incorrect passcode.'

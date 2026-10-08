@@ -1,5 +1,5 @@
 import type { CustomSiteRecord, CustomSiteAccommodation, CustomSiteWhereToStay } from '~/types/customSite'
-import { resolveTypography } from '~/utils/websiteTheme'
+import { extractCustomColors, resolveTypography } from '~/utils/websiteTheme'
 
 export interface WebsiteEditorWebsiteData {
   format: string
@@ -150,6 +150,21 @@ function isRemoteHeaderUrl(url: string): boolean {
   return /^https?:\/\//i.test(url.trim())
 }
 
+function toHex(color: string | undefined, fallback = '#FFFFFF'): string {
+  if (!color || typeof color !== 'string') return fallback
+  const trimmed = color.trim()
+  if (/^#([A-Fa-f0-9]{6})$/.test(trimmed)) {
+    return trimmed
+  }
+  if (/^#([A-Fa-f0-9]{3})$/.test(trimmed)) {
+    const r = trimmed[1]
+    const g = trimmed[2]
+    const b = trimmed[3]
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+  return fallback
+}
+
 export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormData {
   const {
     eventId,
@@ -175,11 +190,18 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
   formData.append('subtitle', websiteData.siteDescription.trim())
   formData.append('passwordProtected', String(websiteData.isPasswordProtected))
   formData.append('passcode', websiteData.sitePassword.trim())
-  const palettePayload = {
-    ...selectedPalette,
-    invertColors: Boolean(websiteData.invertColors),
-    simplifiedColors: Boolean(websiteData.simplifiedColors),
-    singlePageSite: Boolean(websiteData.singlePageSite),
+
+  const palettePayload: Record<string, string> = {
+    primary: toHex(selectedPalette.primary, '#FFFFFF'),
+    secondary: toHex(selectedPalette.secondary, '#F2F2F2'),
+    text_color: toHex(selectedPalette.text_color, '#000000'),
+    secondary_text_color: toHex(selectedPalette.secondary_text_color, '#333333'),
+    background: toHex(selectedPalette.primary, '#FFFFFF'),
+    surface: toHex(selectedPalette.secondary, '#F2F2F2'),
+    text: toHex(selectedPalette.text_color, '#000000'),
+    heading: toHex(selectedPalette.text_color, '#000000'),
+    textColor: toHex(selectedPalette.text_color, '#000000'),
+    secondaryTextColor: toHex(selectedPalette.secondary_text_color, '#333333'),
   }
   formData.append('colorPalette', JSON.stringify(palettePayload))
   formData.append('invertColors', String(Boolean(websiteData.invertColors)))
@@ -318,20 +340,24 @@ export function applyCustomSiteToEditor(
   websiteData.whereToStayLocation = site.whereToStay?.location ?? motifConfig?.whereToStay?.location ?? ''
   websiteData.whereToStayLatitude = site.whereToStay?.latitude ?? motifConfig?.whereToStay?.latitude ?? null
   websiteData.whereToStayLongitude = site.whereToStay?.longitude ?? motifConfig?.whereToStay?.longitude ?? null
-  const paletteRecord = (typeof site.colorPalette === 'object' && site.colorPalette !== null)
-    ? (site.colorPalette as Record<string, unknown>)
+  const parsedColorPalette = (typeof site.colorPalette === 'string')
+    ? (() => { try { return JSON.parse(site.colorPalette) } catch { return null } })()
+    : site.colorPalette
+  const paletteRecord = (typeof parsedColorPalette === 'object' && parsedColorPalette !== null)
+    ? (parsedColorPalette as Record<string, unknown>)
     : {}
   websiteData.colorPalette = motifConfig?.colorPaletteName || site.colorPaletteName || websiteData.colorPalette
   if (ctx.customColors) {
-    const rawPalette = (typeof site.colorPalette === 'object' && site.colorPalette !== null)
-      ? (site.colorPalette as Record<string, string>)
-      : null
-    const savedColors = motifConfig?.customColors || (rawPalette?.primary && rawPalette?.secondary ? (rawPalette as unknown as ColorPaletteColors) : null)
-    if (savedColors) {
-      if (savedColors.primary) ctx.customColors.primary = savedColors.primary
-      if (savedColors.secondary) ctx.customColors.secondary = savedColors.secondary
-      if (savedColors.text_color) ctx.customColors.text_color = savedColors.text_color
-      if (savedColors.secondary_text_color) ctx.customColors.secondary_text_color = savedColors.secondary_text_color
+    const extractedColors =
+      extractCustomColors(parsedColorPalette) ||
+      extractCustomColors(motifConfig?.customColors) ||
+      extractCustomColors(motifConfig)
+
+    if (extractedColors) {
+      ctx.customColors.primary = extractedColors.primary
+      ctx.customColors.secondary = extractedColors.secondary
+      ctx.customColors.text_color = extractedColors.text_color
+      ctx.customColors.secondary_text_color = extractedColors.secondary_text_color
     }
   }
   websiteData.motif = motifConfig?.motif ?? (site.motif && !site.motif.startsWith('{') ? site.motif : '')

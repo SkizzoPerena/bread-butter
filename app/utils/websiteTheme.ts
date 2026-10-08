@@ -44,22 +44,94 @@ export function resolveTypography(typographyName?: string | null): TypographySet
   return typographySets.find((set) => set.name === typographyName) || typographySets[0]!
 }
 
-export function resolvePaletteFromRecord(
-  paletteName?: string | null,
-  stored?: Record<string, string> | null
-): ColorPalette {
-  if (stored && stored.primary && stored.secondary && stored.text_color) {
-    return {
-      name: paletteName || 'Custom',
-      colors: {
-        primary: stored.primary,
-        secondary: stored.secondary,
-        text_color: stored.text_color,
-        secondary_text_color:
-          stored.secondary_text_color || (stored.primary === '#1A1A1A' ? '#FFFFFF' : '#333333'),
-      },
+export function isDarkColor(hex?: string | null): boolean {
+  if (!hex || typeof hex !== 'string') return false
+  let clean = hex.replace('#', '').trim()
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('')
+  }
+  if (clean.length !== 6) return false
+  const r = parseInt(clean.substring(0, 2), 16) / 255
+  const g = parseInt(clean.substring(2, 4), 16) / 255
+  const b = parseInt(clean.substring(4, 6), 16) / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  return l < 0.55
+}
+
+export function formatHex(color?: string | null): string {
+  if (!color || typeof color !== 'string') return ''
+  let clean = color.trim()
+  if (!clean.startsWith('#')) clean = `#${clean}`
+  if (/^#[0-9A-Fa-f]{3}$/.test(clean)) {
+    clean = `#${clean[1]}${clean[1]}${clean[2]}${clean[2]}${clean[3]}${clean[3]}`
+  }
+  return clean.toUpperCase()
+}
+
+export function extractCustomColors(
+  stored?: unknown
+): ColorPalette['colors'] | null {
+  if (!stored) return null
+  let obj: any = stored
+  if (typeof obj === 'string') {
+    try {
+      obj = JSON.parse(obj)
+    } catch {
+      return null
     }
   }
+  if (!obj || typeof obj !== 'object') return null
+
+  // Unwrap nested .colors or .customColors if present
+  if (obj.colors && typeof obj.colors === 'object') {
+    obj = { ...obj, ...obj.colors }
+  }
+  if (obj.customColors && typeof obj.customColors === 'object') {
+    obj = { ...obj, ...obj.customColors }
+  }
+
+  const primaryRaw = (obj.primary || obj.background) as string | undefined
+  const secondaryRaw = (obj.secondary || obj.surface) as string | undefined
+  const textColorRaw = (obj.text_color || obj.textColor || obj.text || obj.heading) as string | undefined
+  const secondaryTextColorRaw = (obj.secondary_text_color || obj.secondaryTextColor || obj.secondary_text) as string | undefined
+
+  if (primaryRaw && secondaryRaw) {
+    const primary = formatHex(primaryRaw)
+    const secondary = formatHex(secondaryRaw)
+    const text_color = formatHex(textColorRaw) || (isDarkColor(primary) ? '#FDFBF7' : '#1A1A1A')
+    const secondary_text_color =
+      formatHex(secondaryTextColorRaw) || (isDarkColor(secondary) ? '#FDFBF7' : '#1A1A1A')
+
+    return {
+      primary,
+      secondary,
+      text_color,
+      secondary_text_color,
+    }
+  }
+
+  return null
+}
+
+export function resolvePaletteFromRecord(
+  paletteName?: string | null,
+  stored?: unknown
+): ColorPalette {
+  const custom = extractCustomColors(stored)
+  if (custom) {
+    return {
+      name: paletteName || 'Custom',
+      colors: custom,
+    }
+  }
+
+  if (paletteName && paletteName !== 'Custom') {
+    const preset = colorPalettes.find((palette) => palette.name === paletteName)
+    if (preset) return preset
+  }
+
   return resolvePalette(paletteName)
 }
 

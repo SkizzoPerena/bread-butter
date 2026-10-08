@@ -29,6 +29,49 @@ function mockCustomSite(eventId: string): CustomSiteRecord {
   }
 }
 
+export const uiMockSitesStore = ref<Record<string, CustomSiteRecord>>({})
+
+function parseMockRecordFromFormData(eventId: string, formData: FormData, existingId?: string): CustomSiteRecord {
+  const base = mockCustomSite(eventId)
+  const siteName = formData.get('siteName')?.toString() || base.siteName
+  const title = formData.get('title')?.toString() || base.title
+  const subtitle = formData.get('subtitle')?.toString() || base.subtitle
+  const templateType = formData.get('templateType')?.toString() || base.templateType
+  const rawColorPalette = formData.get('colorPalette')?.toString()
+  let colorPalette = base.colorPalette
+  if (rawColorPalette) {
+    try {
+      colorPalette = JSON.parse(rawColorPalette)
+    } catch {
+      colorPalette = rawColorPalette
+    }
+  }
+  const colorPaletteName = formData.get('colorPaletteName')?.toString() || base.colorPaletteName
+  const motif = formData.get('motif')?.toString() || base.motif
+  const invertColors = formData.get('invertColors') === 'true'
+  const simplifiedColors = formData.get('simplifiedColors') === 'true'
+  const singlePageSite = formData.get('singlePageSite') !== 'false'
+
+  const record: CustomSiteRecord = {
+    ...base,
+    _id: existingId || base._id,
+    siteName,
+    title,
+    subtitle,
+    templateType,
+    colorPalette,
+    colorPaletteName,
+    motif,
+    invertColors,
+    simplifiedColors,
+    singlePageSite,
+  }
+
+  uiMockSitesStore.value[siteName] = record
+  uiMockSitesStore.value[record._id] = record
+  return record
+}
+
 export type CustomSiteSaveRequest = {
   method: 'POST' | 'PATCH'
   path: string
@@ -48,7 +91,8 @@ export function useCustomSite() {
 
   async function fetchCustomSitesByEvent(eventId: string): Promise<CustomSiteRecord[]> {
     if (isUiOnlyMode.value) {
-      return []
+      const records = Object.values(uiMockSitesStore.value).filter((s) => s.event === eventId)
+      return records.length > 0 ? records : [mockCustomSite(eventId)]
     }
     const response = await apiRequest<CustomSitesListResponse>(
       `/user/custom-site/events/${eventId}`
@@ -58,7 +102,7 @@ export function useCustomSite() {
 
   async function fetchCustomSite(customSiteId: string): Promise<CustomSiteRecord> {
     if (isUiOnlyMode.value) {
-      return mockCustomSite('mock-event-id')
+      return uiMockSitesStore.value[customSiteId] || mockCustomSite('mock-event-id')
     }
     const response = await apiRequest<CustomSiteResponse>(
       `/user/custom-site/${customSiteId}`
@@ -69,7 +113,7 @@ export function useCustomSite() {
   async function createCustomSite(formData: FormData): Promise<CustomSiteRecord> {
     if (isUiOnlyMode.value) {
       const eventId = formData.get('event')?.toString() ?? 'mock-event-id'
-      return { ...mockCustomSite(eventId), isPublished: false }
+      return { ...parseMockRecordFromFormData(eventId, formData), isPublished: false }
     }
     const response = await tracked(actorRole(), () => apiUpload<CustomSiteMutationResponse>(
       '/user/custom-site',
@@ -90,7 +134,7 @@ export function useCustomSite() {
   ): Promise<CustomSiteRecord> {
     if (isUiOnlyMode.value) {
       const eventId = formData.get('event')?.toString() ?? 'mock-event-id'
-      return mockCustomSite(eventId)
+      return parseMockRecordFromFormData(eventId, formData, customSiteId)
     }
     const response = await tracked(actorRole(), () => apiUpload<CustomSiteMutationResponse>(
       `/user/custom-site/${customSiteId}`,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import aisleImage from '../assets/bpb-images/login-aisle.webp'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord, GuestRecord } from '~/types/event'
@@ -73,6 +73,18 @@ const isSaving = ref(false)
 const saveModalTitle = ref('Saving your website...')
 const saveModalDescription = ref('Please wait while we save your design and content.')
 const saveModalMode = ref<'save' | 'publish'>('save')
+
+watch(isSaving, (val) => {
+    if (typeof document !== 'undefined') {
+        document.body.style.overflow = val ? 'hidden' : ''
+    }
+})
+
+onUnmounted(() => {
+    if (typeof document !== 'undefined') {
+        document.body.style.overflow = ''
+    }
+})
 
 const canPublishWebsite = computed(() => {
     if (isUiOnlyMode.value) {
@@ -152,6 +164,31 @@ const sections = ref<WebsiteSection[]>([
 
 const headingSection = computed(() => sections.value.find(s => s.type === 'heading'))
 const paragraphSection = computed(() => sections.value.find(s => s.type === 'paragraph'))
+
+const headingSectionContent = computed({
+    get: () => headingSection.value?.content ?? '',
+    set: (val: string) => {
+        const found = sections.value.find(s => s.type === 'heading')
+        if (found) {
+            found.content = val
+        } else {
+            sections.value.push({ id: Date.now(), type: 'heading', content: val })
+        }
+    }
+})
+
+watch(
+    () => websiteData.siteDescription,
+    (desc) => {
+        const found = sections.value.find(s => s.type === 'paragraph')
+        if (found) {
+            found.content = desc
+        } else {
+            sections.value.push({ id: Date.now() + 1, type: 'paragraph', content: desc })
+        }
+    },
+    { immediate: true }
+)
 
 const isLive = ref(false)
 const isPreviewing = ref(false)
@@ -525,7 +562,6 @@ const getBaseLabel = (id: string) => {
         'color-palette': 'Color Palette',
         'typography': 'Typography',
         'basic-info': 'Basic Information',
-        'content-sections': 'Content Sections',
         'components': 'Components',
         'color-remix': 'Color Remix & Navigation',
         'thank-you': 'Thank You Message',
@@ -578,7 +614,6 @@ interface StepDef {
 }
 
 const getStepShortName = (step: StepDef) => {
-    if (step.name) return step.name;
     const shortNames: Record<string, string> = {
         'choose-format': 'Format',
         'choose-motif': 'Motif',
@@ -587,12 +622,18 @@ const getStepShortName = (step: StepDef) => {
         'color-remix': 'Remix',
         'typography': 'Fonts',
         'basic-info': 'Info',
-        'content-sections': 'Sections',
         'components': 'Blocks',
+        'schedule': 'Schedule',
+        'where-to-stay': 'Stay',
+        'wedding-party': 'Party',
+        'q-and-a': 'Q&A',
+        'diy-config': 'DIY',
         'thank-you': 'Closing',
         'review-publish': 'Review'
     };
-    return shortNames[step.id] || step.id;
+    if (shortNames[step.id]) return shortNames[step.id];
+    if (step.name) return step.name;
+    return step.id;
 };
 
 const websiteSteps = computed(() => {
@@ -601,8 +642,7 @@ const websiteSteps = computed(() => {
         { id: 'header-image', icon: 'i-lucide-image', description: "1. Upload a captivating image for your website's header." },
         { id: 'color-palette', icon: 'i-lucide-swatch-book', description: "Choose a color scheme for your website." },
         { id: 'typography', icon: 'i-lucide-type', description: "Select a font pairing for your website\'s headings and text." },
-        { id: 'basic-info', icon: 'i-lucide-info', description: "Provide the essential details for your website." },
-        { id: 'content-sections', icon: 'i-lucide-layout-template', description: "Add and arrange content sections like headings and paragraphs to build your page." },
+        { id: 'basic-info', icon: 'i-lucide-info', description: "Provide the essential details and story for your website.", name: "Basic Information" },
         { id: 'components', icon: 'i-lucide-blocks', description: "Select the extra components you want to include on your website." }
     ];
 
@@ -633,6 +673,49 @@ const websiteSteps = computed(() => {
 
 const currentStepData = computed(() => websiteSteps.value[currentStep.value]);
 
+const optionalBlockStepIds = computed(() => {
+    const list: string[] = []
+    for (const compId of selectedComponents.value) {
+        if (compId !== 'rsvp' && compId !== 'diy') {
+            list.push(compId)
+        }
+    }
+    if (selectedComponents.value.includes('diy')) {
+        list.push('diy-config')
+    }
+    return list
+})
+
+const optionalBlockSteps = computed(() => {
+    return optionalBlockStepIds.value.map(id => {
+        const fullStep = websiteSteps.value.find(s => s.id === id)
+        const originalIndex = websiteSteps.value.findIndex(s => s.id === id)
+        return fullStep ? { ...fullStep, originalIndex } : null
+    }).filter(Boolean) as Array<StepDef & { label: string; originalIndex: number }>
+})
+
+const isBlocksAccordionOpen = computed(() => {
+    const currentId = currentStepData.value?.id || ''
+    return currentId === 'components' || optionalBlockStepIds.value.includes(currentId)
+})
+
+const railTopLevelSteps = computed(() => {
+    return websiteSteps.value
+        .map((step, idx) => ({ ...step, originalIndex: idx }))
+        .filter(step => !optionalBlockStepIds.value.includes(step.id))
+})
+
+function handleRailStepClick(step: StepDef & { originalIndex: number }) {
+    if (step.id === 'components') {
+        const blocksIdx = websiteSteps.value.findIndex(s => s.id === 'components')
+        if (blocksIdx !== -1) {
+            currentStep.value = blocksIdx
+        }
+    } else {
+        currentStep.value = step.originalIndex
+    }
+}
+
 watch(websiteSteps, (newSteps) => {
     // Ensure we don't go out of bounds if a component step is removed while on it
     if (currentStep.value >= newSteps.length) {
@@ -641,7 +724,7 @@ watch(websiteSteps, (newSteps) => {
 });
 
 const headerLinks = computed(() => {
-    const aboutUsLink = { id: 'about-us', name: 'About Us' };
+    const aboutUsLink = { id: 'about-us', name: 'Welcome' };
     const dynamicComponents = selectedComponents.value.filter(id => id !== 'diy')
         .map(id => availableComponents.find(c => c.id === id))
         .filter(Boolean) as { id: string, name: string }[];
@@ -651,29 +734,11 @@ const headerLinks = computed(() => {
         name: diy.name
     }));
 
-    const components = [aboutUsLink, ...dynamicComponents, ...diyLinks];
-
-    // Find the longest button name to use for the placeholder to ensure consistent width
-    const longestName = components.reduce((max, c) => c.name.length > max.length ? c.name : max, '').trim();
-
-    // If the total number of buttons is odd, add a placeholder to make it even.
-    if (components.length % 2 !== 0) {
-        // Use the longest name for the placeholder but it will be invisible.
-        // This ensures the placeholder takes up the same space.
-        components.push({ id: 'placeholder', name: longestName });
-    }
-
-    const total = components.length;
-    const mid = total / 2; // Now it's always an even number
-
-    const left = components.slice(0, mid);
-    const right = components.slice(mid);
-
-    return { left, right };
+    return [aboutUsLink, ...dynamicComponents, ...diyLinks];
 });
 
 const headerDropdownItems = computed(() => {
-    const aboutUsLink = { label: 'About Us', onSelect: () => handleHeaderLinkClick('about-us') }
+    const aboutUsLink = { label: 'Welcome', onSelect: () => handleHeaderLinkClick('about-us') }
     const dynamicItems = selectedComponents.value.filter(id => id !== 'diy')
         .map(id => availableComponents.find(c => c.id === id))
         .filter(Boolean)
@@ -705,34 +770,7 @@ function handleHeaderLinkClick(id: string) {
     }
 }
 
-const siteTitleEl = ref<HTMLElement | null>(null)
-const spacerWidth = ref('16rem') // Default width (w-64)
 
-watch(
-    [previewSiteTitle, () => selectedTypography.value.headerFont],
-    async () => {
-        // Wait for the DOM to update with the new title/font
-        await nextTick()
-        if (siteTitleEl.value) {
-            // Get the width of the title element and add padding
-            // 1.25rem on each side (2.5rem total) corresponds to Tailwind's padding `p-5`
-            spacerWidth.value = `${siteTitleEl.value.offsetWidth + 2.5 * 16}px`
-        }
-    },
-    { immediate: true }
-)
-const addContentSection = (type: 'heading' | 'paragraph') => {
-    const newId = Date.now() + sections.value.length; // Ensure unique ID
-    if (type === 'heading' && !headingSection.value) {
-        sections.value.push({ id: newId, type: 'heading', content: 'Love is composed of a single soul inhabiting two bodies' });
-    } else if (type === 'paragraph' && !paragraphSection.value) {
-        sections.value.push({ id: newId, type: 'paragraph', content: 'This is a section about your story together. Add more here!' });
-    }
-}
-
-const removeContentSection = (id: number) => {
-    sections.value = sections.value.filter(section => section.id !== id);
-}
 
 // 3. Tidbits Section
 interface Tidbit {
@@ -1712,25 +1750,68 @@ function togglePreview() {
 
                     <!-- Steps Vertical List -->
                     <div
-                        class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-center gap-1 sm:gap-1.5 scrollbar-none font-sans">
-                        <button v-for="(step, idx) in websiteSteps" :key="step.id" type="button" :title="step.label"
-                            class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 cursor-pointer relative group text-center font-sans"
-                            :class="currentStep === idx
-                                ? 'bg-blue-500 text-white font-semibold shadow-xs hover:bg-blue-600'
-                                : 'text-toast-600 hover:text-blue-600 hover:bg-blue-50/70'" @click="currentStep = idx">
-                            <div class="relative flex items-center justify-center">
-                                <UIcon :name="step.icon"
-                                    class="size-4 shrink-0 transition-transform duration-150 group-hover:scale-110" />
-                                <span v-if="currentStep === idx"
-                                    class="absolute -top-1 -right-2 size-3.5 rounded-full bg-white text-blue-600 text-[8px] font-bold flex items-center justify-center shadow-xs">
-                                    {{ idx + 1 }}
+                        class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-start gap-1 sm:gap-1.5 scrollbar-none font-sans">
+                        <template v-for="step in railTopLevelSteps" :key="step.id">
+                            <!-- Main Step Button -->
+                            <button type="button" :title="step.label"
+                                class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 cursor-pointer relative group text-center font-sans shrink-0"
+                                :class="currentStep === step.originalIndex || (step.id === 'components' && isBlocksAccordionOpen)
+                                    ? 'bg-blue-500 text-white font-semibold shadow-xs hover:bg-blue-600'
+                                    : 'text-toast-600 hover:text-blue-600 hover:bg-blue-50/70'"
+                                @click="handleRailStepClick(step)">
+                                <div class="relative flex items-center justify-center">
+                                    <UIcon :name="step.icon"
+                                        class="size-4 shrink-0 transition-transform duration-150 group-hover:scale-110" />
+                                    <span v-if="currentStep === step.originalIndex || (step.id === 'components' && isBlocksAccordionOpen)"
+                                        class="absolute -top-1 -right-2 size-3.5 rounded-full bg-white text-blue-600 text-[8px] font-bold flex items-center justify-center shadow-xs">
+                                        {{ step.originalIndex + 1 }}
+                                    </span>
+                                </div>
+                                <span
+                                    class="text-[9px] sm:text-[10px] font-sans leading-tight mt-1 truncate max-w-12 sm:max-w-14">
+                                    {{ getStepShortName(step) }}
                                 </span>
+                                <UIcon v-if="step.id === 'components' && optionalBlockSteps.length > 0"
+                                    name="i-lucide-chevron-down"
+                                    class="size-2.5 opacity-80 -mt-0.5 transition-transform duration-300 ease-in-out"
+                                    :class="{ 'rotate-180': isBlocksAccordionOpen }" />
+                            </button>
+
+                            <!-- Accordion Sub-items (All custom/optional blocks added) with expand and contract animation -->
+                            <div v-if="step.id === 'components'"
+                                class="grid transition-all duration-300 ease-in-out w-full"
+                                :style="{
+                                    gridTemplateRows: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? '1fr' : '0fr',
+                                    opacity: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? 1 : 0,
+                                    marginTop: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? '2px' : '0px',
+                                    marginBottom: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? '2px' : '0px',
+                                    pointerEvents: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? 'auto' : 'none'
+                                }">
+                                <div class="overflow-hidden min-h-0 w-full flex flex-col items-center">
+                                    <div class="w-full flex flex-col items-center gap-1 py-1 px-0.5 bg-blue-50/70 rounded-xl border border-blue-200/80 shrink-0">
+                                        <button v-for="sub in optionalBlockSteps" :key="sub.id"
+                                            type="button"
+                                            :title="sub.label"
+                                            class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-lg transition-all duration-150 cursor-pointer relative group text-center font-sans"
+                                            :class="currentStep === sub.originalIndex
+                                                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                                                : 'text-toast-700 hover:text-blue-600 hover:bg-white/80'"
+                                            @click="currentStep = sub.originalIndex">
+                                            <div class="relative flex items-center justify-center">
+                                                <UIcon :name="sub.icon" class="size-3.5 shrink-0 transition-transform duration-150 group-hover:scale-110" />
+                                                <span v-if="currentStep === sub.originalIndex"
+                                                    class="absolute -top-1 -right-1.5 size-3 rounded-full bg-white text-blue-600 text-[7px] font-bold flex items-center justify-center shadow-xs">
+                                                    {{ sub.originalIndex + 1 }}
+                                                </span>
+                                            </div>
+                                            <span class="text-[8px] sm:text-[9px] font-sans leading-tight mt-0.5 truncate max-w-10 sm:max-w-12">
+                                                {{ getStepShortName(sub) }}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <span
-                                class="text-[9px] sm:text-[10px] font-sans leading-tight mt-1 truncate max-w-12 sm:max-w-14">
-                                {{ getStepShortName(step) }}
-                            </span>
-                        </button>
+                        </template>
                     </div>
                 </div>
 
@@ -2212,16 +2293,21 @@ function togglePreview() {
                             </div>
 
 
-                            <!-- Step 5: Basic Information -->
+                            <!-- Step 5: Basic Information (Merged with story heading & description) -->
                             <div v-if="currentStepData?.id === 'basic-info'" class="flex flex-col gap-4 ">
-                                <UFormField label="Site Title">
-                                    <UInput v-model="websiteData.siteTitle" placeholder="e.g., My Portfolio"
+                                <UFormField label="Site Title" description="The main title displayed on your header banner.">
+                                    <UInput v-model="websiteData.siteTitle" placeholder="e.g., Jane & John"
                                         class="w-full" />
                                 </UFormField>
 
-                                <UFormField label="Site Description">
+                                <UFormField label="Heading" description="The heading for your story section.">
+                                    <UInput v-model="headingSectionContent" placeholder="e.g., Our Story"
+                                        class="w-full" />
+                                </UFormField>
+
+                                <UFormField label="Description" description="Your story and message to guests.">
                                     <UTextarea v-model="websiteData.siteDescription"
-                                        placeholder="A short description of your website." class="w-full" />
+                                        placeholder="A short description or story of your special day." class="w-full" :rows="4" />
                                 </UFormField>
 
                                 <UFormField label="Domain Name">
@@ -2239,10 +2325,6 @@ function togglePreview() {
                                     </UInput>
                                 </UFormField>
 
-                                <UFormField label="Contact Email">
-                                    <UInput type="email" v-model="websiteData.contactEmail"
-                                        placeholder="juan@breadandbutter.com" icon="i-lucide-mail" class="w-full" />
-                                </UFormField>
 
                                 <div class="flex items-center justify-between">
                                     <div class="text-left">
@@ -2266,56 +2348,6 @@ function togglePreview() {
                                     </UInput>
                                 </UFormField>
 
-                            </div>
-
-                            <!-- Step 6: Content Sections -->
-                            <div v-if="currentStepData?.id === 'content-sections'" class="flex flex-col gap-6 ">
-                                <div class="items-center space-y-4">
-
-                                    <div v-if="!headingSection && !paragraphSection"
-                                        class="text-center text-toast-500 italic">No
-                                        sections
-                                        added
-                                        yet.
-                                    </div>
-
-                                    <UButton v-if="!headingSection" icon="i-lucide-plus" color="blue" variant="solid"
-                                        block @click="addContentSection('heading')">
-                                        Add Heading
-                                    </UButton>
-
-                                    <div v-if="headingSection"
-                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
-                                        <div class="flex justify-between items-center">
-                                            <span class="font-medium capitalize">Heading</span>
-                                            <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
-                                                @click="removeContentSection(headingSection.id)" />
-                                        </div>
-                                        <UFormField>
-                                            <UInput v-model="headingSection.content" placeholder="Enter heading text"
-                                                class="w-full" />
-                                        </UFormField>
-                                    </div>
-
-                                    <UButton v-if="!paragraphSection" icon="i-lucide-plus" color="blue" variant="solid"
-                                        block @click="addContentSection('paragraph')">
-                                        Add Paragraph
-                                    </UButton>
-
-
-                                    <div v-if="paragraphSection"
-                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
-                                        <div class="flex justify-between items-center">
-                                            <span class="font-medium capitalize">Paragraph</span>
-                                            <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
-                                                @click="removeContentSection(paragraphSection.id)" />
-                                        </div>
-                                        <UFormField>
-                                            <UTextarea v-model="paragraphSection.content"
-                                                placeholder="Enter paragraph content" class="w-full" />
-                                        </UFormField>
-                                    </div>
-                                </div>
                             </div>
 
                             <!-- Step 7: Components -->
@@ -3027,45 +3059,17 @@ function togglePreview() {
                             <template #left />
                             <template #right />
                             <template #default>
-                                <!-- Desktop Symmetrical Nav -->
-                                <div class="hidden md:flex w-full items-center justify-center">
-                                    <!-- Left Links -->
-                                    <div class="flex-1 flex items-center justify-end gap-x-8 w-full">
-                                        <UButton v-for="link in headerLinks.left" :key="link.id" variant="link"
-                                            class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
-                                                color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
-                                                visibility: link.id === 'placeholder' ? 'hidden' : 'visible',
-                                                cursor: link.id === 'placeholder' ? 'default' : 'pointer'
-                                            }" @click="handleHeaderLinkClick(link.id)">
-                                            {{ link.name }}
-                                        </UButton>
-                                    </div>
-                                    <!-- Spacer for the title -->
-                                    <div class="shrink-0" :style="{ width: spacerWidth }" />
-                                    <!-- Right Links -->
-                                    <div class="flex-1 flex items-center justify-start gap-x-8 w-full">
-                                        <UButton v-for="link in headerLinks.right" :key="link.id" variant="link"
-                                            class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
-                                                color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
-                                                visibility: link.id === 'placeholder' ? 'hidden' : 'visible',
-                                                cursor: link.id === 'placeholder' ? 'default' : 'pointer'
-                                            }" @click="handleHeaderLinkClick(link.id)">
-                                            {{ link.name }}
-                                        </UButton>
-                                    </div>
-                                </div>
-                                <!-- Center Title -->
-                                <div ref="siteTitleEl"
-                                    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-bold text-xl px-4 pointer-events-none select-none text-center"
-                                    :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                    {{ previewSiteTitle }}
+                                <!-- Desktop Nav -->
+                                <div class="hidden md:flex w-full items-center justify-center gap-x-8">
+                                    <UButton v-for="link in headerLinks" :key="link.id" variant="link"
+                                        class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
+                                            color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
+                                        }" @click="handleHeaderLinkClick(link.id)">
+                                        {{ link.name }}
+                                    </UButton>
                                 </div>
                                 <!-- Mobile Nav (< md) -->
-                                <div class="flex md:hidden items-center justify-between w-full px-4">
-                                    <span class="font-bold text-base truncate mr-2"
-                                        :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                        {{ previewSiteTitle }}
-                                    </span>
+                                <div class="flex md:hidden items-center justify-end w-full px-4">
                                     <UDropdownMenu :items="headerDropdownItems" :content="{ align: 'end' }">
                                         <UButton icon="i-lucide-menu" variant="ghost" size="sm"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }"
@@ -3091,8 +3095,8 @@ function togglePreview() {
                             <div class="relative z-10">
                                 <h1 class="font-medium transition-all duration-300 text-white"
                                     :style="{ fontFamily: `'${selectedTypography.headerFont}'` }"
-                                    :class="isLive || isPreviewing ? 'text-3xl md:text-5xl' : 'text-2xl md:text-3xl'">
-                                    {{ previewSiteDescription }}
+                                    :class="isLive || isPreviewing ? 'text-4xl md:text-6xl' : 'text-3xl md:text-4xl'">
+                                    {{ previewSiteTitle }}
                                 </h1>
                             </div>
                         </div>
@@ -3105,12 +3109,14 @@ function togglePreview() {
                                 <div v-if="(websiteData.format === 'format1' && (websiteData.singlePageSite || activeComponentId === 'about-us')) || (websiteData.format === 'format2' && (websiteData.singlePageSite || activeComponentId === 'about-us'))"
                                     class="flex flex-col gap-8 text-center pt-24 pb-10 px-6 relative justify-end w-full"
                                     :class="[
-                                        websiteData.format === 'format2' ? 'md:hidden h-[40vh]' : (isLive || isPreviewing ? 'h-[80vh]' : 'h-[50vh]')
+                                        websiteData.format === 'format2' ? 'md:hidden h-[40vh]' : 'h-screen min-h-screen'
                                     ]" :style="{
                                         backgroundImage: `url(${currentHeaderImage})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
                                         backgroundRepeat: 'no-repeat',
+                                        height: websiteData.format === 'format1' ? '100vh' : undefined,
+                                        minHeight: websiteData.format === 'format1' ? '100vh' : undefined,
                                     }">
                                     <!-- Overlay for readability -->
                                     <div class="absolute inset-0 z-0" :style="{
@@ -3122,8 +3128,8 @@ function togglePreview() {
                                         <div class="space-y-3">
                                             <h1 class="font-medium transition-all duration-300 text-white"
                                                 :style="{ fontFamily: `'${selectedTypography.headerFont}'` }"
-                                                :class="isLive || isPreviewing ? 'text-3xl md:text-5xl' : 'text-2xl md:text-3xl'">
-                                                {{ previewSiteDescription }}
+                                                :class="isLive || isPreviewing ? 'text-4xl md:text-6xl' : 'text-3xl md:text-4xl'">
+                                                {{ previewSiteTitle }}
                                             </h1>
 
 
@@ -3135,19 +3141,19 @@ function togglePreview() {
                                     <!-- Dynamic Content Sections Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
                                         id="preview-section-about-us"
-                                        class="flex flex-col justify-center mx-10 py-20 text-center scroll-mt-24"
+                                        class="flex flex-col justify-center mx-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }">
-                                        <UContainer v-if="headingSection"
-                                            class="font-bold italic transition-all duration-300"
+                                        <UContainer v-if="headingSectionContent"
+                                            class="font-bold italic transition-all duration-300 pt-2 sm:pt-4 mb-6"
                                             :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            {{ headingSection.content }}
+                                            {{ headingSectionContent }}
                                         </UContainer>
-                                        <div v-if="paragraphSection"
+                                        <div v-if="websiteData.siteDescription"
                                             class="prose max-w-none mx-auto text-center transition-all duration-300"
                                             :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }">
-                                            {{ paragraphSection.content }}
+                                            {{ websiteData.siteDescription }}
                                         </div>
                                     </div>
 
@@ -3157,11 +3163,11 @@ function togglePreview() {
                                         <!-- Q&A Preview -->
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-q-and-a"
-                                            class="flex flex-col justify-center gap-10 px-6 text-center py-20 scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(index).bg,
                                             }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Q&A</div>
@@ -3186,10 +3192,10 @@ function togglePreview() {
                                         <!-- Schedule Preview -->
                                         <div v-if="compId === 'schedule' && scheduleItems.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-schedule"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Schedule</div>
@@ -3244,10 +3250,10 @@ function togglePreview() {
                                         <!-- RSVP Preview Placeholder -->
                                         <div v-if="compId === 'rsvp' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-rsvp"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 RSVP</div>
@@ -3274,11 +3280,11 @@ function togglePreview() {
                                         <!-- Where to Stay Preview Placeholder -->
                                         <div v-if="compId === 'where-to-stay' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-where-to-stay"
-                                            class="flex flex-col justify-center gap-8 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-8 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-2">
-                                                <div class="font-bold transition-all duration-300"
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Where to Stay
@@ -3416,10 +3422,10 @@ function togglePreview() {
                                         <!-- Travel Preview Placeholder -->
                                         <div v-if="compId === 'travel' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-travel"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Travel</div>
@@ -3432,13 +3438,13 @@ function togglePreview() {
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-wedding-party"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
                                             <!-- Title & Subtitle -->
                                             <div class="space-y-3 max-w-2xl mx-auto">
-                                                <h2 class="font-bold transition-all duration-300"
+                                                <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Wedding Party
@@ -3544,11 +3550,11 @@ function togglePreview() {
                                     <template v-for="(diy, diyIndex) in diyComponents" :key="`diy-${diy.id}`">
                                         <div v-if="websiteData.singlePageSite || activeComponentId === `diy-${diy.id}`"
                                             :id="`preview-section-diy-${diy.id}`"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).bg,
                                             }">
-                                            <h2 class="font-bold transition-all duration-300"
+                                            <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 {{ diy.header }}
@@ -3563,10 +3569,10 @@ function togglePreview() {
 
                                     <!-- Thank You / Ending Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
-                                        class="flex flex-col justify-center gap-6 px-6 py-20 text-center"
+                                        class="flex flex-col justify-center gap-6 px-6 pt-28 sm:pt-36 pb-20 text-center"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg }">
-                                        <h2 class="font-bold transition-all duration-300"
+                                        <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                             :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                             :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                             {{ websiteData.endingTitle }}
@@ -3810,44 +3816,54 @@ function togglePreview() {
         </template>
     </UModal>
 
-    <!-- Automatic Save & Publish Loading Modal (Blocks interaction while saving/publishing) -->
-    <UModal v-model:open="isSaving" :dismissible="false" :ui="{
-        content: 'w-[90vw] sm:max-w-md bg-white dark:bg-toast-900 border border-toast-200/80 dark:border-toast-700/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-50',
-        overlay: 'bg-toast-950/50 backdrop-blur-xs',
-    }">
-        <template #content>
-            <div class="relative z-10 flex flex-col items-center justify-center text-center py-4 px-2 space-y-5">
-                <!-- Animated Spinner & Icon -->
-                <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-inner">
-                    <UIcon
-                        :name="saveModalMode === 'publish' ? 'i-lucide-rocket' : 'i-lucide-cloud-upload'"
-                        class="w-8 h-8 animate-pulse"
-                    />
-                    <div class="absolute -inset-1 rounded-2xl border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
-                </div>
-
-                <!-- Title & Status Text -->
-                <div class="space-y-1.5">
-                    <h3 class="text-xl font-bold font-serif text-toast-900 dark:text-toast-100">
-                        {{ saveModalTitle }}
-                    </h3>
-                    <p class="text-sm text-toast-600 dark:text-toast-400 max-w-xs mx-auto leading-relaxed">
-                        {{ saveModalDescription }}
-                    </p>
-                </div>
-
-                <!-- Reassuring subtle indicator -->
-                <div class="w-full max-w-xs space-y-2 pt-1">
-                    <div class="h-1.5 w-full bg-toast-100 dark:bg-toast-800 rounded-full overflow-hidden">
-                        <div class="h-full bg-linear-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
+    <!-- Automatic Save & Publish Loading Modal (Strictly 100vh x 100vw overlay) -->
+    <Teleport to="body">
+        <Transition
+            enter-active-class="transition-opacity duration-200 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity duration-150 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="isSaving"
+                class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-toast-950/50 backdrop-blur-xs select-none overflow-hidden"
+                style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; box-sizing: border-box;"
+            >
+                <div class="w-[90vw] sm:max-w-md bg-white dark:bg-toast-900 border border-toast-200/80 dark:border-toast-700/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-10 flex flex-col items-center justify-center text-center space-y-5">
+                    <!-- Animated Spinner & Icon -->
+                    <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-inner">
+                        <UIcon
+                            :name="saveModalMode === 'publish' ? 'i-lucide-rocket' : 'i-lucide-cloud-upload'"
+                            class="w-8 h-8 animate-pulse"
+                        />
+                        <div class="absolute -inset-1 rounded-2xl border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
                     </div>
-                    <p class="text-[11px] text-toast-400 dark:text-toast-500 font-medium">
-                        Please do not close or refresh this window while saving.
-                    </p>
+
+                    <!-- Title & Status Text -->
+                    <div class="space-y-1.5">
+                        <h3 class="text-xl font-bold font-serif text-toast-900 dark:text-toast-100">
+                            {{ saveModalTitle }}
+                        </h3>
+                        <p class="text-sm text-toast-600 dark:text-toast-400 max-w-xs mx-auto leading-relaxed">
+                            {{ saveModalDescription }}
+                        </p>
+                    </div>
+
+                    <!-- Reassuring subtle indicator -->
+                    <div class="w-full max-w-xs space-y-2 pt-1">
+                        <div class="h-1.5 w-full bg-toast-100 dark:bg-toast-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-linear-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
+                        </div>
+                        <p class="text-[11px] text-toast-400 dark:text-toast-500 font-medium">
+                            Please do not close or refresh this window while saving.
+                        </p>
+                    </div>
                 </div>
             </div>
-        </template>
-    </UModal>
+        </Transition>
+    </Teleport>
 </template>
 
 <style scoped>
