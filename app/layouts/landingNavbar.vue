@@ -6,6 +6,9 @@ import { useAuth, getStoredAccessToken, ensureSession } from '~/composables/useA
 const route = useRoute()
 const { isAuthenticated } = useAuth('user')
 
+const signInTarget = computed(() => (isAuthenticated.value ? '/' : '/user/login'))
+const signUpTarget = computed(() => (isAuthenticated.value ? '/' : '/user/signup'))
+
 if (isAuthenticated.value || (import.meta.client && Boolean(getStoredAccessToken('user')))) {
   setPageLayout('signed-in-navbar')
 }
@@ -156,8 +159,8 @@ const partnersItems: PartnerNavItem[][] = [
       to: '/bakers/login',
       active: false,
       iconBgClass: 'bg-toast-600',
-      badge: 'Supplier Portal',
-      descriptionText: 'Are you a part of our bakery? Sign in here to access your partnership portal.'
+      badge: 'Supplier Partners',
+      descriptionText: 'Are you a supplier partner? Sign in here to access your Bakers partnership portal.'
     }
   ]
 ]
@@ -362,8 +365,8 @@ const links = [
 
     <template #right>
       <div class="flex items-center gap-4">
-        <UButton to="/user/login" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
-        <UButton to="/user/signup" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
+        <UButton :to="signInTarget" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
+        <UButton :to="signUpTarget" color="bread" variant="solid" class="font-bold text-toast-700">Get Started</UButton>
       </div>
     </template>
   </UHeader>
@@ -513,9 +516,9 @@ const links = [
 
     <template #right>
       <div class="flex items-center gap-2">
-        <UButton to="/user/login" variant="link" color="bread" class="font-semibold text-white text-sm"
+        <UButton :to="signInTarget" variant="link" color="bread" class="font-semibold text-white text-sm"
           @click="closeMobileMenu">Sign In</UButton>
-        <UButton to="/user/signup" color="bread" variant="solid" class="font-bold text-toast-700 text-xs px-2.5 py-1.5"
+        <UButton :to="signUpTarget" color="bread" variant="solid" class="font-bold text-toast-700 text-xs px-2.5 py-1.5"
           @click="closeMobileMenu">Get Started</UButton>
       </div>
     </template>
@@ -580,6 +583,8 @@ const links = [
       </Transition>
     </Teleport>
   </ClientOnly>
+
+  <BackToTopButton />
 </template>
 
 <style></style>

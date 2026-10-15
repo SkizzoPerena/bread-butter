@@ -2,7 +2,25 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
 
+const route = useRoute()
+const router = useRouter()
 const { user, logout } = useAuth()
+
+const isUserDashboard = computed(() => {
+  if (route.meta.isUserDashboard !== undefined) {
+    return Boolean(route.meta.isUserDashboard)
+  }
+  const normalizedPath = route.path.replace(/\/+$/, '') || '/'
+  return (normalizedPath === '/' && route.query.view !== 'landing') || normalizedPath === '/user/dashboard'
+})
+
+function goBack() {
+  if (import.meta.client && window.history.state?.back) {
+    router.back()
+  } else {
+    router.push('/')
+  }
+}
 
 const displayName = computed(() => {
   if (user.value?.firstName) {
@@ -36,6 +54,10 @@ const dropitems: DropdownMenuItem[][] = [
     icon: 'i-lucide-message-square-warning',
     to: '/user/report-issue'
   }, {
+    label: 'Back to Home',
+    icon: 'i-lucide-home',
+    to: '/?view=landing'
+  }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
     onSelect: () => logout()
@@ -47,6 +69,17 @@ const dropitems: DropdownMenuItem[][] = [
   <div class="min-h-screen flex flex-col bg-bread-400">
     <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar shrink-0">
       <template #toggle>
+        <!-- Back button on non-user dashboard pages (leftmost side) -->
+        <UButton
+          v-if="!isUserDashboard"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          class="rounded-lg text-white hover:bg-white/10 shrink-0 -ml-1 mr-1 sm:mr-1.5"
+          aria-label="Go back"
+          @click="goBack"
+        />
+
         <!-- Built-in Navbar Toggle for Mobile -->
         <UDropdownMenu
           :items="dropitems"
@@ -58,7 +91,8 @@ const dropitems: DropdownMenuItem[][] = [
             itemLeadingIcon: 'text-white',
             item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
           }"
-          class="sm:hidden -ml-1 mr-1.5 shrink-0"
+          class="sm:hidden mr-1.5 shrink-0"
+          :class="isUserDashboard ? '-ml-1' : ''"
         >
           <UButton
             icon="i-lucide-menu"
@@ -119,6 +153,7 @@ const dropitems: DropdownMenuItem[][] = [
     <main class="flex-1 w-full bg-bread-400 flex flex-col">
       <slot />
     </main>
+    <BackToTopButton />
   </div>
 </template>
 

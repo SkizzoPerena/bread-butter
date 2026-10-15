@@ -20,6 +20,7 @@ import {
 const toast = useToast()
 const { fetchUserEvents, updateEvent } = useEvents()
 const { loadPageData, isUiOnlyMode } = useApiMode()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -126,6 +127,7 @@ async function loadUserEvents() {
     reportApiError(toast, { title: 'Could not load events', error })
   } finally {
     isLoadingEvents.value = false
+    finishPageTransition()
   }
 }
 
@@ -279,6 +281,11 @@ function getEventAction(event: EventRecord): {
   }
 }
 
+function handleEventAction(event: EventRecord) {
+  const action = getEventAction(event)
+  startPageTransition(action.to)
+}
+
 onMounted(() => {
   loadUserEvents()
 })
@@ -293,7 +300,7 @@ onMounted(() => {
             class="text-white border-white/40 hover:bg-white/10">
             Search Events
           </UButton>
-          <UButton icon="i-lucide-user-plus" color="neutral" variant="solid" to="/user/create-event">
+          <UButton icon="i-lucide-user-plus" color="neutral" variant="solid" @click.prevent="startPageTransition('/user/create-event')">
             Create New Event
           </UButton>
         </Teleport>
@@ -379,7 +386,7 @@ onMounted(() => {
               <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
                 <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2 font-semibold"
                   :color="getEventAction(event).color" :icon="getEventAction(event).icon"
-                  :to="getEventAction(event).to">
+                  @click.prevent="handleEventAction(event)">
                   {{ getEventAction(event).label }}
                 </UButton>
               </div>
@@ -456,7 +463,7 @@ onMounted(() => {
               <div class="p-2.5 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
                 <UButton block size="xs" class="mt-2 sm:mt-6 text-xs sm:text-sm py-1.5 sm:py-2 font-semibold"
                   :color="getEventAction(event).color" :icon="getEventAction(event).icon"
-                  :to="getEventAction(event).to">
+                  @click.prevent="handleEventAction(event)">
                   {{ getEventAction(event).label }}
                 </UButton>
               </div>

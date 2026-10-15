@@ -1018,5 +1018,430 @@ export const WEDDING_ARTICLES: TipArticle[] = [
       }
     ],
     conclusion: 'The ceremony venue should be beautiful, but it also needs to work for your guests, your schedule, and the kind of ceremony you want. Choose the place where the ceremony will feel right and where the rest of the wedding day can still flow smoothly.'
+  },
+  {
+    id: 'ceremony-venue-questionnaire',
+    category: 'venues',
+    title: 'Ceremony Venue Questionnaire',
+    abstract: 'A comprehensive 29-question inspection checklist for ceremony venues—covering availability, fees, venue rules, ceremony flow, supplier logistics, accessibility, outdoor weather backups, and Catholic wedding requirements.',
+    intro: [
+      'Your ceremony sets the sacred and emotional foundation for your wedding day.',
+      'Use this practical questionnaire during venue site visits and coordinator meetings to ensure all logistical, financial, and liturgical details are clarified before booking.'
+    ],
+    sections: [
+      {
+        heading: 'Availability and Fees',
+        paragraphs: [
+          'Clarify dates, rental windows, and all potential fee inclusions or surcharges early:'
+        ],
+        bullets: [
+          'Is the venue available on our preferred date and time?',
+          'What is the venue fee, and what is included in the fee?',
+          'How long may we use the venue?',
+          'What is the maximum number of guests the venue can comfortably accommodate?',
+          'Is there another ceremony or activity scheduled before or after ours that may affect our setup, ceremony, or pictorial?',
+          'Are there any additional charges we should know about?'
+        ]
+      },
+      {
+        heading: 'Requirements and Venue Rules',
+        paragraphs: [
+          'Verify mandatory documentation deadlines and spatial restrictions:'
+        ],
+        bullets: [
+          'May we have the complete list of requirements and their submission deadlines?',
+          'Are there rules or restrictions regarding attire, decorations, flowers, candles, music, photography, or other ceremony details?',
+          'Are there restrictions on send-off items such as petals, bubbles, confetti, rice, or similar items?',
+          'Are there areas that require additional permits or fees if we wish to use them?'
+        ]
+      },
+      {
+        heading: 'Ceremony Flow',
+        paragraphs: [
+          'Ensure the ceremony and post-ceremony photo sequence match your plans:'
+        ],
+        bullets: [
+          'Is there a limit on the number of entourage members?',
+          'Are there guidelines or restrictions for readers, offerors, musicians, or other ceremony participants?',
+          'Is there a required sequence for the post-ceremony pictorial?',
+          'Will the venue provide someone to guide the ceremony flow, or may our wedding coordinator handle this?'
+        ]
+      },
+      {
+        heading: 'Suppliers and Logistics',
+        paragraphs: [
+          'Coordinate setup ingress and supplier accreditations:'
+        ],
+        bullets: [
+          'Do you have accredited suppliers, and may we bring in suppliers who are not accredited?',
+          'What time may our florist, musicians, coordinator, and other suppliers enter for setup and sound check?',
+          'Are there permits, seminars, or other requirements that our suppliers must complete?'
+        ]
+      },
+      {
+        heading: 'Guest Comfort and Accessibility',
+        paragraphs: [
+          'Ensure all guests—especially elderly and PWD attendees—can comfortably experience the celebration:'
+        ],
+        bullets: [
+          'Is the venue accessible for elderly guests and persons with disabilities?',
+          'How many parking spaces are available, and are there parking fees?',
+          'If the venue parking is full, where may guests park?',
+          'Is the venue sound system sufficient for third-party musicians, or may they bring their own sound system?',
+          'Which areas may be used for post-ceremony photos?'
+        ]
+      },
+      {
+        heading: 'For Outdoor Ceremony Venues',
+        paragraphs: [
+          'Always establish a seamless bad-weather contingency plan:'
+        ],
+        bullets: [
+          'What is the backup plan in case of rain or bad weather?',
+          'Can the backup venue comfortably accommodate our full guest count?'
+        ]
+      },
+      {
+        heading: 'For Catholic Weddings',
+        paragraphs: [
+          'Check parish guidelines and liturgical protocols:'
+        ],
+        bullets: [
+          'If we invite our own priest to solemnize the marriage, are there additional requirements?',
+          'Does the church provide a missalette template, or may we prepare our own for approval?',
+          'Are personal vows allowed?',
+          'What offertory items should we prepare, and which items, if any, will the church provide?',
+          'Are there restrictions on the songs or musical pieces that may be used during the ceremony?'
+        ]
+      }
+    ],
+    conclusion: 'Bringing a clear list of questions protects your budget, preserves your peace of mind, and prevents surprises on your wedding day.'
+  },
+  {
+    id: 'choose-reception-venue',
+    category: 'venues',
+    title: 'How to Choose Your Wedding Reception Venue',
+    abstract: 'Your reception venue influences guest experience, catering, styling, acoustics, transportation, and setup time. Learn how to evaluate capacity, inclusions, travel routes, and layout functionality before booking.',
+    intro: [
+      'Your reception venue affects much more than how your wedding looks.',
+      'It can influence your guest experience, catering, styling, program, transportation, technical setup, and even how relaxed the day feels. So before booking the prettiest space you see, check how well it actually works for your wedding.'
+    ],
+    sections: [
+      {
+        heading: 'Start with your guest count',
+        paragraphs: [
+          'Choose a venue that fits your ideal and maximum guest count comfortably. Do not rely only on the advertised maximum capacity.',
+          'Ask how many guests can sit comfortably once you add the stage, dance floor, styling, technical equipment, buffet tables, and other setups you plan to have. A venue can fit your guests on paper and still feel crowded in reality.'
+        ]
+      },
+      {
+        heading: 'Think about location and travel time',
+        paragraphs: [
+          'If your ceremony is somewhere else, check how long it will take guests to reach the reception.',
+          'Consider traffic, parking, road conditions, and whether guests need transportation assistance. A long transfer between venues can affect your timeline and may leave guests waiting or arriving at different times.'
+        ]
+      },
+      {
+        heading: 'Look at what is already included',
+        paragraphs: [
+          'Before comparing venue prices, ask what comes with the rental.',
+          'Tables, chairs, linens, sound system, basic lighting, parking, bridal room, holding rooms, generators, and other items may already be included. Knowing this helps you compare the real cost of one venue against another.'
+        ]
+      },
+      {
+        heading: 'Ask about restrictions',
+        paragraphs: [
+          'Some venues have accredited suppliers, corkage fees, sound limits, styling restrictions, fixed ingress times, or rules on alcohol and outside food. These can affect both your choices and your budget.',
+          'If you already have priority suppliers, check whether they are allowed before booking the venue.'
+        ]
+      },
+      {
+        heading: 'Study the layout',
+        paragraphs: [
+          'Try to imagine the wedding with guests inside the room: Where will the couple sit? Where will the stage and dance floor go? Will guests at the back still see the program? Is there enough space between tables? Where will the buffet, bar, cake, photobooth, and other stations be placed?',
+          'A beautiful room still needs to function well.'
+        ]
+      },
+      {
+        heading: 'Think about guest comfort',
+        paragraphs: [
+          'Check the air conditioning or ventilation, restrooms, accessibility, parking, elevators, and waiting areas.',
+          'If you have elderly guests, children, or guests with mobility concerns, these details become even more important.'
+        ]
+      },
+      {
+        heading: 'Check your setup and program schedule',
+        paragraphs: [
+          'Ask when suppliers can enter the venue and when everything must be removed. If setup time is very limited, elaborate styling or technical requirements may become difficult or more expensive.',
+          'Also ask how long the reception can run and what overtime charges apply.'
+        ]
+      },
+      {
+        heading: 'Visit before deciding',
+        paragraphs: [
+          'Photos can make a venue look very different from how it feels in person.',
+          'Visit the space, look at the actual entrances and exits, check the parking, and walk through the route your guests will take. If possible, visit when another event is set up so you can see how the room feels with tables and guests.'
+        ]
+      }
+    ],
+    conclusion: 'Your reception venue should not only look beautiful. It should make the wedding easier to execute and comfortable for the people you invited to enjoy it.'
+  },
+  {
+    id: 'reception-venue-questionnaire',
+    category: 'venues',
+    title: 'Reception Venue Questionnaire',
+    abstract: 'A thorough 37-question due-diligence checklist to ask reception venues before signing—covering rental hours, deposit terms, floor plans, kitchen facilities, sound curfews, power capacity, and parking.',
+    intro: [
+      'The reception venue is usually the single largest item in a wedding budget.',
+      'Before paying a deposit or signing a contract, walk through this 37-question checklist with the venue sales team to prevent unexpected fees, logistical bottlenecks, and schedule conflicts.'
+    ],
+    sections: [
+      {
+        heading: 'Availability and Fees',
+        paragraphs: [
+          'Understand core booking terms, fees, and cancellation policies:'
+        ],
+        bullets: [
+          'Is the venue available on our preferred date and time?',
+          'How long is the venue rental?',
+          'What is included in the venue fee?',
+          'How much is the deposit, and what are the payment terms?',
+          'How much is the overtime charge if we extend the reception?',
+          'Are there any other charges we should know about?',
+          'What is your cancellation and rescheduling policy?'
+        ]
+      },
+      {
+        heading: 'Capacity and Layout',
+        paragraphs: [
+          'Assess spatial flexibility and realistic seating capacities:'
+        ],
+        bullets: [
+          'What is the maximum number of guests the venue can comfortably accommodate?',
+          'Is there a separate area for cocktails?',
+          'Can the ceremony also be held at the venue? If yes, is there an additional fee?',
+          'May we request a sample or scaled floor plan showing possible table, stage, dance floor, buffet, and technical setup?',
+          'Are there areas that cannot be moved, covered, styled, or used?'
+        ]
+      },
+      {
+        heading: 'Supplier Access and Logistics',
+        paragraphs: [
+          'Clarify ingress, egress, accreditation, and kitchen access:'
+        ],
+        bullets: [
+          'What time may suppliers enter for ingress, and what time must they finish egress?',
+          'Can suppliers enter earlier if additional setup time is needed? If yes, is there an additional fee?',
+          'Do you have accredited or preferred suppliers?',
+          'Are we allowed to bring in suppliers who are not accredited, and will there be additional fees?',
+          'Do you have an in-house caterer, or may we bring our own caterer?',
+          'If we bring outside food, drinks, or suppliers, what corkage fees apply?',
+          'Is there a kitchen or preparation area available for the caterer?',
+          'Is there a designated work or holding area for suppliers such as the stylist, coordinator, photo and video team, or musicians?'
+        ]
+      },
+      {
+        heading: 'Technical and Venue Facilities',
+        paragraphs: [
+          'Ensure power redundancy, sound compliance, and special effect permissions:'
+        ],
+        bullets: [
+          'What is the venue’s electrical capacity?',
+          'Is there a backup generator in case of power interruption?',
+          'Are there sound or music restrictions, including a required cut-off time or maximum volume?',
+          'Are special effects such as fireworks, cold sparks, smoke machines, or similar effects allowed?'
+        ]
+      },
+      {
+        heading: 'Guest Comfort and Accessibility',
+        paragraphs: [
+          'Verify hospitality amenities and guest accommodations:'
+        ],
+        bullets: [
+          'Is the venue accessible for elderly guests and persons with disabilities?',
+          'Are there holding rooms or preparation rooms available for the couple and entourage?',
+          'How many restrooms are available, and are they maintained throughout the event?',
+          'Is there a designated smoking area?',
+          'Is there signage or assistance available to direct guests to the event area?'
+        ]
+      },
+      {
+        heading: 'Parking',
+        paragraphs: [
+          'Review arrival logistics and parking provisions:'
+        ],
+        bullets: [
+          'How many parking spaces are available?',
+          'Are there parking fees?',
+          'Are complimentary or flat-rate parking passes available?',
+          'If the venue parking becomes full, where may guests park?',
+          'Can parking slots be reserved in advance for specific guests or suppliers?'
+        ]
+      },
+      {
+        heading: 'For Outdoor Reception Venues',
+        paragraphs: [
+          'Confirm bad-weather contingency protocol:'
+        ],
+        bullets: [
+          'What is the backup plan in case of rain or bad weather?',
+          'Can the backup venue comfortably accommodate our full guest count?',
+          'How soon must we decide whether to move the event indoors?'
+        ]
+      }
+    ],
+    conclusion: 'A thorough questionnaire transforms venue scouting from guesswork into an informed, confident investment.'
+  },
+  {
+    id: 'venue-corkage-ingress-egress-fees',
+    category: 'venues',
+    title: 'Venue Corkage, Ingress, Egress and Supplier Fees Explained',
+    abstract: 'Venue proposals often feature terms like corkage, ingress, egress, and non-accreditation penalties that can drastically inflate your final bill. Understand what each term means and how to negotiate them.',
+    intro: [
+      'Venue quotations often include terms that couples may not fully understand until they start booking suppliers.',
+      'Corkage, ingress, egress, and outside supplier fees can affect both your budget and your wedding plans, so it helps to understand them before signing a venue contract.'
+    ],
+    sections: [
+      {
+        heading: 'What is corkage?',
+        paragraphs: [
+          'Corkage is an additional fee charged when you bring something into the venue that is not provided by the venue or its accredited suppliers.',
+          'It may apply to outside catering, alcohol, food stations, mobile bars, cakes, technical equipment, or other services.',
+          'Before booking an outside supplier, always check whether corkage applies. A supplier with a lower quotation may no longer be the cheaper option once the venue fee is added.'
+        ]
+      },
+      {
+        heading: 'What is ingress?',
+        paragraphs: [
+          'Ingress is the time your suppliers are allowed to enter the venue and begin setting up.',
+          'Your stylist, caterer, lights and sounds team, musicians, and other suppliers may need several hours to prepare.',
+          'Ask your suppliers how much setup time they realistically need, then compare this with the venue’s allowed ingress time. If they need to enter earlier, find out whether the venue charges for early ingress.'
+        ]
+      },
+      {
+        heading: 'What is egress?',
+        paragraphs: [
+          'Egress is the time suppliers must finish dismantling and removing their equipment after the event.',
+          'This matters because some suppliers need several hours to pack up.',
+          'Ask whether additional charges apply if pullout goes beyond the venue’s permitted time.'
+        ]
+      },
+      {
+        heading: 'What are outside supplier fees?',
+        paragraphs: [
+          'Some venues have accredited or preferred suppliers.',
+          'You may still be allowed to hire someone outside the list, but the venue may charge an additional fee.',
+          'Before booking a supplier you really want, confirm that the venue allows them and know the total cost of bringing them in.'
+        ]
+      },
+      {
+        heading: 'Why should you check these before booking?',
+        paragraphs: [
+          'These fees can influence which suppliers you choose and how elaborate your setup can be.',
+          'For example, an affordable stylist may require early ingress. An outside caterer may have corkage. A large technical setup may need longer egress.',
+          'The cost is not always visible in the supplier quotation.'
+        ]
+      },
+      {
+        heading: 'Questions to ask your venue',
+        paragraphs: [
+          'Before finalizing your venue contract, ask these critical questions:'
+        ],
+        bullets: [
+          'Which outside services are subject to corkage fees?',
+          'Are non-accredited suppliers allowed, and what are their entrance fees?',
+          'What are the standard ingress and egress time windows?',
+          'What are the hourly charges for early setup or late pullout?',
+          'Do suppliers need special security permits, bond deposits, or orientation seminars before entering?'
+        ]
+      }
+    ],
+    conclusion: 'Before comparing venue or supplier prices, look at the cost of making them work together.'
+  },
+  {
+    id: 'how-to-choose-caterer',
+    category: 'suppliers',
+    title: 'How to Choose a Wedding Caterer',
+    abstract: 'Great food is only half the battle. Discover how to evaluate service styles, food tastings, dietary accommodations, package setup inclusions, outside drinks corkage, and catering deadlines.',
+    intro: [
+      'Good food matters, but choosing a caterer is not only about which menu tastes best.',
+      'Your caterer also affects the pace of the reception, guest comfort, table setup, staffing, and how smoothly meals are served.'
+    ],
+    sections: [
+      {
+        heading: 'Start with the kind of dining experience you want',
+        paragraphs: [
+          'Before comparing menus, decide whether you prefer buffet, plated service, or a combination.',
+          'Think about your guest count, venue, reception program, and the kind of atmosphere you want. A caterer may be excellent at one style of service but not necessarily the best fit for another.'
+        ]
+      },
+      {
+        heading: 'Taste the food before deciding',
+        paragraphs: [
+          'A food tasting gives you a much better idea of quality than photos or menu descriptions.',
+          'Try the dishes you are seriously considering and ask which items are their best sellers. Ask whether additional dishes can be tasted if you want alternatives.',
+          'Pay attention not only to taste, but also to whether the food will still work well when prepared and served to a large number of guests.'
+        ]
+      },
+      {
+        heading: 'Ask how service will actually work',
+        paragraphs: [
+          'Good food can still become a poor guest experience if service is slow.',
+          'For a buffet, ask how many stations will be provided, how tables will be called, and how much food buffer will be prepared.',
+          'For plated service, ask whether different entrée choices can be handled efficiently and how dietary restrictions will be managed.'
+        ]
+      },
+      {
+        heading: 'Think about guests with dietary restrictions',
+        paragraphs: [
+          'Ask about vegetarian options, allergies, children’s meals, and other dietary restrictions.',
+          'For guests with dietary restrictions, it may be safer and easier to agree on one alternative dish that can accommodate as many restrictions as possible instead of preparing several different special meals. This can reduce confusion during service and lower the chance of the wrong meal being given to the wrong guest.',
+          'If the restriction involves a serious food allergy, make sure the caterer understands this clearly and can explain how the food will be prepared and served to avoid mix-ups.',
+          'If you have elderly guests or guests with mobility concerns, ask whether selected tables can be served instead of requiring everyone to go to the buffet.'
+        ]
+      },
+      {
+        heading: 'Check what is included in the setup',
+        paragraphs: [
+          'Catering packages may include tables, chairs, linens, glassware, chargers, menu cards, and other reception items.',
+          'Find out exactly what is included before renting or ordering anything separately.',
+          'Also ask for photos of actual setups so you know what the items really look like.'
+        ]
+      },
+      {
+        heading: 'Ask about outside food and drinks',
+        paragraphs: [
+          'If you plan to bring lechon, alcohol, a mobile bar, food stations, or other outside items, ask about corkage and service charges.',
+          'Also clarify who will receive the items, who will chill or serve them, and whether additional equipment or manpower is needed.'
+        ]
+      },
+      {
+        heading: 'Know the important deadlines',
+        paragraphs: [
+          'Ask when the final menu and final headcount are due, and how late you can still increase the guest count.',
+          'These deadlines matter because your RSVP schedule should work around them.'
+        ]
+      },
+      {
+        heading: 'Questions worth asking before booking',
+        paragraphs: [
+          'Review these key questions with prospective caterers:'
+        ],
+        bullets: [
+          'What packages do you recommend for our guest count and service style?',
+          'Which dishes are your best sellers?',
+          'What is included in the package besides food?',
+          'How much food buffer do you prepare?',
+          'How do you handle allergies, dietary restrictions, and children’s meals?',
+          'Can we agree on one safe alternative meal for most guests with dietary restrictions to reduce service errors?',
+          'What outside food and drinks are allowed, and what corkage applies?',
+          'How many servers will be assigned to our wedding?',
+          'How many hours of service are included, and what is the overtime charge?',
+          'When are the final menu and headcount due?',
+          'Are there any additional charges we should know about?'
+        ]
+      }
+    ],
+    conclusion: 'A good caterer should not only serve food you enjoy. They should be able to serve it well, to the right number of people, at the right time, without making your guests wait unnecessarily.'
   }
 ]

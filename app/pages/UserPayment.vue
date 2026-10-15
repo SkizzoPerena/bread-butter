@@ -44,6 +44,7 @@ const { createEventFeeCheckoutSession, submitEventPaymentProof } = usePayments()
 const { isUiOnlyMode } = useApiMode()
 const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const { finishPageTransition } = usePageTransition()
 const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 const existingEventId = computed(() =>
@@ -484,7 +485,10 @@ async function validateEnteredVoucher() {
 }
 
 onMounted(async () => {
-  if (isUiOnlyMode.value) return
+  if (isUiOnlyMode.value) {
+    finishPageTransition()
+    return
+  }
 
   if (existingEventId.value && /^[0-9a-fA-F]{24}$/.test(existingEventId.value)) {
     try {
@@ -516,6 +520,8 @@ onMounted(async () => {
       color: 'warning',
     })
   }
+
+  finishPageTransition()
 })
 
 async function submitPayment() {

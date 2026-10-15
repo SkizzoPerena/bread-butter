@@ -35,6 +35,7 @@ const { requireEventFeature } = useEventFeatureGate()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { isExporting, exportEventPdf } = useEventPdfExport()
+const { finishPageTransition } = usePageTransition()
 const {
   isLoading: isLoadingSuppliers,
   isSubmitting,
@@ -388,8 +389,12 @@ onMounted(async () => {
     return
   }
 
-  await loadEventData()
-  await loadSuppliersData()
+  try {
+    await loadEventData()
+    await loadSuppliersData()
+  } finally {
+    finishPageTransition()
+  }
 })
 
 watch(eventId, async () => {

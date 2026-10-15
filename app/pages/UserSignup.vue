@@ -13,14 +13,15 @@ const isSubmitting = ref(false)
 
 const genderOptions = [
   { label: 'Male', value: 'MALE' },
-  { label: 'Female', value: 'FEMALE' }
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Prefer not to say', value: 'PREFER_NOT_TO_SAY' }
 ]
 
 const schema = z.object({
   firstName: z.string().min(1, 'Enter your first name'),
   lastName: z.string().min(1, 'Enter your last name'),
   email: z.string().email('Invalid email'),
-  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' }),
+  gender: z.enum(['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY'], { message: 'Please select a gender' }),
   referralCode: z.string().optional().refine(
     (value) => !value?.trim() || isValidReferralCode(value),
     'Referral code must be a 5-character hex string'

@@ -19,6 +19,7 @@ const route = useRoute()
 const { fetchEvent } = useEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { finishPageTransition } = usePageTransition()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -118,8 +119,12 @@ async function loadEventData() {
 }
 
 async function reloadPageData() {
-  await loadEventData()
-  await loadWishlist(eventId.value || 'mock-event-id')
+  try {
+    await loadEventData()
+    await loadWishlist(eventId.value || 'mock-event-id')
+  } finally {
+    finishPageTransition()
+  }
 }
 
 watch(eventId, () => {

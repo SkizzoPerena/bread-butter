@@ -8,6 +8,10 @@ const toast = useToast()
 const route = useRoute()
 const { login } = useAuth('partner')
 
+useHead({
+  title: 'Dough Makers Sign In - Bread + Butter'
+})
+
 const isSubmitting = ref(false)
 
 const schema = z.object({
@@ -63,12 +67,12 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
         <div class="my-auto">
             <NuxtLink to="/" class="flex justify-center items-center" aria-label="Back to Bread + Butter home">
-              <img src="~/assets/bpb-icons/logo-white.svg" class="h-12 mb-2" alt="Bread + Butter" />
-              <div class="text-4xl font-bold font-serif ml-3 mt-1">Partners</div>
+              <img src="~/assets/bpb-icons/logo-white.svg" class="h-10 sm:h-12 mb-2" alt="Bread + Butter" />
+              <div class="text-3xl sm:text-4xl font-bold font-serif ml-3 mt-1 truncate">Dough Makers</div>
             </NuxtLink>
                 <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
           <div class="text-center text-sm mb-6">
-            <div class="text-xl font-serif font-semibold">Login</div>
+            <div class="text-xl font-serif font-semibold">Dough Makers Sign In</div>
           </div>
 
           <UFormField label="Email" name="email" required :ui="{label: ' text-white'}">
@@ -102,7 +106,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UButton type="submit" block :loading="isSubmitting">Sign in</UButton>
 
           <p class="text-sm text-center mb-2">
-            New Partner? <ULink to="/partners/signup" class="text-bread-400 font-medium hover:text-bread-50">Sign up here.</ULink>
+            New Dough Maker? <ULink to="/partners/signup" class="text-bread-400 font-medium hover:text-bread-50">Sign up here.</ULink>
           </p>
         </UForm></div>
       </UPageCard>

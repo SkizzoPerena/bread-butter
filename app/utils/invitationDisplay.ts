@@ -2,9 +2,19 @@ export function formatDateWithWeekday(dateString: string): string {
   if (!dateString) {
     return ''
   }
-  const date = new Date(dateString.replace(/-/g, '/'))
+  const dateOnly = dateString.includes('T') ? (dateString.split('T')[0] ?? dateString) : dateString
+  const date = new Date(dateOnly.replace(/-/g, '/'))
   if (Number.isNaN(date.getTime())) {
-    return ''
+    const directDate = new Date(dateString)
+    if (Number.isNaN(directDate.getTime())) {
+      return ''
+    }
+    return directDate.toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
   }
   return date.toLocaleDateString(undefined, {
     weekday: 'long',

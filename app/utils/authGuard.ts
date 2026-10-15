@@ -28,6 +28,10 @@ const PUBLIC_PATHS = new Set([
   '/terms',
   '/contact-us',
   '/our-suppliers',
+  '/our-bakery',
+  '/bakery',
+  '/ourbakery',
+  '/suppliers',
   '/about',
   '/news-and-events',
   '/useful-tips',
@@ -39,6 +43,10 @@ const PUBLIC_PATHS = new Set([
   '/partners/signup',
   '/partners/forgot-password',
   '/partners/otp',
+  '/dough-makers/login',
+  '/dough-makers/signup',
+  '/doughmakers/login',
+  '/doughmakers/signup',
   '/bakers/login',
   '/bakers/signup',
   '/baker/login',
@@ -59,29 +67,48 @@ const PARTNER_AUTH_PUBLIC_PATHS = new Set([
   '/partners/signup',
   '/partners/forgot-password',
   '/partners/otp',
+  '/dough-makers/login',
+  '/dough-makers/signup',
+  '/doughmakers/login',
+  '/doughmakers/signup',
   '/bakers/login',
   '/bakers/signup',
   '/baker/login',
   '/baker/signup'
 ])
 
+export function normalizeAuthPath(path: string): string {
+  if (!path) return '/'
+  const clean = path.split('?')[0]?.split('#')[0]?.trim().toLowerCase() || '/'
+  return clean.replace(/\/+$/, '') || '/'
+}
+
 export function isPublicPath(path: string): boolean {
-  if (PUBLIC_PATHS.has(path)) return true
-  if (path.startsWith('/sites/')) return true
-  if (path.startsWith('/rsvp/')) return true
+  const normalized = normalizeAuthPath(path)
+  if (PUBLIC_PATHS.has(normalized)) return true
+  if (normalized === '/our-suppliers' || normalized.startsWith('/our-suppliers/')) return true
+  if (normalized === '/our-bakery' || normalized.startsWith('/our-bakery/')) return true
+  if (normalized === '/bakery' || normalized.startsWith('/bakery/')) return true
+  if (normalized === '/suppliers' || normalized.startsWith('/suppliers/')) return true
+  if (normalized === '/ourbakery' || normalized.startsWith('/ourbakery/')) return true
+  if (normalized.startsWith('/sites/')) return true
+  if (normalized.startsWith('/rsvp/')) return true
   return false
 }
 
 export function isPartnerPath(path: string): boolean {
-  return path === '/partners' || path.startsWith('/partners/')
+  const normalized = normalizeAuthPath(path)
+  return normalized === '/partners' || normalized.startsWith('/partners/')
 }
 
 export function isUserAuthPublicPath(path: string): boolean {
-  return USER_AUTH_PUBLIC_PATHS.has(path)
+  const normalized = normalizeAuthPath(path)
+  return USER_AUTH_PUBLIC_PATHS.has(normalized)
 }
 
 export function isPartnerAuthPublicPath(path: string): boolean {
-  return PARTNER_AUTH_PUBLIC_PATHS.has(path)
+  const normalized = normalizeAuthPath(path)
+  return PARTNER_AUTH_PUBLIC_PATHS.has(normalized)
 }
 
 /** Authenticated user-only surfaces (not partner workspace or public auth). */
@@ -89,12 +116,13 @@ export function isUserExclusivePath(
   path: string,
   query: Record<string, unknown> | undefined = undefined
 ): boolean {
+  const normalized = normalizeAuthPath(path)
   const roleQuery = typeof query?.role === 'string' ? query.role.trim().toLowerCase() : ''
   if (roleQuery === 'partner') return false
 
-  if (path.startsWith('/user/') && !isUserAuthPublicPath(path)) return true
-  if (path === '/event/dashboard' || path === '/event-dashboard') return false
-  if (path.startsWith('/event/')) return true
+  if (normalized.startsWith('/user/') && !isUserAuthPublicPath(normalized)) return true
+  if (normalized === '/event/dashboard' || normalized === '/event-dashboard') return false
+  if (normalized.startsWith('/event/')) return true
   return false
 }
 
@@ -102,7 +130,8 @@ export function isPartnerEventWorkspace(
   path: string,
   query: Record<string, unknown> | undefined = undefined
 ): boolean {
+  const normalized = normalizeAuthPath(path)
   const roleQuery = typeof query?.role === 'string' ? query.role.trim().toLowerCase() : ''
   if (roleQuery !== 'partner') return false
-  return path === '/user/event-dashboard' || path.startsWith('/event/')
+  return normalized === '/user/event-dashboard' || normalized.startsWith('/event/')
 }

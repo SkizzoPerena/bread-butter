@@ -13,6 +13,7 @@ export interface InvitationRsvpData {
   eventVenue: string
   deadlineText: string
   deadlineDate: string
+  bannerImageUrl?: string
 }
 
 function parseLocalDate(value: string | Date): Date | null {
@@ -110,12 +111,55 @@ export function applyInvitationToEditor(
   rsvpData.eventVenue = invitation.eventVenue
   rsvpData.deadlineText = invitation.deadlineText
   rsvpData.deadlineDate = toDateInputValue(invitation.deadlineDate)
+  rsvpData.bannerImageUrl = invitation.bannerImageUrl || (invitation.blocks ?? []).find(b => b.type === 'banner-image')?.content || ''
 
-  blocks.value = (invitation.blocks ?? []).map((block, index) => ({
-    id: Date.now() + index,
-    type: block.type,
-    content: block.content,
-  }))
+  blocks.value = (invitation.blocks ?? [])
+    .filter(b => b.type !== 'banner-image')
+    .map((block, index) => ({
+      id: Date.now() + index,
+      type: block.type,
+      content: block.content,
+    }))
+}
+
+function toIsoDate(dateString: string): string {
+  if (!dateString || !dateString.trim()) return ''
+  const trimmed = dateString.trim()
+  if (trimmed.includes('T')) return trimmed
+  const d = parseLocalDate(trimmed)
+  return d && !Number.isNaN(d.getTime()) ? d.toISOString() : trimmed
+}
+
+function toIsoTime(timeString: string, dateString?: string): string {
+  if (!timeString || !timeString.trim()) return ''
+  const trimmed = timeString.trim()
+  if (trimmed.includes('T')) return trimmed
+  const baseDate = dateString && parseLocalDate(dateString) ? dateString.trim() : '1970-01-01'
+  const timeWithSeconds = trimmed.length === 5 ? `${trimmed}:00` : trimmed
+  const combined = new Date(`${baseDate}T${timeWithSeconds}`)
+  return Number.isNaN(combined.getTime()) ? trimmed : combined.toISOString()
+}
+
+export function validateInvitationForSave(
+  rsvpData: InvitationRsvpData,
+  eventId: string
+): string | null {
+  if (!eventId || !eventId.trim()) {
+    return 'Missing event. Please open an event from your dashboard first.'
+  }
+  if (!rsvpData.eventLabel?.trim()) {
+    return 'Event headline is required.'
+  }
+  if (!rsvpData.eventDate?.trim()) {
+    return 'Event date is required.'
+  }
+  if (!rsvpData.eventVenue?.trim()) {
+    return 'Event venue is required.'
+  }
+  if (!rsvpData.deadlineDate?.trim()) {
+    return 'RSVP deadline date is required.'
+  }
+  return null
 }
 
 export function buildInvitationPayload(options: {
@@ -125,16 +169,31 @@ export function buildInvitationPayload(options: {
 }): InvitationSavePayload {
   const { eventId, rsvpData, blocks } = options
 
+  const eventDate = toIsoDate(rsvpData.eventDate)
+  const eventTime = toIsoTime(rsvpData.eventTime, rsvpData.eventDate)
+  const deadlineDate = toIsoDate(rsvpData.deadlineDate)
+  const bannerImage = rsvpData.bannerImageUrl?.trim() || ''
+
+  const customBlocks = blocks
+    .filter(b => b.type !== 'banner-image')
+    .map(({ type, content }) => ({ type, content: content.trim() }))
+
+  if (bannerImage) {
+    customBlocks.push({ type: 'banner-image', content: bannerImage })
+  }
+
   return {
     eventId,
+    event: eventId,
     requestLine: rsvpData.requestLine.trim(),
     eventLabel: rsvpData.eventLabel.trim(),
-    eventDate: rsvpData.eventDate,
-    eventTime: rsvpData.eventTime,
+    eventDate: eventDate || rsvpData.eventDate,
+    eventTime: eventTime || rsvpData.eventTime,
     eventVenue: rsvpData.eventVenue.trim(),
-    blocks: blocks.map(({ type, content }) => ({ type, content: content.trim() })),
+    blocks: customBlocks,
     deadlineText: rsvpData.deadlineText.trim(),
-    deadlineDate: rsvpData.deadlineDate,
+    deadlineDate: deadlineDate || rsvpData.deadlineDate,
+    bannerImageUrl: bannerImage || undefined,
   }
 }
 
@@ -145,3 +204,4 @@ export function buildInvitationUpdatePayload(
   const { eventId: _eventId, ...rest } = full
   return rest
 }
+

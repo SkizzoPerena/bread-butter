@@ -14,19 +14,22 @@ useHead({
 
 const route = useRoute()
 const { fetchUserEvents } = useEvents()
+const { finishPageTransition } = usePageTransition()
 const fallbackEvent = ref<EventRecord | null>(null)
 
 onMounted(async () => {
-  if (!route.query.ref) {
-    try {
+  try {
+    if (!route.query.ref) {
       const events = await fetchUserEvents()
       const firstEvent = events[0]
       if (events.length === 1 && firstEvent && isEventPendingVerification(firstEvent)) {
         fallbackEvent.value = firstEvent
       }
-    } catch {
-      // Ignore network errors in pending display
     }
+  } catch {
+    // Ignore network errors in pending display
+  } finally {
+    finishPageTransition()
   }
 })
 

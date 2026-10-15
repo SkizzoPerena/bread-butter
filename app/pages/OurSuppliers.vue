@@ -1,25 +1,45 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import {
-  SUPPLIERS_DIRECTORY_DATA,
-  type SupplierTier,
-  type DirectorySupplier,
-  type SupplierSubCategory
+import { ref, computed, onMounted } from 'vue'
+import type {
+  SupplierTier,
+  DirectorySupplier,
+  SupplierSubCategory
 } from '~/data/suppliersDirectory'
+import { useSuppliersDirectory } from '~/composables/useSuppliersDirectory'
 
 definePageMeta({
   layout: 'landing-navbar',
   hideFooter: true,
+  alias: ['/our-bakery', '/bakery', '/ourbakery', '/suppliers']
 })
 
 useHead({
-  title: 'Our Suppliers - Bread + Butter',
+  title: 'Our Bakery - Bread + Butter',
   meta: [
     {
       name: 'description',
       content: 'A comprehensive curated directory of trusted wedding suppliers categorized in our signature 3-tier system: Bread Basket, Loaf, and Slice.'
     }
   ]
+})
+
+const { user } = useAuth('user')
+const targetActionUrl = computed(() => {
+  return user.value ? '/event/dashboard-butter' : '/user/login'
+})
+
+const {
+  suppliersData,
+  isLoading,
+  error,
+  isFetched,
+  totalDirectorySuppliersCount,
+  fetchSuppliersDirectory,
+  refresh
+} = useSuppliersDirectory()
+
+onMounted(() => {
+  fetchSuppliersDirectory()
 })
 
 const searchQuery = ref('')
@@ -36,7 +56,7 @@ const activeFiltersCount = computed(() => {
 
 const activeCategoryTitle = computed(() => {
   if (selectedCategoryId.value === 'all') return 'All Suppliers'
-  const cat = SUPPLIERS_DIRECTORY_DATA.find((c) => c.id === selectedCategoryId.value)
+  const cat = suppliersData.value.find((c) => c.id === selectedCategoryId.value)
   return cat ? cat.title : 'All Suppliers'
 })
 
@@ -45,7 +65,7 @@ const breadBasketShowcase = computed(() => {
   const showcase: (DirectorySupplier & { categoryTitle: string; icon: string })[] = []
   const seen = new Set<string>()
 
-  for (const cat of SUPPLIERS_DIRECTORY_DATA) {
+  for (const cat of suppliersData.value) {
     if (selectedCategoryId.value !== 'all' && cat.id !== selectedCategoryId.value) continue
     for (const sub of cat.subcategories) {
       for (const vendor of sub.vendors) {
@@ -69,7 +89,7 @@ const filteredCategories = computed(() => {
   const categoryFilter = selectedCategoryId.value
   const tierFilter = selectedTier.value
 
-  return SUPPLIERS_DIRECTORY_DATA
+  return suppliersData.value
     .filter((cat) => {
       if (categoryFilter !== 'all' && cat.id !== categoryFilter) {
         return false
@@ -128,6 +148,11 @@ const totalVisibleSuppliersCount = computed(() => {
 
 function getVendorsByTier(sub: SupplierSubCategory, tier: SupplierTier) {
   return sub.vendors.filter((v) => v.tier === tier)
+}
+
+function getFirstRowPlaceholderCount(count: number): number {
+  if (count <= 0) return 0
+  return count < 3 ? 3 - count : 0
 }
 
 function clearFilters() {
@@ -279,44 +304,36 @@ function getCategoryTheme(catId: string): CategoryTheme {
         class="bread-container w-full bg-bread-400 text-toast-900 p-4 rounded-xl shadow-lg border border-toast-400/30 space-y-4">
         <div class="flex items-center justify-between border-b border-toast-600/20 pb-2.5">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-sliders-horizontal" class="size-4 text-toast-800" />
-            <h3 class="text-sm font-bold font-serif text-toast-900">Filter Suppliers</h3>
+            <UIcon name="i-lucide-filter" class="size-4 text-toast-700" />
+            <h3 class="font-bold text-sm font-serif text-toast-900">Filter Directory</h3>
           </div>
-          <div class="flex items-center gap-2.5">
-            <button v-if="activeFiltersCount > 0 || searchQuery" type="button" @click="clearFilters"
-              class="text-xs font-semibold text-toast-700 hover:text-toast-950 underline cursor-pointer">
-              Reset
-            </button>
-            <button type="button" @click="isMobileFilterOpen = false"
-              class="size-6 rounded-md hover:bg-toast-500/20 flex items-center justify-center text-toast-800 cursor-pointer">
-              <UIcon name="i-lucide-x" class="size-4" />
-            </button>
-          </div>
+          <button v-if="activeFiltersCount > 0" type="button" @click="clearFilters"
+            class="text-xs font-semibold text-toast-700 hover:text-toast-950 underline cursor-pointer">
+            Reset all
+          </button>
         </div>
 
-        <!-- Tiers Section in Mobile Drawer -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 flex items-center gap-1.5">
-            <UIcon name="i-lucide-layers" class="size-3.5" />
-            Tier
+        <!-- 1. Tiers Selection in Drawer -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 mb-2">
+            Tier Level
           </h4>
           <div class="grid grid-cols-2 gap-1.5">
-            <button v-for="t in ['all', 'bread-basket', 'loaf', 'slice']" :key="'drawer-tier-' + t" type="button"
-              @click="selectedTier = t" :class="[
-                'flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
-                selectedTier === t
+            <button v-for="tier in ['all', 'bread-basket', 'loaf', 'slice']" :key="'drawer-tier-' + tier" type="button"
+              @click="selectedTier = tier" :class="[
+                'w-full flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+                selectedTier === tier
                   ? 'bg-toast-600 text-white shadow-xs font-semibold'
                   : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
               ]">
-              {{ getTierLabel(t) }}
+              {{ getTierLabel(tier) }}
             </button>
           </div>
         </div>
 
-        <!-- Categories Section in Mobile Drawer -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 flex items-center gap-1.5">
-            <UIcon name="i-lucide-store" class="size-3.5" />
+        <!-- 2. Categories Selection in Drawer -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 mb-2">
             Category
           </h4>
           <div class="max-h-60 overflow-y-auto space-y-1 pr-1">
@@ -329,7 +346,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
               <UIcon name="i-lucide-store" class="size-3.5 shrink-0" />
               <span class="truncate">All Categories</span>
             </button>
-            <button v-for="cat in SUPPLIERS_DIRECTORY_DATA" :key="'drawer-cat-' + cat.id" type="button"
+            <button v-for="cat in suppliersData" :key="'drawer-cat-' + cat.id" type="button"
               @click="selectedCategoryId = cat.id" :class="[
                 'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
                 selectedCategoryId === cat.id
@@ -434,7 +451,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
               <span class="truncate">All Categories</span>
             </button>
 
-            <button v-for="cat in SUPPLIERS_DIRECTORY_DATA" :key="cat.id" type="button"
+            <button v-for="cat in suppliersData" :key="cat.id" type="button"
               @click="selectedCategoryId = cat.id" :class="[
                 'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
                 selectedCategoryId === cat.id
@@ -456,9 +473,12 @@ function getCategoryTheme(catId: string): CategoryTheme {
       <div
         class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-6 shadow-md rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
         <div>
-          <h2 class="text-xl sm:text-2xl font-bold font-serif text-toast-800">
-            {{ activeCategoryTitle }}
-          </h2>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl sm:text-2xl font-bold font-serif text-toast-800">
+              {{ activeCategoryTitle }}
+            </h2>
+            <UIcon v-if="isLoading" name="i-lucide-loader-2" class="size-4 text-toast-600 animate-spin" />
+          </div>
           <p class="text-xs text-toast-700 mt-1 flex flex-wrap items-center gap-1.5">
             <span>Showing {{ totalVisibleSuppliersCount }} supplier{{ totalVisibleSuppliersCount === 1 ? '' : 's'
             }}</span>
@@ -471,84 +491,91 @@ function getCategoryTheme(catId: string): CategoryTheme {
           </p>
         </div>
 
-        <UButton to="/user/login" color="primary" variant="solid"
-          class="font-semibold bg-toast-600 hover:bg-toast-700 text-white shrink-0 self-stretch sm:self-auto justify-center text-center rounded-lg shadow-xs text-xs sm:text-sm">
-          Contact our trusted suppliers
+        <div class="flex items-center gap-2">
+          <UButton color="neutral" variant="soft" size="xs"
+            class="text-toast-700 hover:text-toast-900 cursor-pointer hidden sm:inline-flex"
+            :disabled="isLoading"
+            @click="refresh">
+            <UIcon name="i-lucide-refresh-cw" :class="['size-3.5 mr-1', isLoading && 'animate-spin']" />
+            <span>Sync</span>
+          </UButton>
+          <UButton :to="targetActionUrl" color="primary" variant="solid"
+            class="font-semibold bg-toast-600 hover:bg-toast-700 text-white shrink-0 self-stretch sm:self-auto justify-center text-center rounded-lg shadow-xs text-xs sm:text-sm">
+            Contact our trusted suppliers
+          </UButton>
+        </div>
+      </div>
+
+      <!-- Backend Transmission Error Notice Banner -->
+      <div v-if="error"
+        class="bg-red-50 border border-red-200 text-red-900 rounded-xl p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-xs">
+        <div class="flex items-center gap-2.5">
+          <UIcon name="i-lucide-alert-triangle" class="size-5 text-red-600 shrink-0" />
+          <div class="text-xs">
+            <p class="font-bold">Backend Sync Notice</p>
+            <p class="text-red-700">{{ error }}</p>
+          </div>
+        </div>
+        <UButton size="xs" color="error" variant="soft" class="shrink-0 cursor-pointer" @click="refresh">
+          Retry
         </UButton>
       </div>
 
-      <!-- Bread Basket Spotlight Showcase -->
-      <div
-        v-if="(selectedTier === 'all' || selectedTier === 'bread-basket') && !searchQuery && breadBasketShowcase.length > 0"
-        class="rounded-2xl overflow-hidden bg-bread-400 border-none shadow-md">
-        <div
-          class="bg-amber-600 bg-gradient-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
-          <div class="space-y-0.5">
-            <div class="inline-flex items-center gap-1.5 text-amber-100 text-[11px] font-bold uppercase tracking-wider">
-              <span>🥖</span>
-              <span>Spotlight Showcase</span>
+      <!-- Loading Skeleton State -->
+      <div v-if="isLoading && !isFetched" class="space-y-6 animate-pulse">
+        <!-- Spotlight Skeleton -->
+        <div class="rounded-2xl bg-bread-400 p-5 space-y-4">
+          <div class="h-6 w-48 bg-toast-300/60 rounded"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="i in 3" :key="'skel-spotlight-' + i" class="bg-white/80 rounded-xl p-4 space-y-3">
+              <div class="h-20 bg-toast-200/50 rounded-lg"></div>
+              <div class="h-4 w-3/4 bg-toast-200/60 rounded"></div>
+              <div class="h-3 w-1/2 bg-toast-200/40 rounded"></div>
             </div>
-            <h3 class="text-lg sm:text-2xl font-bold font-serif text-white">
-              Bread Basket Suppliers
-            </h3>
           </div>
-          <UButton to="/user/login" color="neutral" variant="solid"
-            class="font-bold bg-white hover:bg-amber-50 text-amber-900 rounded-lg shrink-0 self-stretch sm:self-auto justify-center text-center shadow-xs text-xs sm:text-sm">
-            Book Spotlight Suppliers
-          </UButton>
         </div>
-
-        <!-- Bread Basket Cards Grid (Largest Size - 3 Columns) -->
-        <div class="p-3.5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div v-for="bb in breadBasketShowcase" :key="bb.name"
-            class="bg-white rounded-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
-            <div class="space-y-3">
-              <!-- Logo Box with Image -->
-              <div
-                class="w-full h-20 rounded-lg bg-toast-950/5 flex items-center justify-center p-2.5 overflow-hidden shadow-inner group-hover:scale-[1.02] transition-transform duration-200">
-                <img v-if="bb.logo" :src="bb.logo" :alt="bb.name"
-                  class="max-h-full max-w-full object-contain filter drop-shadow-xs" loading="lazy" />
-                <div v-else class="text-lg font-serif font-bold text-amber-900">
-                  {{ bb.name }}
-                </div>
-              </div>
-
-              <!-- Card Content -->
-              <div class="space-y-1.5">
-                <h4 class="text-lg font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
-                  {{ bb.name }}
-                </h4>
-
-                <!-- Location moved under brand name -->
-                <div v-if="bb.location" class="flex items-center gap-1 text-[11px] text-toast-600 font-medium">
-                  <UIcon name="i-lucide-map-pin" class="size-3 text-amber-700/80 shrink-0" />
-                  <span>{{ bb.location }}</span>
-                </div>
-
-                <p v-if="bb.tagline" class="text-xs text-toast-800/90 leading-relaxed line-clamp-2">
-                  {{ bb.tagline }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Footer CTA -->
-            <div class="pt-3 mt-3 border-t border-bread-200/80 flex items-center justify-between">
-              <span class="text-xs font-semibold text-toast-600 flex items-center gap-1">
-                <UIcon :name="bb.icon" class="size-3.5 text-toast-500" />
-                {{ bb.categoryTitle }}
-              </span>
-              <NuxtLink to="/user/login"
-                class="text-xs font-bold text-amber-700 hover:text-amber-900 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                <span>Connect</span>
-                <UIcon name="i-lucide-arrow-right" class="size-3" />
-              </NuxtLink>
+        <!-- Category Section Skeleton -->
+        <div v-for="i in 2" :key="'skel-cat-' + i" class="rounded-xl overflow-hidden bg-bread-400">
+          <div class="h-11 bg-toast-500/40"></div>
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div v-for="j in 3" :key="'skel-card-' + i + '-' + j" class="h-28 bg-white/70 rounded-xl"></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- No Results State -->
-      <div v-if="filteredCategories.length === 0"
+      <!-- Empty State: Directory is Baking Fresh (Backend ready / 0 suppliers currently stored) -->
+      <div v-else-if="totalDirectorySuppliersCount === 0"
+        class="bread-container bg-bread-400 text-toast-900 rounded-xl p-8 sm:p-12 text-center shadow-md space-y-4">
+        <div class="size-16 rounded-2xl bg-amber-500/15 text-amber-800 flex items-center justify-center mx-auto text-3xl shadow-inner">
+          🥖
+        </div>
+        <div class="space-y-1.5 max-w-md mx-auto">
+          <h3 class="text-xl sm:text-2xl font-bold font-serif text-toast-900">
+            Our Supplier Directory is Baking Fresh!
+          </h3>
+          <p class="text-xs sm:text-sm text-toast-800/85 leading-relaxed">
+            We are curating and onboarding verified wedding artisans and vendors for our signature Bread Basket, Loaf, and Slice tiers.
+            Connected and ready for live transmission from the backend.
+          </p>
+        </div>
+        <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3">
+          <UButton to="/bakers/login" color="primary" size="md"
+            class="font-bold bg-toast-600 hover:bg-toast-700 text-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2">
+            Apply as a Supplier Partner
+          </UButton>
+          <UButton color="neutral" variant="outline" size="md"
+            class="font-semibold text-toast-800 border-toast-300 hover:bg-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2"
+            @click="refresh">
+            <UIcon name="i-lucide-refresh-cw" class="size-3.5 mr-1" />
+            Check For Updates
+          </UButton>
+        </div>
+      </div>
+
+      <!-- Empty State: Filter / Search returned no suppliers -->
+      <div v-else-if="filteredCategories.length === 0"
         class="bread-container bg-bread-400 text-toast-900 rounded-xl p-8 sm:p-12 text-center shadow-md space-y-3">
         <div class="size-12 rounded-full bg-toast-600/10 text-toast-600 flex items-center justify-center mx-auto">
           <UIcon name="i-lucide-search-x" class="size-6" />
@@ -563,8 +590,122 @@ function getCategoryTheme(catId: string): CategoryTheme {
         </UButton>
       </div>
 
-      <!-- Supplier Category Sections -->
+      <!-- Live Populated Suppliers View -->
       <div v-else class="space-y-6">
+        <!-- Bread Basket Spotlight Showcase -->
+        <div
+          v-if="(selectedTier === 'all' || selectedTier === 'bread-basket') && !searchQuery && breadBasketShowcase.length > 0"
+          class="rounded-2xl overflow-hidden bg-bread-400 border-none shadow-md">
+          <div
+            class="bg-amber-600 bg-gradient-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
+            <div class="space-y-0.5">
+              <div class="inline-flex items-center gap-1.5 text-amber-100 text-[11px] font-bold uppercase tracking-wider">
+                <span>🥖</span>
+                <span>Spotlight Showcase</span>
+              </div>
+              <h3 class="text-lg sm:text-2xl font-bold font-serif text-white">
+                Bread Basket Suppliers
+              </h3>
+            </div>
+            <UButton :to="targetActionUrl" color="neutral" variant="solid"
+              class="font-bold bg-white hover:bg-amber-50 text-amber-900 rounded-lg shrink-0 self-stretch sm:self-auto justify-center text-center shadow-xs text-xs sm:text-sm">
+              Book Spotlight Suppliers
+            </UButton>
+          </div>
+
+          <!-- Bread Basket Cards Grid (Largest Size - 3 Columns) -->
+          <div class="p-3.5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div v-for="bb in breadBasketShowcase" :key="bb.name"
+              class="bg-white rounded-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
+              <div class="space-y-3">
+                <!-- Logo Box with Image -->
+                <div
+                  class="w-full h-20 rounded-lg bg-toast-950/5 flex items-center justify-center p-2.5 overflow-hidden shadow-inner group-hover:scale-[1.02] transition-transform duration-200">
+                  <img v-if="bb.logo" :src="bb.logo" :alt="bb.name"
+                    class="max-h-full max-w-full object-contain filter drop-shadow-xs" loading="lazy" />
+                  <div v-else class="text-lg font-serif font-bold text-amber-900">
+                    {{ bb.name }}
+                  </div>
+                </div>
+
+                <!-- Card Content -->
+                <div class="space-y-1.5">
+                  <h4 class="text-lg font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                    {{ bb.name }}
+                  </h4>
+
+                  <!-- Location moved under brand name -->
+                  <div v-if="bb.location" class="flex items-center gap-1 text-[11px] text-toast-600 font-medium">
+                    <UIcon name="i-lucide-map-pin" class="size-3 text-amber-700/80 shrink-0" />
+                    <span>{{ bb.location }}</span>
+                  </div>
+
+                  <p v-if="bb.tagline" class="text-xs text-toast-800/90 leading-relaxed line-clamp-2">
+                    {{ bb.tagline }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Footer CTA -->
+              <div class="pt-3 mt-3 border-t border-bread-200/80 flex items-center justify-between">
+                <span class="text-xs font-semibold text-toast-600 flex items-center gap-1">
+                  <UIcon :name="bb.icon" class="size-3.5 text-toast-500" />
+                  {{ bb.categoryTitle }}
+                </span>
+                <NuxtLink :to="targetActionUrl"
+                  class="text-xs font-bold text-amber-700 hover:text-amber-900 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  <span>Connect</span>
+                  <UIcon name="i-lucide-arrow-right" class="size-3" />
+                </NuxtLink>
+              </div>
+            </div>
+
+            <!-- Placeholder Cards to complete the first row -->
+            <NuxtLink v-for="idx in getFirstRowPlaceholderCount(breadBasketShowcase.length)"
+              :key="'spotlight-placeholder-' + idx" to="/bakers/login"
+              class="bg-white/90 hover:bg-white rounded-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-2 border-dashed border-amber-300 hover:border-amber-500 text-toast-900 cursor-pointer">
+              <div class="space-y-3">
+                <!-- Icon Box matching the logo box height -->
+                <div
+                  class="w-full h-20 rounded-lg bg-amber-50/70 border border-amber-200/60 flex flex-col items-center justify-center p-2.5 overflow-hidden group-hover:bg-amber-100/70 transition-colors">
+                  <div class="size-9 rounded-full bg-amber-500/15 text-amber-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                    <UIcon name="i-lucide-crown" class="size-4.5 text-amber-600" />
+                  </div>
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Spotlight Available</span>
+                </div>
+
+                <!-- Content -->
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-base sm:text-lg font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                      Your Brand Here
+                    </h4>
+                    <UBadge size="xs" color="warning" variant="subtle" class="text-[10px] font-bold">
+                      Top Tier
+                    </UBadge>
+                  </div>
+                  <p class="text-xs text-toast-700/90 leading-relaxed line-clamp-2">
+                    Become a premier Bread Basket partner and get spotlighted to engaged couples planning their wedding.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Footer CTA -->
+              <div class="pt-3 mt-3 border-t border-amber-200/60 flex items-center justify-between">
+                <span class="text-xs font-semibold text-amber-800 flex items-center gap-1">
+                  <UIcon name="i-lucide-sparkles" class="size-3.5 text-amber-600" />
+                  Bread Basket Tier
+                </span>
+                <span class="text-xs font-bold text-amber-800 group-hover:text-amber-950 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  <span>Join Our Bakers</span>
+                  <UIcon name="i-lucide-arrow-right" class="size-3" />
+                </span>
+              </div>
+            </NuxtLink>
+          </div>
+        </div>
+
+        <!-- Supplier Category Sections -->
         <section v-for="cat in filteredCategories" :key="cat.id" class="space-y-6 scroll-mt-28">
           <!-- Subcategories Display -->
           <div class="space-y-6">
@@ -640,13 +781,61 @@ function getCategoryTheme(catId: string): CategoryTheme {
                       </div>
 
                       <div class="pt-2 mt-2 border-t border-bread-200/80 flex items-center justify-end">
-                        <NuxtLink to="/user/login"
+                        <NuxtLink :to="targetActionUrl"
                           class="text-xs font-bold text-amber-700 hover:text-amber-900 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                           <span>Connect</span>
                           <UIcon name="i-lucide-arrow-right" class="size-3" />
                         </NuxtLink>
                       </div>
                     </div>
+
+                    <!-- Placeholder Cards to complete the first row -->
+                    <NuxtLink v-for="idx in getFirstRowPlaceholderCount(getVendorsByTier(sub, 'bread-basket').length)"
+                      :key="'sub-placeholder-' + sub.title + '-' + idx" to="/bakers/login"
+                      class="bg-white/90 hover:bg-white rounded-xl p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-2 border-dashed border-amber-300 hover:border-amber-500 text-toast-900 cursor-pointer">
+                      <div class="space-y-2.5 sm:space-y-3">
+                        <!-- Icon Box matching the logo box height -->
+                        <div
+                          class="w-full h-18 sm:h-20 rounded-lg bg-amber-50/70 border border-amber-200/60 flex flex-col items-center justify-center p-2 shrink-0 overflow-hidden group-hover:bg-amber-100/70 transition-colors">
+                          <div class="size-8 sm:size-9 rounded-full bg-amber-500/15 text-amber-700 flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform">
+                            <UIcon name="i-lucide-crown" class="size-4 text-amber-600" />
+                          </div>
+                          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Available Spot</span>
+                        </div>
+
+                        <!-- Vendor Info -->
+                        <div class="flex-1 space-y-1 sm:space-y-1.5 w-full">
+                          <div class="flex items-center justify-between">
+                            <h5 class="text-sm sm:text-base font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                              Feature Your Business
+                            </h5>
+                            <UBadge size="xs" color="warning" variant="subtle" class="text-[10px] font-bold">
+                              Top Tier
+                            </UBadge>
+                          </div>
+
+                          <div class="flex items-center gap-1 text-[10px] text-amber-700/80 font-medium">
+                            <UIcon name="i-lucide-sparkles" class="size-3 shrink-0" />
+                            <span>{{ sub.title }}</span>
+                          </div>
+
+                          <p class="text-xs text-toast-700/90 leading-relaxed line-clamp-2">
+                            Join our verified bakers in this category and connect directly with couples and planners.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="pt-2 mt-2 border-t border-amber-200/60 flex items-center justify-between">
+                        <span class="text-[11px] font-semibold text-amber-800 flex items-center gap-1">
+                          <UIcon name="i-lucide-crown" class="size-3 text-amber-600" />
+                          Bread Basket
+                        </span>
+                        <span class="text-xs font-bold text-amber-800 group-hover:text-amber-950 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                          <span>Join Our Bakers</span>
+                          <UIcon name="i-lucide-arrow-right" class="size-3" />
+                        </span>
+                      </div>
+                    </NuxtLink>
                   </div>
                 </div>
 
@@ -674,7 +863,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
                       </div>
 
                       <div class="pt-2 mt-2 border-t border-bread-200/80 flex items-center justify-end">
-                        <NuxtLink to="/user/login"
+                        <NuxtLink :to="targetActionUrl"
                           class="text-[11px] font-semibold text-toast-600 group-hover:text-toast-900 transition-colors flex items-center gap-0.5">
                           <span>Details</span>
                           <UIcon name="i-lucide-arrow-right" class="size-3" />
@@ -696,9 +885,9 @@ function getCategoryTheme(catId: string): CategoryTheme {
                   <div class="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                     <div v-for="vendor in getVendorsByTier(sub, 'slice')" :key="vendor.name">
                       <!-- Special Subtle Highlight for Creative Preppers redirecting to login if slice -->
-                      <NuxtLink v-if="isSpecialVendor(vendor.name)" to="/user/login"
+                      <NuxtLink v-if="isSpecialVendor(vendor.name)" :to="targetActionUrl"
                         class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white hover:bg-amber-50/70 text-xs font-bold text-amber-900 flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer border-none"
-                        title="Log in to contact Creative Preppers">
+                        title="Contact Creative Preppers">
                         <UIcon name="i-ph-sparkle-fill" class="size-3 sm:size-3.5 text-amber-600" />
                         <span>{{ vendor.name }}</span>
                         <UBadge color="warning" variant="solid" size="xs"
@@ -727,14 +916,14 @@ function getCategoryTheme(catId: string): CategoryTheme {
       <!-- Footer Callout -->
       <div class="bread-container bg-bread-400 text-toast-900 rounded-xl p-5 sm:p-8 shadow-md text-center space-y-3">
         <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-900">
-          Are you an event vendor or partner?
+          Are you a supplier partner (Baker)?
         </h3>
         <p class="text-xs sm:text-sm text-toast-800/80 max-w-lg mx-auto leading-relaxed">
           Join the Bread + Butter supplier directory with our Slice, Loaf, or Bread Basket tiers to connect with
           celebrants, manage bookings, and coordinate directly with event planners.
         </p>
         <div class="pt-2 flex flex-col sm:flex-row justify-center gap-2.5 sm:gap-3">
-          <UButton to="/partners/signup" color="primary" size="md"
+          <UButton to="/bakers/login" color="primary" size="md"
             class="font-bold shadow-md bg-toast-600 hover:bg-toast-700 text-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2 sm:py-2.5">
             Partner With Us
           </UButton>

@@ -41,6 +41,7 @@ const { findSubEventById, updateSubEvent, deleteSubEvent } = useSubEvents()
 const { fetchAllSubEventRsvps } = useSubEventRsvps()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { finishPageTransition } = usePageTransition()
 
 const df = new DateFormatter('en-US', { dateStyle: 'medium' })
 
@@ -377,6 +378,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 

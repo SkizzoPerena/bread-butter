@@ -17,6 +17,7 @@ const route = useRoute()
 const { fetchEvent } = useEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { finishPageTransition } = usePageTransition()
 const {
   isLoading: isLoadingPlaylists,
   isSubmitting,
@@ -269,8 +270,12 @@ onMounted(async () => {
     return
   }
 
-  await loadEventData()
-  await loadPlaylistsData()
+  try {
+    await loadEventData()
+    await loadPlaylistsData()
+  } finally {
+    finishPageTransition()
+  }
 })
 
 watch(eventId, async () => {

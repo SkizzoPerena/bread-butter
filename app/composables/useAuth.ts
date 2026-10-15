@@ -10,6 +10,7 @@ import type {
 } from '~/types/auth'
 import { RestrictedAccountError } from '~/utils/restrictedAccount'
 import { normalizeReferralCode } from '~/utils/referralCode'
+import { isPublicPath } from '~/utils/authGuard'
 import {
   AUTH_LOGIN_REASONS,
   AUTH_OTP_REASONS,
@@ -120,6 +121,14 @@ export function scheduleSilentRefresh(role: AuthRole = 'user', tokenOverride?: s
       return
     }
     if (import.meta.client) {
+      try {
+        const route = useRoute()
+        if (isPublicPath(route.path)) {
+          return
+        }
+      } catch {
+        // Fallback
+      }
       const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
       await navigateTo(loginPath)
     }
@@ -143,6 +152,14 @@ function initVisibilityListener() {
             if (result === 'success' || result === 'transient') {
               scheduleSilentRefresh(role)
               return
+            }
+            try {
+              const route = useRoute()
+              if (isPublicPath(route.path)) {
+                return
+              }
+            } catch {
+              // Fallback
             }
             const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
             navigateTo(loginPath)

@@ -81,6 +81,7 @@ watch(isSaving, (val) => {
 })
 
 onUnmounted(() => {
+    finishPageTransition()
     if (typeof document !== 'undefined') {
         document.body.style.overflow = ''
     }
@@ -1495,9 +1496,16 @@ async function loadCustomSite() {
     }
 }
 
+const { finishPageTransition } = usePageTransition()
+
 onMounted(async () => {
-    await Promise.all([loadEventContext(), loadCustomSite()])
-    seedWebsiteDefaultsFromEvent()
+    try {
+        await Promise.all([loadEventContext(), loadCustomSite()])
+        seedWebsiteDefaultsFromEvent()
+    } finally {
+        await nextTick()
+        finishPageTransition()
+    }
 })
 
 interface SaveCustomSiteOptions {
@@ -1738,9 +1746,9 @@ function togglePreview() {
                 :collapsible="false" :toggle="false"
                 class="col-span-1 lg:col-span-1 w-full rounded-none overflow-hidden flex flex-row lg:sticky lg:top-16 h-145 sm:h-160 lg:h-[calc(100vh-64px)] z-20"
                 :ui="{
-                    root: '!flex !flex-row !w-full h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white dark:bg-toast-900 border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
+                    root: '!flex !flex-row !w-full h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
                     header: 'hidden',
-                    body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white dark:bg-toast-900',
+                    body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white',
                     footer: 'hidden'
                 }">
 
@@ -1816,9 +1824,9 @@ function togglePreview() {
                 </div>
 
                 <!-- 2. RIGHT PART OF CONTAINER: Step Header + Editor Controls + Footer -->
-                <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white dark:bg-toast-900 m-0 p-0">
+                <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white m-0 p-0">
                     <!-- Step Header -->
-                    <div class="px-6 pt-6 shrink-0 bg-white dark:bg-toast-900"
+                    <div class="px-6 pt-6 shrink-0 bg-white"
                         :class="['color-palette', 'typography', 'schedule', 'q-and-a'].includes(currentStepData?.id || '') ? 'pb-2' : 'pb-4 border-b border-toast-200/60'">
 
 
@@ -1834,21 +1842,21 @@ function togglePreview() {
 
                     <!-- Step 3: Color Palette Tabs (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'color-palette'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UTabs v-model="colorTabSelected" :items="colorTabs" value-key="slot" size="sm" color="blue"
                             class="w-full" :content="false" />
                     </div>
 
                     <!-- Step 4: Typography Tabs (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'typography'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UTabs v-model="typographyTabSelected" :items="typographyTabs" value-key="slot" size="sm"
                             color="blue" class="w-full" :content="false" />
                     </div>
 
                     <!-- Dynamic Step: Schedule (Events): Add Event button (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'schedule'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UButton icon="i-lucide-plus" color="blue" variant="solid" block
                             class="text-white cursor-pointer justify-center" @click="addScheduleItem()">
                             Add Event
@@ -1857,7 +1865,7 @@ function togglePreview() {
 
                     <!-- Dynamic Step: Q&A: Add Question button (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'q-and-a'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UButton icon="i-lucide-plus" color="blue" variant="solid" block
                             class="text-white cursor-pointer justify-center" @click="addTidbit()">
                             Add Question
@@ -2017,7 +2025,7 @@ function togglePreview() {
                                                     customColorState.primary.h }}°</span>
                                             </div>
                                             <input type="range" min="0" max="360" :value="customColorState.primary.h"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
                                                 @input="(e) => onHueChange('primary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2030,7 +2038,7 @@ function togglePreview() {
                                                     customColorState.primary.s }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.primary.s"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, hsl(${customColorState.primary.h}, 0%, 50%), hsl(${customColorState.primary.h}, 100%, 50%))` }"
                                                 @input="(e) => onSaturationChange('primary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2043,7 +2051,7 @@ function togglePreview() {
                                                     customColorState.primary.l }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.primary.l"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, #000000 0%, hsl(${customColorState.primary.h}, ${customColorState.primary.s}%, 50%) 50%, #ffffff 100%)` }"
                                                 @input="(e) => onLightnessChange('primary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2087,7 +2095,7 @@ function togglePreview() {
                                                     customColorState.secondary.h }}°</span>
                                             </div>
                                             <input type="range" min="0" max="360" :value="customColorState.secondary.h"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
                                                 @input="(e) => onHueChange('secondary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2100,7 +2108,7 @@ function togglePreview() {
                                                     customColorState.secondary.s }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.secondary.s"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, hsl(${customColorState.secondary.h}, 0%, 50%), hsl(${customColorState.secondary.h}, 100%, 50%))` }"
                                                 @input="(e) => onSaturationChange('secondary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2113,7 +2121,7 @@ function togglePreview() {
                                                     customColorState.secondary.l }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.secondary.l"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, #000000 0%, hsl(${customColorState.secondary.h}, ${customColorState.secondary.s}%, 50%) 50%, #ffffff 100%)` }"
                                                 @input="(e) => onLightnessChange('secondary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2155,7 +2163,7 @@ function togglePreview() {
                                                     customColorState.text_color.h }}°</span>
                                             </div>
                                             <input type="range" min="0" max="360" :value="customColorState.text_color.h"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
                                                 @input="(e) => onHueChange('text_color', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2168,7 +2176,7 @@ function togglePreview() {
                                                     customColorState.text_color.s }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.text_color.s"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, hsl(${customColorState.text_color.h}, 0%, 50%), hsl(${customColorState.text_color.h}, 100%, 50%))` }"
                                                 @input="(e) => onSaturationChange('text_color', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2181,7 +2189,7 @@ function togglePreview() {
                                                     customColorState.text_color.l }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.text_color.l"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, #000000 0%, hsl(${customColorState.text_color.h}, ${customColorState.text_color.s}%, 50%) 50%, #ffffff 100%)` }"
                                                 @input="(e) => onLightnessChange('text_color', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2381,7 +2389,7 @@ function togglePreview() {
                                         added yet.
                                     </div>
                                     <div v-for="tidbit in tidbits" :key="tidbit.id"
-                                        class="flex flex-col gap-2 border border-toast-100 dark:border-toast-700/80 p-3 rounded-lg bg-white dark:bg-toast-800">
+                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg bg-white">
                                         <div class="flex justify-between items-center">
                                             <span class="font-medium capitalize">Q&A Item</span>
                                             <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
@@ -2406,11 +2414,11 @@ function togglePreview() {
                                         class="text-center text-toast-500 italic py-4">No
                                         events added yet.</div>
                                     <div v-for="item in scheduleItems" :key="item.id"
-                                        class="flex flex-col gap-3 border border-toast-200/80 dark:border-toast-700/80 p-4 rounded-xl bg-white dark:bg-toast-800 shadow-sm">
+                                        class="flex flex-col gap-3 border border-toast-200/80 p-4 rounded-xl bg-white shadow-sm">
                                         <div
-                                            class="flex justify-between items-center pb-1 border-b border-toast-100 dark:border-toast-700">
+                                            class="flex justify-between items-center pb-1 border-b border-toast-100">
                                             <span
-                                                class="font-semibold text-sm capitalize text-toast-900 dark:text-toast-100">Event</span>
+                                                class="font-semibold text-sm capitalize text-toast-900">Event</span>
                                             <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
                                                 @click="removeScheduleItem(item.id)" />
                                         </div>
@@ -2427,8 +2435,8 @@ function togglePreview() {
 
                                         <!-- Whole day event Checkmark -->
                                         <div
-                                            class="flex items-center justify-between p-2.5 bg-toast-50/70 dark:bg-toast-900/50 rounded-lg border border-toast-200/60 dark:border-toast-700/60">
-                                            <span class="text-xs font-medium text-toast-800 dark:text-toast-200">Whole
+                                            class="flex items-center justify-between p-2.5 bg-toast-50/70 rounded-lg border border-toast-200/60">
+                                            <span class="text-xs font-medium text-toast-800">Whole
                                                 day event</span>
                                             <UCheckbox v-model="item.isAllDay" color="blue" />
                                         </div>
@@ -2492,9 +2500,9 @@ function togglePreview() {
 
                                         <!-- Autocomplete Results Dropdown -->
                                         <div v-if="showVenueDropdown && venueSearchResults.length > 0"
-                                            class="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-white dark:bg-toast-900 border border-toast-200 dark:border-toast-700 shadow-xl overflow-hidden py-1 max-h-64 overflow-y-auto">
+                                            class="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-white border border-toast-200 shadow-xl overflow-hidden py-1 max-h-64 overflow-y-auto">
                                             <div
-                                                class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-toast-400 flex items-center justify-between border-b border-toast-100 dark:border-toast-800">
+                                                class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-toast-400 flex items-center justify-between border-b border-toast-100">
                                                 <span>Matching Places (Exact Coordinates)</span>
                                                 <button type="button" @click="showVenueDropdown = false"
                                                     class="hover:text-toast-600">
@@ -2503,21 +2511,21 @@ function togglePreview() {
                                             </div>
                                             <button v-for="(place, pIdx) in venueSearchResults" :key="pIdx"
                                                 type="button" @click="selectVenueLocation(place)"
-                                                class="w-full px-3 py-2 text-left hover:bg-toast-50 dark:hover:bg-toast-800 flex items-start gap-2.5 transition-colors border-b last:border-b-0 border-toast-100 dark:border-toast-800/50 cursor-pointer">
+                                                class="w-full px-3 py-2 text-left hover:bg-toast-50 flex items-start gap-2.5 transition-colors border-b last:border-b-transparent border-toast-100 cursor-pointer">
                                                 <div
-                                                    class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                                                    class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                                                     <UIcon name="i-lucide-map-pin" class="w-4 h-4" />
                                                 </div>
                                                 <div class="flex-1 min-w-0">
                                                     <div
-                                                        class="text-xs font-semibold text-toast-900 dark:text-toast-100 truncate">
+                                                        class="text-xs font-semibold text-toast-900 truncate">
                                                         {{ place.name }}
                                                     </div>
                                                     <div class="text-[11px] text-toast-500 line-clamp-1 mt-0.5">
                                                         {{ place.displayName }}
                                                     </div>
                                                     <div
-                                                        class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1.5">
+                                                        class="text-[10px] font-mono text-emerald-600 mt-1 flex items-center gap-1.5">
                                                         <span
                                                             class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                         <span>{{ place.lat.toFixed(5) }}°, {{ place.lng.toFixed(5)
@@ -2530,20 +2538,20 @@ function togglePreview() {
 
                                     <!-- Coordinate Status Badge -->
                                     <div v-if="websiteData.whereToStayLatitude && websiteData.whereToStayLongitude"
-                                        class="p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900/40 flex items-center justify-between gap-3 text-xs">
+                                        class="p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 flex items-center justify-between gap-3 text-xs">
                                         <div
-                                            class="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 min-w-0">
+                                            class="flex items-center gap-2 text-emerald-900 min-w-0">
                                             <div
-                                                class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                                class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
                                                 <UIcon name="i-lucide-check-circle-2" class="w-4 h-4" />
                                             </div>
                                             <div class="min-w-0">
                                                 <div
-                                                    class="font-semibold text-emerald-950 dark:text-emerald-100 text-xs">
+                                                    class="font-semibold text-emerald-950 text-xs">
                                                     Precise Coordinates Synced
                                                 </div>
                                                 <div
-                                                    class="text-[11px] font-mono text-emerald-700 dark:text-emerald-300 truncate">
+                                                    class="text-[11px] font-mono text-emerald-700 truncate">
                                                     {{ Number(websiteData.whereToStayLatitude).toFixed(5) }}°, {{
                                                         Number(websiteData.whereToStayLongitude).toFixed(5) }}°
                                                 </div>
@@ -2564,9 +2572,9 @@ function togglePreview() {
 
                                     <!-- Google Maps & Reviews Exploration Link -->
                                     <div
-                                        class="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 dark:bg-blue-950/30 dark:border-blue-900/40 flex items-center justify-between gap-3">
-                                        <div class="text-xs text-toast-700 dark:text-toast-300">
-                                            <span class="font-semibold block text-toast-900 dark:text-toast-100">Find
+                                        class="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 flex items-center justify-between gap-3">
+                                        <div class="text-xs text-toast-700">
+                                            <span class="font-semibold block text-toast-900">Find
                                                 Live Google Reviews</span>
                                             Search real, top-rated hotels in this area on Google Maps.
                                         </div>
@@ -2583,12 +2591,12 @@ function togglePreview() {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <h4
-                                                    class="text-xs font-bold uppercase tracking-wider text-toast-700 dark:text-toast-300">
+                                                    class="text-xs font-bold uppercase tracking-wider text-toast-700">
                                                     Accommodation Slots (Max 4)
                                                 </h4>
                                                 <p class="text-[11px] text-toast-500 mt-0.5">
                                                     Click any slot to open top hotels near <span
-                                                        class="font-medium text-blue-600 dark:text-blue-400">{{
+                                                        class="font-medium text-blue-600">{{
                                                             websiteData.whereToStayLocation ||
                                                             'your venue' }}</span>
                                                 </p>
@@ -2600,20 +2608,20 @@ function togglePreview() {
                                             <div v-for="slotIdx in [0, 1, 2, 3]" :key="slotIdx">
                                                 <!-- Has Selected Hotel -->
                                                 <div v-if="whereToStayAccommodations[slotIdx] && whereToStayAccommodations[slotIdx].name && whereToStayAccommodations[slotIdx].name.trim()"
-                                                    class="p-3.5 rounded-xl border border-blue-200/90 dark:border-blue-900/60 bg-white dark:bg-toast-800 shadow-xs space-y-2.5 hover:border-blue-300 dark:hover:border-blue-800 transition-all">
+                                                    class="p-3.5 rounded-xl border border-blue-200/90 bg-white shadow-xs space-y-2.5 hover:border-blue-300 transition-all">
                                                     <div
-                                                        class="flex items-center justify-between pb-2 border-b border-toast-100 dark:border-toast-700">
+                                                        class="flex items-center justify-between pb-2 border-b border-toast-100">
                                                         <div class="flex items-center gap-2 min-w-0">
                                                             <span
                                                                 class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                                                                 {{ slotIdx + 1 }}
                                                             </span>
                                                             <span
-                                                                class="font-bold text-xs text-toast-900 dark:text-toast-100 truncate">
+                                                                class="font-bold text-xs text-toast-900 truncate">
                                                                 Slot {{ slotIdx + 1 }}
                                                             </span>
                                                             <span
-                                                                class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center gap-1 shrink-0">
+                                                                class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1 shrink-0">
                                                                 <UIcon name="i-lucide-check-circle" class="w-3 h-3" />
                                                                 Selected
                                                             </span>
@@ -2629,20 +2637,20 @@ function togglePreview() {
                                                     <!-- Hotel details -->
                                                     <div class="flex items-start gap-3">
                                                         <div
-                                                            class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-toast-200 dark:border-toast-700 bg-toast-100 dark:bg-toast-800 shadow-xs">
+                                                            class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-toast-200 bg-toast-100 shadow-xs">
                                                             <img :src="getAccommodationImage(whereToStayAccommodations[slotIdx])"
                                                                 :alt="whereToStayAccommodations[slotIdx].name"
                                                                 class="w-full h-full object-cover" />
                                                         </div>
                                                         <div class="min-w-0 flex-1">
                                                             <div
-                                                                class="font-bold text-sm text-toast-900 dark:text-toast-100 truncate leading-snug">
+                                                                class="font-bold text-sm text-toast-900 truncate leading-snug">
                                                                 {{ whereToStayAccommodations[slotIdx].name }}
                                                             </div>
                                                             <div
-                                                                class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 dark:text-toast-400 mt-1">
+                                                                class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 mt-1">
                                                                 <span v-if="whereToStayAccommodations[slotIdx].rating"
-                                                                    class="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                                                                    class="font-semibold text-amber-600 flex items-center gap-0.5">
                                                                     <UIcon name="i-lucide-star"
                                                                         class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                                                     {{ whereToStayAccommodations[slotIdx].rating }}
@@ -2663,7 +2671,7 @@ function togglePreview() {
 
                                                     <!-- Slot Action Buttons -->
                                                     <div
-                                                        class="flex items-center gap-2 pt-1 border-t border-toast-100 dark:border-toast-700/60">
+                                                        class="flex items-center gap-2 pt-1 border-t border-toast-100">
                                                         <UButton size="xs" color="blue" variant="soft"
                                                             icon="i-lucide-map"
                                                             class="flex-1 justify-center cursor-pointer"
@@ -2682,32 +2690,32 @@ function togglePreview() {
 
                                                 <!-- Empty Slot Card (Click to open Google Maps popup) -->
                                                 <button v-else type="button" @click="openAccommodationPicker(slotIdx)"
-                                                    class="w-full p-4 rounded-xl border-2 border-dashed border-toast-300 hover:border-blue-500 dark:border-toast-700 dark:hover:border-blue-400 bg-white/70 hover:bg-blue-50/40 dark:bg-toast-800/40 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer space-y-2">
+                                                    class="w-full p-4 rounded-xl border-2 border-dashed border-toast-300 hover:border-blue-500 bg-white/70 hover:bg-blue-50/40 text-left transition-all group cursor-pointer space-y-2">
                                                     <div class="flex items-center justify-between">
                                                         <div class="flex items-center gap-2">
                                                             <span
-                                                                class="w-5 h-5 rounded-full bg-toast-200 dark:bg-toast-700 text-toast-700 dark:text-toast-300 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-[10px] font-bold transition-colors">
+                                                                class="w-5 h-5 rounded-full bg-toast-200 text-toast-700 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-[10px] font-bold transition-colors">
                                                                 {{ slotIdx + 1 }}
                                                             </span>
                                                             <span
-                                                                class="font-semibold text-xs text-toast-600 dark:text-toast-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                                class="font-semibold text-xs text-toast-600 group-hover:text-blue-600 transition-colors">
                                                                 Slot {{ slotIdx + 1 }}: Not Selected
                                                             </span>
                                                         </div>
                                                         <span
-                                                            class="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                                                            class="text-xs font-semibold text-blue-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                                                             Select on Map
                                                             <UIcon name="i-lucide-chevron-right" class="w-3.5 h-3.5" />
                                                         </span>
                                                     </div>
                                                     <div class="flex items-center gap-3 pt-0.5">
                                                         <div
-                                                            class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                                            class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                                                             <UIcon name="i-lucide-map-pin" class="w-4 h-4" />
                                                         </div>
                                                         <div class="min-w-0 flex-1">
                                                             <span
-                                                                class="font-semibold text-xs block text-toast-900 dark:text-toast-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                                                class="font-semibold text-xs block text-toast-900 group-hover:text-blue-600">
                                                                 Choose Hotel from Google Maps
                                                             </span>
                                                             <span class="text-[11px] text-toast-500 truncate block">
@@ -2743,21 +2751,21 @@ function togglePreview() {
 
                                 <!-- Guest List Link Status Card -->
                                 <div
-                                    class="p-4 rounded-xl border border-blue-200/80 bg-blue-50/60 dark:bg-blue-950/30 dark:border-blue-900/40 flex flex-col gap-2.5">
+                                    class="p-4 rounded-xl border border-blue-200/80 bg-blue-50/60 flex flex-col gap-2.5">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-2">
                                             <UIcon name="i-lucide-link"
-                                                class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                class="w-4 h-4 text-blue-600" />
                                             <span
-                                                class="text-xs font-semibold text-toast-900 dark:text-toast-100">Linked
+                                                class="text-xs font-semibold text-toast-900">Linked
                                                 to Event Guest List</span>
                                         </div>
                                         <span
-                                            class="text-[11px] font-medium bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                                            class="text-[11px] font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                             {{ linkedGuestPartyMembers.length }} entourage tagged
                                         </span>
                                     </div>
-                                    <p class="text-xs text-toast-600 dark:text-toast-400 leading-relaxed">
+                                    <p class="text-xs text-toast-600 leading-relaxed">
                                         Guests assigned special entourage roles (e.g. Maid of Honor, Best Man,
                                         Bridesmaids, Groomsmen) in your guest
                                         list automatically appear here.
@@ -2775,7 +2783,7 @@ function togglePreview() {
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between">
                                         <h4
-                                            class="text-xs font-bold uppercase tracking-wider text-toast-600 dark:text-toast-400">
+                                            class="text-xs font-bold uppercase tracking-wider text-toast-600">
                                             Entourage Groups ({{ groupedWeddingParty.length }})
                                         </h4>
                                         <UButton icon="i-lucide-user-plus" size="xs" color="blue" variant="ghost"
@@ -2791,11 +2799,11 @@ function togglePreview() {
                                     </div>
 
                                     <div v-for="group in groupedWeddingParty" :key="group.roleName"
-                                        class="p-3.5 rounded-xl border border-toast-200/80 dark:border-toast-700/80 bg-white dark:bg-toast-800 space-y-2">
+                                        class="p-3.5 rounded-xl border border-toast-200/80 bg-white space-y-2">
                                         <div
-                                            class="flex items-center justify-between pb-1.5 border-b border-toast-100 dark:border-toast-700">
+                                            class="flex items-center justify-between pb-1.5 border-b border-toast-100">
                                             <span
-                                                class="font-semibold text-xs text-toast-900 dark:text-toast-100 uppercase tracking-wide">
+                                                class="font-semibold text-xs text-toast-900 uppercase tracking-wide">
                                                 {{ group.roleName }}
                                             </span>
                                             <span class="text-[10px] text-toast-500 font-medium">
@@ -2805,13 +2813,13 @@ function togglePreview() {
                                         </div>
                                         <div class="space-y-1.5">
                                             <div v-for="member in group.members" :key="member.id"
-                                                class="flex items-center justify-between py-1 px-2 rounded-lg bg-toast-50/70 dark:bg-toast-900/50 text-xs">
+                                                class="flex items-center justify-between py-1 px-2 rounded-lg bg-toast-50/70 text-xs">
                                                 <div class="flex items-center gap-2">
                                                     <span
                                                         class="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold">
                                                         {{ getInitials(member.name) }}
                                                     </span>
-                                                    <span class="font-medium text-toast-900 dark:text-toast-100">{{
+                                                    <span class="font-medium text-toast-900">{{
                                                         member.name }}</span>
                                                 </div>
                                                 <span class="text-[10px] text-toast-500">{{ member.role }}</span>
@@ -2823,11 +2831,11 @@ function togglePreview() {
                                 <!-- Custom / Overridden Party Members (if any) -->
                                 <div v-if="customWeddingPartyMembers.length > 0" class="space-y-3 pt-2">
                                     <h4
-                                        class="text-xs font-bold uppercase tracking-wider text-toast-600 dark:text-toast-400">
+                                        class="text-xs font-bold uppercase tracking-wider text-toast-600">
                                         Custom Additions ({{ customWeddingPartyMembers.length }})
                                     </h4>
                                     <div v-for="(customMember, idx) in customWeddingPartyMembers" :key="customMember.id"
-                                        class="p-3 rounded-xl border border-toast-200 dark:border-toast-700 bg-white dark:bg-toast-800 space-y-2">
+                                        class="p-3 rounded-xl border border-toast-200 bg-white space-y-2">
                                         <div class="flex justify-between items-center">
                                             <span class="text-xs font-semibold">Custom Member {{ idx + 1 }}</span>
                                             <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
@@ -2962,9 +2970,9 @@ function togglePreview() {
 
                     <!-- Step 3: Simplified Colors (Static below scroll area) -->
                     <div v-if="currentStepData?.id === 'color-palette'"
-                        class="px-4 py-2.5 bg-white dark:bg-toast-900 border-t border-toast-200/60 flex items-center justify-between shrink-0">
+                        class="px-4 py-2.5 bg-white border-t border-toast-200/60 flex items-center justify-between shrink-0">
                         <div class="text-left pr-2">
-                            <h4 class="font-medium text-xs sm:text-sm text-toast-900 dark:text-toast-100">Simplified
+                            <h4 class="font-medium text-xs sm:text-sm text-toast-900">Simplified
                                 Colors</h4>
                             <p class="text-[11px] text-toast-500">Minimal color scheme with only primary & text colors.
                             </p>
@@ -2974,12 +2982,12 @@ function togglePreview() {
 
                     <!-- Step 4: Live Typography Sample (Static below scroll area) -->
                     <div v-if="currentStepData?.id === 'typography'"
-                        class="px-5 py-3 bg-white dark:bg-toast-900 border-t border-toast-200/60 flex flex-col justify-center shrink-0">
+                        class="px-5 py-3 bg-white border-t border-toast-200/60 flex flex-col justify-center shrink-0">
                         <div class="flex items-center justify-between pb-1.5">
                             <span class="text-[11px] font-semibold uppercase tracking-wider text-toast-500">Live
                                 Typography Sample</span>
                             <span
-                                class="text-[10px] text-blue-600 font-medium bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full border border-blue-100 dark:border-blue-900 truncate max-w-52.5">
+                                class="text-[10px] text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 truncate max-w-52.5">
                                 {{ websiteData.headerFont }} &bull; {{ websiteData.subheaderFont }} &bull; {{
                                     websiteData.bodyFont }}
                             </span>
@@ -2988,8 +2996,8 @@ function togglePreview() {
                         <div class="grid grid-cols-3 gap-4 items-center py-0.5">
                             <!-- Left Column: Sample Header -->
                             <div
-                                class="flex flex-col items-center justify-center text-center p-2 border-r border-toast-200/70 dark:border-toast-700/70">
-                                <div class="text-2xl sm:text-3xl text-toast-900 dark:text-toast-100 leading-tight wrap-break-word"
+                                class="flex flex-col items-center justify-center text-center p-2 border-r border-toast-200/70">
+                                <div class="text-2xl sm:text-3xl text-toast-900 leading-tight wrap-break-word"
                                     :style="{ fontFamily: `'${websiteData.headerFont}', cursive, serif` }">
                                     sample header
                                 </div>
@@ -2997,11 +3005,11 @@ function togglePreview() {
 
                             <!-- Right Column: Sample Subheader & Numerous Lines of Body Text -->
                             <div class="col-span-2 flex flex-col justify-center space-y-1.5 text-left pl-1">
-                                <div class="text-md sm:text-lg font-semibold text-toast-800 dark:text-toast-200 leading-snug"
+                                <div class="text-md sm:text-lg font-semibold text-toast-800 leading-snug"
                                     :style="{ fontFamily: `'${websiteData.subheaderFont}', serif, sans-serif` }">
                                     Sample Subheader
                                 </div>
-                                <p class="text-[11px] sm:text-xs text-toast-600 dark:text-toast-400 max-h-18 overflow-hidden pr-1"
+                                <p class="text-[11px] sm:text-xs text-toast-600 max-h-18 overflow-hidden pr-1"
                                     :style="{ fontFamily: `'${websiteData.bodyFont}', sans-serif` }">
                                     We warmly invite you to celebrate our special day with us. Surrounded by family and
                                     lifelong friends, love is in the air.
@@ -3614,13 +3622,13 @@ function togglePreview() {
 
     <!-- Google Maps Accommodation Picker Modal -->
     <UModal v-model:open="isAccommodationPickerOpen" :ui="{
-        content: 'w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] flex flex-col bg-white dark:bg-toast-900 text-toast-950 dark:text-toast-50 border border-toast-200 dark:border-toast-700 shadow-2xl rounded-2xl overflow-hidden'
+        content: 'w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] flex flex-col bg-white text-toast-950 border border-toast-200 shadow-2xl rounded-2xl overflow-hidden'
     }">
         <template #content>
             <div class="flex flex-col h-full max-h-[90vh]">
                 <!-- Modal Header -->
                 <div
-                    class="px-5 py-4 border-b border-toast-200 dark:border-toast-700 bg-linear-to-r from-blue-50/80 via-white to-blue-50/40 dark:from-blue-950/40 dark:via-toast-900 dark:to-toast-900 flex items-start justify-between gap-3 shrink-0">
+                    class="px-5 py-4 border-b border-toast-200 bg-linear-to-r from-blue-50/80 via-white to-blue-50/40 flex items-start justify-between gap-3 shrink-0">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
@@ -3628,24 +3636,24 @@ function togglePreview() {
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <h3 class="text-base sm:text-lg font-bold text-toast-900 dark:text-toast-100">
+                                <h3 class="text-base sm:text-lg font-bold text-toast-900">
                                     Select Accommodation for Slot {{ activeAccommodationSlotIndex + 1 }}
                                 </h3>
                                 <span
-                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
                                     Google Maps
                                 </span>
                             </div>
-                            <p class="text-xs text-toast-600 dark:text-toast-400 mt-0.5">
+                            <p class="text-xs text-toast-600 mt-0.5">
                                 Top-rated hotels & accommodations near
-                                <span class="font-semibold text-blue-600 dark:text-blue-400">
+                                <span class="font-semibold text-blue-600">
                                     {{ websiteData.whereToStayLocation || 'Venue Location' }}
                                 </span>
                             </p>
                         </div>
                     </div>
                     <button type="button"
-                        class="p-1.5 rounded-lg text-toast-400 hover:text-toast-700 dark:hover:text-toast-200 hover:bg-toast-100 dark:hover:bg-toast-800 transition-colors cursor-pointer"
+                        class="p-1.5 rounded-lg text-toast-400 hover:text-toast-700 hover:bg-toast-100 transition-colors cursor-pointer"
                         aria-label="Close modal" @click="isAccommodationPickerOpen = false">
                         <UIcon name="i-lucide-x" class="w-5 h-5" />
                     </button>
@@ -3655,7 +3663,7 @@ function togglePreview() {
                 <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                     <!-- Interactive Google Map View -->
                     <div
-                        class="relative w-full h-44 sm:h-52 rounded-xl overflow-hidden border border-toast-200 dark:border-toast-700 shadow-inner shrink-0">
+                        class="relative w-full h-44 sm:h-52 rounded-xl overflow-hidden border border-toast-200 shadow-inner shrink-0">
                         <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0"
                             marginwidth="0"
                             :src="getGoogleMapsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })">
@@ -3664,9 +3672,9 @@ function togglePreview() {
                         <div class="absolute bottom-2.5 right-2.5">
                             <a :href="getAreaHotelsGoogleReviewsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })"
                                 target="_blank" rel="noopener noreferrer"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/95 dark:bg-toast-900/95 text-toast-800 dark:text-toast-100 shadow-md border border-toast-200 dark:border-toast-700 hover:bg-blue-50 dark:hover:bg-toast-800 inline-flex items-center gap-1.5 backdrop-blur-xs transition-colors cursor-pointer">
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/95 text-toast-800 shadow-md border border-toast-200 hover:bg-blue-50 inline-flex items-center gap-1.5 backdrop-blur-xs transition-colors cursor-pointer">
                                 <UIcon name="i-lucide-external-link"
-                                    class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                    class="w-3.5 h-3.5 text-blue-600" />
                                 Open Live Map on Google
                             </a>
                         </div>
@@ -3696,7 +3704,7 @@ function togglePreview() {
                                 'px-2.5 py-1 rounded-full font-medium transition-colors shrink-0 cursor-pointer',
                                 selectedAccommodationCategory === cat.id
                                     ? 'bg-blue-600 text-white shadow-xs'
-                                    : 'bg-toast-100 dark:bg-toast-800 text-toast-700 dark:text-toast-300 hover:bg-toast-200 dark:hover:bg-toast-700'
+                                    : 'bg-toast-100 text-toast-700 hover:bg-toast-200'
                             ]">
                                 {{ cat.label }}
                             </button>
@@ -3705,12 +3713,12 @@ function togglePreview() {
 
                     <!-- Custom hotel option if user typed a search query -->
                     <div v-if="accommodationSearchQuery.trim()"
-                        class="p-3 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 flex items-center justify-between gap-3">
+                        class="p-3 rounded-xl border border-blue-200 bg-blue-50/60 flex items-center justify-between gap-3">
                         <div class="min-w-0 flex-1">
-                            <span class="text-xs font-semibold text-blue-800 dark:text-blue-300 block">
+                            <span class="text-xs font-semibold text-blue-800 block">
                                 Can't find your hotel?
                             </span>
-                            <span class="text-xs text-toast-700 dark:text-toast-300 truncate block">
+                            <span class="text-xs text-toast-700 truncate block">
                                 Select "<strong>{{ accommodationSearchQuery }}</strong>" as a custom hotel near {{
                                     websiteData.whereToStayLocation || 'venue' }}
                             </span>
@@ -3742,28 +3750,28 @@ function togglePreview() {
 
                         <div v-for="(hotel, hIdx) in displayAccommodationsList" :key="hIdx"
                             @click="selectAccommodationForSlot(hotel)"
-                            class="p-3.5 rounded-xl border border-toast-200/90 dark:border-toast-700/80 bg-white dark:bg-toast-800/80 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            class="p-3.5 rounded-xl border border-toast-200/90 bg-white hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div class="flex items-start gap-3 min-w-0 flex-1">
                                 <div
-                                    class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-toast-200 dark:border-toast-700 bg-toast-100 dark:bg-toast-800 shadow-xs group-hover:scale-105 transition-transform">
+                                    class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-toast-200 bg-toast-100 shadow-xs group-hover:scale-105 transition-transform">
                                     <img :src="getAccommodationImage(hotel)" :alt="hotel.name"
                                         class="w-full h-full object-cover" />
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h4
-                                            class="font-bold text-sm text-toast-900 dark:text-toast-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                            class="font-bold text-sm text-toast-900 group-hover:text-blue-600 transition-colors">
                                             {{ hotel.name }}
                                         </h4>
                                         <span v-if="hotel.badge"
-                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
                                             {{ hotel.badge }}
                                         </span>
                                     </div>
                                     <div
-                                        class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 dark:text-toast-400 mt-1">
+                                        class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 mt-1">
                                         <span
-                                            class="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                                            class="font-bold text-amber-600 flex items-center gap-0.5">
                                             <UIcon name="i-lucide-star"
                                                 class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                             {{ hotel.rating }}
@@ -3771,20 +3779,20 @@ function togglePreview() {
                                         <span v-if="hotel.reviewsCount" class="text-toast-500">
                                             ({{ hotel.reviewsCount }})
                                         </span>
-                                        <span class="text-toast-300 dark:text-toast-600">•</span>
+                                        <span class="text-toast-300">•</span>
                                         <span
-                                            class="flex items-center gap-0.5 text-toast-600 dark:text-toast-400 font-medium">
+                                            class="flex items-center gap-0.5 text-toast-600 font-medium">
                                             <UIcon name="i-lucide-map-pin"
                                                 class="w-3.5 h-3.5 text-toast-400 shrink-0" />
                                             {{ hotel.distance }}
                                         </span>
                                     </div>
-                                    <p class="text-xs text-toast-500 dark:text-toast-400 mt-1 line-clamp-2">
+                                    <p class="text-xs text-toast-500 mt-1 line-clamp-2">
                                         {{ hotel.description }}
                                     </p>
                                     <div v-if="hotel.tags && hotel.tags.length" class="flex flex-wrap gap-1.5 mt-2">
                                         <span v-for="tag in hotel.tags" :key="tag"
-                                            class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-toast-100 dark:bg-toast-700/60 text-toast-600 dark:text-toast-300">
+                                            class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-toast-100 text-toast-600">
                                             {{ tag }}
                                         </span>
                                     </div>
@@ -3793,14 +3801,14 @@ function togglePreview() {
 
                             <!-- Action / Select Button -->
                             <div
-                                class="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-toast-100 dark:border-toast-700">
+                                class="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-toast-100">
                                 <UButton size="xs" color="blue" variant="solid" icon="i-lucide-check"
                                     class="cursor-pointer">
                                     Select for Slot {{ activeAccommodationSlotIndex + 1 }}
                                 </UButton>
                                 <a :href="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
                                     target="_blank" rel="noopener noreferrer" @click.stop
-                                    class="text-[11px] text-toast-500 hover:text-blue-600 dark:hover:text-blue-400 underline inline-flex items-center gap-1 cursor-pointer">
+                                    class="text-[11px] text-toast-500 hover:text-blue-600 underline inline-flex items-center gap-1 cursor-pointer">
                                     Google Reviews
                                     <UIcon name="i-lucide-external-link" class="w-3 h-3" />
                                 </a>
@@ -3811,7 +3819,7 @@ function togglePreview() {
 
                 <!-- Modal Footer -->
                 <div
-                    class="px-5 py-3 border-t border-toast-200 dark:border-toast-700 bg-toast-50/70 dark:bg-toast-900 flex items-center justify-between gap-3 shrink-0">
+                    class="px-5 py-3 border-t border-toast-200 bg-toast-50/70 flex items-center justify-between gap-3 shrink-0">
                     <span class="text-xs text-toast-500">
                         Targeting Slot {{ activeAccommodationSlotIndex + 1 }}
                     </span>
@@ -3836,12 +3844,12 @@ function togglePreview() {
         >
             <div
                 v-if="isSaving"
-                class="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-toast-950/50 backdrop-blur-xs select-none overflow-hidden"
+                class="fixed inset-0 z-99999 flex items-center justify-center p-4 bg-toast-950/50 backdrop-blur-xs select-none overflow-hidden"
                 style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; box-sizing: border-box;"
             >
-                <div class="w-[90vw] sm:max-w-md bg-white dark:bg-toast-900 border border-toast-200/80 dark:border-toast-700/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-10 flex flex-col items-center justify-center text-center space-y-5">
+                <div class="w-[90vw] sm:max-w-md bg-white border border-toast-200/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-10 flex flex-col items-center justify-center text-center space-y-5">
                     <!-- Animated Spinner & Icon -->
-                    <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-inner">
+                    <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 shadow-inner">
                         <UIcon
                             :name="saveModalMode === 'publish' ? 'i-lucide-rocket' : 'i-lucide-cloud-upload'"
                             class="w-8 h-8 animate-pulse"
@@ -3851,20 +3859,20 @@ function togglePreview() {
 
                     <!-- Title & Status Text -->
                     <div class="space-y-1.5">
-                        <h3 class="text-xl font-bold font-serif text-toast-900 dark:text-toast-100">
+                        <h3 class="text-xl font-bold font-serif text-toast-900">
                             {{ saveModalTitle }}
                         </h3>
-                        <p class="text-sm text-toast-600 dark:text-toast-400 max-w-xs mx-auto leading-relaxed">
+                        <p class="text-sm text-toast-600 max-w-xs mx-auto leading-relaxed">
                             {{ saveModalDescription }}
                         </p>
                     </div>
 
                     <!-- Reassuring subtle indicator -->
                     <div class="w-full max-w-xs space-y-2 pt-1">
-                        <div class="h-1.5 w-full bg-toast-100 dark:bg-toast-800 rounded-full overflow-hidden">
+                        <div class="h-1.5 w-full bg-toast-100 rounded-full overflow-hidden">
                             <div class="h-full bg-linear-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
                         </div>
-                        <p class="text-[11px] text-toast-400 dark:text-toast-500 font-medium">
+                        <p class="text-[11px] text-toast-400 font-medium">
                             Please do not close or refresh this window while saving.
                         </p>
                     </div>
@@ -3881,68 +3889,34 @@ function togglePreview() {
     mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
 }
 
-/* Force font preloading for dynamically bound fonts */
-.font-preload-parisienne {
-    font-family: 'Parisienne', cursive;
+/* Custom Color Spectrum Sliders */
+.custom-color-slider {
+    width: 100%;
+    height: 0.625rem;
+    border-radius: 0.5rem;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    outline: none;
 }
 
-.font-preload-engagement {
-    font-family: 'Engagement', cursive;
+.custom-color-slider::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background-color: #ffffff;
+    border: 2px solid #1f0a00;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
-.font-preload-greatvibes {
-    font-family: 'Great Vibes', cursive;
-}
-
-.font-preload-boska {
-    font-family: 'Boska', serif;
-}
-
-.font-preload-melodrama {
-    font-family: 'Melodrama', sans-serif;
-}
-
-.font-preload-clash {
-    font-family: 'Clash Display', sans-serif;
-}
-
-.font-preload-gambetta {
-    font-family: 'Gambetta', serif;
-}
-
-.font-preload-sentient {
-    font-family: 'Sentient', serif;
-}
-
-.font-preload-quicksand {
-    font-family: 'Quicksand', sans-serif;
-}
-
-.font-preload-rowan {
-    font-family: 'Rowan', serif;
-}
-
-.font-preload-satoshi {
-    font-family: 'Satoshi', sans-serif;
-}
-
-.font-preload-bespoke {
-    font-family: 'Bespoke Sans', sans-serif;
-}
-
-.font-preload-switzer {
-    font-family: 'Switzer', sans-serif;
-}
-
-.font-preload-outfit {
-    font-family: 'Outfit', sans-serif;
-}
-
-.font-preload-general {
-    font-family: 'General Sans', sans-serif;
-}
-
-.font-preload-amulya {
-    font-family: 'Amulya', sans-serif;
+.custom-color-slider::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background-color: #ffffff;
+    border: 2px solid #1f0a00;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 </style>

@@ -335,6 +335,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 
@@ -345,6 +346,8 @@ onMounted(() => {
 watch(eventId, () => {
   loadEventData()
 })
+
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 function openWebsiteMaker() {
   if (isEventCancelled.value) {
@@ -359,7 +362,7 @@ function openWebsiteMaker() {
     })
     return
   }
-  navigateTo({ path: '/website-maker', query: { eventId: id } })
+  startPageTransition({ path: '/website-maker', query: { eventId: id } })
 }
 
 function openUpgradePage() {
@@ -374,7 +377,7 @@ function openUpgradePage() {
   }
 
   if (!isUiOnlyMode.value && eventRecord.value && !isEventFullyPaid(eventRecord.value)) {
-    navigateTo({ path: '/event/payment-review', query: { eventId: id } })
+    startPageTransition({ path: '/event/payment-review', query: { eventId: id } })
     return
   }
 
@@ -386,11 +389,11 @@ function openUpgradePage() {
         : 'Your upgrade payment is being verified.',
       color: 'warning',
     })
-    navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+    startPageTransition({ path: '/event/upgrade', query: { eventId: id } })
     return
   }
 
-  navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+  startPageTransition({ path: '/event/upgrade', query: { eventId: id } })
 }
 
 function openInvitationMaker() {
@@ -406,7 +409,7 @@ function openInvitationMaker() {
     })
     return
   }
-  navigateTo({ path: '/invitation-maker', query: { eventId: id } })
+  startPageTransition({ path: '/invitation-maker', query: { eventId: id } })
 }
 
 function openGuestList() {
@@ -419,7 +422,7 @@ function openGuestList() {
     })
     return
   }
-  navigateTo({ path: '/event/guests', query: { eventId: id } })
+  startPageTransition({ path: '/event/guests', query: { eventId: id } })
 }
 
 function openTasksDashboard() {
@@ -432,7 +435,7 @@ function openTasksDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/tasks', query: { eventId: id } })
+  startPageTransition({ path: '/event/tasks', query: { eventId: id } })
 }
 
 function openRsvpDashboard() {
@@ -445,7 +448,7 @@ function openRsvpDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/rsvp', query: { eventId: id } })
+  startPageTransition({ path: '/event/rsvp', query: { eventId: id } })
 }
 
 function openEventSettings() {
@@ -458,7 +461,7 @@ function openEventSettings() {
     })
     return
   }
-  navigateTo({ path: '/event/settings', query: { eventId: id } })
+  startPageTransition({ path: '/event/settings', query: { eventId: id } })
 }
 
 function openPayments() {
@@ -471,7 +474,7 @@ function openPayments() {
     })
     return
   }
-  navigateTo({ path: '/event/payment-review', query: { eventId: id } })
+  startPageTransition({ path: '/event/payment-review', query: { eventId: id } })
 }
 
 function openSchedulesDashboard() {
@@ -484,7 +487,7 @@ function openSchedulesDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/schedules', query: { eventId: id } })
+  startPageTransition({ path: '/event/schedules', query: { eventId: id } })
 }
 
 function openWishlistDashboard() {
@@ -497,7 +500,7 @@ function openWishlistDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/wishlist', query: { eventId: id } })
+  startPageTransition({ path: '/event/wishlist', query: { eventId: id } })
 }
 
 function openEventPlaylist() {
@@ -510,7 +513,7 @@ function openEventPlaylist() {
     })
     return
   }
-  navigateTo({ path: '/event/playlist', query: { eventId: id } })
+  startPageTransition({ path: '/event/playlist', query: { eventId: id } })
 }
 
 function openChurchRequirementsDashboard() {
@@ -523,7 +526,7 @@ function openChurchRequirementsDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/requirements', query: { eventId: id } })
+  startPageTransition({ path: '/event/requirements', query: { eventId: id } })
 }
 
 function openSuppliersDashboard() {
@@ -536,7 +539,7 @@ function openSuppliersDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/suppliers', query: { eventId: id } })
+  startPageTransition({ path: '/event/suppliers', query: { eventId: id } })
 }
 
 type DashboardItem = {

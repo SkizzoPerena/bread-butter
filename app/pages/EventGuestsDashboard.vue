@@ -25,6 +25,7 @@ const { fetchGuestsByEvent } = useGuests()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { isExporting, exportEventPdf } = useEventPdfExport()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -459,6 +460,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 

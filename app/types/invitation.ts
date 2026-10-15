@@ -14,6 +14,7 @@ export interface InvitationRecord {
   blocks: InvitationBlock[]
   deadlineText: string
   deadlineDate: string
+  bannerImageUrl?: string
 }
 
 export interface InvitationResponse {
@@ -29,6 +30,7 @@ export interface InvitationMutationResponse {
 
 export interface InvitationSavePayload {
   eventId: string
+  event?: string
   requestLine: string
   eventLabel: string
   eventDate: string
@@ -37,4 +39,6 @@ export interface InvitationSavePayload {
   blocks: InvitationBlock[]
   deadlineText: string
   deadlineDate: string
+  bannerImageUrl?: string
 }
+

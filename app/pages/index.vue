@@ -21,7 +21,7 @@ useHead({
   ],
   script: [
     {
-      innerHTML: `try{if(localStorage.getItem('bpb_auth_role')||localStorage.getItem('bpb_user_token')||localStorage.getItem('bpb_partner_token')){document.documentElement.classList.add('has-stored-session');}}catch(e){}`,
+      innerHTML: `try{if(!window.location.search.includes('view=landing')&&(localStorage.getItem('bpb_auth_role')||localStorage.getItem('bpb_user_token')||localStorage.getItem('bpb_partner_token'))){document.documentElement.classList.add('has-stored-session');}}catch(e){}`,
       tagPosition: 'head'
     }
   ],
@@ -31,6 +31,9 @@ useHead({
     }
   ]
 })
+
+const route = useRoute()
+const isLandingView = computed(() => route.query.view === 'landing')
 
 const { isAuthenticated, syncSessionFromStorage } = useAuth()
 const { isUiOnlyMode } = useApiMode()
@@ -45,9 +48,14 @@ const hasStoredUserToken = import.meta.client ? Boolean(getStoredAccessToken('us
 const hasStoredPartnerToken = import.meta.client ? Boolean(getStoredAccessToken('partner')) : false
 const hasAnyStoredSession = Boolean(activeRole || hasStoredUserToken || hasStoredPartnerToken)
 
-// Show loading overlay only while verifying an existing stored session
-const isCheckingAuth = ref(import.meta.client ? hasAnyStoredSession : false)
-const layoutName = computed(() => (isAuthenticated.value ? 'user-navbar' : 'landing-navbar'))
+// Show loading overlay only while verifying an existing stored session on dashboard view
+const isCheckingAuth = ref(import.meta.client ? (!isLandingView.value && hasAnyStoredSession) : false)
+const layoutName = computed(() => {
+  if (isLandingView.value) {
+    return isAuthenticated.value ? 'signed-in-navbar' : 'landing-navbar'
+  }
+  return isAuthenticated.value ? 'user-navbar' : 'landing-navbar'
+})
 
 function clearAuthCheckingState() {
   if (import.meta.client) {
@@ -56,8 +64,14 @@ function clearAuthCheckingState() {
   isCheckingAuth.value = false
 }
 
+watch(() => route.query.view, (newView) => {
+  if (newView === 'landing') {
+    clearAuthCheckingState()
+  }
+})
+
 onMounted(async () => {
-  if (!hasAnyStoredSession) {
+  if (isLandingView.value || !hasAnyStoredSession) {
     clearAuthCheckingState()
     return
   }
@@ -130,8 +144,8 @@ onMounted(async () => {
 
 <template>
   <NuxtLayout :name="layoutName">
-    <UserEventsDashboard v-if="isAuthenticated" />
-    <LandingHome v-else />
+    <LandingHome v-if="isLandingView || !isAuthenticated" />
+    <UserEventsDashboard v-else />
   </NuxtLayout>
 
   <!-- Auth Checking Loading Overlay -->

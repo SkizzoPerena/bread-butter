@@ -1,6 +1,6 @@
 import type { EventRecord } from '~/types/event'
 import { isEventFullyPaid } from '~/types/payment'
-import { isPartnerAuthPublicPath, isPartnerPath, isUserAuthPublicPath } from '~/utils/authGuard'
+import { isPartnerAuthPublicPath, isPartnerPath, isPublicPath, isUserAuthPublicPath } from '~/utils/authGuard'
 import { getPackageSlugFromTier, resolveEventTierCode } from '~/utils/eventTierFeatures'
 
 export interface PendingPaymentQueryParams {
@@ -72,6 +72,10 @@ export function isSingleUnpaidEventAccount(events: EventRecord[]): events is [Ev
  * - /website-maker
  */
 export function shouldRedirectToPaymentPending(path: string): boolean {
+  if (path !== '/' && path !== '/user/dashboard' && isPublicPath(path)) {
+    return false
+  }
+
   // Always allowed user pages
   if (
     path === '/user/payment-pending' ||
@@ -124,6 +128,10 @@ export function shouldRedirectToPaymentPending(path: string): boolean {
  * Determines whether a user with 0 events should be redirected to /user/create-event.
  */
 export function shouldRedirectToCreateEvent(path: string): boolean {
+  if (path !== '/' && path !== '/user/dashboard' && isPublicPath(path)) {
+    return false
+  }
+
   if (
     path === '/user/create-event' ||
     path === '/user/payment' ||
@@ -163,6 +171,10 @@ export function shouldRedirectToCreateEvent(path: string): boolean {
  * Determines whether a user with a single unpaid event should be redirected to /user/payment.
  */
 export function shouldRedirectToUserPayment(path: string): boolean {
+  if (path !== '/' && path !== '/user/dashboard' && isPublicPath(path)) {
+    return false
+  }
+
   if (
     path === '/user/payment' ||
     path === '/user/payment-pending' ||

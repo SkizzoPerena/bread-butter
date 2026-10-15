@@ -1,0 +1,18 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Stop processing if request is already for index.html or 200.html
+  RewriteRule ^(index|200)\.html$ - [L]
+
+  # If requested file or directory exists, serve it directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Rewrite all dynamic routes to Nuxt SPA fallback
+  RewriteRule . /200.html [L]
+</IfModule>
+
+# Fallback in case mod_rewrite is not evaluated
+ErrorDocument 404 /200.html

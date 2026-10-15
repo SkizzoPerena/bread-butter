@@ -11,6 +11,7 @@ import {
   useAuth
 } from '~/composables/useAuth'
 import { getRoleAwareApiPath, resolveRouteRole } from '~/composables/useApiRole'
+import { isPublicPath } from '~/utils/authGuard'
 
 type FetchOptions = Parameters<typeof $fetch>[1]
 type ApiRequestOptions = FetchOptions & { authenticated?: boolean; _isRetry?: boolean }
@@ -72,17 +73,27 @@ function isAuthBypassPath(path: string): boolean {
     'partners/auth/logout',
     'admin/login',
     'admin/auth/refresh',
-    'admin/auth/logout'
+    'admin/auth/logout',
+    'public/suppliers',
+    'suppliers'
   ]
   return bypasses.some((b) => cleanPath.startsWith(b))
 }
 
-function isAuthenticationError(error: any): boolean {
-  const status = error?.response?.status ?? error?.statusCode ?? error?.status
+function isAuthenticationError(error: unknown): boolean {
+  const err = error as {
+    response?: { status?: number; _data?: { message?: string } }
+    statusCode?: number
+    status?: number
+    data?: { message?: string }
+    message?: string
+  } | undefined
+
+  const status = err?.response?.status ?? err?.statusCode ?? err?.status
   const errorMsg = String(
-    error?.data?.message ||
-    error?.response?._data?.message ||
-    error?.message ||
+    err?.data?.message ||
+    err?.response?._data?.message ||
+    err?.message ||
     ''
   ).toLowerCase()
 
@@ -132,6 +143,15 @@ export function useApiMode() {
     const { clearSession } = useAuth(role)
     clearSession()
     if (import.meta.client) {
+      try {
+        const route = useRoute()
+        if (isPublicPath(route.path)) {
+          // Do not interrupt user browsing public pages
+          return
+        }
+      } catch {
+        // Fallback if route context unavailable
+      }
       const toast = useToast()
       toast.add({
         title: 'Session expired',
@@ -172,12 +192,12 @@ export function useApiMode() {
           ...(fetchOptions.headers as Record<string, string> | undefined)
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (isRestrictedAccountError(error) && getBearerHeaders(role).Authorization) {
         return handleRestrictedAccount()
       }
 
-      if (isAuthenticationError(error) && !isAuthBypassPath(normalizedPath) && !_isRetry) {
+      if (authenticated && isAuthenticationError(error) && !isAuthBypassPath(normalizedPath) && !_isRetry) {
         const refresh = await performRefresh(role)
         if (refresh.token) {
           return apiRequest<T>(normalizedPath, { ...options, _isRetry: true })
@@ -221,7 +241,7 @@ export function useApiMode() {
         credentials: 'include',
         headers: getBearerHeaders(role)
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (isRestrictedAccountError(error) && getBearerHeaders(role).Authorization) {
         return handleRestrictedAccount()
       }

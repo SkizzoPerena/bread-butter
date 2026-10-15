@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { setUiUnpaidEvent } from '~/utils/paymentPendingGuard'
 
 useHead({
@@ -8,6 +8,7 @@ useHead({
 
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
+const { finishPageTransition } = usePageTransition()
 
 type ViewStep = 'packages' | 'details'
 
@@ -209,6 +210,9 @@ function submitEventSetup() {
   })
 }
 
+onMounted(() => {
+  finishPageTransition()
+})
 </script>
 
 <template>

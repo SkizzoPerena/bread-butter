@@ -20,7 +20,8 @@ const {
 
 const genderOptions = [
   { label: 'Male', value: 'MALE' },
-  { label: 'Female', value: 'FEMALE' }
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Prefer not to say', value: 'PREFER_NOT_TO_SAY' }
 ]
 
 type SettingsTabId = 'profile' | 'password' | 'preferences'
@@ -37,7 +38,7 @@ const schema = z.object({
   firstName: z.string().min(1, 'Enter your first name'),
   lastName: z.string().min(1, 'Enter your last name'),
   email: z.string().email('Invalid email'),
-  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' })
+  gender: z.enum(['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY'], { message: 'Please select a gender' })
 })
 
 type Schema = z.output<typeof schema>
@@ -81,7 +82,7 @@ function applyAccountToForm(account: {
   state.firstName = account.firstName
   state.lastName = account.lastName
   state.email = account.email
-  state.gender = account.gender === 'MALE' || account.gender === 'FEMALE'
+  state.gender = account.gender === 'MALE' || account.gender === 'FEMALE' || account.gender === 'PREFER_NOT_TO_SAY'
     ? account.gender
     : 'FEMALE'
   profileImageURL.value = account.profileImageURL ?? ''
@@ -212,7 +213,7 @@ onMounted(loadProfile)
 <template>
   <UContainer class="py-6">
     <UPageGrid class="items-start">
-      <UPageCard class="white-bread-container">
+      <UPageCard class="white-bread-container p-8">
         <div class="text-lg text-pretty font-semibold text-muted">Partner Settings</div>
         <nav class="mt-3 flex flex-col gap-1" aria-label="Partner settings sections">
           <button
@@ -234,7 +235,7 @@ onMounted(loadProfile)
         </nav>
       </UPageCard>
 
-      <UPageCard class="col-span-2 white-bread-container">
+      <UPageCard class="col-span-2 white-bread-container p-8">
         <template v-if="activeTab === 'profile'">
           <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
           <div v-if="isLoading" class="py-12 text-center text-muted">

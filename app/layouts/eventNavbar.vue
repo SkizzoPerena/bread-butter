@@ -5,6 +5,7 @@ import { resolveProfileImageUrl } from '~/utils/profileImage'
 const route = useRoute()
 const { isUiOnlyMode } = useApiMode()
 const { displayName: eventDisplayName } = useActiveEvent()
+const { startPageTransition } = usePageTransition()
 
 const headerEventTitle = computed(() => {
   if (eventDisplayName.value) {
@@ -51,6 +52,10 @@ const dropitems: DropdownMenuItem[][] = [
     icon: 'i-lucide-message-square-warning',
     to: '/user/report-issue'
   }, {
+    label: 'Back to Home',
+    icon: 'i-lucide-home',
+    to: '/?view=landing'
+  }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
     onSelect: () => logout()
@@ -84,9 +89,9 @@ const dropitems: DropdownMenuItem[][] = [
 
     <template #leading>
       <div class="flex items-center gap-2 sm:gap-2.5 mr-2 sm:mr-3 shrink-0">
-        <NuxtLink to="/" class="flex items-center">
+        <button type="button" class="flex items-center cursor-pointer" @click="startPageTransition('/')">
           <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
-        </NuxtLink>
+        </button>
         <UBadge
           color="bread"
           variant="subtle"
@@ -123,6 +128,7 @@ const dropitems: DropdownMenuItem[][] = [
   </UDashboardNavbar>
 
   <slot />
+  <BackToTopButton />
 </template>
 
 <style></style>

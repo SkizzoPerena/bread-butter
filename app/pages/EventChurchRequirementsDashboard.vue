@@ -33,6 +33,7 @@ const { requireEventFeature } = useEventFeatureGate()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { isExporting, exportEventPdf } = useEventPdfExport()
+const { finishPageTransition } = usePageTransition()
 const {
   isLoading: isLoadingRequirements,
   isSubmitting,
@@ -442,22 +443,26 @@ onMounted(async () => {
     return
   }
 
-  await loadEventData()
+  try {
+    await loadEventData()
 
-  if (!isWeddingEvent.value) {
-    toast.add({
-      title: 'Not a wedding event',
-      description: 'Church requirements are only available for wedding events.',
-      color: 'error',
-    })
-    navigateTo({
-      path: resolveEventDashboardPath(eventRecord.value),
-      query: eventId.value ? { eventId: eventId.value } : undefined,
-    })
-    return
+    if (!isWeddingEvent.value) {
+      toast.add({
+        title: 'Not a wedding event',
+        description: 'Church requirements are only available for wedding events.',
+        color: 'error',
+      })
+      navigateTo({
+        path: resolveEventDashboardPath(eventRecord.value),
+        query: eventId.value ? { eventId: eventId.value } : undefined,
+      })
+      return
+    }
+
+    await loadChurchRequirementsData()
+  } finally {
+    finishPageTransition()
   }
-
-  await loadChurchRequirementsData()
 })
 
 watch(eventId, async () => {

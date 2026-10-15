@@ -5,6 +5,7 @@ import { getApiErrorMessage } from '~/types/auth'
 import { isRestrictedAccountError, RESTRICTED_ACCOUNT_MESSAGE } from '~/utils/restrictedAccount'
 
 definePageMeta({
+  layout: false,
   alias: ['/bakers/login', '/baker/login', '/bakers-login', '/baker-login', '/BakersLogin']
 })
 
