@@ -1667,7 +1667,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
           <!-- 3-Column App Launcher Grid -->
           <div class="dash-quicknav-grid grid grid-cols-3 w-full">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
-              class="dash-quicknav-btn group relative flex flex-col items-center justify-center w-full rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
+              class="dash-quicknav-btn group relative flex flex-col items-center justify-center w-full aspect-square rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
               @click="onQuickNavItemClick(item)" @mouseenter="onDashboardItemMouseEnter($event, item)"
               @mousemove="onDashboardItemMouseMove($event)" @mouseleave="onDashboardItemMouseLeave">
@@ -2126,31 +2126,20 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
   padding: var(--dash-quicknav-p);
   aspect-ratio: 1 / 1;
   min-height: 0;
+  width: 100%;
 }
 
 @container quicknav-panel (max-height: 650px) {
   .dash-quicknav-btn {
-    aspect-ratio: 1.15 / 1;
+    aspect-ratio: 1 / 1;
     padding: clamp(0.2rem, 0.8cqh, 0.375rem);
   }
 }
 
 @container quicknav-panel (max-height: 540px) {
   .dash-quicknav-btn {
-    aspect-ratio: 1.3 / 1;
+    aspect-ratio: 1 / 1;
     padding: clamp(0.15rem, 0.6cqh, 0.25rem);
-  }
-}
-
-@media (max-height: 800px) {
-  .dash-quicknav-btn {
-    aspect-ratio: 1.15 / 1;
-  }
-}
-
-@media (max-height: 700px) {
-  .dash-quicknav-btn {
-    aspect-ratio: 1.25 / 1;
   }
 }
 
