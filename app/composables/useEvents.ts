@@ -111,6 +111,21 @@ export function useEvents() {
     return fromList || null
   }
 
+  function getCachedEventDetail(eventId: string): SelectedEventDetail | null {
+    if (!eventId) return null
+    return eventCache.value[eventId] || null
+  }
+
+  function updateCachedTasksSummary(eventId: string, summary: TasksSummary | null) {
+    if (!eventId) return
+    if (eventCache.value[eventId]) {
+      eventCache.value[eventId] = {
+        ...eventCache.value[eventId],
+        tasks: summary,
+      }
+    }
+  }
+
   async function createEvent(payload: CreateEventPayload): Promise<EventRecord> {
     if (isUiOnlyMode.value) {
       return {
@@ -260,6 +275,8 @@ export function useEvents() {
     fetchUserEvents,
     fetchEvent,
     getCachedEvent,
+    getCachedEventDetail,
+    updateCachedTasksSummary,
     createEvent,
     updateEvent,
     cancelEvent,

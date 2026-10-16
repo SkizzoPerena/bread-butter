@@ -86,12 +86,13 @@ export function patchTaskSummaryCounts(
         page: 1,
         limit: 5,
         subtasksLimit: 2,
-        tasks: parents.slice(0, 5).map((task) => ({
+        tasks: parents.map((task) => ({
           _id: task._id,
           title: task.title,
           details: task.details,
           status: task.status,
           priority: task.priority,
+          isImportant: task.isImportant,
           deadline: task.deadline,
           assignee: task.assignee ?? null,
         })),
@@ -105,7 +106,16 @@ export function patchTaskSummaryCounts(
     byStatus,
     preview: {
       ...summary.preview,
-      tasks: parents.slice(0, summary.preview.limit),
+      tasks: parents.map((task) => ({
+        _id: task._id,
+        title: task.title,
+        details: task.details,
+        status: task.status,
+        priority: task.priority,
+        isImportant: task.isImportant,
+        deadline: task.deadline,
+        assignee: task.assignee ?? null,
+      })),
     },
   }
 }

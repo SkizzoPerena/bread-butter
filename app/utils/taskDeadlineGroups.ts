@@ -2,7 +2,7 @@ import { getLocalTimeZone, today } from '@internationalized/date'
 import type { TaskRecord } from '~/types/task'
 import { parseIsoToCalendarDate } from '~/utils/taskFormat'
 
-export type DeadlineGroupKey = 'overdue' | 'none' | `month-${number}`
+export type DeadlineGroupKey = 'overdue' | 'completed' | 'none' | `month-${number}`
 
 export interface DeadlineTaskGroup {
   key: DeadlineGroupKey
@@ -12,29 +12,33 @@ export interface DeadlineTaskGroup {
 }
 
 export function getDeadlineMonthOffset(
-  deadline: string | null | undefined
-): 'overdue' | 'none' | number {
+  deadline: string | null | undefined,
+  isCompleted?: boolean
+): 'overdue' | 'completed' | 'none' | number {
   if (!deadline) {
-    return 'none'
+    return isCompleted ? 'completed' : 'none'
   }
 
   const calendarDate = parseIsoToCalendarDate(deadline)
   if (!calendarDate) {
-    return 'none'
+    return isCompleted ? 'completed' : 'none'
   }
 
   const now = today(getLocalTimeZone())
   const months = (calendarDate.year - now.year) * 12 + (calendarDate.month - now.month)
   if (months < 0) {
-    return 'overdue'
+    return isCompleted ? 'completed' : 'overdue'
   }
 
   return months
 }
 
-export function deadlineGroupLabel(offset: 'overdue' | 'none' | number): string {
+export function deadlineGroupLabel(offset: 'overdue' | 'completed' | 'none' | number): string {
   if (offset === 'overdue') {
     return 'Overdue'
+  }
+  if (offset === 'completed') {
+    return 'Completed'
   }
   if (offset === 'none') {
     return 'No Deadline'
@@ -48,9 +52,12 @@ export function deadlineGroupLabel(offset: 'overdue' | 'none' | number): string 
   return `Due in ${offset} Months`
 }
 
-function deadlineGroupKey(offset: 'overdue' | 'none' | number): DeadlineGroupKey {
+function deadlineGroupKey(offset: 'overdue' | 'completed' | 'none' | number): DeadlineGroupKey {
   if (offset === 'overdue') {
     return 'overdue'
+  }
+  if (offset === 'completed') {
+    return 'completed'
   }
   if (offset === 'none') {
     return 'none'
@@ -58,12 +65,15 @@ function deadlineGroupKey(offset: 'overdue' | 'none' | number): DeadlineGroupKey
   return `month-${offset}`
 }
 
-function deadlineGroupSortOrder(offset: 'overdue' | 'none' | number): number {
+function deadlineGroupSortOrder(offset: 'overdue' | 'completed' | 'none' | number): number {
   if (offset === 'overdue') {
     return -1
   }
   if (offset === 'none') {
     return 10_000
+  }
+  if (offset === 'completed') {
+    return 10_001
   }
   return offset
 }
@@ -74,7 +84,8 @@ export function groupTasksByDeadlineMonth(tasks: TaskRecord[]): DeadlineTaskGrou
   const indexByKey = new Map<string, number>()
 
   for (const task of tasks) {
-    const offset = getDeadlineMonthOffset(task.deadline)
+    const isCompleted = task.status === 'COMPLETED'
+    const offset = getDeadlineMonthOffset(task.deadline, isCompleted)
     const key = deadlineGroupKey(offset)
     const keyStr = String(key)
 
@@ -90,7 +101,10 @@ export function groupTasksByDeadlineMonth(tasks: TaskRecord[]): DeadlineTaskGrou
       })
     }
 
-    groups[groupIndex].tasks.push(task)
+    const targetGroup = groups[groupIndex]
+    if (targetGroup) {
+      targetGroup.tasks.push(task)
+    }
   }
 
   return groups.sort((a, b) => a.sortOrder - b.sortOrder)

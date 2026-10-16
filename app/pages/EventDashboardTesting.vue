@@ -978,8 +978,8 @@ const urgentTasks = ref<PriorityDashboardTask[]>([
     id: 'urgent-1',
     title: 'Settle caterer balance payment',
     priority: 'urgent',
-    category: 'Payments',
-    action: 'payments',
+    category: 'Suppliers',
+    action: 'suppliers',
     dueText: 'Due in 3 days',
   },
   {
@@ -1110,8 +1110,6 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
   switch (task.action) {
     case 'payments':
-      openPayments()
-      break
     case 'suppliers':
       openSuppliersDashboard()
       break

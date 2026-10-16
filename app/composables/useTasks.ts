@@ -22,6 +22,7 @@ const MOCK_TASKS: TaskRecord[] = [
     status: 'TODO',
     priority: 1,
     deadline: '2026-08-15T00:00:00.000Z',
+    createdAt: '2026-02-10T09:30:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: null,
@@ -33,7 +34,9 @@ const MOCK_TASKS: TaskRecord[] = [
     details: 'Find and book a photo booth service for the reception.',
     status: 'ONGOING',
     priority: 1,
+    isImportant: true,
     deadline: '2026-06-15T00:00:00.000Z',
+    createdAt: '2026-02-15T14:20:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: MOCK_ASSIGNEE,
@@ -45,7 +48,9 @@ const MOCK_TASKS: TaskRecord[] = [
     details: 'Confirm final menu choices with the caterer.',
     status: 'ONGOING',
     priority: 3,
+    isImportant: true,
     deadline: '2026-07-01T00:00:00.000Z',
+    createdAt: '2026-03-01T11:00:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: null,
@@ -58,6 +63,7 @@ const MOCK_TASKS: TaskRecord[] = [
     status: 'COMPLETED',
     priority: 2,
     deadline: '2026-05-01T00:00:00.000Z',
+    createdAt: '2026-01-20T16:45:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: null,
@@ -100,8 +106,10 @@ export function useTasks() {
         title: payload.title,
         details: payload.details,
         priority: payload.priority,
+        isImportant: Boolean(payload.isImportant),
         deadline: payload.deadline,
         status: 'TODO',
+        createdAt: new Date().toISOString(),
         parentTask: null,
         subtasks: [],
         attachedFileURLs: [],
@@ -123,6 +131,9 @@ export function useTasks() {
     formData.append('details', payload.details)
     formData.append('priority', String(payload.priority))
     formData.append('deadline', payload.deadline)
+    if (payload.isImportant !== undefined) {
+      formData.append('isImportant', String(payload.isImportant))
+    }
     if (payload.assigneeId) {
       formData.append('assigneeId', payload.assigneeId)
     }
@@ -172,6 +183,10 @@ export function useTasks() {
     priority: number
   ): Promise<UpdateTaskMessageResponse> {
     if (isUiOnlyMode.value) {
+      const found = MOCK_TASKS.find((t) => t._id === taskId)
+      if (found) {
+        found.priority = priority
+      }
       return {
         success: true,
         status: 200,

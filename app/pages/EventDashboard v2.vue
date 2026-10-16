@@ -38,7 +38,7 @@ definePageMeta({
 
 const toast = useToast()
 const route = useRoute()
-const { fetchEvent, getCachedEvent } = useEvents()
+const { fetchEvent, getCachedEvent, getCachedEventDetail } = useEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { fetchSuppliers, fetchSupplierSummary } = useEventSuppliers()
@@ -137,14 +137,14 @@ async function loadPlanningHealthData() {
 
       for (const t of tasksRes) {
         if (t.status === 'TODO') {
-          byStatus['not-started']++
-          byStatus.TODO++
+          byStatus['not-started'] = (byStatus['not-started'] ?? 0) + 1
+          byStatus.TODO = (byStatus.TODO ?? 0) + 1
         } else if (t.status === 'ONGOING') {
-          byStatus['in-progress']++
-          byStatus.ONGOING++
+          byStatus['in-progress'] = (byStatus['in-progress'] ?? 0) + 1
+          byStatus.ONGOING = (byStatus.ONGOING ?? 0) + 1
         } else if (t.status === 'COMPLETED') {
-          byStatus.completed++
-          byStatus.COMPLETED++
+          byStatus.completed = (byStatus.completed ?? 0) + 1
+          byStatus.COMPLETED = (byStatus.COMPLETED ?? 0) + 1
         }
       }
 
@@ -290,7 +290,7 @@ async function loadEventData() {
             completed: 8,
             pending: 2,
           },
-          tasks: {
+          tasks: getCachedEventDetail(eventId.value)?.tasks || {
             totalTasks: 21,
             overdueCount: 0,
             byStatus: {
@@ -1288,9 +1288,20 @@ const urgentTasks = computed<PriorityDashboardTask[]>(() => {
       const titleLower = (t.title || '').toLowerCase()
       let category = 'Tasks'
       let action: DashboardAction = 'tasks'
-      if (titleLower.includes('pay') || titleLower.includes('budget') || titleLower.includes('fee')) {
-        category = 'Payments'; action = 'payments'
-      } else if (titleLower.includes('cater') || titleLower.includes('photo') || titleLower.includes('supplier') || titleLower.includes('band') || titleLower.includes('florist')) {
+      if (
+        titleLower.includes('cater') ||
+        titleLower.includes('photo') ||
+        titleLower.includes('supplier') ||
+        titleLower.includes('band') ||
+        titleLower.includes('florist') ||
+        titleLower.includes('pay') ||
+        titleLower.includes('budget') ||
+        titleLower.includes('fee') ||
+        titleLower.includes('deposit') ||
+        titleLower.includes('balance') ||
+        titleLower.includes('invoice') ||
+        titleLower.includes('finance')
+      ) {
         category = 'Suppliers'; action = 'suppliers'
       } else if (titleLower.includes('church') || titleLower.includes('cert') || titleLower.includes('license') || titleLower.includes('require')) {
         category = 'Requirements'; action = 'churchRequirements'
@@ -1322,8 +1333,8 @@ const urgentTasks = computed<PriorityDashboardTask[]>(() => {
       id: 'urgent-1',
       title: 'Settle caterer balance payment',
       priority: 'urgent',
-      category: 'Payments',
-      action: 'payments',
+      category: 'Suppliers',
+      action: 'suppliers',
       dueText: 'Due in 3 days',
     },
     {
@@ -1372,21 +1383,32 @@ const urgentTasks = computed<PriorityDashboardTask[]>(() => {
 const importantTasks = computed<PriorityDashboardTask[]>(() => {
   const rawTasks = tasksSummary.value?.preview?.tasks || []
   const importantFromSummary = rawTasks
-    .filter((t: any) => t.priority === 2 && t.status !== 'COMPLETED')
+    .filter((t: any) => Boolean(t.isImportant) && t.status !== 'COMPLETED')
     .map((t: any) => {
       const titleLower = (t.title || '').toLowerCase()
       let category = 'Tasks'
       let action: DashboardAction = 'tasks'
       if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
         category = 'Guest List'; action = 'guestList'
-      } else if (titleLower.includes('cater') || titleLower.includes('photo') || titleLower.includes('supplier') || titleLower.includes('band') || titleLower.includes('florist')) {
+      } else if (
+        titleLower.includes('cater') ||
+        titleLower.includes('photo') ||
+        titleLower.includes('supplier') ||
+        titleLower.includes('band') ||
+        titleLower.includes('florist') ||
+        titleLower.includes('pay') ||
+        titleLower.includes('budget') ||
+        titleLower.includes('fee') ||
+        titleLower.includes('deposit') ||
+        titleLower.includes('balance') ||
+        titleLower.includes('invoice') ||
+        titleLower.includes('finance')
+      ) {
         category = 'Suppliers'; action = 'suppliers'
       } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
         category = 'Playlist'; action = 'playlist'
       } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
         category = 'Schedules'; action = 'schedules'
-      } else if (titleLower.includes('pay') || titleLower.includes('budget')) {
-        category = 'Payments'; action = 'payments'
       } else if (titleLower.includes('web') || titleLower.includes('site')) {
         category = 'Website'; action = 'website'
       }
@@ -1522,8 +1544,6 @@ const displayedImportantTasks = computed(() => {
 function onPriorityTaskClick(task: PriorityDashboardTask) {
   switch (task.action) {
     case 'payments':
-      openPayments()
-      break
     case 'suppliers':
       openSuppliersDashboard()
       break

@@ -96,6 +96,7 @@ export interface TaskPreview {
   details: string
   status: string
   priority: number
+  isImportant?: boolean
   deadline?: string | null
   assignee?: TaskAssigneeRef | null
   subtasks?: TaskPreview[]

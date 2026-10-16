@@ -274,12 +274,15 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     tasks.value = tasks.value.map((task) =>
       task._id === payload.taskId ? { ...task, priority: payload.priority } : task
     )
+    syncSummary()
     updatingTaskId.value = payload.taskId
 
     try {
       await updateTaskPriority(payload.taskId, payload.priority)
+      syncSummary()
     } catch (error) {
       tasks.value = updateTaskInList(tasks.value, previous)
+      syncSummary()
       reportApiError(toast, { title: 'Could not update task priority', error })
     } finally {
       updatingTaskId.value = null
