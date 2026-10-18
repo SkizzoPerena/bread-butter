@@ -17,8 +17,22 @@ const props = defineProps<{
 
 useWeddingFonts()
 
+const router = useRouter()
+const { getRsvpId } = useGuestRsvpSession()
+const isMissingRsvpModalOpen = ref(false)
+
+function handleRsvpButtonClick() {
+  const rsvpId = getRsvpId()
+  if (rsvpId) {
+    router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
+  } else {
+    isMissingRsvpModalOpen.value = true
+  }
+}
+
 const paletteColors = computed(() => props.site.palette?.colors || resolvePalette().colors)
 const typography = computed(() => props.site.typography)
+
 
 const activeComponentId = ref<string>('about-us')
 const isMobileMenuOpen = ref(false)
@@ -516,16 +530,22 @@ function getVenueGoogleMapsUrl(
                   <UIcon name="i-lucide-calendar" class="w-4 h-4 inline-block align-text-bottom mr-1" />
                   RSVP by {{ formatDateWithWeekday(site.rsvpDeadlineDate) }}
                 </div>
-                <UButton size="lg" class="transition-all duration-300 hover:opacity-80 shadow-md border" :style="{
-                  backgroundColor: getSectionStyle(index).text,
-                  color: getSectionStyle(index).bg,
-                  borderColor:
-                    getSectionStyle(index).bg === 'transparent'
-                      ? getSectionStyle(index - 1).text
-                      : getSectionStyle(index - 1).bg,
-                }">
+                <UButton
+                  size="lg"
+                  class="transition-all duration-300 hover:opacity-80 shadow-md border cursor-pointer"
+                  :style="{
+                    backgroundColor: getSectionStyle(index).text,
+                    color: getSectionStyle(index).bg,
+                    borderColor:
+                      getSectionStyle(index).bg === 'transparent'
+                        ? getSectionStyle(index - 1).text
+                        : getSectionStyle(index - 1).bg,
+                  }"
+                  @click="handleRsvpButtonClick"
+                >
                   RSVP Here
                 </UButton>
+
               </div>
             </div>
 
@@ -886,8 +906,41 @@ function getVenueGoogleMapsUrl(
         </div>
       </div>
     </UScrollArea>
+
+    <!-- Modal: Personal Invitation Required Fallback -->
+    <UModal
+      v-model:open="isMissingRsvpModalOpen"
+      title="Personal Invitation Required"
+    >
+      <template #body>
+        <div class="py-2 text-center space-y-4">
+          <div class="mx-auto w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-950/60 flex items-center justify-center text-violet-600 dark:text-violet-400">
+            <UIcon name="i-lucide-mail" class="w-6 h-6" />
+          </div>
+          <div class="space-y-1">
+            <h4 class="text-base font-semibold text-stone-900 dark:text-stone-100">
+              Personalized RSVP Access
+            </h4>
+            <p class="text-xs sm:text-sm text-stone-600 dark:text-stone-400 max-w-sm mx-auto leading-relaxed">
+              Your RSVP form is uniquely tied to your personal invitation. Please click the invitation image in the email sent to you to access your personal RSVP form.
+            </p>
+          </div>
+          <div class="pt-2 flex justify-center">
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="isMissingRsvpModalOpen = false"
+            >
+              Understood
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
+
 
 <style scoped>
 .mask-logo {

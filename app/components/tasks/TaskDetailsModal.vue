@@ -30,6 +30,13 @@ const statusLabel = computed(() => {
   return props.task.status
 })
 
+const statusColor = computed(() => {
+  if (props.task?.status === 'TODO') return 'slate' as const
+  if (props.task?.status === 'ONGOING') return 'purple' as const
+  if (props.task?.status === 'COMPLETED') return 'success' as const
+  return 'neutral' as const
+})
+
 const assigneeLabel = computed(() => (props.task ? getAssigneeLabel(props.task) : '—'))
 
 const imageUrls = computed(() => {
@@ -64,7 +71,11 @@ const subtasks = computed(() => props.task?.subtasks ?? [])
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Status</p>
-            <p class="mt-1 text-sm">{{ statusLabel }}</p>
+            <div class="mt-1">
+              <UBadge :color="statusColor" variant="subtle">
+                {{ statusLabel }}
+              </UBadge>
+            </div>
           </div>
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Priority</p>

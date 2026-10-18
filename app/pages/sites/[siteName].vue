@@ -142,14 +142,26 @@ async function handlePinSubmit() {
   }
 }
 
+const { initFromRouteQuery } = useGuestRsvpSession()
+
 onMounted(() => {
+  initFromRouteQuery(route.query)
   loadSite()
 })
+
+watch(
+  () => route.query,
+  (newQuery) => {
+    initFromRouteQuery(newQuery)
+  },
+  { deep: true }
+)
 
 watch(siteName, () => {
   loadSite()
 })
 </script>
+
 
 <template>
   <div class="min-h-screen bg-neutral-50">

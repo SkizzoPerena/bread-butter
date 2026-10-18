@@ -85,10 +85,11 @@ const websiteSlug = computed(() => {
 
 const websiteUrl = computed(() => {
   if (websiteSlug.value) {
-    return `/sites/${encodeURIComponent(websiteSlug.value)}#rsvp`
+    return `/sites/${encodeURIComponent(websiteSlug.value)}`
   }
   return ''
 })
+
 
 function handleRsvpClick() {
   if (websiteUrl.value) {

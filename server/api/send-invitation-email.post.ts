@@ -27,8 +27,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Resend default test sender is onboarding@resend.dev unless a custom domain is verified
-  const fromSender = (typeof from === 'string' && from.trim()) ? from.trim() : 'onboarding@resend.dev'
+  // Resend sender defaults to RESEND_FROM_EMAIL (e.g. hello@blinkpunch.com) once domain is verified
+  const envSender = (process.env.RESEND_FROM_EMAIL || process.env.NUXT_RESEND_FROM_EMAIL || '').trim()
+  let fromSender = 'hello@blinkpunch.com'
+  if (typeof from === 'string' && from.trim() && from.trim() !== 'onboarding@resend.dev') {
+    fromSender = from.trim()
+  } else if (envSender) {
+    fromSender = envSender
+  } else if (typeof from === 'string' && from.trim()) {
+    fromSender = from.trim()
+  }
   const emailSubject = (typeof subject === 'string' && subject.trim()) ? subject.trim() : 'Wedding Invitation & RSVP'
 
   // Prepare attachments (including inline CID images)
@@ -38,13 +46,16 @@ export default defineEventHandler(async (event) => {
   }
 
   if (imageBase64 && typeof imageBase64 === 'string') {
-    const rawContent = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '').trim()
+    const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)
+    const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+    const extension = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
+    const rawContent = imageBase64.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '').trim()
     emailAttachments.push({
-      filename: 'wedding-invitation.png',
+      filename: `wedding-invitation.${extension}`,
       content: rawContent,
       content_id: 'invitation-card',
       contentId: 'invitation-card',
-      content_type: 'image/png'
+      content_type: contentType
     })
   }
 

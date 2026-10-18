@@ -126,9 +126,7 @@ async function loadPlanningHealthData() {
 
       const byStatus: Record<string, number> = {
         'not-started': 0,
-        waiting: 0,
         'in-progress': 0,
-        'on-hold': 0,
         completed: 0,
         TODO: 0,
         ONGOING: 0,
@@ -294,11 +292,12 @@ async function loadEventData() {
             totalTasks: 21,
             overdueCount: 0,
             byStatus: {
-              'not-started': 4,
-              waiting: 2,
-              'in-progress': 6,
-              'on-hold': 1,
-              completed: 8,
+              'not-started': 5,
+              'in-progress': 7,
+              completed: 9,
+              TODO: 5,
+              ONGOING: 7,
+              COMPLETED: 9,
             },
             preview: {
               page: 1,
@@ -365,21 +364,17 @@ const balanceDue = computed(() => {
   return toNonNegativeNumber(eventRecord.value?.paymentSummary?.balanceDue)
 })
 
-// 2. Tasks & 5-Status Breakdown
+// 2. Tasks & 3-Status Breakdown (Not Started, In Progress, Completed)
 const taskStatusBreakdown = computed(() => {
   const byStatus = tasksSummary.value?.byStatus
   const notStarted = toNonNegativeNumber(byStatus?.['not-started'] ?? byStatus?.TODO)
-  const waiting = toNonNegativeNumber(byStatus?.waiting)
   const inProgress = toNonNegativeNumber(byStatus?.['in-progress'] ?? byStatus?.ONGOING)
-  const onHold = toNonNegativeNumber(byStatus?.['on-hold'])
   const completed = toNonNegativeNumber(byStatus?.completed ?? byStatus?.COMPLETED)
 
   return [
     { key: 'not-started', label: 'Not Started', count: notStarted, colorClass: 'bg-slate-500', color: 'bg-slate-500', hex: '#64748b' },
-    { key: 'waiting', label: 'Waiting', count: waiting, colorClass: 'bg-orange-500', color: 'bg-orange-500', hex: '#f97316' },
-    { key: 'in-progress', label: 'In Progress', count: inProgress, colorClass: 'bg-blue-500', color: 'bg-blue-500', hex: '#3b82f6' },
-    { key: 'on-hold', label: 'On Hold', count: onHold, colorClass: 'bg-yellow-500', color: 'bg-yellow-500', hex: '#eab308' },
-    { key: 'completed', label: 'Completed', count: completed, colorClass: 'bg-green-500', color: 'bg-green-500', hex: '#00C16A' },
+    { key: 'in-progress', label: 'In Progress', count: inProgress, colorClass: 'bg-purple-500', color: 'bg-purple-500', hex: '#a855f7' },
+    { key: 'completed', label: 'Completed', count: completed, colorClass: 'bg-emerald-500', color: 'bg-emerald-500', hex: '#00C16A' },
   ]
 })
 
@@ -979,7 +974,7 @@ const CONTAINER_INFO_ITEMS: Record<string, ContainerInfoItem> = {
     label: 'Tasks by Status',
     icon: 'i-lucide-pie-chart',
     iconBgClass: 'bg-amber-600',
-    description: 'Visual breakdown and proportion of all event tasks categorized across their current workflow stages: To Do, In Progress, In Review, and Completed.',
+    description: 'Visual breakdown and proportion of all event tasks categorized across their current workflow stages: Not Started, In Progress, and Completed.',
   },
   'financial-snapshot': {
     id: 'financial-snapshot',
@@ -1892,12 +1887,12 @@ watch(eventId, () => {
                   </UBadge>
                 </div>
 
-                <!-- 2-Column Legend (Responsive Height Grid) -->
-                <div class="grid grid-cols-2 grid-rows-3 gap-1 sm:gap-1.5 w-full flex-1 min-h-0">
+                <!-- 3-Status Legend (1 Column, 3 Rows) -->
+                <div class="grid grid-cols-1 grid-rows-3 gap-1 sm:gap-1.5 w-full flex-1 min-h-0">
                   <div v-for="status in taskStatusBreakdown" :key="status.key"
-                    class="dash-status-legend-item flex items-center justify-between px-1.5 sm:px-2 rounded-md bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/50 transition-colors last:col-span-2 min-w-0 min-h-0 h-full">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                      <span class="size-2 rounded-full shrink-0" :class="status.colorClass" />
+                    class="dash-status-legend-item flex items-center justify-between px-2 sm:px-2.5 rounded-md bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/50 transition-colors min-w-0 min-h-0 h-full">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="size-2 sm:size-2.5 rounded-full shrink-0" :class="status.colorClass" />
                       <span class="dash-item-header font-medium text-highlighted truncate">{{
                         status.label }}</span>
                     </div>

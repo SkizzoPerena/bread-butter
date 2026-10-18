@@ -16,6 +16,20 @@ export interface InvitationEmailData {
 
 export const DEFAULT_APP_DOMAIN = 'https://bread-plus-butter.com'
 
+export function buildGuestWebsiteUrl(options: {
+  origin?: string
+  websiteSlug: string
+  rsvpId?: string | null
+}): string {
+  const origin = (options.origin || DEFAULT_APP_DOMAIN).replace(/\/+$/, '')
+  const slug = encodeURIComponent(options.websiteSlug.trim())
+  const base = `${origin}/sites/${slug}`
+  if (options.rsvpId && options.rsvpId.trim()) {
+    return `${base}?rsvpId=${encodeURIComponent(options.rsvpId.trim())}`
+  }
+  return base
+}
+
 export function resolveAbsoluteWebsiteUrl(rawUrl?: string, defaultOrigin = DEFAULT_APP_DOMAIN): string {
   if (!rawUrl || !rawUrl.trim() || rawUrl.trim() === '#') return '#'
   const clean = rawUrl.trim()
@@ -28,17 +42,22 @@ export function resolveAbsoluteWebsiteUrl(rawUrl?: string, defaultOrigin = DEFAU
       if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname.includes('bread-butter.ph')) {
         path = `${parsed.pathname}${parsed.search}${parsed.hash}`
       } else {
-        return clean
+        // Strip any #rsvp hash if present
+        return clean.replace(/#rsvp\b/gi, '')
       }
     } catch {
       // fallback to path resolution
     }
   }
 
+  // Ensure no #rsvp hash remains
+  path = path.replace(/#rsvp\b/gi, '')
+
   const cleanOrigin = defaultOrigin.replace(/\/+$/, '')
   const cleanPath = path.startsWith('/') ? path : `/${path}`
   return `${cleanOrigin}${cleanPath}`
 }
+
 
 export function resolveFontFallback(fontName?: string, role: 'header' | 'subheader' | 'body' = 'body'): string {
   if (!fontName) {

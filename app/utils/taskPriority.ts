@@ -6,9 +6,9 @@ export interface TaskPriorityOption {
 }
 
 export const TASK_PRIORITY_OPTIONS: TaskPriorityOption[] = [
-  { label: 'High', value: 1 },
+  { label: 'High', value: 3 },
   { label: 'Medium', value: 2 },
-  { label: 'Low', value: 3 },
+  { label: 'Low', value: 1 },
 ]
 
 export type PriorityFilterValue = 'all' | 'high' | 'medium' | 'low'
@@ -21,13 +21,13 @@ export const PRIORITY_FILTER_OPTIONS: { label: string; value: PriorityFilterValu
 ]
 
 export function mapTaskPriority(priority: number): { label: string; color: TaskPriorityBadgeColor } {
-  if (priority <= 1) {
+  if (priority >= 3) {
     return { label: 'High', color: 'error' }
   }
   if (priority === 2) {
     return { label: 'Medium', color: 'warning' }
   }
-  return { label: 'Low', color: 'success' }
+  return { label: 'Low', color: 'info' }
 }
 
 export function matchesPriorityFilter(priority: number, filter: PriorityFilterValue | string): boolean {
@@ -35,13 +35,13 @@ export function matchesPriorityFilter(priority: number, filter: PriorityFilterVa
     return true
   }
   if (filter === 'high' || filter === 'urgent') {
-    return priority <= 1
+    return priority >= 3
   }
   if (filter === 'medium') {
     return priority === 2
   }
   if (filter === 'low') {
-    return priority >= 3
+    return priority <= 1
   }
   return true
 }

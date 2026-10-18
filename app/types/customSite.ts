@@ -94,6 +94,7 @@ export interface CustomSiteRecord {
   singlePageSite?: boolean
   diyComponents?: { id: string; name: string; header: string; content?: string; description?: string }[]
   weddingParty?: CustomSiteWeddingPartyMember[]
+  rsvpDeadlineDate?: string | null
 }
 
 export interface CustomSitesListResponse {

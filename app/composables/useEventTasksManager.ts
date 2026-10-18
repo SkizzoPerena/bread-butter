@@ -85,7 +85,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
         return aTime - bTime
       })
     } else {
-      list = [...list].sort((a, b) => a.priority - b.priority)
+      list = [...list].sort((a, b) => b.priority - a.priority)
     }
 
     return list

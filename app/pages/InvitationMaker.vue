@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { toCanvas } from 'html-to-image'
 import type { EventRecord } from '~/types/event'
 import type { CustomSiteRecord } from '~/types/customSite'
 import {
@@ -132,17 +133,18 @@ const appOrigin = computed(() => 'https://bread-plus-butter.com')
 // Full absolute URL for emails and external links
 const absoluteWebsiteUrl = computed(() => {
   if (websiteSlug.value) {
-    return `${appOrigin.value}/sites/${encodeURIComponent(websiteSlug.value)}#rsvp`
+    return `${appOrigin.value}/sites/${encodeURIComponent(websiteSlug.value)}`
   }
   return ''
 })
 
 const websiteUrl = computed(() => {
   if (websiteSlug.value) {
-    return `/sites/${encodeURIComponent(websiteSlug.value)}#rsvp`
+    return `/sites/${encodeURIComponent(websiteSlug.value)}`
   }
   return ''
 })
+
 
 function handleRsvpButtonClick() {
   const target = websiteUrl.value || absoluteWebsiteUrl.value
@@ -249,6 +251,93 @@ const invitationEmailPayload = computed<InvitationEmailData>(() => ({
   bannerImageUrl: effectiveBannerImageUrl.value
 }))
 
+// Stationery Card Node for HTML-to-Image Generation
+const stationeryCardRef = ref<HTMLElement | null>(null)
+
+function syncEstablishedInvitationToStorage() {
+  if (typeof window === 'undefined') return
+  const currentEventId = eventId.value
+  const data = {
+    eventId: currentEventId,
+    palette: effectivePalette.value,
+    typography: effectiveTypography.value,
+    websiteSlug: websiteSlug.value,
+    bannerImageUrl: effectiveBannerImageUrl.value,
+    bannerImageSource: bannerImageSource.value,
+    requestLine: rsvpData.requestLine,
+    eventLabel: rsvpData.eventLabel,
+    eventDate: rsvpData.eventDate,
+    eventTime: rsvpData.eventTime,
+    eventVenue: rsvpData.eventVenue,
+    deadlineText: rsvpData.deadlineText,
+    deadlineDate: rsvpData.deadlineDate,
+    savedAt: new Date().toISOString()
+  }
+  try {
+    if (currentEventId) {
+      localStorage.setItem(`bpb_invitation_established_${currentEventId}`, JSON.stringify(data))
+    }
+    localStorage.setItem('bpb_invitation_established_latest', JSON.stringify(data))
+  } catch (err) {
+    console.warn('Could not cache established invitation:', err)
+  }
+}
+
+async function captureStationeryCardToStorage(): Promise<string | null> {
+  if (!stationeryCardRef.value) return null
+  try {
+    await nextTick()
+    if (typeof document !== 'undefined' && document.fonts) {
+      try {
+        await document.fonts.ready
+      } catch {}
+    }
+    const images = Array.from(stationeryCardRef.value.querySelectorAll('img'))
+    await Promise.all(
+      images.map((img) => {
+        if (img.complete && img.naturalHeight !== 0) return Promise.resolve()
+        return new Promise<void>((resolve) => {
+          img.onload = () => resolve()
+          img.onerror = () => resolve()
+          if ('decode' in img) {
+            img.decode().then(resolve).catch(resolve)
+          }
+          setTimeout(resolve, 800)
+        })
+      })
+    )
+
+    const canvas = await toCanvas(stationeryCardRef.value, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: '#f7f4ef',
+    })
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
+    if (dataUrl && dataUrl.startsWith('data:image/')) {
+      try {
+        localStorage.setItem('bpb_invitation_card_latest', dataUrl)
+        if (eventId.value) {
+          localStorage.setItem(`bpb_invitation_card_${eventId.value}`, dataUrl)
+        }
+      } catch (err) {
+        console.warn('Could not cache stationery card image:', err)
+      }
+      return dataUrl
+    }
+  } catch (err) {
+    console.warn('Could not capture stationery card:', err)
+  }
+  return null
+}
+
+watch(
+  [rsvpData, effectivePalette, effectiveTypography, effectiveBannerImageUrl, websiteSlug],
+  () => {
+    syncEstablishedInvitationToStorage()
+  },
+  { deep: true }
+)
+
 // Steps Navigation
 const currentStep = ref(0)
 interface StepDef {
@@ -352,6 +441,45 @@ onMounted(async () => {
       customFonts.subheaderFont = websiteTypography.value.subheaderFont
       customFonts.bodyFont = websiteTypography.value.bodyFont
     }
+
+    // Restore any local cache preferences if available
+    if (typeof window !== 'undefined' && currentEventId) {
+      try {
+        const rawCached = localStorage.getItem(`bpb_invitation_established_${currentEventId}`)
+        if (rawCached) {
+          const cached = JSON.parse(rawCached)
+          if (!rsvpData.bannerImageUrl && cached.bannerImageUrl) {
+            rsvpData.bannerImageUrl = cached.bannerImageUrl
+            if (cached.bannerImageSource === 'custom') {
+              customBannerDataUrl.value = cached.bannerImageUrl
+              bannerImageSource.value = 'custom'
+            }
+          }
+          if (cached.palette?.name && cached.palette.name !== 'Custom') {
+            isSyncedWithWebsite.value = false
+            customPaletteName.value = cached.palette.name
+          } else if (cached.palette?.colors) {
+            isSyncedWithWebsite.value = false
+            customPaletteName.value = 'Custom'
+            Object.assign(customColors, cached.palette.colors)
+          }
+          if (cached.typography?.name && cached.typography.name !== 'Custom') {
+            isSyncedWithWebsite.value = false
+            customTypographyName.value = cached.typography.name
+          } else if (cached.typography) {
+            isSyncedWithWebsite.value = false
+            customTypographyName.value = 'Custom'
+            if (cached.typography.headerFont) customFonts.headerFont = cached.typography.headerFont
+            if (cached.typography.subheaderFont) customFonts.subheaderFont = cached.typography.subheaderFont
+            if (cached.typography.bodyFont) customFonts.bodyFont = cached.typography.bodyFont
+          }
+        }
+      } catch (err) {
+        console.warn('Could not restore cached invitation state:', err)
+      }
+    }
+
+    syncEstablishedInvitationToStorage()
   } catch (error) {
     console.error('Error loading invitation details:', error)
   } finally {
@@ -391,7 +519,10 @@ async function saveInvitation() {
   try {
     const payload = buildInvitationPayload({
       eventId: currentEventId,
-      rsvpData,
+      rsvpData: {
+        ...rsvpData,
+        bannerImageUrl: effectiveBannerImageUrl.value
+      },
       blocks: []
     })
 
@@ -403,9 +534,10 @@ async function saveInvitation() {
         eventDate: payload.eventDate,
         eventTime: payload.eventTime,
         eventVenue: payload.eventVenue,
-        blocks: [],
+        blocks: payload.blocks,
         deadlineText: payload.deadlineText,
-        deadlineDate: payload.deadlineDate
+        deadlineDate: payload.deadlineDate,
+        bannerImageUrl: payload.bannerImageUrl
       })
       existingInvitationId.value = updated._id
     } else {
@@ -413,12 +545,16 @@ async function saveInvitation() {
       existingInvitationId.value = created._id
     }
 
+    syncEstablishedInvitationToStorage()
+    captureStationeryCardToStorage().catch(() => null)
+
     isPublished.value = true
     toast.add({
       title: 'Invitation saved!',
       description: 'Your invitation has been saved and is ready for your guests.',
       color: 'success'
     })
+
   } catch (err: any) {
     const errorMsg = getApiErrorMessage(err, 'Could not save your invitation.')
     toast.add({
@@ -761,7 +897,7 @@ function copyWebsiteRsvpLink() {
                       <img
                         :src="websiteBannerUrl"
                         alt="Website Header"
-                        class="w-full aspect-[5/1] object-cover object-center block"
+                        class="w-full aspect-5/1 object-cover object-center block"
                       />
                     </div>
                     <p class="text-[11px] text-stone-500">
@@ -809,7 +945,7 @@ function copyWebsiteRsvpLink() {
                       <img
                         :src="customBannerDataUrl"
                         alt="Custom Banner"
-                        class="w-full aspect-[5/1] object-cover object-center block"
+                        class="w-full aspect-5/1 object-cover object-center block"
                       />
                     </div>
 
@@ -917,7 +1053,7 @@ function copyWebsiteRsvpLink() {
 
                     <div class="flex items-center justify-between text-xs pt-1">
                       <span class="text-stone-600 dark:text-stone-400">Active Fonts:</span>
-                      <span class="font-semibold text-stone-900 dark:text-stone-100 truncate max-w-[180px]">
+                      <span class="font-semibold text-stone-900 dark:text-stone-100 truncate max-w-45">
                         {{ websiteTypography.headerFont }} + {{ websiteTypography.subheaderFont }}
                       </span>
                     </div>
@@ -1115,6 +1251,7 @@ function copyWebsiteRsvpLink() {
           <!-- 1. Luxury Stationery Invitation Card (Web View) -->
           <div
             v-if="previewMode === 'stationery'"
+            ref="stationeryCardRef"
             class="relative rounded-2xl transition-all duration-300 shadow-xl overflow-hidden"
             :class="[
               isPublished ? 'max-w-2xl mx-auto w-full my-4' : 'w-full',
@@ -1136,7 +1273,7 @@ function copyWebsiteRsvpLink() {
               <img
                 :src="effectiveBannerImageUrl"
                 alt="Invitation Header Banner"
-                class="w-full aspect-[5/1] object-cover object-center block"
+                class="w-full aspect-5/1 object-cover object-center block"
               />
             </div>
 

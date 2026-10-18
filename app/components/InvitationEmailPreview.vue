@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, ref, reactive, onMounted } from 'vue'
-import { toPng } from 'html-to-image'
+import { toCanvas } from 'html-to-image'
 import type { ColorPalette, TypographySet } from '~/utils/websiteTheme'
 import {
   generateImageInvitationEmailHtml,
@@ -16,6 +16,7 @@ const props = defineProps<{
   websiteUrl?: string
   senderEmail?: string
   recipientEmail?: string
+  eventId?: string
 }>()
 
 const toast = useToast()
@@ -70,14 +71,27 @@ async function captureCardImage(): Promise<string | null> {
       await document.fonts.ready
     }
 
-    const dataUrl = await toPng(cardImageRef.value, {
+    const canvas = await toCanvas(cardImageRef.value as unknown as HTMLElement, {
       pixelRatio: 2,
       cacheBust: true,
-      quality: 0.95
+      backgroundColor: '#f7f4ef',
     })
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
     capturedCardDataUrl.value = dataUrl
+    if (typeof window !== 'undefined' && dataUrl) {
+      try {
+        localStorage.setItem('bpb_invitation_card_latest', dataUrl)
+        const evId = props.eventId || (props.invitation as { eventId?: string })?.eventId
+        if (evId) {
+          localStorage.setItem(`bpb_invitation_card_${evId}`, dataUrl)
+        }
+      } catch (err) {
+        // quota exceeded or private mode, fallback gracefully
+      }
+    }
     return dataUrl
   } catch (err) {
+
     console.warn('Could not capture card as image:', err)
     return null
   } finally {
@@ -250,12 +264,12 @@ async function handleSendTestEmail() {
       </div>
 
       <!-- Live Email Body Preview Container (Pure Stationery PNG Card) -->
-      <div class="bg-[#f7f4ef] p-4 sm:p-8 flex flex-col justify-center items-center overflow-x-auto min-h-[520px]">
+      <div class="bg-[#f7f4ef] p-4 sm:p-8 flex flex-col justify-center items-center overflow-x-auto min-h-130">
         
         <!-- Rendered Email Card Container -->
         <div
           ref="cardImageRef"
-          class="w-full max-w-[580px] rounded-2xl shadow-md text-center transition-all duration-300 overflow-hidden"
+          class="w-full max-w-145 rounded-2xl shadow-md text-center transition-all duration-300 overflow-hidden"
           :class="invitation.bannerImageUrl ? '' : 'p-3'"
           :style="{
             backgroundColor: palette.colors.primary,
@@ -271,7 +285,7 @@ async function handleSendTestEmail() {
             <img
               :src="invitation.bannerImageUrl"
               alt="Invitation Header Banner"
-              class="w-full aspect-[5/1] object-cover object-center block"
+              class="w-full aspect-5/1 object-cover object-center block"
             />
           </div>
 

@@ -25,9 +25,9 @@ const emit = defineEmits<{
 }>()
 
 const statusSections: { status: TaskStatus; label: string; dotClass: string }[] = [
-  { status: 'TODO', label: 'To Do', dotClass: 'bg-error' },
-  { status: 'ONGOING', label: 'Ongoing', dotClass: 'bg-primary' },
-  { status: 'COMPLETED', label: 'Completed', dotClass: 'bg-success' },
+  { status: 'TODO', label: 'To Do', dotClass: 'bg-slate-500' },
+  { status: 'ONGOING', label: 'Ongoing', dotClass: 'bg-purple-500' },
+  { status: 'COMPLETED', label: 'Completed', dotClass: 'bg-emerald-500' },
 ]
 
 const statusOptions = [

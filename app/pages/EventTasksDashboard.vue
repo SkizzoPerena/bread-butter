@@ -213,9 +213,9 @@ const importantCount = computed(() => {
   return tasks.value.filter(isParentTask).filter((t) => isTaskImportant(t)).length
 })
 
-// Priority Computations (High = 1, Medium = 2, Low = 3)
+// Priority Computations (1 Low, 2 Medium, 3 High)
 const highPriorityCount = computed(() => {
-  return tasks.value.filter(isParentTask).filter((t) => t.priority <= 1).length
+  return tasks.value.filter(isParentTask).filter((t) => t.priority >= 3).length
 })
 
 const mediumPriorityCount = computed(() => {
@@ -223,13 +223,13 @@ const mediumPriorityCount = computed(() => {
 })
 
 const lowPriorityCount = computed(() => {
-  return tasks.value.filter(isParentTask).filter((t) => t.priority >= 3).length
+  return tasks.value.filter(isParentTask).filter((t) => t.priority <= 1).length
 })
 
 function getPriorityDotClass(priority: number): string {
-  if (priority <= 1) return 'bg-red-500'
+  if (priority >= 3) return 'bg-red-500'
   if (priority === 2) return 'bg-amber-500'
-  return 'bg-emerald-500'
+  return 'bg-blue-500'
 }
 
 function getPriorityDropdownItems(task: TaskRecord) {
@@ -239,7 +239,7 @@ function getPriorityDropdownItems(task: TaskRecord) {
         label: 'High Priority',
         icon: 'i-lucide-arrow-up',
         color: 'error' as const,
-        onSelect: () => handlePriorityChange({ taskId: task._id, priority: 1 }),
+        onSelect: () => handlePriorityChange({ taskId: task._id, priority: 3 }),
       },
       {
         label: 'Medium Priority',
@@ -250,8 +250,8 @@ function getPriorityDropdownItems(task: TaskRecord) {
       {
         label: 'Low Priority',
         icon: 'i-lucide-arrow-down',
-        color: 'success' as const,
-        onSelect: () => handlePriorityChange({ taskId: task._id, priority: 3 }),
+        color: 'info' as const,
+        onSelect: () => handlePriorityChange({ taskId: task._id, priority: 1 }),
       },
     ],
   ]
@@ -579,9 +579,6 @@ watch(eventId, () => {
               class="font-serif text-xl sm:text-2xl font-bold text-highlighted leading-tight tracking-tight wrap-break-word">
               {{ eventTitle || "Jane & John's Wedding" }}
             </h1>
-            <p v-if="eventRecord?.description" class="text-xs text-muted mt-1.5 line-clamp-3 leading-relaxed">
-              {{ eventRecord.description }}
-            </p>
           </div>
 
           <div class="flex items-center gap-3 pt-1 text-xs text-toast-700 font-sans min-w-0">
@@ -597,14 +594,6 @@ watch(eventId, () => {
           </div>
         </div>
 
-        <!-- 2. Add Task Button -->
-        <div>
-          <UButton icon="i-lucide-plus" color="red" size="md" block
-            class="w-full font-semibold shadow-xs justify-center py-2.5 transition-all hover:shadow hover:brightness-105 active:scale-[0.99] cursor-pointer"
-            :disabled="isEventCancelled" @click="openCreateModal">
-            Add New Task
-          </UButton>
-        </div>
 
         <!-- 3. General Information (Task Metrics) -->
         <div class="space-y-3">
@@ -617,37 +606,37 @@ watch(eventId, () => {
             </span>
           </div>
 
-          <!-- Status Metrics Tiles -->
+          <!-- Status Metrics Tiles (Slate, Purple, Green) -->
           <div class="grid grid-cols-3 gap-2">
             <!-- To Do -->
             <button type="button"
-              class="bg-red-50/70 border border-red-200/60 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-red-50 text-left cursor-pointer"
-              :class="activeStatusTab === 'TODO' ? 'ring-2 ring-red-400 bg-red-100/60 shadow-xs' : ''"
+              class="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-slate-100/70 text-left cursor-pointer"
+              :class="activeStatusTab === 'TODO' ? 'ring-2 ring-slate-400 bg-slate-100/90 shadow-xs' : ''"
               @click="activeStatusTab = activeStatusTab === 'TODO' ? 'ALL' : 'TODO'">
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold text-red-700 font-sans">To Do</span>
-                <UIcon name="i-lucide-list-todo" class="size-3.5 text-red-500" />
+                <span class="text-[11px] font-semibold text-slate-700 font-sans">To Do</span>
+                <UIcon name="i-lucide-list-todo" class="size-3.5 text-slate-500" />
               </div>
-              <span class="text-xl sm:text-2xl font-bold font-serif text-red-800 tracking-tight mt-1">
+              <span class="text-xl sm:text-2xl font-bold font-serif text-slate-900 tracking-tight mt-1">
                 {{ todoCount }}
               </span>
             </button>
 
-            <!-- Ongoing -->
+            <!-- Ongoing (Purple) -->
             <button type="button"
-              class="bg-amber-50/70 border border-amber-200/60 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-amber-50 text-left cursor-pointer"
-              :class="activeStatusTab === 'ONGOING' ? 'ring-2 ring-amber-400 bg-amber-100/60 shadow-xs' : ''"
+              class="bg-purple-50/70 border border-purple-200/70 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-purple-100/60 text-left cursor-pointer"
+              :class="activeStatusTab === 'ONGOING' ? 'ring-2 ring-purple-400 bg-purple-100/80 shadow-xs' : ''"
               @click="activeStatusTab = activeStatusTab === 'ONGOING' ? 'ALL' : 'ONGOING'">
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold text-amber-700 font-sans">Ongoing</span>
-                <UIcon name="i-lucide-loader" class="size-3.5 text-amber-500" />
+                <span class="text-[11px] font-semibold text-purple-700 font-sans">Ongoing</span>
+                <UIcon name="i-lucide-loader" class="size-3.5 text-purple-500" />
               </div>
-              <span class="text-xl sm:text-2xl font-bold font-serif text-amber-800 tracking-tight mt-1">
+              <span class="text-xl sm:text-2xl font-bold font-serif text-purple-900 tracking-tight mt-1">
                 {{ ongoingCount }}
               </span>
             </button>
 
-            <!-- Completed -->
+            <!-- Completed (Green) -->
             <button type="button"
               class="bg-emerald-50/70 border border-emerald-200/60 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-emerald-50 text-left cursor-pointer"
               :class="activeStatusTab === 'COMPLETED' ? 'ring-2 ring-emerald-400 bg-emerald-100/60 shadow-xs' : ''"
@@ -662,55 +651,27 @@ watch(eventId, () => {
             </button>
           </div>
 
-          <!-- Important Tasks Metric Tile (Separate Filter from Status) -->
-          <button type="button"
-            class="w-full border rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all text-left cursor-pointer"
-            :class="importantOnlyFilter ? 'bg-amber-100/90 border-amber-400 ring-2 ring-amber-400 shadow-xs' : 'bg-amber-50/70 border-amber-200/70 hover:bg-amber-100/50'"
-            :title="importantOnlyFilter ? 'Important filter active (click to clear)' : 'Filter by Important tasks'"
-            @click="importantOnlyFilter = !importantOnlyFilter">
-            <div class="flex items-center gap-2.5">
-              <div
-                class="size-8 rounded-lg bg-amber-100 border border-amber-200/80 flex items-center justify-center text-amber-600 shrink-0">
-                <UIcon name="i-lucide-star" class="size-4 fill-amber-400 text-amber-500" />
-              </div>
-              <div>
-                <span class="text-xs font-semibold text-amber-950 block font-sans">Important Tasks</span>
-                <span class="text-[11px] text-amber-700 font-sans">
-                  {{ importantOnlyFilter ? 'Filter active (click to clear)' : 'Starred items' }}
-                </span>
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span v-if="importantOnlyFilter"
-                class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none">
-                Active
-              </span>
-              <span class="text-xl sm:text-2xl font-bold font-serif text-amber-800 tracking-tight">
-                {{ importantCount }}
-              </span>
-            </div>
-          </button>
-
-          <!-- Priority Breakdown (High, Medium, Low) -->
-          <div class="space-y-2 pt-1">
+          <!-- Priority Breakdown (High, Medium, Low + Important below) -->
+          <div class="space-y-2.5 pt-1">
             <div class="flex items-center justify-between">
               <span class="text-xs font-semibold text-highlighted font-sans">Priority Levels</span>
-              <button v-if="priorityFilter !== 'all'" type="button"
+              <button v-if="priorityFilter !== 'all' || importantOnlyFilter" type="button"
                 class="text-[11px] text-toast-600 hover:text-toast-900 font-semibold cursor-pointer underline"
-                @click="priorityFilter = 'all'">
-                Reset ({{ priorityFilter }})
+                @click="priorityFilter = 'all'; importantOnlyFilter = false">
+                Reset
               </button>
             </div>
 
+            <!-- 3 columns: High, Medium, Low -->
             <div class="grid grid-cols-3 gap-2">
               <!-- High Priority -->
               <button type="button"
-                class="border rounded-xl p-2.5 flex flex-col justify-between transition-all text-left cursor-pointer"
+                class="border rounded-xl p-2.5 flex flex-col justify-between transition-all text-left cursor-pointer min-w-0"
                 :class="priorityFilter === 'high' ? 'bg-red-100/80 border-red-400 ring-2 ring-red-400 shadow-xs' : 'bg-red-50/60 border-red-200/60 hover:bg-red-50'"
                 :title="priorityFilter === 'high' ? 'Click to show all priorities' : 'Filter by High priority'"
                 @click="priorityFilter = priorityFilter === 'high' ? 'all' : 'high'">
-                <div class="flex items-center justify-between">
-                  <span class="text-[11px] font-semibold text-red-700 font-sans">High</span>
+                <div class="flex items-center justify-between gap-0.5">
+                  <span class="text-[11px] font-semibold text-red-700 font-sans truncate">High</span>
                   <span class="size-1.5 rounded-full bg-red-500 shrink-0" />
                 </div>
                 <span class="text-xl sm:text-2xl font-bold font-serif text-red-800 tracking-tight mt-1">
@@ -720,12 +681,12 @@ watch(eventId, () => {
 
               <!-- Medium Priority -->
               <button type="button"
-                class="border rounded-xl p-2.5 flex flex-col justify-between transition-all text-left cursor-pointer"
+                class="border rounded-xl p-2.5 flex flex-col justify-between transition-all text-left cursor-pointer min-w-0"
                 :class="priorityFilter === 'medium' ? 'bg-amber-100/80 border-amber-400 ring-2 ring-amber-400 shadow-xs' : 'bg-amber-50/60 border-amber-200/60 hover:bg-amber-50'"
                 :title="priorityFilter === 'medium' ? 'Click to show all priorities' : 'Filter by Medium priority'"
                 @click="priorityFilter = priorityFilter === 'medium' ? 'all' : 'medium'">
-                <div class="flex items-center justify-between">
-                  <span class="text-[11px] font-semibold text-amber-700 font-sans">Medium</span>
+                <div class="flex items-center justify-between gap-0.5">
+                  <span class="text-[11px] font-semibold text-amber-700 font-sans truncate">Medium</span>
                   <span class="size-1.5 rounded-full bg-amber-500 shrink-0" />
                 </div>
                 <span class="text-xl sm:text-2xl font-bold font-serif text-amber-800 tracking-tight mt-1">
@@ -733,21 +694,50 @@ watch(eventId, () => {
                 </span>
               </button>
 
-              <!-- Low Priority -->
+              <!-- Low Priority (Blue) -->
               <button type="button"
-                class="border rounded-xl p-2.5 flex flex-col justify-between transition-all text-left cursor-pointer"
-                :class="priorityFilter === 'low' ? 'bg-emerald-100/80 border-emerald-400 ring-2 ring-emerald-400 shadow-xs' : 'bg-emerald-50/60 border-emerald-200/60 hover:bg-emerald-50'"
+                class="border rounded-xl p-2.5 flex flex-col justify-between transition-all text-left cursor-pointer min-w-0"
+                :class="priorityFilter === 'low' ? 'bg-blue-100/80 border-blue-400 ring-2 ring-blue-400 shadow-xs' : 'bg-blue-50/60 border-blue-200/60 hover:bg-blue-50'"
                 :title="priorityFilter === 'low' ? 'Click to show all priorities' : 'Filter by Low priority'"
                 @click="priorityFilter = priorityFilter === 'low' ? 'all' : 'low'">
-                <div class="flex items-center justify-between">
-                  <span class="text-[11px] font-semibold text-emerald-700 font-sans">Low</span>
-                  <span class="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <div class="flex items-center justify-between gap-0.5">
+                  <span class="text-[11px] font-semibold text-blue-700 font-sans truncate">Low</span>
+                  <span class="size-1.5 rounded-full bg-blue-500 shrink-0" />
                 </div>
-                <span class="text-xl sm:text-2xl font-bold font-serif text-emerald-800 tracking-tight mt-1">
+                <span class="text-xl sm:text-2xl font-bold font-serif text-blue-800 tracking-tight mt-1">
                   {{ lowPriorityCount }}
                 </span>
               </button>
             </div>
+
+            <!-- Important Tasks (Spans full width below High-Medium-Low) -->
+            <button type="button"
+              class="w-full border rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all text-left cursor-pointer"
+              :class="importantOnlyFilter ? 'bg-amber-100/90 border-amber-400 ring-2 ring-amber-400 shadow-xs' : 'bg-amber-50/70 border-amber-200/70 hover:bg-amber-100/50'"
+              :title="importantOnlyFilter ? 'Important filter active (click to clear)' : 'Filter by Important tasks'"
+              @click="importantOnlyFilter = !importantOnlyFilter">
+              <div class="flex items-center gap-2.5">
+                <div
+                  class="size-8 rounded-lg bg-amber-100 border border-amber-200/80 flex items-center justify-center text-amber-600 shrink-0">
+                  <UIcon name="i-lucide-star" class="size-4 fill-amber-400 text-amber-500" />
+                </div>
+                <div>
+                  <span class="text-xs font-semibold text-amber-950 block font-sans">Important Tasks</span>
+                  <span class="text-[11px] text-amber-700 font-sans">
+                    {{ importantOnlyFilter ? 'Filter active (click to clear)' : 'Starred items' }}
+                  </span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span v-if="importantOnlyFilter"
+                  class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none">
+                  Active
+                </span>
+                <span class="text-xl sm:text-2xl font-bold font-serif text-amber-800 tracking-tight">
+                  {{ importantCount }}
+                </span>
+              </div>
+            </button>
           </div>
 
           <!-- Completion Progress Card -->
@@ -768,16 +758,18 @@ watch(eventId, () => {
       </div>
 
       <!-- Left Panel Bottom Links -->
-      <div class="pt-4 space-y-2">
+      <div class="pt-4 ">
         <UButton icon="i-lucide-users" color="neutral" variant="outline" size="sm" block class="w-full justify-center"
           :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)" @click="openManageAssigneesModal">
           Manage Assignees
         </UButton>
-        <NuxtLink :to="{ path: '/event/dashboard-butter', query: eventId ? { eventId } : undefined }"
-          class="inline-flex items-center justify-center gap-1.5 text-xs text-muted hover:text-highlighted transition-colors py-1.5 w-full text-center">
-          <UIcon name="i-lucide-arrow-left" class="size-3.5" />
-          Back to Event Dashboard
-        </NuxtLink>
+      </div>
+      <div>
+        <UButton icon="i-lucide-plus" color="red" size="md" block
+          class="w-full font-semibold shadow-xs justify-center py-2.5 transition-all hover:shadow hover:brightness-105 active:scale-[0.99] cursor-pointer"
+          :disabled="isEventCancelled" @click="openCreateModal">
+          Add New Task
+        </UButton>
       </div>
     </aside>
 
@@ -799,6 +791,9 @@ watch(eventId, () => {
               class="px-2.5 py-1 rounded-md transition-all cursor-pointer select-none inline-flex items-center gap-1.5"
               :class="activeStatusTab === tab.key ? 'bg-white text-highlighted shadow-xs font-semibold' : 'text-muted hover:text-highlighted'"
               @click="activeStatusTab = tab.key">
+              <span v-if="tab.key === 'TODO'" class="size-1.5 rounded-full bg-slate-500" />
+              <span v-else-if="tab.key === 'ONGOING'" class="size-1.5 rounded-full bg-purple-500" />
+              <span v-else-if="tab.key === 'COMPLETED'" class="size-1.5 rounded-full bg-emerald-500" />
               {{ tab.label }}
             </button>
           </div>
@@ -831,16 +826,10 @@ watch(eventId, () => {
 
         <!-- Right Action Controls -->
         <div class="flex items-center gap-2 shrink-0">
-          <UButton
-            icon="i-lucide-filter-x"
-            color="neutral"
-            variant="ghost"
-            size="sm"
+          <UButton icon="i-lucide-filter-x" color="neutral" variant="ghost" size="sm"
             class="font-sans transition-colors"
             :class="hasActiveFilters ? 'cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-muted/50'"
-            :disabled="!hasActiveFilters"
-            @click="clearAllFilters"
-          >
+            :disabled="!hasActiveFilters" @click="clearAllFilters">
             Clear all filters
           </UButton>
 
@@ -876,9 +865,7 @@ watch(eventId, () => {
               : 'Add your first task to start planning your event milestones.' }}
           </p>
           <div class="flex items-center gap-2 mt-4">
-            <UButton v-if="hasActiveFilters"
-              color="neutral" variant="outline" size="sm"
-              @click="clearAllFilters">
+            <UButton v-if="hasActiveFilters" color="neutral" variant="outline" size="sm" @click="clearAllFilters">
               Clear Filters
             </UButton>
             <UButton icon="i-lucide-plus" color="red" size="sm" :disabled="isEventCancelled" @click="openCreateModal">
@@ -935,14 +922,11 @@ watch(eventId, () => {
                   <div class="font-sans flex flex-col gap-0.5 min-w-0 w-full py-0.5 cursor-pointer overflow-hidden"
                     @click="openDetailsModal(row.original)">
                     <div class="font-sans flex items-center gap-1.5 min-w-0 max-w-full">
-                      <svg
-                        v-if="isTaskImportant(row.original)"
-                        class="size-3.5 text-yellow-400 fill-yellow-400 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        title="Important task"
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      <svg v-if="isTaskImportant(row.original)"
+                        class="size-3.5 text-yellow-400 fill-yellow-400 shrink-0" viewBox="0 0 24 24"
+                        fill="currentColor" title="Important task">
+                        <polygon
+                          points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                       <span
                         class="font-sans font-medium text-sm text-highlighted group-hover:text-primary-700 transition-colors truncate min-w-0"
@@ -978,8 +962,10 @@ watch(eventId, () => {
                       <!-- Important Badge if marked as Important -->
                       <UBadge v-if="isTaskImportant(row.original)" color="warning" variant="subtle" size="xs"
                         class="font-medium shrink-0 inline-flex items-center gap-1">
-                        <svg class="size-2.5 fill-amber-500 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        <svg class="size-2.5 fill-amber-500 text-amber-500 shrink-0" viewBox="0 0 24 24"
+                          fill="currentColor">
+                          <polygon
+                            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                         </svg>
                         Important
                       </UBadge>
@@ -1022,7 +1008,7 @@ watch(eventId, () => {
                   <div class="flex items-center justify-end gap-1.5 py-0.5 whitespace-nowrap shrink-0" @click.stop>
                     <!-- If TODO: Mark Ongoing & Mark Done -->
                     <template v-if="row.original.status === 'TODO'">
-                      <UButton size="xs" color="warning" variant="soft" icon="i-lucide-play"
+                      <UButton size="xs" color="purple" variant="soft" icon="i-lucide-play"
                         class="font-medium cursor-pointer" :loading="updatingTaskId === row.original._id"
                         :disabled="mutationsDisabled"
                         @click.stop="handleStatusChange({ taskId: row.original._id, status: 'ONGOING' })">
@@ -1074,13 +1060,11 @@ watch(eventId, () => {
                         : 'bg-white hover:bg-yellow-50/80 text-toast-400 hover:text-yellow-600 border border-bread-200/80 active:scale-95'"
                       :title="isTaskImportant(row.original) ? 'Unstar task (Remove Important)' : 'Star task (Mark as Important)'"
                       :disabled="mutationsDisabled" @click.stop="toggleTaskImportant(row.original)">
-                      <svg
-                        v-if="isTaskImportant(row.original)"
-                        class="size-3.5 fill-white text-white transition-transform"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      <svg v-if="isTaskImportant(row.original)"
+                        class="size-3.5 fill-white text-white transition-transform" viewBox="0 0 24 24"
+                        fill="currentColor">
+                        <polygon
+                          points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                       <UIcon v-else name="i-lucide-star" class="size-3.5 transition-transform text-toast-400" />
                     </button>
