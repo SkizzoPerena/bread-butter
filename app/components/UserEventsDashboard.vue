@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
+import type { GatheringRecord } from '~/types/seating'
 import { formatEventPriceTier } from '~/types/event'
 import { getEventBalanceDue, isEventFullyPaid, isTierUpgradePending, getPendingUpgradeStatusLabel } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
@@ -19,6 +20,7 @@ import {
 
 const toast = useToast()
 const { fetchUserEvents, updateEvent } = useEvents()
+const { listGatherings } = useSeating()
 const { loadPageData, isUiOnlyMode } = useApiMode()
 const { startPageTransition, finishPageTransition } = usePageTransition()
 
@@ -74,15 +76,24 @@ const pastEvents = computed(() => {
 })
 
 const userEvents = ref<EventRecord[]>([])
+const seatingPlans = ref<GatheringRecord[]>([])
 const isLoadingEvents = ref(false)
 
 async function loadUserEvents() {
   isLoadingEvents.value = true
   try {
-    userEvents.value = await loadPageData({
-      mock: () => [],
-      fetch: () => fetchUserEvents(true),
-    })
+    const [events, gatherings] = await Promise.all([
+      loadPageData({
+        mock: () => [],
+        fetch: () => fetchUserEvents(true),
+      }),
+      loadPageData({
+        mock: () => listGatherings(),
+        fetch: () => listGatherings(),
+      }).catch(() => [] as GatheringRecord[]),
+    ])
+    userEvents.value = events
+    seatingPlans.value = gatherings
 
     if (isUiOnlyMode.value) {
       const uiPending = getUiPendingPayment()
@@ -119,7 +130,7 @@ async function loadUserEvents() {
       return
     }
 
-    if (!isUiOnlyMode.value && userEvents.value.length === 0) {
+    if (!isUiOnlyMode.value && userEvents.value.length === 0 && seatingPlans.value.length === 0) {
       await navigateTo('/user/create-event')
     }
   } catch (error) {
@@ -303,8 +314,33 @@ onMounted(() => {
           <UButton icon="i-lucide-user-plus" color="neutral" variant="solid" @click.prevent="startPageTransition('/user/create-event')">
             Create New Event
           </UButton>
+          <UButton icon="i-lucide-layout-grid" color="neutral" variant="outline" @click.prevent="startPageTransition('/user/create-seating')">
+            New seating plan
+          </UButton>
         </Teleport>
       </ClientOnly>
+
+      <div v-if="!isLoadingEvents && seatingPlans.length > 0" class="space-y-4">
+        <div class="white-bread-container px-3 py-3 sm:px-6 sm:py-4">
+          <h2 class="text-lg sm:text-2xl font-bold font-serif text-highlighted">Seating plans</h2>
+        </div>
+        <div class="grid gap-3 md:grid-cols-2">
+          <div v-for="plan in seatingPlans" :key="plan._id" class="white-bread-container p-4 space-y-2">
+            <p class="text-sm">{{ plan.packageName }}</p>
+            <h3 class="font-serif text-xl font-bold">{{ plan.name }}</h3>
+            <p class="text-sm">{{ plan.venue }} · {{ formatEventDateLabel(plan.eventDate) }}</p>
+            <p class="text-sm">{{ plan.guestCount }} / {{ plan.maxGuests }} guests</p>
+            <UButton
+              size="sm"
+              :to="plan.status === 'ACTIVE'
+                ? `/seating/${plan._id}`
+                : { path: '/user/seating-payment', query: { gatheringId: plan._id } }"
+            >
+              {{ plan.status === 'ACTIVE' ? 'Open seating plan' : 'Complete payment' }}
+            </UButton>
+          </div>
+        </div>
+      </div>
 
       <UPageGrid v-if="isLoadingEvents" class="grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
         <div v-for="n in 3" :key="`skeleton-home-${n}`" class="white-bread-container rounded-lg overflow-hidden">

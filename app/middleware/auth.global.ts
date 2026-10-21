@@ -40,7 +40,11 @@ async function checkPaymentRestriction(targetPath: string) {
     const events = await fetchUserEvents()
     if (events.length === 0) {
       if (needsCreateEventCheck) {
-        return navigateTo('/user/create-event', { replace: true })
+        const { listGatherings } = useSeating()
+        const gatherings = await listGatherings().catch(() => [])
+        if (gatherings.length === 0) {
+          return navigateTo('/user/create-event', { replace: true })
+        }
       }
     } else if (isSinglePendingEventAccount(events)) {
       if (needsPendingCheck) {

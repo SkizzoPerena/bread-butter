@@ -233,6 +233,10 @@ onMounted(() => {
             ? 'Choose a package tailored to your planning needs and celebration budget.'
             : 'Fill in your initial event details to customize your platform experience.' }}
         </p>
+        <p class="text-xs text-white/80">
+          Need tables and QR codes only?
+          <NuxtLink to="/user/create-seating" class="underline font-semibold">Start a seating plan</NuxtLink>
+        </p>
 
         <!-- View Switcher Tabs indicator -->
         <div class="flex justify-center items-center gap-2 pt-1">
