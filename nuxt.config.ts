@@ -176,10 +176,12 @@ export default defineNuxtConfig({
       setPath('EventSchedulesDashboard', '/event/schedules')
       setPath('EventSettingsDashboard', '/event/settings')
       setPath('EventSuppliersDashboard', '/event/suppliers')
+      setPath('EventBakerDatabase', '/event/bakers')
       setPath('EventTasksDashboard', '/event/tasks')
       setPath('EventWishlistDashboard', '/event/wishlist')
       setPath('SubEventDashboard', '/event/sub-event')
       setPath('AddGuestsBulk', '/event/add-guests-bulk')
+      setPath('EventDressCodeDashboard', '/event/dress-code')
 
       // Set paths for /user/* routes
       setPath('UserCreateEvent', '/user/create-event')

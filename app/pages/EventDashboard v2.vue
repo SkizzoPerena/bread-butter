@@ -556,6 +556,7 @@ type QuickNavItem = {
 }
 
 const QUICK_NAV_ITEMS: QuickNavItem[] = [
+  // Row 1: website - invitation - rsvp
   {
     label: 'Website',
     icon: 'i-lucide-globe',
@@ -586,6 +587,8 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     ringClass: 'ring-1 ring-inset ring-teal-500/25 group-focus-visible:ring-2 group-focus-visible:ring-teal-500',
     textClass: 'text-teal-600',
   },
+
+  // Row 2: guest list - tasks - requirements
   {
     label: 'Guest List',
     icon: 'i-lucide-users',
@@ -595,26 +598,6 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     hoverClass: 'group-hover:bg-orange-500/20',
     ringClass: 'ring-1 ring-inset ring-orange-500/25 group-focus-visible:ring-2 group-focus-visible:ring-orange-500',
     textClass: 'text-orange-600',
-  },
-  {
-    label: 'Gifts',
-    icon: 'i-lucide-gift',
-    action: 'wishlist',
-    description: 'Organize wishlists, gift registry links, and monetary gifts.',
-    bgClass: 'bg-pink-500/10',
-    hoverClass: 'group-hover:bg-pink-500/20',
-    ringClass: 'ring-1 ring-inset ring-pink-500/25 group-focus-visible:ring-2 group-focus-visible:ring-pink-500',
-    textClass: 'text-pink-600',
-  },
-  {
-    label: 'Playlist',
-    icon: 'i-lucide-music',
-    action: 'playlist',
-    description: 'Curate reception tunes, entry songs, and dance tracks.',
-    bgClass: 'bg-lime-500/15',
-    hoverClass: 'group-hover:bg-lime-500/25',
-    ringClass: 'ring-1 ring-inset ring-lime-600/30 group-focus-visible:ring-2 group-focus-visible:ring-lime-600',
-    textClass: 'text-lime-700',
   },
   {
     label: 'Tasks',
@@ -627,14 +610,69 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     textClass: 'text-red-600',
   },
   {
-    label: 'Schedules',
-    icon: 'i-lucide-calendar',
-    action: 'schedules',
-    description: 'Coordinate day-of itineraries and ceremony schedules.',
-    bgClass: 'bg-cyan-500/10',
-    hoverClass: 'group-hover:bg-cyan-500/20',
-    ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
-    textClass: 'text-cyan-700',
+    label: 'Requirements',
+    icon: 'i-lucide-church',
+    action: 'churchRequirements',
+    weddingOnly: true,
+    description: 'Track canonical and legal document submissions.',
+    bgClass: 'bg-yellow-500/15',
+    hoverClass: 'group-hover:bg-yellow-500/25',
+    ringClass: 'ring-1 ring-inset ring-yellow-600/30 group-focus-visible:ring-2 group-focus-visible:ring-yellow-600',
+    textClass: 'text-yellow-700',
+  },
+
+  // Row 3: gallery - colors / dress code - playlist
+  {
+    label: 'Gallery',
+    icon: 'i-lucide-images',
+    action: 'gallery',
+    description: 'Collect, showcase, and share photo albums and event memories.',
+    bgClass: 'bg-indigo-500/10',
+    hoverClass: 'group-hover:bg-indigo-500/20',
+    ringClass: 'ring-1 ring-inset ring-indigo-500/25 group-focus-visible:ring-2 group-focus-visible:ring-indigo-500',
+    textClass: 'text-indigo-600',
+  },
+  {
+    label: 'Colors / Dress Code',
+    icon: 'i-lucide-palette',
+    action: 'colorsDressCode',
+    description: 'Curate event color palettes, attire guides, and guest dress codes.',
+    bgClass: 'bg-rose-500/10',
+    hoverClass: 'group-hover:bg-rose-500/20',
+    ringClass: 'ring-1 ring-inset ring-rose-500/25 group-focus-visible:ring-2 group-focus-visible:ring-rose-500',
+    textClass: 'text-rose-600',
+  },
+  {
+    label: 'Playlist',
+    icon: 'i-lucide-music',
+    action: 'playlist',
+    description: 'Curate reception tunes, entry songs, and dance tracks.',
+    bgClass: 'bg-lime-500/15',
+    hoverClass: 'group-hover:bg-lime-500/25',
+    ringClass: 'ring-1 ring-inset ring-lime-600/30 group-focus-visible:ring-2 group-focus-visible:ring-lime-600',
+    textClass: 'text-lime-700',
+  },
+
+  // Row 4: gifts - baker database - suppliers
+  {
+    label: 'Gifts',
+    icon: 'i-lucide-gift',
+    action: 'wishlist',
+    description: 'Organize wishlists, gift registry links, and monetary gifts.',
+    bgClass: 'bg-pink-500/10',
+    hoverClass: 'group-hover:bg-pink-500/20',
+    ringClass: 'ring-1 ring-inset ring-pink-500/25 group-focus-visible:ring-2 group-focus-visible:ring-pink-500',
+    textClass: 'text-pink-600',
+  },
+  {
+    label: 'Baker Database',
+    icon: 'i-lucide-cake-slice',
+    action: 'bakerDatabase',
+    description: 'Browse artisan bakers, custom wedding cakes, and dessert partners.',
+    bgClass: 'bg-amber-500/15',
+    hoverClass: 'group-hover:bg-amber-500/25',
+    ringClass: 'ring-1 ring-inset ring-amber-600/30 group-focus-visible:ring-2 group-focus-visible:ring-amber-600',
+    textClass: 'text-amber-700',
   },
   {
     label: 'Suppliers',
@@ -646,16 +684,17 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     ringClass: 'ring-1 ring-inset ring-fuchsia-500/25 group-focus-visible:ring-2 group-focus-visible:ring-fuchsia-500',
     textClass: 'text-fuchsia-600',
   },
+
+  // Row 5: schedules - payments - settings
   {
-    label: 'Requirements',
-    icon: 'i-lucide-church',
-    action: 'churchRequirements',
-    weddingOnly: true,
-    description: 'Track canonical and legal document submissions.',
-    bgClass: 'bg-yellow-500/15',
-    hoverClass: 'group-hover:bg-yellow-500/25',
-    ringClass: 'ring-1 ring-inset ring-yellow-600/30 group-focus-visible:ring-2 group-focus-visible:ring-yellow-600',
-    textClass: 'text-yellow-700',
+    label: 'Schedules',
+    icon: 'i-lucide-calendar',
+    action: 'schedules',
+    description: 'Coordinate day-of itineraries and ceremony schedules.',
+    bgClass: 'bg-cyan-500/10',
+    hoverClass: 'group-hover:bg-cyan-500/20',
+    ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
+    textClass: 'text-cyan-700',
   },
   {
     label: 'Payments',
@@ -695,6 +734,33 @@ function isDashboardItemBlocked(item: QuickNavItem): boolean {
 
 function getActiveEventQueryId(): string {
   return eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+}
+
+function openColorsDressCode() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/dress-code', query: { eventId: id } })
+}
+
+function openGallery() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/gallery', query: { eventId: id } })
+}
+
+function openBakerDatabase() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/bakers', query: { eventId: id } })
 }
 
 function openWebsiteMaker() {
@@ -887,6 +953,15 @@ function onQuickNavItemClick(item: QuickNavItem) {
   }
 
   switch (item.action) {
+    case 'colorsDressCode':
+      openColorsDressCode()
+      break
+    case 'gallery':
+      openGallery()
+      break
+    case 'bakerDatabase':
+      openBakerDatabase()
+      break
     case 'website':
       openWebsiteMaker()
       break
@@ -928,6 +1003,9 @@ function onQuickNavItemClick(item: QuickNavItem) {
 
 function getQuickNavSolidBgClass(item: QuickNavItem): string {
   const map: Record<string, string> = {
+    'Colors / Dress Code': 'bg-rose-500',
+    Gallery: 'bg-indigo-500',
+    'Baker Database': 'bg-amber-500',
     Website: 'bg-blue-500',
     Invitation: 'bg-violet-500',
     RSVP: 'bg-teal-500',
@@ -1661,28 +1739,28 @@ watch(eventId, () => {
       style="border-radius: 1.25rem;">
       <div class="flex flex-1 items-center justify-center min-h-0 py-4 px-3 w-full">
         <div
-          class="grid grid-cols-3 gap-x-4 gap-y-5 max-w-xs sm:max-w-sm mx-auto w-full items-center justify-items-center">
+          class="grid grid-cols-3 gap-x-5 sm:gap-x-6 gap-y-6 sm:gap-y-7 max-w-[260px] sm:max-w-[290px] mx-auto w-full items-center justify-items-center">
           <div v-for="item in QUICK_NAV_ITEMS" :key="item.label" role="button" :tabindex="0"
-            class="group flex flex-col items-center justify-center mx-auto w-full p-1 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+            class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
             @click="onQuickNavItemClick(item)">
             <div class="relative flex items-center justify-center w-fit mx-auto">
               <div
-                class="size-14 sm:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+                class="size-11 sm:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
                 :class="[
                   getQuickNavSolidBgClass(item),
                   isDashboardItemBlocked(item)
                     ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                     : ['group-hover:scale-105 group-active:scale-95'],
                 ]">
-                <UIcon :name="item.icon" class="size-7 sm:size-8 text-white shrink-0" />
+                <UIcon :name="item.icon" class="size-5 sm:size-6 text-white shrink-0" />
               </div>
               <div v-if="isDashboardItemBlocked(item)"
-                class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
+                class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
                 title="Upgrade to unlock">
-                <UIcon name="i-lucide-lock" class="size-2.5 block" />
+                <UIcon name="i-lucide-lock" class="size-2 block" />
               </div>
             </div>
-            <div class="font-medium mt-1.5 text-center text-xs leading-tight max-w-20 truncate">
+            <div class="font-medium mt-1 text-center text-[11px] sm:text-xs leading-tight max-w-20 truncate">
               {{ item.label }}
             </div>
           </div>
@@ -2184,21 +2262,21 @@ watch(eventId, () => {
           </div>
 
           <!-- 3-Column App Launcher Grid -->
-          <div class="grid grid-cols-3 gap-2 sm:gap-2.5 w-full">
+          <div class="grid grid-cols-3 gap-3 sm:gap-3.5 xl:gap-4 w-full max-w-[240px] sm:max-w-[260px] lg:max-w-[250px] xl:max-w-[280px] mx-auto">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
-              class="group relative flex flex-col items-center justify-center w-full aspect-square p-1.5 sm:p-2 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
+              class="group relative flex flex-col items-center justify-center w-full aspect-square p-1 sm:p-1.5 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
               @click="onQuickNavItemClick(item)" @mouseenter="onDashboardItemMouseEnter($event, item)"
               @mousemove="onDashboardItemMouseMove($event)" @mouseleave="onDashboardItemMouseLeave">
               <!-- Feature Lock Indicator if blocked -->
               <div v-if="isDashboardItemBlocked(item)"
-                class="absolute top-1.5 right-1.5 size-4 rounded-full bg-black/40 text-white flex items-center justify-center">
-                <UIcon name="i-lucide-lock" class="size-2.5 text-white" />
+                class="absolute top-1 right-1 size-3.5 rounded-full bg-black/40 text-white flex items-center justify-center">
+                <UIcon name="i-lucide-lock" class="size-2 text-white" />
               </div>
               <UIcon :name="item.icon"
-                class="size-6 sm:size-7 md:size-6 lg:size-6 xl:size-8 shrink-0 mb-0.5 sm:mb-1 transition-transform duration-200 group-hover:scale-110" />
+                class="size-5 sm:size-5.5 lg:size-5 xl:size-6 shrink-0 mb-0.5 transition-transform duration-200 group-hover:scale-110" />
               <span
-                class="text-[10px] sm:text-xs md:text-[11px] lg:text-[11px] xl:text-xs font-semibold leading-tight text-center wrap-break-word line-clamp-2 px-0.5 tracking-tight">
+                class="text-[9.5px] sm:text-[10px] lg:text-[10px] xl:text-[11px] font-semibold leading-tight text-center wrap-break-word line-clamp-2 px-0.5 tracking-tight">
                 {{ item.label }}
               </span>
             </button>

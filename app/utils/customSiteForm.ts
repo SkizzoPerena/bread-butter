@@ -1,4 +1,6 @@
 import type { CustomSiteRecord, CustomSiteAccommodation, CustomSiteWhereToStay } from '~/types/customSite'
+import type { DressCodeRecord } from '~/types/dressCode'
+import type { GalleryRecord } from '~/types/gallery'
 import { extractCustomColors, resolveTypography } from '~/utils/websiteTheme'
 
 export interface WebsiteEditorWebsiteData {
@@ -81,6 +83,8 @@ export interface CustomSiteMotifConfig {
   weddingParty?: Array<{ id: string; name: string; role: string; notes?: string }>
   weddingPartyIntro?: string
   whereToStay?: CustomSiteWhereToStay
+  dressCode?: DressCodeRecord | null
+  gallery?: GalleryRecord | null
 }
 
 export function parseMotifConfig(motif?: string | null): CustomSiteMotifConfig | null {
@@ -112,6 +116,8 @@ export interface BuildCustomSiteFormInput {
   weddingPartyMembers?: Array<{ id: string; name: string; role: string; notes?: string }>
   weddingPartyIntro?: string
   whereToStayAccommodations?: CustomSiteAccommodation[]
+  dressCode?: DressCodeRecord | null
+  gallery?: GalleryRecord | null
 }
 
 export interface WebsiteEditorContext {
@@ -131,6 +137,8 @@ export interface WebsiteEditorContext {
   customWeddingPartyMembers?: { value: Array<{ id: string; name: string; role: string; notes?: string }> }
   weddingPartyIntro?: { value: string }
   whereToStayAccommodations?: { value: CustomSiteAccommodation[] }
+  publishedDressCode?: { value: DressCodeRecord | null }
+  galleryData?: { value: GalleryRecord }
 }
 
 function slugifySiteName(title: string, domain: string): string {
@@ -239,8 +247,21 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
       longitude: websiteData.whereToStayLongitude ?? null,
       accommodations: (whereToStayAccommodations || []).slice(0, 4),
     },
+    dressCode: input.dressCode || undefined,
+    gallery: input.gallery || undefined,
   }
   formData.append('motif', JSON.stringify(motifPayload))
+  if (input.gallery?.photos && input.gallery.photos.length > 0) {
+    formData.append(
+      'gallery',
+      JSON.stringify(
+        input.gallery.photos.map((p) => ({
+          imageURL: p.url,
+          caption: p.caption || '',
+        }))
+      )
+    )
+  }
   formData.append('weddingParty', JSON.stringify(input.weddingPartyMembers ?? []))
   formData.append('contactEmail', websiteData.contactEmail)
   formData.append(
@@ -443,6 +464,36 @@ export function applyCustomSiteToEditor(
         link: a.link || '',
         image: a.image || '',
       }))
+    }
+  }
+  if (ctx.publishedDressCode) {
+    const loadedDc = site.dressCode || motifConfig?.dressCode
+    if (loadedDc) {
+      ctx.publishedDressCode.value = loadedDc
+    }
+  }
+  if (ctx.galleryData) {
+    const loadedGal = motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
+      title: 'Captured Moments',
+      subtitle: 'A glimpse into our favorite memories and love story.',
+      layout: 'grid' as const,
+      columns: 3 as const,
+      photos: site.gallery.map((g, i) => ({
+        id: `g-${i}`,
+        url: g.imageURL,
+        caption: g.caption || '',
+      })),
+      enableLightbox: true,
+    } : null)
+    if (loadedGal) {
+      ctx.galleryData.value = {
+        title: loadedGal.title || 'Captured Moments',
+        subtitle: loadedGal.subtitle ?? 'A glimpse into our favorite memories and love story.',
+        layout: loadedGal.layout || 'grid',
+        columns: loadedGal.columns || 3,
+        photos: loadedGal.photos || [],
+        enableLightbox: loadedGal.enableLightbox !== false,
+      }
     }
   }
 }

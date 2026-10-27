@@ -10,6 +10,11 @@ import { groupTasksByDeadlineMonth } from '~/utils/taskDeadlineGroups'
 import { isParentTask } from '~/utils/taskListUpdates'
 import { mapTaskPriority, PRIORITY_FILTER_OPTIONS } from '~/utils/taskPriority'
 import type { PriorityFilterValue } from '~/utils/taskPriority'
+import {
+  calendarDateFromDateValue,
+  calendarDateToUtcIso,
+  parseIsoToCalendarDate,
+} from '~/utils/taskFormat'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -74,6 +79,7 @@ const {
   closeRemoveModal,
   handleStatusChange,
   handlePriorityChange,
+  handleDeadlineChange,
   handleFormSaved,
   handleAssigneesChanged,
   confirmRemoveTask,
@@ -398,6 +404,35 @@ function formatTaskDateStr(dateStr?: string | null): string {
   } catch {
     return '—'
   }
+}
+
+const maxTaskDeadline = computed(() => {
+  const iso = eventRecord.value?.eventDate
+  if (!iso) return undefined
+  return parseIsoToCalendarDate(iso) ?? undefined
+})
+
+function onTaskDeadlineSelected(task: TaskRecord, value: unknown) {
+  const calDate = calendarDateFromDateValue(value as import('@internationalized/date').DateValue | null)
+  if (!calDate) return
+  const iso = calendarDateToUtcIso(calDate)
+  if (task.deadline === iso) return
+
+  const eventIso = eventRecord.value?.eventDate
+  if (eventIso) {
+    const eventTime = new Date(eventIso).getTime()
+    const selectedTime = new Date(iso).getTime()
+    if (!Number.isNaN(eventTime) && !Number.isNaN(selectedTime) && selectedTime > eventTime) {
+      toast.add({
+        title: 'Invalid due date',
+        description: 'Task due date cannot be after the event date.',
+        color: 'error',
+      })
+      return
+    }
+  }
+
+  handleDeadlineChange({ taskId: task._id, deadline: iso })
 }
 
 function isTaskOverdue(task: TaskRecord): boolean {
@@ -983,23 +1018,87 @@ watch(eventId, () => {
                   </div>
                 </template>
 
-                <!-- 2. Due Date Column (compressed to fit exact content) -->
+                <!-- 2. Due Date Column: Editable inline without modal -->
                 <template #deadline-cell="{ row }">
-                  <div class="whitespace-nowrap py-0.5 cursor-pointer text-start"
-                    @click="openDetailsModal(row.original)">
-                    <div v-if="row.original.deadline" class="flex flex-col">
-                      <span class="text-xs font-medium inline-flex items-center gap-1"
-                        :class="isTaskOverdue(row.original) ? 'text-red-600 font-semibold' : row.original.status === 'COMPLETED' ? 'line-through text-muted' : 'text-highlighted'">
-                        <UIcon v-if="isTaskOverdue(row.original)" name="i-lucide-alert-circle"
-                          class="size-3.5 shrink-0 text-red-500" />
-                        {{ formatTaskDateStr(row.original.deadline) }}
-                      </span>
-                      <span v-if="isTaskOverdue(row.original)"
-                        class="text-[10px] text-red-600 font-medium">Overdue</span>
-                      <span v-else-if="isDueThisWeek(row.original.deadline) && row.original.status !== 'COMPLETED'"
-                        class="text-[10px] text-amber-600 font-medium">Due this week</span>
-                    </div>
-                    <span v-else class="text-xs text-muted/60">—</span>
+                  <div class="whitespace-nowrap py-0.5 text-start" @click.stop>
+                    <UPopover :disabled="mutationsDisabled">
+                      <button
+                        type="button"
+                        class="group/date inline-flex flex-col text-start px-2 py-1 -mx-2 -my-1 rounded-md transition-colors cursor-pointer hover:bg-bread-100/70 select-none focus:outline-none focus:ring-1 focus:ring-toast-400"
+                        :class="mutationsDisabled ? 'cursor-not-allowed opacity-75' : ''"
+                        :disabled="mutationsDisabled"
+                        title="Click to edit due date"
+                      >
+                        <div v-if="row.original.deadline" class="flex flex-col">
+                          <span
+                            class="text-xs font-medium inline-flex items-center gap-1.5"
+                            :class="isTaskOverdue(row.original)
+                              ? 'text-red-600 font-semibold'
+                              : row.original.status === 'COMPLETED'
+                              ? 'line-through text-muted'
+                              : 'text-highlighted group-hover/date:text-toast-800'"
+                          >
+                            <UIcon
+                              v-if="isTaskOverdue(row.original)"
+                              name="i-lucide-alert-circle"
+                              class="size-3.5 shrink-0 text-red-500"
+                            />
+                            <UIcon
+                              v-else
+                              name="i-lucide-calendar"
+                              class="size-3 shrink-0 text-toast-400 group-hover/date:text-toast-600"
+                            />
+                            {{ formatTaskDateStr(row.original.deadline) }}
+                            <UIcon
+                              name="i-lucide-pencil"
+                              class="size-2.5 opacity-0 group-hover/date:opacity-100 transition-opacity text-toast-500"
+                            />
+                          </span>
+                          <span
+                            v-if="isTaskOverdue(row.original)"
+                            class="text-[10px] text-red-600 font-medium"
+                          >
+                            Overdue
+                          </span>
+                          <span
+                            v-else-if="isDueThisWeek(row.original.deadline) && row.original.status !== 'COMPLETED'"
+                            class="text-[10px] text-amber-600 font-medium"
+                          >
+                            Due this week
+                          </span>
+                        </div>
+                        <span
+                          v-else
+                          class="text-xs text-muted/70 inline-flex items-center gap-1 group-hover/date:text-toast-800"
+                        >
+                          <UIcon name="i-lucide-calendar-plus" class="size-3 text-toast-400" />
+                          <span>Set due date</span>
+                        </span>
+                      </button>
+
+                      <template #content="{ close }">
+                        <div class="p-2 space-y-2 bg-white rounded-lg shadow-lg">
+                          <div class="px-2 pt-1 flex items-center justify-between text-xs font-semibold text-toast-900 border-b border-bread-200 pb-1.5">
+                            <span class="inline-flex items-center gap-1">
+                              <UIcon name="i-lucide-calendar" class="size-3.5 text-toast-600" />
+                              Change Due Date
+                            </span>
+                            <span v-if="eventDateLabel" class="text-[10px] text-muted font-normal">
+                              Event: {{ eventDateLabel }}
+                            </span>
+                          </div>
+                          <UCalendar
+                            :model-value="parseIsoToCalendarDate(row.original.deadline)"
+                            :max-value="maxTaskDeadline"
+                            class="p-1"
+                            @update:model-value="(value) => {
+                              onTaskDeadlineSelected(row.original, value)
+                              close()
+                            }"
+                          />
+                        </div>
+                      </template>
+                    </UPopover>
                   </div>
                 </template>
 

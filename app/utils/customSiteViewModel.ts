@@ -1,4 +1,6 @@
 import type { PublicCustomSiteRecord } from '~/types/customSite'
+import type { DressCodeRecord } from '~/types/dressCode'
+import type { GalleryRecord } from '~/types/gallery'
 import aisleImage from '~/assets/bpb-images/login-aisle.webp'
 import {
   extractCustomColors,
@@ -17,6 +19,7 @@ export interface CustomSiteDiyComponent {
 }
 
 export interface CustomSiteViewModel {
+  event?: string
   format: string
   siteTitle: string
   siteDescription: string
@@ -49,6 +52,8 @@ export interface CustomSiteViewModel {
   weddingPartyIntro?: string
   weddingPartyMembers?: { id: string; name: string; role: string; notes?: string }[]
   whereToStayAccommodations?: { id?: string; name: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
+  dressCode?: DressCodeRecord | null
+  gallery?: GalleryRecord | null
 }
 
 function parseJsonIfString(value: unknown): any {
@@ -108,6 +113,7 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
   const paletteName = motifConfig?.colorPaletteName || site.colorPaletteName
 
   return {
+    event: site.event,
     format: site.templateType || 'format1',
     siteTitle: site.title,
     siteDescription: site.subtitle,
@@ -177,5 +183,18 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
           image: a.image || '',
         }))
       : (motifConfig?.whereToStay?.accommodations || []),
+    dressCode: site.dressCode || motifConfig?.dressCode || null,
+    gallery: site.galleryRecord || motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
+      title: 'Captured Moments',
+      subtitle: 'A glimpse into our favorite memories and love story.',
+      layout: 'grid',
+      columns: 3,
+      photos: site.gallery.map((g, i) => ({
+        id: `g-${i}`,
+        url: g.imageURL,
+        caption: g.caption || '',
+      })),
+      enableLightbox: true,
+    } : null),
   }
 }

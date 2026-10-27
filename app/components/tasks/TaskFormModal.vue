@@ -30,7 +30,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
-const { createTask, updateTaskDetails, updateTaskPriority, updateTaskAssignee } = useTasks()
+const { createTask, updateTaskDetails, updateTaskPriority, updateTaskAssignee, updateTaskDeadline } = useTasks()
 
 const isEditMode = computed(() => Boolean(props.task))
 const isSubmitting = ref(false)
@@ -128,15 +128,12 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
     return
   }
 
-  let deadlineIso: string | undefined
-  if (!isEditMode.value) {
-    const deadlineError = validateDeadline()
-    if (deadlineError) {
-      toast.add({ title: 'Invalid deadline', description: deadlineError, color: 'error' })
-      return
-    }
-    deadlineIso = calendarDateToUtcIso(deadlineDate.value!)
+  const deadlineError = validateDeadline()
+  if (deadlineError) {
+    toast.add({ title: 'Invalid deadline', description: deadlineError, color: 'error' })
+    return
   }
+  const deadlineIso = deadlineDate.value ? calendarDateToUtcIso(deadlineDate.value) : undefined
 
   isSubmitting.value = true
 
@@ -159,6 +156,10 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
       const previousAssigneeId = props.task.assignee?._id ?? null
       if (previousAssigneeId !== assigneeId.value) {
         await updateTaskAssignee(props.task._id, assigneeId.value)
+      }
+      if (deadlineIso && props.task.deadline !== deadlineIso) {
+        await updateTaskDeadline(props.task._id, deadlineIso, props.eventId)
+        props.task.deadline = deadlineIso
       }
     } else {
       await createTask(
@@ -240,13 +241,8 @@ function removeKeptImage(url: string) {
               :disabled="disabled"
             />
           </UFormField>
-          <UFormField label="Deadline" :required="!isEditMode">
-            <template v-if="isEditMode">
-              <p class="text-sm text-muted py-2">
-                {{ formatTaskDate(task?.deadline) ?? 'No deadline' }}
-              </p>
-            </template>
-            <UPopover v-else>
+          <UFormField label="Deadline" required>
+            <UPopover>
               <UButton
                 color="neutral"
                 variant="outline"

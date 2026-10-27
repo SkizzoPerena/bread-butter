@@ -1,3 +1,6 @@
+import type { DressCodeRecord } from './dressCode'
+import type { GalleryRecord } from './gallery'
+
 export interface CustomSiteTidbit {
   _id?: string
   title: string
@@ -89,12 +92,14 @@ export interface CustomSiteRecord {
   enabledComponents?: string[]
   isPublished?: boolean
   gallery?: { imageURL: string; caption?: string }[]
+  galleryRecord?: GalleryRecord | null
   invertColors?: boolean
   simplifiedColors?: boolean
   singlePageSite?: boolean
   diyComponents?: { id: string; name: string; header: string; content?: string; description?: string }[]
   weddingParty?: CustomSiteWeddingPartyMember[]
   rsvpDeadlineDate?: string | null
+  dressCode?: DressCodeRecord | null
 }
 
 export interface CustomSitesListResponse {

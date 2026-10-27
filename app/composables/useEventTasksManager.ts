@@ -13,6 +13,10 @@ import {
 } from '~/utils/taskListUpdates'
 import type { PriorityFilterValue } from '~/utils/taskPriority'
 import { matchesPriorityFilter } from '~/utils/taskPriority'
+import {
+  applyDeadlineOverrides,
+  removeTaskDeadlineOverride,
+} from '~/utils/taskDeadlineStorage'
 
 export type TaskSortBy = 'deadline' | 'priority'
 
@@ -31,6 +35,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     updateTaskStatus,
     updateTaskPriority,
     updateTaskAssignee,
+    updateTaskDeadline,
     hardDeleteTask,
   } = useTasks()
   const { fetchAssigneesByEvent } = useAssignees()
@@ -162,7 +167,8 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     const targetEventId = options.eventId.value || 'mock-event-id'
     isLoading.value = true
     try {
-      tasks.value = await fetchTasksByEvent(targetEventId)
+      const loaded = await fetchTasksByEvent(targetEventId)
+      tasks.value = applyDeadlineOverrides(loaded, targetEventId)
       syncSummary()
     } catch (error) {
       reportApiError(toast, { title: 'Could not load tasks', error })
@@ -329,6 +335,50 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     }
   }
 
+  async function handleDeadlineChange(payload: { taskId: string; deadline: string }) {
+    if (mutationsDisabled.value) {
+      return
+    }
+
+    const previous = tasks.value.find((task) => task._id === payload.taskId)
+    if (!previous || previous.deadline === payload.deadline) {
+      return
+    }
+
+    tasks.value = tasks.value.map((task) =>
+      task._id === payload.taskId ? { ...task, deadline: payload.deadline } : task
+    )
+    syncSummary()
+    updatingTaskId.value = payload.taskId
+
+    try {
+      const response = await updateTaskDeadline(
+        payload.taskId,
+        payload.deadline,
+        options.eventId.value
+      )
+      if (response.task) {
+        tasks.value = updateTaskInList(tasks.value, {
+          ...previous,
+          ...response.task,
+          deadline: payload.deadline,
+        } as TaskRecord)
+        syncSummary()
+      }
+      toast.add({
+        title: 'Due date updated',
+        description: `Due date for "${previous.title}" has been updated.`,
+        color: 'success',
+      })
+    } catch (error) {
+      tasks.value = updateTaskInList(tasks.value, previous)
+      syncSummary()
+      reportApiError(toast, { title: 'Could not update due date', error })
+    } finally {
+      updatingTaskId.value = null
+    }
+  }
+
   async function handleFormSaved() {
     await reloadAll()
   }
@@ -346,6 +396,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     isRemoveSubmitting.value = true
     try {
       const response = await hardDeleteTask(taskId)
+      removeTaskDeadlineOverride(options.eventId.value, taskId)
       tasks.value = removeTaskFromList(tasks.value, taskId)
       syncSummary()
       const promotedNote =
@@ -411,6 +462,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     handleMoveToTodo,
     handlePriorityChange,
     handleAssigneeChange,
+    handleDeadlineChange,
     handleFormSaved,
     handleAssigneesChanged,
     confirmRemoveTask,

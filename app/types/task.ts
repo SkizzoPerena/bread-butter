@@ -74,5 +74,6 @@ export interface CreateTaskPayload {
 export interface UpdateTaskDetailsPayload {
   title?: string
   details?: string
+  deadline?: string
   keepImageURLs?: string[]
 }

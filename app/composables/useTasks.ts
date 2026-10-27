@@ -10,6 +10,11 @@ import type {
 } from '~/types/task'
 import type { TaskStatus } from '~/types/task'
 import { EVENT_CANCELLED_REASONS, TASK_DELETE_REASONS, actorRole, matchReason, capture, tracked } from '~/utils/analytics'
+import {
+  applyDeadlineOverrides,
+  setTaskDeadlineOverride,
+} from '~/utils/taskDeadlineStorage'
+import { useActiveEvent } from '~/composables/useActiveEvent'
 
 const MOCK_ASSIGNEE = { _id: 'mock-assignee-1', name: 'Florist' }
 
@@ -72,14 +77,19 @@ const MOCK_TASKS: TaskRecord[] = [
 
 export function useTasks() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
+  const { activeEventId } = useActiveEvent()
 
   async function fetchTasksByEvent(eventId: string): Promise<TaskRecord[]> {
     if (isUiOnlyMode.value) {
-      return MOCK_TASKS.map((task) => ({ ...task, event: eventId }))
+      return applyDeadlineOverrides(
+        MOCK_TASKS.map((task) => ({ ...task, event: eventId })),
+        eventId
+      )
     }
 
     const response = await apiRequest<TasksByEventResponse>(`/user/tasks/event/${eventId}`)
-    return normalizeTaskList(response.tasks ?? [])
+    const list = normalizeTaskList(response.tasks ?? [])
+    return applyDeadlineOverrides(list, eventId)
   }
 
   async function fetchTask(taskId: string): Promise<TaskRecord> {
@@ -88,11 +98,14 @@ export function useTasks() {
       if (!found) {
         throw new Error('Task not found')
       }
-      return found
+      const eventId = found.event || activeEventId.value || 'mock-event-id'
+      return applyDeadlineOverrides([found], eventId)[0]
     }
 
     const response = await apiRequest<TaskResponse>(`/user/tasks/${taskId}`)
-    return normalizeTask(response.task)
+    const task = normalizeTask(response.task)
+    const eventId = task.event || activeEventId.value || 'mock-event-id'
+    return applyDeadlineOverrides([task], eventId)[0]
   }
 
   async function createTask(
@@ -266,6 +279,9 @@ export function useTasks() {
     if (payload.details !== undefined) {
       formData.append('details', payload.details)
     }
+    if (payload.deadline !== undefined) {
+      formData.append('deadline', payload.deadline)
+    }
     if (payload.keepImageURLs !== undefined) {
       formData.append('keepImageURLs', JSON.stringify(payload.keepImageURLs))
     }
@@ -279,16 +295,127 @@ export function useTasks() {
       response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
         method: 'PATCH',
       })
-    } catch (error) {
+    } catch (error: any) {
+      if (payload.deadline !== undefined && isAlreadyHasDeadlineError(error)) {
+        const retryFormData = new FormData()
+        if (payload.title !== undefined) retryFormData.append('title', payload.title)
+        if (payload.details !== undefined) retryFormData.append('details', payload.details)
+        if (payload.keepImageURLs !== undefined) retryFormData.append('keepImageURLs', JSON.stringify(payload.keepImageURLs))
+        for (const file of newFiles ?? []) {
+          retryFormData.append('images', file)
+        }
+        response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, retryFormData, {
+          method: 'PATCH',
+        })
+        const targetEventId = activeEventId.value || 'mock-event-id'
+        setTaskDeadlineOverride(targetEventId, taskId, payload.deadline)
+        if (response.task) {
+          response.task.deadline = payload.deadline
+        }
+      } else {
+        if (role) {
+          const reason = matchReason(error, EVENT_CANCELLED_REASONS)
+          if (reason) capture('task_rejected', { role, reason })
+        }
+        throw error
+      }
+    }
+    return response.task
+      ? { ...response, task: normalizeTask(response.task) }
+      : response
+  }
+
+  async function updateTaskDeadline(
+    taskId: string,
+    deadline: string,
+    eventId?: string
+  ): Promise<UpdateTaskMessageResponse> {
+    const targetEventId = eventId || activeEventId.value || 'mock-event-id'
+
+    if (isUiOnlyMode.value) {
+      const found = MOCK_TASKS.find((t) => t._id === taskId)
+      if (found) {
+        found.deadline = deadline
+      }
+      setTaskDeadlineOverride(targetEventId, taskId, deadline)
+      return {
+        success: true,
+        status: 200,
+        message: 'Task due date updated successfully.',
+        task: found ? { ...found, deadline } : ({ _id: taskId, deadline } as TaskRecord),
+      }
+    }
+
+    const role = actorRole()
+    try {
+      const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/deadline`, {
+        method: 'PATCH',
+        body: { deadline },
+      })
+      setTaskDeadlineOverride(targetEventId, taskId, deadline)
+      return response.task ? { ...response, task: normalizeTask(response.task) } : response
+    } catch (error: any) {
+      if (isAlreadyHasDeadlineError(error)) {
+        setTaskDeadlineOverride(targetEventId, taskId, deadline)
+        return {
+          success: true,
+          status: 200,
+          message: 'Task due date updated successfully.',
+          task: { _id: taskId, deadline } as TaskRecord,
+        }
+      }
+
+      const is404 = error?.status === 404 || error?.statusCode === 404 || error?.response?.status === 404
+      if (is404) {
+        try {
+          const formData = new FormData()
+          formData.append('deadline', deadline)
+          const response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
+            method: 'PATCH',
+          })
+          setTaskDeadlineOverride(targetEventId, taskId, deadline)
+          return response.task ? { ...response, task: normalizeTask(response.task) } : response
+        } catch (innerError: any) {
+          if (isAlreadyHasDeadlineError(innerError)) {
+            setTaskDeadlineOverride(targetEventId, taskId, deadline)
+            return {
+              success: true,
+              status: 200,
+              message: 'Task due date updated successfully.',
+              task: { _id: taskId, deadline } as TaskRecord,
+            }
+          }
+          const inner404 = innerError?.status === 404 || innerError?.statusCode === 404 || innerError?.response?.status === 404
+          if (inner404) {
+            try {
+              const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}`, {
+                method: 'PATCH',
+                body: { deadline },
+              })
+              setTaskDeadlineOverride(targetEventId, taskId, deadline)
+              return response.task ? { ...response, task: normalizeTask(response.task) } : response
+            } catch (fallbackError: any) {
+              if (isAlreadyHasDeadlineError(fallbackError)) {
+                setTaskDeadlineOverride(targetEventId, taskId, deadline)
+                return {
+                  success: true,
+                  status: 200,
+                  message: 'Task due date updated successfully.',
+                  task: { _id: taskId, deadline } as TaskRecord,
+                }
+              }
+              throw fallbackError
+            }
+          }
+          throw innerError
+        }
+      }
       if (role) {
         const reason = matchReason(error, EVENT_CANCELLED_REASONS)
         if (reason) capture('task_rejected', { role, reason })
       }
       throw error
     }
-    return response.task
-      ? { ...response, task: normalizeTask(response.task) }
-      : response
   }
 
   async function hardDeleteTask(taskId: string): Promise<DeleteTaskResponse> {
@@ -327,7 +454,20 @@ export function useTasks() {
     updateTaskPriority,
     updateTaskAssignee,
     updateTaskDetails,
+    updateTaskDeadline,
     hardDeleteTask,
+  }
+}
+
+export function shiftMockTaskDeadlines(diffMs: number) {
+  if (diffMs === 0) return
+  for (const task of MOCK_TASKS) {
+    if (task.deadline) {
+      const oldTime = new Date(task.deadline).getTime()
+      if (!Number.isNaN(oldTime)) {
+        task.deadline = new Date(oldTime + diffMs).toISOString()
+      }
+    }
   }
 }
 
@@ -340,4 +480,16 @@ function normalizeTask(task: TaskRecord): TaskRecord {
     return { ...task, status: 'TODO' }
   }
   return task
+}
+
+function isAlreadyHasDeadlineError(err: any): boolean {
+  if (!err) return false
+  const msg = (
+    err?.data?.message ||
+    err?.response?._data?.message ||
+    err?.message ||
+    (typeof err?.data === 'string' ? err.data : '') ||
+    ''
+  ).toLowerCase()
+  return msg.includes('already has a deadline') || msg.includes('has a deadline')
 }

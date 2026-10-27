@@ -346,48 +346,50 @@ watch(eventId, async () => {
         </UButton>
       </div>
 
-      <div v-else class="space-y-6">
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <UPageCard
           v-for="playlist in playlists"
           :key="playlist._id"
-          class="white-bread-container space-y-4"
+          class="white-bread-container space-y-4 flex flex-col justify-between"
         >
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 class="text-lg font-semibold font-serif text-muted">
-                {{ playlist.label }}
-              </h3>
-              <p class="mt-1 text-xs text-muted break-all">
-                {{ playlist.spotifyURL }}
-              </p>
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <h3 class="text-lg font-semibold font-serif text-muted truncate" :title="playlist.label">
+                  {{ playlist.label }}
+                </h3>
+                <p class="mt-1 text-xs text-muted truncate" :title="playlist.spotifyURL">
+                  {{ playlist.spotifyURL }}
+                </p>
+              </div>
+
+              <div class="flex shrink-0 gap-1.5">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="lime"
+                  variant="outline"
+                  size="xs"
+                  :disabled="mutationsDisabled || isSubmitting"
+                  @click="openEditModal(playlist)"
+                >
+                  Edit
+                </UButton>
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="outline"
+                  size="xs"
+                  :loading="deletingPlaylistId === playlist._id"
+                  :disabled="mutationsDisabled || isSubmitting"
+                  @click="openDeleteModal(playlist)"
+                >
+                  Remove
+                </UButton>
+              </div>
             </div>
 
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                icon="i-lucide-pencil"
-                color="lime"
-                variant="outline"
-                size="sm"
-                :disabled="mutationsDisabled || isSubmitting"
-                @click="openEditModal(playlist)"
-              >
-                Edit
-              </UButton>
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="outline"
-                size="sm"
-                :loading="deletingPlaylistId === playlist._id"
-                :disabled="mutationsDisabled || isSubmitting"
-                @click="openDeleteModal(playlist)"
-              >
-                Remove
-              </UButton>
-            </div>
+            <SpotifyPlaylistEmbed :playlist-url="playlist.spotifyURL" compact />
           </div>
-
-          <SpotifyPlaylistEmbed :playlist-url="playlist.spotifyURL" />
         </UPageCard>
       </div>
     </div>

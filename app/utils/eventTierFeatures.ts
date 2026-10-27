@@ -39,6 +39,9 @@ export const FEATURE_MIN_TIER: Record<EventFeature, TierCode> = {
 }
 
 export type DashboardAction =
+  | 'colorsDressCode'
+  | 'gallery'
+  | 'bakerDatabase'
   | 'website'
   | 'invitation'
   | 'guestList'
@@ -53,7 +56,7 @@ export type DashboardAction =
   | 'suppliers'
 
 export const DASHBOARD_FEATURE_BY_ACTION: Record<
-  Exclude<DashboardAction, 'settings'>,
+  Exclude<DashboardAction, 'settings' | 'colorsDressCode' | 'gallery' | 'bakerDatabase'>,
   EventFeature
 > = {
   website: EVENT_FEATURE.WEBSITE,
@@ -273,11 +276,16 @@ export function isDashboardActionAllowed(
     | undefined,
   action: DashboardAction
 ): boolean {
-  if (action === 'settings') {
+  if (
+    action === 'settings' ||
+    action === 'colorsDressCode' ||
+    action === 'gallery' ||
+    action === 'bakerDatabase'
+  ) {
     return true
   }
 
-  const feature = DASHBOARD_FEATURE_BY_ACTION[action]
+  const feature = (DASHBOARD_FEATURE_BY_ACTION as Partial<Record<DashboardAction, EventFeature>>)[action]
   if (!feature) {
     return false
   }
