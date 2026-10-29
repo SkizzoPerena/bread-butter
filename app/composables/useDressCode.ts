@@ -58,36 +58,30 @@ export function setLocalDressCode(eventId: string, record: DressCodeRecord): voi
   }
 }
 
+function isNotFound(error: unknown): boolean {
+  const err = error as { statusCode?: number; status?: number; response?: { status?: number } }
+  const status = err?.statusCode ?? err?.status ?? err?.response?.status
+  return status === 404
+}
+
 export function useDressCode() {
-  const { apiRequest, executeAction } = useApiMode()
+  const { apiRequest, isUiOnlyMode } = useApiMode()
   const isLoading = ref(false)
   const isSaving = ref(false)
 
   async function fetchDressCode(eventId: string): Promise<DressCodeRecord> {
     isLoading.value = true
     try {
-      const result = await executeAction<{ success: boolean; status: number; dressCode?: DressCodeRecord }>({
-        api: async () => {
-          try {
-            return await apiRequest<DressCodeResponse>(`/user/events/${eventId}/dress-code`)
-          } catch {
-            return {
-              success: true,
-              status: 200,
-              dressCode: getLocalDressCode(eventId),
-            }
-          }
-        },
-        uiOnly: () => ({
-          success: true,
-          status: 200,
-          dressCode: getLocalDressCode(eventId),
-        }),
-      })
+      if (isUiOnlyMode.value) return getLocalDressCode(eventId)
 
-      if (result?.dressCode) {
-        setLocalDressCode(eventId, result.dressCode)
-        return result.dressCode
+      try {
+        const result = await apiRequest<DressCodeResponse>(`/user/events/${eventId}/dress-code`)
+        if (result?.dressCode) {
+          setLocalDressCode(eventId, result.dressCode)
+          return result.dressCode
+        }
+      } catch (error) {
+        if (!isNotFound(error)) throw error
       }
       return getLocalDressCode(eventId)
     } finally {
@@ -106,27 +100,20 @@ export function useDressCode() {
         updatedAt: new Date().toISOString(),
       }
 
-      await executeAction({
-        api: async () => {
-          try {
-            await apiRequest<DressCodeResponse>(`/user/events/${eventId}/dress-code`, {
-              method: 'PUT',
-              body: merged,
-            })
-          } catch (err) {
-            console.warn('[useDressCode] Backend endpoint not available, falling back to local persistence', err)
-          }
-          return { success: true, status: 200, dressCode: merged }
-        },
-        uiOnly: () => ({
-          success: true,
-          status: 200,
-          dressCode: merged,
-        }),
-      })
+      if (isUiOnlyMode.value) {
+        setLocalDressCode(eventId, merged)
+        return merged
+      }
 
-      setLocalDressCode(eventId, merged)
-      return merged
+      const response = await apiRequest<DressCodeResponse>(`/user/events/${eventId}/dress-code`, {
+        method: 'PUT',
+        body: merged,
+      })
+      const saved: DressCodeRecord = response.dressCode
+        ? { ...merged, ...response.dressCode, event: eventId }
+        : merged
+      setLocalDressCode(eventId, saved)
+      return saved
     } finally {
       isSaving.value = false
     }
