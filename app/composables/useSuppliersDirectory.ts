@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { getApiErrorMessage } from '~/types/auth'
 import {
   SUPPLIERS_DIRECTORY_DATA,
   type SupplierCategory,
@@ -21,6 +22,16 @@ function cloneInitialDirectory(): SupplierCategory[] {
     subcategories: cat.subcategories.map((sub) => ({
       ...sub,
       vendors: [...sub.vendors]
+    }))
+  }))
+}
+
+function emptyCategoryShells(): SupplierCategory[] {
+  return SUPPLIERS_DIRECTORY_DATA.map((cat) => ({
+    ...cat,
+    subcategories: cat.subcategories.map((sub) => ({
+      ...sub,
+      vendors: []
     }))
   }))
 }
@@ -95,8 +106,10 @@ export function useSuppliersDirectory() {
     return cloneInitialDirectory()
   }
 
-  function populateCategoriesFromFlatSuppliers(suppliers: DirectorySupplier[]): SupplierCategory[] {
-    const template = cloneInitialDirectory()
+  function populateCategoriesFromFlatSuppliers(
+    suppliers: DirectorySupplier[],
+    template = cloneInitialDirectory()
+  ): SupplierCategory[] {
 
     for (const rawSupplier of suppliers) {
       if (!rawSupplier || !rawSupplier.name) continue
@@ -149,37 +162,17 @@ export function useSuppliersDirectory() {
     }
 
     try {
-      let response: unknown = null
-
-      try {
-        response = await apiRequest<DirectorySuppliersResponse>('/public/suppliers', { authenticated: false })
-      } catch (firstErr: unknown) {
-        // Attempt fallback public endpoints in case backend exposes /suppliers or /suppliers/directory
-        const errObj = firstErr as { response?: { status?: number }; statusCode?: number } | undefined
-        const status = errObj?.response?.status ?? errObj?.statusCode
-        if (status === 404) {
-          try {
-            response = await apiRequest<DirectorySuppliersResponse>('/suppliers', { authenticated: false })
-          } catch {
-            try {
-              response = await apiRequest<DirectorySuppliersResponse>('/suppliers/directory', { authenticated: false })
-            } catch {
-              // Undeployed endpoint gracefully falls back to empty template
-              response = null
-            }
-          }
-        } else {
-          response = null
-        }
-      }
-
-      const normalized = normalizeSuppliersResponse(response)
-      suppliersData.value = normalized
+      const response = await apiRequest<DirectorySuppliersResponse>('/public/suppliers', { authenticated: false })
+      const suppliers = Array.isArray(response?.suppliers) ? response.suppliers : null
+      suppliersData.value = suppliers
+        ? populateCategoriesFromFlatSuppliers(suppliers, emptyCategoryShells())
+        : normalizeSuppliersResponse(response)
+      error.value = null
       isFetched.value = true
-      return normalized
-    } catch {
-      // Keep existing structure so UI remains intact
-      suppliersData.value = cloneInitialDirectory()
+      return suppliersData.value
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'The supplier directory could not be loaded.')
+      suppliersData.value = emptyCategoryShells()
       isFetched.value = true
       return suppliersData.value
     } finally {
