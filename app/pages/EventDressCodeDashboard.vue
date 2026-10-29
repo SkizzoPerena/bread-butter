@@ -8,7 +8,6 @@ import type {
   UploadedDressCodeImage,
 } from '~/types/dressCode'
 import { defaultDressCodeData, useDressCode } from '~/composables/useDressCode'
-import { getApiErrorMessage } from '~/types/auth'
 import { colorPalettes } from '~/utils/websiteTheme'
 
 definePageMeta({
@@ -557,7 +556,7 @@ async function handleSave() {
   } catch (err) {
     toast.add({
       title: 'Publish failed',
-      description: getApiErrorMessage(err, 'Could not save dress code. Please try again.'),
+      description: 'Could not save dress code. Please try again.',
       color: 'error',
     })
   } finally {
