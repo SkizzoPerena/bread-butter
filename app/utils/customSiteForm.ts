@@ -473,7 +473,7 @@ export function applyCustomSiteToEditor(
     }
   }
   if (ctx.galleryData) {
-    const loadedGal = motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
+    const loadedGal = site.galleryRecord || motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
       title: 'Captured Moments',
       subtitle: 'A glimpse into our favorite memories and love story.',
       layout: 'grid' as const,

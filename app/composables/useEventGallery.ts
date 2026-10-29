@@ -105,7 +105,14 @@ export const defaultGalleryRecord: GalleryRecord = {
 
 const STORAGE_PREFIX = 'bread_gallery_'
 
+interface GalleryResponse {
+  success?: boolean
+  gallery?: GalleryRecord | null
+}
+
 export function useEventGallery() {
+  const { apiRequest, isUiOnlyMode } = useApiMode()
+
   function getLocalGallery(eventId: string): GalleryRecord | null {
     if (typeof window === 'undefined') return null
     try {
@@ -138,37 +145,47 @@ export function useEventGallery() {
     }
   }
 
-  async function fetchGallery(eventId: string): Promise<GalleryRecord> {
-    const local = getLocalGallery(eventId)
-    if (local) return local
+  function normalizeGallery(gallery: GalleryRecord): GalleryRecord {
+    return {
+      title: gallery.title || defaultGalleryRecord.title,
+      subtitle: gallery.subtitle !== undefined ? gallery.subtitle : defaultGalleryRecord.subtitle,
+      layout: gallery.layout || defaultGalleryRecord.layout,
+      columns: gallery.columns || defaultGalleryRecord.columns,
+      photos: Array.isArray(gallery.photos) ? gallery.photos : [],
+      enableLightbox: gallery.enableLightbox !== false,
+    }
+  }
 
-    if (eventId) {
-      try {
-        const res = await $fetch<{ success?: boolean; gallery?: GalleryRecord }>(`/api/events/${encodeURIComponent(eventId)}/gallery`).catch(() => null)
-        if (res?.gallery) {
-          setLocalGallery(eventId, res.gallery)
-          return res.gallery
-        }
-      } catch {
-        // fallback
-      }
+  async function fetchGallery(eventId: string): Promise<GalleryRecord> {
+    if (isUiOnlyMode.value || !eventId || eventId === 'mock-event-id') {
+      return getLocalGallery(eventId) || { ...defaultGalleryRecord, photos: [...sampleGalleryPhotos] }
+    }
+
+    const response = await apiRequest<GalleryResponse>(`/user/events/${eventId}/gallery`)
+    if (response?.gallery) {
+      const gallery = normalizeGallery(response.gallery)
+      setLocalGallery(eventId, gallery)
+      return gallery
     }
 
     return { ...defaultGalleryRecord, photos: [...sampleGalleryPhotos] }
   }
 
   async function saveGallery(eventId: string, data: GalleryRecord): Promise<boolean> {
-    setLocalGallery(eventId, data)
-    if (eventId) {
-      try {
-        await $fetch(`/api/events/${encodeURIComponent(eventId)}/gallery`, {
-          method: 'POST',
-          body: { gallery: data },
-        }).catch(() => null)
-      } catch {
-        // local save succeeded
-      }
+    const gallery = normalizeGallery(data)
+    if (isUiOnlyMode.value || !eventId || eventId === 'mock-event-id') {
+      setLocalGallery(eventId, gallery)
+      return true
     }
+
+    const response = await apiRequest<GalleryResponse>(`/user/events/${eventId}/gallery`, {
+      method: 'PUT',
+      body: gallery,
+    })
+    if (!response?.gallery) {
+      throw new Error('Could not save gallery.')
+    }
+    setLocalGallery(eventId, normalizeGallery(response.gallery))
     return true
   }
 
@@ -177,7 +194,8 @@ export function useEventGallery() {
       return photos
     }
     const updated = [...photos]
-    const [dragged] = updated.splice(fromIndex, 1)
+    const dragged = updated.splice(fromIndex, 1)[0]
+    if (!dragged) return photos
     updated.splice(toIndex, 0, dragged)
     return updated
   }
