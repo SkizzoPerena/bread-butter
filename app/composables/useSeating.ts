@@ -185,6 +185,43 @@ export function useSeating() {
     return response.payment
   }
 
+  async function submitDraftProof(details: {
+    packageId: string
+    name: string
+    venue: string
+    eventDate: string
+  }, payload: {
+    transactionId: string
+    paymentMethod: string
+    proofOfPayment: File
+  }): Promise<{ gatheringId: string }> {
+    if (isUiOnlyMode.value) {
+      const gathering = await createGathering(details)
+      gathering.payment = {
+        _id: `mock-payment-${Date.now()}`,
+        amount: gathering.pricePhp,
+        status: 'PENDING',
+        paymentMethod: payload.paymentMethod,
+        transactionId: payload.transactionId,
+        provider: 'MANUAL',
+      }
+      return { gatheringId: gathering._id }
+    }
+    const form = new FormData()
+    form.append('packageId', details.packageId)
+    form.append('name', details.name)
+    form.append('venue', details.venue)
+    form.append('eventDate', details.eventDate)
+    form.append('transactionId', payload.transactionId)
+    form.append('paymentMethod', payload.paymentMethod)
+    form.append('proofOfPayment', payload.proofOfPayment)
+    const response = await apiUpload<PaymentResponse & { gathering?: { _id: string } }>(
+      '/user/seating/payment-proof',
+      form,
+    )
+    return { gatheringId: String(response.gathering?._id || '') }
+  }
+
   async function createCheckout(gatheringId: string, cancelPath: string): Promise<CheckoutResponse> {
     if (isUiOnlyMode.value) {
       return {
@@ -542,6 +579,35 @@ export function useSeating() {
     return apiRequest<PublicSeatDetail>(`/guest/seating/attend/${token}${query}`, { authenticated: false })
   }
 
+  async function updateGathering(gatheringId: string, body: {
+    packageId?: string
+    name?: string
+    venue?: string
+    eventDate?: string
+  }): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      if (gathering.status !== 'PENDING_PAYMENT') throw new Error('The package can only be changed before payment is approved.')
+      if (body.packageId) {
+        const jamPackage = packages.value.find((item) => item._id === body.packageId)
+        if (!jamPackage) throw new Error('This package is not available.')
+        gathering.jamPackage = jamPackage._id
+        gathering.packageName = jamPackage.name
+        gathering.pricePhp = jamPackage.pricePhp
+        gathering.maxGuests = jamPackage.maxGuests
+      }
+      if (body.name !== undefined) gathering.name = body.name
+      if (body.venue !== undefined) gathering.venue = body.venue
+      if (body.eventDate !== undefined) gathering.eventDate = body.eventDate
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}`, {
+      method: 'PATCH',
+      body,
+    })
+    return response.gathering
+  }
+
   async function saveInvitation(gatheringId: string, body: {
     passcode?: string
     invitationSubject?: string
@@ -572,28 +638,6 @@ export function useSeating() {
     return apiRequest(`/user/seating/gatherings/${gatheringId}/invites`, {
       method: 'POST',
       body: guestIds?.length ? { guestIds } : {},
-    })
-  }
-
-  async function importGuests(gatheringId: string, text: string): Promise<void> {
-    if (isUiOnlyMode.value) {
-      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-      for (const line of lines) {
-        const comma = line.lastIndexOf(',')
-        const name = line.slice(0, comma).trim()
-        const email = line.slice(comma + 1).trim()
-        const parts = name.split(/\s+/).filter(Boolean)
-        await createGuest(gatheringId, {
-          firstName: parts[0] || '',
-          lastName: parts.slice(1).join(' '),
-          email,
-        })
-      }
-      return
-    }
-    await apiRequest(`/user/seating/gatherings/${gatheringId}/guests/import`, {
-      method: 'POST',
-      body: { text },
     })
   }
 
@@ -676,7 +720,9 @@ export function useSeating() {
     listGatherings,
     getGathering,
     createGathering,
+    updateGathering,
     submitProof,
+    submitDraftProof,
     createCheckout,
     getCheckoutStatus,
     listGuests,
@@ -696,7 +742,6 @@ export function useSeating() {
     fetchAttendance,
     saveInvitation,
     sendInvites,
-    importGuests,
     exportGuests,
     fetchJamSite,
     unlockJamSite,

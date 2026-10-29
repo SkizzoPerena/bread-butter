@@ -40,7 +40,10 @@ onMounted(async () => {
     return
   }
   const events = await fetchUserEvents().catch(() => [])
-  const dest = resolveUserPostLoginRedirect(events, redirect)
+  const gatherings = events.length === 0
+    ? await useSeating().listGatherings().catch(() => [])
+    : []
+  const dest = resolveUserPostLoginRedirect(events, redirect, gatherings)
   await navigateTo(dest)
 })
 
@@ -98,7 +101,10 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     }
 
     const events = await fetchUserEvents(true).catch(() => [])
-    const dest = resolveUserPostLoginRedirect(events, redirect)
+    const gatherings = events.length === 0
+      ? await useSeating().listGatherings().catch(() => [])
+      : []
+    const dest = resolveUserPostLoginRedirect(events, redirect, gatherings)
     await navigateTo(dest)
   } catch (error) {
     const isRestricted = isRestrictedAccountError(error)

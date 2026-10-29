@@ -39,8 +39,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="bg-toast-700 min-h-screen">
-    <UContainer class="py-16 max-w-lg">
+  <div class="bg-toast-700 min-h-screen pt-24 sm:pt-28 pb-10">
+    <UContainer class="max-w-lg">
       <div class="white-bread-container p-8 space-y-4 text-center">
         <h1 class="text-3xl font-serif font-bold">
           {{ status === 'approved' ? 'Payment received' : status === 'processing' ? 'Payment processing' : status === 'error' ? 'Payment not confirmed' : 'Checking payment' }}

@@ -260,8 +260,13 @@ export function buildUserPaymentQuery(event: EventRecord): Record<string, string
 export function resolveUserPostLoginRedirect(
   events: EventRecord[],
   redirect?: string,
+  gatherings: unknown[] = [],
 ): string | { path: string; query: Record<string, string> } {
   if (events.length === 0) {
+    if (gatherings.length > 0) {
+      if (redirect && redirect !== '/' && redirect !== '/user/create-event') return redirect
+      return '/'
+    }
     return redirect && redirect !== '/' ? redirect : '/user/create-event'
   }
 

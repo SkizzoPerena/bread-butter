@@ -30,7 +30,6 @@ const guestForm = reactive({
   partyName: '',
   rsvpStatus: 'PENDING' as RsvpStatus,
 })
-const pasteText = ref('')
 const inviteForm = reactive({
   passcode: '',
   invitationSubject: '',
@@ -88,20 +87,6 @@ async function setResponse(guest: SeatingGuestRecord, rsvpStatus: RsvpStatus) {
     await load()
   } catch (error) {
     toast.add({ title: 'Could not update guest', description: getApiErrorMessage(error), color: 'error' })
-  }
-}
-
-async function pasteGuests() {
-  saving.value = true
-  try {
-    await seating.importGuests(gatheringId.value, pasteText.value)
-    pasteText.value = ''
-    await load()
-    toast.add({ title: 'Guests added', color: 'success' })
-  } catch (error) {
-    toast.add({ title: 'Could not add guests', description: getApiErrorMessage(error), color: 'error' })
-  } finally {
-    saving.value = false
   }
 }
 
@@ -283,7 +268,7 @@ function tableFor(guest: SeatingGuestRecord) {
 </script>
 
 <template>
-  <div class="bg-bread-400 min-h-screen py-8">
+  <div class="bg-bread-400 min-h-screen pt-24 sm:pt-28 pb-10">
     <UContainer class="space-y-6 max-w-5xl">
       <div
         v-if="loading"
@@ -388,25 +373,6 @@ function tableFor(guest: SeatingGuestRecord) {
               :loading="saving"
             >
               Add guest
-            </UButton>
-          </form>
-
-          <form
-            class="space-y-3"
-            @submit.prevent="pasteGuests"
-          >
-            <textarea
-              v-model="pasteText"
-              rows="4"
-              placeholder="First Last, email"
-              class="w-full rounded-md border border-toast-600/30 bg-white px-3 py-2"
-            />
-            <UButton
-              type="submit"
-              variant="outline"
-              :loading="saving"
-            >
-              Add pasted guests
             </UButton>
           </form>
 

@@ -41,10 +41,13 @@ onMounted(async () => {
     try {
       const events = await fetchUserEvents()
       if (events.length === 0) {
-        await navigateTo('/user/create-event', { replace: true })
-        return
-      }
-      if (isSinglePendingEventAccount(events)) {
+        const { listGatherings } = useSeating()
+        const gatherings = await listGatherings().catch(() => [])
+        if (gatherings.length === 0) {
+          await navigateTo('/user/create-event', { replace: true })
+          return
+        }
+      } else if (isSinglePendingEventAccount(events)) {
         await navigateTo({
           path: '/user/payment-pending',
           query: buildPendingPaymentQuery(events[0]) as Record<string, string>,

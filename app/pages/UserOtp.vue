@@ -132,8 +132,11 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
           color: 'success',
         })
         const events = await fetchUserEvents(true).catch(() => [])
+        const gatherings = events.length === 0
+          ? await useSeating().listGatherings().catch(() => [])
+          : []
         const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
-        const dest = resolveUserPostLoginRedirect(events, redirect)
+        const dest = resolveUserPostLoginRedirect(events, redirect, gatherings)
         await navigateTo(dest)
       },
     })

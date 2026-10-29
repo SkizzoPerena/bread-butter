@@ -21,6 +21,7 @@ import {
 const toast = useToast()
 const { fetchUserEvents, updateEvent } = useEvents()
 const { listGatherings } = useSeating()
+const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { loadPageData, isUiOnlyMode } = useApiMode()
 const { startPageTransition, finishPageTransition } = usePageTransition()
 
@@ -298,6 +299,7 @@ function handleEventAction(event: EventRecord) {
 }
 
 onMounted(() => {
+  loadSeatingFeature()
   loadUserEvents()
 })
 </script>
@@ -314,13 +316,19 @@ onMounted(() => {
           <UButton icon="i-lucide-user-plus" color="neutral" variant="solid" @click.prevent="startPageTransition('/user/create-event')">
             Create New Event
           </UButton>
-          <UButton icon="i-lucide-layout-grid" color="neutral" variant="outline" @click.prevent="startPageTransition('/user/create-seating')">
+          <UButton
+            v-if="seatingPlansEnabled"
+            icon="i-lucide-layout-grid"
+            color="neutral"
+            variant="outline"
+            @click.prevent="startPageTransition('/user/create-seating')"
+          >
             New seating plan
           </UButton>
         </Teleport>
       </ClientOnly>
 
-      <div v-if="!isLoadingEvents && seatingPlans.length > 0" class="space-y-4">
+      <div v-if="seatingPlansEnabled && !isLoadingEvents && seatingPlans.length > 0" class="space-y-4">
         <div class="white-bread-container px-3 py-3 sm:px-6 sm:py-4">
           <h2 class="text-lg sm:text-2xl font-bold font-serif text-highlighted">Seating plans</h2>
         </div>
