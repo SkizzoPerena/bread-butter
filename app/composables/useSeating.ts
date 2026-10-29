@@ -1,9 +1,13 @@
 import type {
   CheckInResult,
   GatheringRecord,
+  JamInvitation,
   JamPackageRecord,
+  JamRsvpResult,
+  JamSitePreview,
   PublicSeatDetail,
   PublicSeatList,
+  RsvpStatus,
   SeatingGuestRecord,
   SeatingPaymentRecord,
   SeatingTable,
@@ -26,6 +30,9 @@ interface GuestsResponse {
   maxGuests: number
   guestCount: number
   attendingCount: number
+  goingCount?: number
+  notGoingCount?: number
+  pendingCount?: number
 }
 
 interface GuestResponse {
@@ -128,6 +135,9 @@ export function useSeating() {
         jamPackage: jamPackage._id,
         publicToken: mockToken(),
         publicPath: '',
+        passcode: '',
+        invitationSubject: '',
+        invitationMessage: '',
         tables: [],
         guestCount: 0,
         attendingCount: 0,
@@ -216,7 +226,10 @@ export function useSeating() {
     email: string
     partyName?: string
     isAttending?: boolean
+    rsvpStatus?: RsvpStatus
   }): Promise<SeatingGuestRecord> {
+    const rsvpStatus: RsvpStatus = body.rsvpStatus
+      || (body.isAttending ? 'GOING' : 'PENDING')
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const guests = mockGuests(gatheringId)
@@ -227,7 +240,8 @@ export function useSeating() {
         lastName: body.lastName,
         email: body.email,
         partyName: body.partyName || '',
-        isAttending: body.isAttending === true,
+        rsvpStatus,
+        isAttending: rsvpStatus === 'GOING',
         tableId: null,
         seatNumber: null,
         attendanceToken: mockToken(),
@@ -251,13 +265,17 @@ export function useSeating() {
     email: string
     partyName: string
     isAttending: boolean
+    rsvpStatus: RsvpStatus
   }>): Promise<SeatingGuestRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const guest = mockGuests(gatheringId).find((item) => item._id === guestId)
       if (!guest) throw new Error('Guest not found.')
       Object.assign(guest, body)
-      if (body.isAttending === false) {
+      const status = body.rsvpStatus || (body.isAttending === true ? 'GOING' : body.isAttending === false ? 'NOT_GOING' : guest.rsvpStatus)
+      guest.rsvpStatus = status
+      guest.isAttending = status === 'GOING'
+      if (status !== 'GOING') {
         guest.tableId = null
         guest.seatNumber = null
       }
@@ -524,6 +542,135 @@ export function useSeating() {
     return apiRequest<PublicSeatDetail>(`/guest/seating/attend/${token}${query}`, { authenticated: false })
   }
 
+  async function saveInvitation(gatheringId: string, body: {
+    passcode?: string
+    invitationSubject?: string
+    invitationMessage?: string
+  }): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      Object.assign(gathering, body)
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}`, {
+      method: 'PATCH',
+      body,
+    })
+    return response.gathering
+  }
+
+  async function sendInvites(gatheringId: string, guestIds?: string[]): Promise<{ message: string, sent: number, skipped: number }> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      if (!gathering.passcode) throw new Error('Set a passcode before sending invitations.')
+      const guests = mockGuests(gatheringId).filter((guest) =>
+        guestIds?.length ? guestIds.includes(guest._id) : guest.rsvpStatus === 'PENDING',
+      )
+      if (!guests.length) throw new Error('No guests to invite.')
+      return { message: 'Invitations were not sent.', sent: 0, skipped: guests.length }
+    }
+    return apiRequest(`/user/seating/gatherings/${gatheringId}/invites`, {
+      method: 'POST',
+      body: guestIds?.length ? { guestIds } : {},
+    })
+  }
+
+  async function importGuests(gatheringId: string, text: string): Promise<void> {
+    if (isUiOnlyMode.value) {
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      for (const line of lines) {
+        const comma = line.lastIndexOf(',')
+        const name = line.slice(0, comma).trim()
+        const email = line.slice(comma + 1).trim()
+        const parts = name.split(/\s+/).filter(Boolean)
+        await createGuest(gatheringId, {
+          firstName: parts[0] || '',
+          lastName: parts.slice(1).join(' '),
+          email,
+        })
+      }
+      return
+    }
+    await apiRequest(`/user/seating/gatherings/${gatheringId}/guests/import`, {
+      method: 'POST',
+      body: { text },
+    })
+  }
+
+  async function exportGuests(gatheringId: string): Promise<Blob> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const rows = ['name,email,party,response,table,seat,checked in']
+      for (const guest of mockGuests(gatheringId)) {
+        const table = gathering.tables.find((item) => item._id === guest.tableId)
+        rows.push([
+          `${guest.firstName} ${guest.lastName}`,
+          guest.email,
+          guest.partyName,
+          guest.rsvpStatus,
+          table?.label || '',
+          guest.seatNumber ?? '',
+          guest.checkedInAt ? 'yes' : 'no',
+        ].join(','))
+      }
+      return new Blob([rows.join('\n')], { type: 'text/csv' })
+    }
+    return apiRequest<Blob>(`/user/seating/gatherings/${gatheringId}/export`, { responseType: 'blob' })
+  }
+
+  async function fetchJamSite(publicToken: string): Promise<JamSitePreview> {
+    if (isUiOnlyMode.value) {
+      const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
+      if (!gathering) throw new Error('Seating plan not found.')
+      return { gatheringName: gathering.name }
+    }
+    return apiRequest<JamSitePreview>(`/guest/seating/site/${publicToken}`, { authenticated: false })
+  }
+
+  async function unlockJamSite(publicToken: string, passcode: string): Promise<JamInvitation> {
+    if (isUiOnlyMode.value) {
+      const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
+      if (!gathering || gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+      return {
+        gatheringName: gathering.name,
+        venue: gathering.venue,
+        eventDate: gathering.eventDate,
+        invitationMessage: gathering.invitationMessage || '',
+      }
+    }
+    return apiRequest<JamInvitation>(`/guest/seating/site/${publicToken}/unlock`, {
+      method: 'POST',
+      body: { passcode },
+      authenticated: false,
+    })
+  }
+
+  async function respondToJamInvite(token: string, passcode: string, rsvpStatus: 'GOING' | 'NOT_GOING'): Promise<JamRsvpResult> {
+    if (isUiOnlyMode.value) {
+      for (const gathering of gatherings.value) {
+        const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+        if (!guest) continue
+        if (gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        guest.rsvpStatus = rsvpStatus
+        guest.isAttending = rsvpStatus === 'GOING'
+        if (rsvpStatus !== 'GOING') {
+          guest.tableId = null
+          guest.seatNumber = null
+        }
+        return {
+          message: rsvpStatus === 'GOING' ? 'You are marked as coming.' : 'You are marked as not coming.',
+          rsvpStatus,
+        }
+      }
+      throw new Error('Invitation not found.')
+    }
+    return apiRequest<JamRsvpResult>(`/guest/seating/rsvp/${token}`, {
+      method: 'POST',
+      body: { passcode, rsvpStatus },
+      authenticated: false,
+    })
+  }
+
   return {
     listPackages,
     listGatherings,
@@ -547,6 +694,13 @@ export function useSeating() {
     fetchPublicSeatList,
     fetchPublicGuestSeat,
     fetchAttendance,
+    saveInvitation,
+    sendInvites,
+    importGuests,
+    exportGuests,
+    fetchJamSite,
+    unlockJamSite,
+    respondToJamInvite,
   }
 }
 

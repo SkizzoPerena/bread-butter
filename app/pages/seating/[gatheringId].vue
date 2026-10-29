@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GatheringRecord, SeatingGuestRecord } from '~/types/seating'
+import type { GatheringRecord, RsvpStatus, SeatingGuestRecord } from '~/types/seating'
 import { guestDisplayName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
@@ -18,7 +18,7 @@ const gathering = ref<GatheringRecord | null>(null)
 const guests = ref<SeatingGuestRecord[]>([])
 const loading = ref(true)
 const saving = ref(false)
-const section = ref<'guests' | 'tables' | 'checkin'>('guests')
+const section = ref<'guests' | 'tables' | 'checkin' | 'invite'>('guests')
 const tableCount = ref(1)
 const seatsPerTable = ref(8)
 const lastScan = ref('')
@@ -28,11 +28,20 @@ const guestForm = reactive({
   lastName: '',
   email: '',
   partyName: '',
-  isAttending: true,
+  rsvpStatus: 'PENDING' as RsvpStatus,
+})
+const pasteText = ref('')
+const inviteForm = reactive({
+  passcode: '',
+  invitationSubject: '',
+  invitationMessage: '',
 })
 
 const active = computed(() => gathering.value?.status === 'ACTIVE')
 const lookupUrl = computed(() => gathering.value ? currentOriginPath(`/seat/${gathering.value.publicToken}`) : '')
+const goingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus === 'GOING').length)
+const notGoingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus === 'NOT_GOING').length)
+const pendingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus !== 'GOING' && guest.rsvpStatus !== 'NOT_GOING').length)
 
 useHead({ title: computed(() => gathering.value ? `${gathering.value.name} seating` : 'Seating plan') })
 
@@ -42,6 +51,9 @@ async function load() {
   loading.value = true
   try {
     gathering.value = await seating.getGathering(gatheringId.value)
+    inviteForm.passcode = gathering.value.passcode || ''
+    inviteForm.invitationSubject = gathering.value.invitationSubject || ''
+    inviteForm.invitationMessage = gathering.value.invitationMessage || ''
     if (gathering.value.status === 'ACTIVE') {
       const listed = await seating.listGuests(gatheringId.value)
       guests.value = listed.guests
@@ -61,6 +73,7 @@ async function addGuest() {
     guestForm.lastName = ''
     guestForm.email = ''
     guestForm.partyName = ''
+    guestForm.rsvpStatus = 'PENDING'
     await load()
   } catch (error) {
     toast.add({ title: 'Could not add guest', description: getApiErrorMessage(error), color: 'error' })
@@ -69,12 +82,65 @@ async function addGuest() {
   }
 }
 
-async function toggleAttending(guest: SeatingGuestRecord) {
+async function setResponse(guest: SeatingGuestRecord, rsvpStatus: RsvpStatus) {
   try {
-    await seating.updateGuest(gatheringId.value, guest._id, { isAttending: !guest.isAttending })
+    await seating.updateGuest(gatheringId.value, guest._id, { rsvpStatus })
     await load()
   } catch (error) {
     toast.add({ title: 'Could not update guest', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
+async function pasteGuests() {
+  saving.value = true
+  try {
+    await seating.importGuests(gatheringId.value, pasteText.value)
+    pasteText.value = ''
+    await load()
+    toast.add({ title: 'Guests added', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not add guests', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function downloadGuests() {
+  try {
+    const blob = await seating.exportGuests(gatheringId.value)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'jam-guests.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    toast.add({ title: 'Could not export guests', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
+async function saveInvitation() {
+  saving.value = true
+  try {
+    gathering.value = await seating.saveInvitation(gatheringId.value, { ...inviteForm })
+    toast.add({ title: 'Invitation saved', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not save invitation', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function sendInvitation() {
+  saving.value = true
+  try {
+    const result = await seating.sendInvites(gatheringId.value)
+    toast.add({ title: result.message, color: result.sent ? 'success' : 'warning' })
+    await load()
+  } catch (error) {
+    toast.add({ title: 'Could not send invitations', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    saving.value = false
   }
 }
 
@@ -256,6 +322,12 @@ function tableFor(guest: SeatingGuestRecord) {
             Guests
           </UButton>
           <UButton
+            :variant="section === 'invite' ? 'solid' : 'outline'"
+            @click="section = 'invite'"
+          >
+            Invitation
+          </UButton>
+          <UButton
             :variant="section === 'tables' ? 'solid' : 'outline'"
             @click="section = 'tables'"
           >
@@ -297,13 +369,20 @@ function tableFor(guest: SeatingGuestRecord) {
               v-model="guestForm.partyName"
               placeholder="Party name (optional)"
             />
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="guestForm.isAttending"
-                type="checkbox"
-              >
-              Mark as attending
-            </label>
+            <select
+              v-model="guestForm.rsvpStatus"
+              class="rounded-md border border-toast-600/30 bg-white px-3 py-2"
+            >
+              <option value="PENDING">
+                Pending
+              </option>
+              <option value="GOING">
+                Going
+              </option>
+              <option value="NOT_GOING">
+                Not going
+              </option>
+            </select>
             <UButton
               type="submit"
               :loading="saving"
@@ -311,6 +390,37 @@ function tableFor(guest: SeatingGuestRecord) {
               Add guest
             </UButton>
           </form>
+
+          <form
+            class="space-y-3"
+            @submit.prevent="pasteGuests"
+          >
+            <textarea
+              v-model="pasteText"
+              rows="4"
+              placeholder="First Last, email"
+              class="w-full rounded-md border border-toast-600/30 bg-white px-3 py-2"
+            />
+            <UButton
+              type="submit"
+              variant="outline"
+              :loading="saving"
+            >
+              Add pasted guests
+            </UButton>
+          </form>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm">
+              {{ pendingCount }} pending · {{ goingCount }} going · {{ notGoingCount }} not going
+            </p>
+            <UButton
+              variant="outline"
+              @click="downloadGuests"
+            >
+              Download seated list
+            </UButton>
+          </div>
 
           <div
             v-for="guest in guests"
@@ -326,13 +436,21 @@ function tableFor(guest: SeatingGuestRecord) {
               </p>
             </div>
             <div class="flex flex-wrap gap-2">
-              <UButton
-                size="xs"
-                variant="outline"
-                @click="toggleAttending(guest)"
+              <select
+                class="rounded-md border border-toast-600/30 bg-white px-3 py-2"
+                :value="guest.rsvpStatus || 'PENDING'"
+                @change="setResponse(guest, ($event.target as HTMLSelectElement).value as RsvpStatus)"
               >
-                {{ guest.isAttending ? 'Attending' : 'Not attending' }}
-              </UButton>
+                <option value="PENDING">
+                  Pending
+                </option>
+                <option value="GOING">
+                  Going
+                </option>
+                <option value="NOT_GOING">
+                  Not going
+                </option>
+              </select>
               <UButton
                 size="xs"
                 color="error"
@@ -343,6 +461,51 @@ function tableFor(guest: SeatingGuestRecord) {
               </UButton>
             </div>
           </div>
+        </section>
+
+        <section
+          v-if="active && section === 'invite'"
+          class="white-bread-container p-5 space-y-4"
+        >
+          <p class="text-sm">
+            {{ pendingCount }} pending · {{ goingCount }} going · {{ notGoingCount }} not going
+          </p>
+          <form
+            class="space-y-3"
+            @submit.prevent="saveInvitation"
+          >
+            <UInput
+              v-model="inviteForm.invitationSubject"
+              placeholder="Email subject"
+            />
+            <textarea
+              v-model="inviteForm.invitationMessage"
+              rows="5"
+              placeholder="Invitation message"
+              class="w-full rounded-md border border-toast-600/30 bg-white px-3 py-2"
+            />
+            <UInput
+              v-model="inviteForm.passcode"
+              placeholder="Passcode"
+              required
+            />
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                type="submit"
+                :loading="saving"
+              >
+                Save invitation
+              </UButton>
+              <UButton
+                type="button"
+                variant="outline"
+                :loading="saving"
+                @click="sendInvitation"
+              >
+                Send to pending guests
+              </UButton>
+            </div>
+          </form>
         </section>
 
         <section

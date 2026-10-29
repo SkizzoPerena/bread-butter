@@ -1,5 +1,6 @@
 export type GatheringStatus = 'PENDING_PAYMENT' | 'ACTIVE'
 export type SeatingPaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
+export type RsvpStatus = 'PENDING' | 'GOING' | 'NOT_GOING'
 
 export interface JamPackageRecord {
   _id: string
@@ -41,6 +42,9 @@ export interface GatheringRecord {
   jamPackage?: string
   publicToken: string
   publicPath: string
+  passcode?: string
+  invitationSubject?: string
+  invitationMessage?: string
   tables: SeatingTable[]
   guestCount: number
   attendingCount: number
@@ -54,6 +58,9 @@ export interface SeatingGuestRecord {
   lastName: string
   email: string
   partyName: string
+  rsvpStatus: RsvpStatus
+  respondedAt?: string | null
+  inviteSentAt?: string | null
   isAttending: boolean
   tableId: string | null
   seatNumber: number | null
@@ -74,6 +81,22 @@ export interface PublicSeatList {
   venue: string
   eventDate: string
   guests: PublicSeatGuest[]
+}
+
+export interface JamSitePreview {
+  gatheringName: string
+}
+
+export interface JamInvitation {
+  gatheringName: string
+  venue: string
+  eventDate: string
+  invitationMessage: string
+}
+
+export interface JamRsvpResult {
+  message: string
+  rsvpStatus: RsvpStatus
 }
 
 export interface PublicSeatDetail {

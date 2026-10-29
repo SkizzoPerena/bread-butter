@@ -95,6 +95,7 @@ export function isPublicPath(path: string): boolean {
   if (normalized.startsWith('/rsvp/')) return true
   if (normalized.startsWith('/seat/')) return true
   if (normalized.startsWith('/attend/')) return true
+  if (normalized.startsWith('/jam/')) return true
   return false
 }
 

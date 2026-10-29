@@ -19,7 +19,8 @@ export function isSeatingFlowPath(path: string): boolean {
     path.startsWith('/user/seating-payment') ||
     path.startsWith('/seating/') ||
     path.startsWith('/seat/') ||
-    path.startsWith('/attend/')
+    path.startsWith('/attend/') ||
+    path.startsWith('/jam/')
   )
 }
 
