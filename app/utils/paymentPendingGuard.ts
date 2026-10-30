@@ -16,6 +16,7 @@ const UI_UNPAID_KEY = 'bpb-ui-unpaid-event'
 export function isSeatingFlowPath(path: string): boolean {
   return (
     path === '/user/create-seating' ||
+    path === '/seating-unavailable' ||
     path.startsWith('/user/seating-payment') ||
     path.startsWith('/seating/') ||
     path.startsWith('/seat/') ||

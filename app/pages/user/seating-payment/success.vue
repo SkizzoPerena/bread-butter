@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/types/auth'
 
-definePageMeta({ layout: 'signed-in-navbar' })
+definePageMeta({ layout: 'signed-in-navbar', middleware: 'seating-enabled' })
 useHead({ title: 'Seating payment received - Bread + Butter' })
 
 const route = useRoute()

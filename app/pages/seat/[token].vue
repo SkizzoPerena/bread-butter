@@ -2,7 +2,7 @@
 import type { PublicSeatDetail, PublicSeatList } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 
-definePageMeta({ layout: false })
+definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
 const { fetchPublicSeatList, fetchPublicGuestSeat } = useSeating()

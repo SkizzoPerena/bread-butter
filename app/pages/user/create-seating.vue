@@ -128,10 +128,10 @@ async function submit() {
         class="white-bread-container p-6 text-center space-y-2"
       >
         <h1 class="text-2xl font-bold font-serif">
-          Seating is not available yet
+          Seating is not available right now
         </h1>
         <p class="text-sm">
-          This feature is turned off. You can still create a wedding event.
+          You can still create an event.
         </p>
       </div>
       <template v-else>

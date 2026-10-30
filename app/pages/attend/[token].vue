@@ -4,7 +4,7 @@ import { getApiErrorMessage } from '~/types/auth'
 import { currentOriginPath } from '~/utils/seatingQr'
 import SeatingQrImage from '~/components/SeatingQrImage.vue'
 
-definePageMeta({ layout: false })
+definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
 const { fetchAttendance } = useSeating()

@@ -6,7 +6,7 @@ import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
 import SeatingQrImage from '~/components/SeatingQrImage.vue'
 import SeatingCheckInScanner from '~/components/SeatingCheckInScanner.vue'
 
-definePageMeta({ layout: 'signed-in-navbar' })
+definePageMeta({ layout: 'signed-in-navbar', middleware: 'seating-enabled' })
 
 const route = useRoute()
 const toast = useToast()
@@ -28,7 +28,6 @@ const guestForm = reactive({
   lastName: '',
   email: '',
   partyName: '',
-  rsvpStatus: 'PENDING' as RsvpStatus,
 })
 const inviteForm = reactive({
   passcode: '',
@@ -72,7 +71,6 @@ async function addGuest() {
     guestForm.lastName = ''
     guestForm.email = ''
     guestForm.partyName = ''
-    guestForm.rsvpStatus = 'PENDING'
     await load()
   } catch (error) {
     toast.add({ title: 'Could not add guest', description: getApiErrorMessage(error), color: 'error' })
@@ -354,20 +352,6 @@ function tableFor(guest: SeatingGuestRecord) {
               v-model="guestForm.partyName"
               placeholder="Party name (optional)"
             />
-            <select
-              v-model="guestForm.rsvpStatus"
-              class="rounded-md border border-toast-600/30 bg-white px-3 py-2"
-            >
-              <option value="PENDING">
-                Pending
-              </option>
-              <option value="GOING">
-                Going
-              </option>
-              <option value="NOT_GOING">
-                Not going
-              </option>
-            </select>
             <UButton
               type="submit"
               :loading="saving"

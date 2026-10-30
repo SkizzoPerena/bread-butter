@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/types/auth'
 
-definePageMeta({ layout: false })
+definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
 const { respondToJamInvite } = useSeating()

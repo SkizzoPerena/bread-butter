@@ -35,6 +35,7 @@ const PUBLIC_PATHS = new Set([
   '/about',
   '/news-and-events',
   '/useful-tips',
+  '/seating-unavailable',
   '/user/login',
   '/user/signup',
   '/user/otp',

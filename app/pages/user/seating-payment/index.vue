@@ -5,7 +5,7 @@ import { getProofSubmitPayload, type PaymentProofPanelExpose } from '~/utils/pay
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
-definePageMeta({ layout: 'signed-in-navbar' })
+definePageMeta({ layout: 'signed-in-navbar', middleware: 'seating-enabled' })
 useHead({ title: 'Seating payment - Bread + Butter' })
 
 const route = useRoute()

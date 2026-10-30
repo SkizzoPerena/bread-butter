@@ -9,7 +9,7 @@ flowchart TD
   start[Create seating plan]
   pay[Pay for the jam package]
   workspace[Seating workspace unlocks]
-  guests[Add guests or paste First Last, email]
+  guests[Add guests]
   invite[Save the message and passcode]
   send[Send invitations to pending guests]
   replies[See pending, going, and not going]
@@ -24,10 +24,10 @@ flowchart TD
 
 The workspace uses the same buttons and containers for four sections:
 
-- **Guests.** Add one person, or paste lines shaped as `First Last, email`. Each row has a response of pending, going, or not going. Going is what marks someone attending.
+- **Guests.** Add one person at a time. A new guest always starts as pending. Each row has a response of pending, going, or not going, which changes when the guest replies or the host records a reply. Going is what marks someone attending.
 - **Invitation.** Edit the subject, message, and passcode, then send to guests who are still pending. Counts show pending, going, and not going.
 - **Tables and seats.** Set the table count and seats per table, auto-assign attending guests, and move someone after. A party sits together when the table has room. Replacing the layout asks before it clears seats.
-- **QR and check-in.** Shows the gathering QR, lists attending guests, and scans a personal pass.
+- **QR and check-in.** Shows the gathering QR, lists attending guests, and checks in a personal pass by camera scan or by uploading an image of the QR. Upload also works when the camera is broken or blocked.
 
 **Download seated list** on the guests section saves `jam-guests.csv`.
 
@@ -56,6 +56,10 @@ These pages use the same simple card as the seat pass. They do not require a log
 - `/jam/rsvp/:token` asks for the passcode, then yes or no.
 - `/seat/:token` is the gathering QR. The guest picks their name and sees the table and seat. It does not check them in.
 - `/attend/:token` is the personal pass. It shows the seat, or “Your seat is not assigned yet” until one exists. `?checkin=1` records check-in once.
+
+## When seating is switched off
+
+The `seating-enabled` route middleware checks `seatingPlansEnabled` on every seating page. While it is off, the workspace, payment, invitation, reply, seat, and pass pages all go to `/seating-unavailable`, and the dashboard hides seating plans and the option to start one. Nothing is deleted. Old links and QR codes work again once seating is back on. See `jam.md` in the backend for each case.
 
 ## Where the code lives
 

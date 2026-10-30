@@ -269,11 +269,7 @@ export function useSeating() {
     lastName: string
     email: string
     partyName?: string
-    isAttending?: boolean
-    rsvpStatus?: RsvpStatus
   }): Promise<SeatingGuestRecord> {
-    const rsvpStatus: RsvpStatus = body.rsvpStatus
-      || (body.isAttending ? 'GOING' : 'PENDING')
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const guests = mockGuests(gatheringId)
@@ -284,8 +280,8 @@ export function useSeating() {
         lastName: body.lastName,
         email: body.email,
         partyName: body.partyName || '',
-        rsvpStatus,
-        isAttending: rsvpStatus === 'GOING',
+        rsvpStatus: 'PENDING',
+        isAttending: false,
         tableId: null,
         seatNumber: null,
         attendanceToken: mockToken(),
