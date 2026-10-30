@@ -68,6 +68,21 @@ export interface CustomSiteColorPalette {
   heading?: string
 }
 
+export interface CustomSiteGiftRegistry {
+  qrCodes: {
+    qrCodeUrl?: string
+    bankType?: string
+    accountName?: string
+    accountNumber?: string
+  }[]
+  wishedItems: {
+    name: string
+    url?: string
+    imageURL?: string | null
+    isFulfilled?: boolean
+  }[]
+}
+
 export interface CustomSiteRecord {
   _id: string
   event: string
@@ -100,6 +115,7 @@ export interface CustomSiteRecord {
   weddingParty?: CustomSiteWeddingPartyMember[]
   rsvpDeadlineDate?: string | null
   dressCode?: DressCodeRecord | null
+  giftRegistry?: CustomSiteGiftRegistry | null
 }
 
 export interface CustomSitesListResponse {

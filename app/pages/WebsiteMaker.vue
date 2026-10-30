@@ -4,7 +4,7 @@ import aisleImage from '../assets/bpb-images/login-aisle.webp'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord, GuestRecord } from '~/types/event'
 import { isWeddingEventType } from '~/types/event'
-
+import type { CustomSiteGiftRegistry } from '~/types/customSite'
 import type { GuestRoleRecord } from '~/types/guest_role'
 import { isEventFullyPaid } from '~/types/payment'
 import {
@@ -651,6 +651,7 @@ const availableComponents = [
     { id: 'where-to-stay', name: 'Where to Stay', icon: 'i-lucide-bed', description: 'Recommend accommodations for your guests.' },
     { id: 'wedding-party', name: 'Wedding Party', icon: 'i-lucide-users', description: 'Introduce your bridesmaids and groomsmen.' },
     { id: 'q-and-a', name: 'Q&A', icon: 'i-lucide-help-circle', description: 'Answer common questions from your guests.' },
+    { id: 'gifts', name: 'Gifts', icon: 'i-lucide-gift', description: 'Share your wishlist and payment QR codes. Your account name and number will be visible on your website.' },
     { id: 'diy', name: 'DIY Component', icon: 'i-lucide-plus-square', description: 'Create your own custom component.' }
 ]
 
@@ -662,6 +663,22 @@ const offeredComponents = computed(() =>
 
 const selectedComponents = ref<string[]>([])
 
+const { fetchWishlistByEvent } = useWishlist()
+const giftRegistry = ref<CustomSiteGiftRegistry | null>(null)
+
+async function loadGiftRegistry() {
+    if (!eventId.value) return
+    try {
+        const wishlist = await fetchWishlistByEvent(eventId.value)
+        giftRegistry.value = { qrCodes: wishlist.qrCodes, wishedItems: wishlist.wishedItems }
+    } catch {
+        giftRegistry.value = null
+    }
+}
+
+watch(() => selectedComponents.value.includes('gifts'), (enabled) => {
+    if (enabled) loadGiftRegistry()
+}, { immediate: true })
 const displayComponents = computed(() => {
     return selectedComponents.value.filter(id => id !== 'diy')
 })
@@ -710,6 +727,7 @@ const getStepShortName = (step: StepDef) => {
         'where-to-stay': 'Stay',
         'wedding-party': 'Party',
         'q-and-a': 'Q&A',
+        'gifts': 'Gifts',
         'diy-config': 'DIY',
         'thank-you': 'Closing',
         'review-publish': 'Review'
@@ -3293,6 +3311,31 @@ function togglePreview() {
                                 </div>
                             </div>
 
+                            <!-- Dynamic Step: Gifts -->
+                            <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-4">
+                                <p class="text-sm text-toast-500">
+                                    Guests will see your QR codes, account names, account numbers, and gift list on your website.
+                                </p>
+                                <p class="text-sm">
+                                    {{ giftRegistry?.qrCodes.length ?? 0 }} QR code(s) and {{ giftRegistry?.wishedItems.length ?? 0 }} gift(s) added.
+                                </p>
+                                <UButton
+                                    :to="{ path: '/event/wishlist', query: { eventId } }"
+                                    target="_blank"
+                                    icon="i-lucide-external-link"
+                                    variant="outline"
+                                    class="self-start"
+                                    label="Manage gifts and QR codes"
+                                />
+                                <UButton
+                                    icon="i-lucide-refresh-cw"
+                                    variant="ghost"
+                                    class="self-start"
+                                    label="Refresh"
+                                    @click="loadGiftRegistry"
+                                />
+                            </div>
+
                             <!-- Dynamic Step: Wedding Party -->
                             <div v-if="currentStepData?.id === 'wedding-party'" class="flex flex-col gap-5">
                                 <!-- Section Intro -->
@@ -4356,6 +4399,14 @@ function togglePreview() {
                                                 [ Travel Component Preview goes here ]
                                             </div>
                                         </div>
+
+                                        <!-- Gifts Preview -->
+                                        <CustomSiteGiftsSection
+                                            v-if="compId === 'gifts' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            :registry="giftRegistry"
+                                            :colors="previewDynamicStyle(index)"
+                                            :heading-font="selectedTypography.subheaderFont"
+                                        />
 
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"

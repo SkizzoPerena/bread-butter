@@ -129,6 +129,7 @@ const availableComponentsMap: Record<string, { name: string; icon: string }> = {
   'wedding-party': { name: 'Wedding Party', icon: 'i-lucide-users' },
   travel: { name: 'Travel', icon: 'i-lucide-plane' },
   'q-and-a': { name: 'Q&A', icon: 'i-lucide-help-circle' },
+  gifts: { name: 'Gifts', icon: 'i-lucide-gift' },
 }
 
 const displayComponents = computed(() => {
@@ -901,6 +902,15 @@ function getVenueGoogleMapsUrl(
 
               </div>
             </div>
+
+            <!-- Gifts -->
+            <CustomSiteGiftsSection
+              v-if="compId === 'gifts' && (site.singlePageSite || activeComponentId === compId)"
+              :registry="site.giftRegistry"
+              :colors="getSectionStyle(index)"
+              :heading-font="typography.subheaderFont"
+              :min-height="componentMinHeight"
+            />
 
             <!-- Where to Stay -->
             <div v-if="
