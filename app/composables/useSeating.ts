@@ -81,6 +81,13 @@ function recount(gathering: GatheringRecord, guests: SeatingGuestRecord[]) {
   gathering.checkedInCount = guests.filter((guest) => guest.checkedInAt).length
 }
 
+/** False when the request fails, which includes seating being turned off. */
+export async function hasSeatingPlans(): Promise<boolean> {
+  const { listGatherings } = useSeating()
+  const gatherings = await listGatherings().catch(() => [])
+  return gatherings.length > 0
+}
+
 export function useSeating() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
   const packages = useState<JamPackageRecord[]>('seating-mock-packages', () => MOCK_PACKAGES.map((item) => ({ ...item })))

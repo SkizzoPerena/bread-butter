@@ -24,6 +24,11 @@ export function isSeatingFlowPath(path: string): boolean {
   )
 }
 
+/** Seating plans are only listed on home, so a host with plans must be able to reach it. */
+export function isUserHomePath(path: string): boolean {
+  return path === '/' || path === '/user/dashboard'
+}
+
 /**
  * Checks if an event has a proof of payment submitted but is not yet fully paid (approved).
  */

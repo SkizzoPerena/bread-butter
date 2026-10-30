@@ -115,7 +115,7 @@ async function loadUserEvents() {
       }
     }
 
-    if (!isUiOnlyMode.value && isSinglePendingEventAccount(userEvents.value)) {
+    if (!isUiOnlyMode.value && seatingPlans.value.length === 0 && isSinglePendingEventAccount(userEvents.value)) {
       await navigateTo({
         path: '/user/payment-pending',
         query: buildPendingPaymentQuery(userEvents.value[0]) as Record<string, string>,
@@ -123,7 +123,7 @@ async function loadUserEvents() {
       return
     }
 
-    if (!isUiOnlyMode.value && isSingleUnpaidEventAccount(userEvents.value)) {
+    if (!isUiOnlyMode.value && seatingPlans.value.length === 0 && isSingleUnpaidEventAccount(userEvents.value)) {
       await navigateTo({
         path: '/user/payment',
         query: buildUserPaymentQuery(userEvents.value[0]) as Record<string, string>,
