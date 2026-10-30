@@ -3,6 +3,8 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import aisleImage from '../assets/bpb-images/login-aisle.webp'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord, GuestRecord } from '~/types/event'
+import { isWeddingEventType } from '~/types/event'
+import type { CustomSiteGiftRegistry } from '~/types/customSite'
 import type { GuestRoleRecord } from '~/types/guest_role'
 import { isEventFullyPaid } from '~/types/payment'
 import {
@@ -643,16 +645,40 @@ const getBaseLabel = (id: string) => {
 // 5. Available Components (Step 7)
 const availableComponents = [
     { id: 'rsvp', name: 'RSVP', icon: 'i-lucide-mail', description: 'Allow guests to respond to your invitation.' },
-    { id: 'dress-code', name: 'Color & Dress Code', icon: 'i-lucide-shirt', description: 'Display your wedding color palette, attire guidelines, and moodboard.' },
-    { id: 'gallery', name: 'Photo Gallery', icon: 'i-lucide-images', description: 'Showcase photos of your engagement, journey, and wedding memories.' },
-    { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your wedding day.' },
+    { id: 'dress-code', name: 'Color & Dress Code', icon: 'i-lucide-shirt', description: 'Display your color palette, attire guidelines, and moodboard.' },
+    { id: 'gallery', name: 'Photo Gallery', icon: 'i-lucide-images', description: 'Showcase your favorite photos.' },
+    { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your event.' },
     { id: 'where-to-stay', name: 'Where to Stay', icon: 'i-lucide-bed', description: 'Recommend accommodations for your guests.' },
     { id: 'wedding-party', name: 'Wedding Party', icon: 'i-lucide-users', description: 'Introduce your bridesmaids and groomsmen.' },
     { id: 'q-and-a', name: 'Q&A', icon: 'i-lucide-help-circle', description: 'Answer common questions from your guests.' },
+    { id: 'gifts', name: 'Gifts', icon: 'i-lucide-gift', description: 'Share your wishlist and payment QR codes. Your account name and number will be visible on your website.' },
     { id: 'diy', name: 'DIY Component', icon: 'i-lucide-plus-square', description: 'Create your own custom component.' }
 ]
 
+const offeredComponents = computed(() =>
+    !eventRecord.value || isWeddingEventType(eventRecord.value.eventType)
+        ? availableComponents
+        : availableComponents.filter(comp => comp.id !== 'wedding-party')
+)
+
 const selectedComponents = ref<string[]>([])
+
+const { fetchWishlistByEvent } = useWishlist()
+const giftRegistry = ref<CustomSiteGiftRegistry | null>(null)
+
+async function loadGiftRegistry() {
+    if (!eventId.value) return
+    try {
+        const wishlist = await fetchWishlistByEvent(eventId.value)
+        giftRegistry.value = { qrCodes: wishlist.qrCodes, wishedItems: wishlist.wishedItems }
+    } catch {
+        giftRegistry.value = null
+    }
+}
+
+watch(() => selectedComponents.value.includes('gifts'), (enabled) => {
+    if (enabled) loadGiftRegistry()
+}, { immediate: true })
 const displayComponents = computed(() => {
     return selectedComponents.value.filter(id => id !== 'diy')
 })
@@ -701,6 +727,7 @@ const getStepShortName = (step: StepDef) => {
         'where-to-stay': 'Stay',
         'wedding-party': 'Party',
         'q-and-a': 'Q&A',
+        'gifts': 'Gifts',
         'diy-config': 'DIY',
         'thank-you': 'Closing',
         'review-publish': 'Review'
@@ -879,8 +906,8 @@ interface ScheduleItem {
 const scheduleItems = ref<ScheduleItem[]>([
     {
         id: Date.now(),
-        title: 'Wedding Ceremony',
-        description: 'The exchange of vows and rings.',
+        title: 'Main Program',
+        description: 'The celebration begins.',
         location: 'Main Garden',
         date: '',
         startTime: '15:00',
@@ -975,7 +1002,7 @@ function getAreaHotelsGoogleReviewsUrl(
     if (coords && coords.lat != null && coords.lng != null && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         return `https://www.google.com/maps/search/hotels+and+accommodations/@${coords.lat},${coords.lng},14z`
     }
-    const loc = (location || '').trim() || 'wedding venue'
+    const loc = (location || '').trim() || 'the venue'
     return `https://www.google.com/maps/search/hotels+and+accommodations+near+${encodeURIComponent(loc)}`
 }
 
@@ -986,7 +1013,7 @@ function getVenueGoogleMapsUrl(
     if (coords && coords.lat != null && coords.lng != null && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         return `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
     }
-    const loc = (location || '').trim() || 'wedding venue'
+    const loc = (location || '').trim() || 'the venue'
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`
 }
 
@@ -1496,7 +1523,7 @@ function resetMakerGalleryToSamples() {
     galleryData.photos = [...sampleGalleryPhotos]
     toast.add({
         title: 'Samples Restored',
-        description: 'Loaded 6 sample wedding photos.',
+        description: 'Loaded 6 sample photos.',
         color: 'neutral',
     })
 }
@@ -2602,7 +2629,7 @@ function togglePreview() {
                             <!-- Step 7: Components -->
                             <div v-if="currentStepData?.id === 'components'" class="">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div v-for="comp in availableComponents" :key="comp.id"
+                                    <div v-for="comp in offeredComponents" :key="comp.id"
                                         class="relative rounded-lg p-5 cursor-pointer group transition-all duration-300 border flex flex-col items-center text-center gap-1"
                                         :class="{ 'ring-2 ring-blue-500 shadow-lg border-transparent': selectedComponents.includes(comp.id), 'border-toast-200 hover:border-blue-300': !selectedComponents.includes(comp.id) }"
                                         @click="toggleComponent(comp.id)">
@@ -2968,7 +2995,7 @@ function togglePreview() {
                                                 @click="removeScheduleItem(item.id)" />
                                         </div>
                                         <UFormField label="Title">
-                                            <UInput v-model="item.title" placeholder="e.g., Wedding Ceremony"
+                                            <UInput v-model="item.title" placeholder="e.g., Main Program"
                                                 class="w-full" />
                                         </UFormField>
 
@@ -3265,7 +3292,7 @@ function togglePreview() {
                                                             </span>
                                                             <span class="text-[11px] text-toast-500 truncate block">
                                                                 Top hotels & stays near {{
-                                                                    websiteData.whereToStayLocation || 'wedding venue' }}
+                                                                    websiteData.whereToStayLocation || 'the venue' }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -3282,6 +3309,31 @@ function togglePreview() {
                                     <div class="text-center text-toast-500 italic">Travel configuration goes here.</div>
                                     <!-- TODO: Add Travel form fields -->
                                 </div>
+                            </div>
+
+                            <!-- Dynamic Step: Gifts -->
+                            <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-4">
+                                <p class="text-sm text-toast-500">
+                                    Guests will see your QR codes, account names, account numbers, and gift list on your website.
+                                </p>
+                                <p class="text-sm">
+                                    {{ giftRegistry?.qrCodes.length ?? 0 }} QR code(s) and {{ giftRegistry?.wishedItems.length ?? 0 }} gift(s) added.
+                                </p>
+                                <UButton
+                                    :to="{ path: '/event/wishlist', query: { eventId } }"
+                                    target="_blank"
+                                    icon="i-lucide-external-link"
+                                    variant="outline"
+                                    class="self-start"
+                                    label="Manage gifts and QR codes"
+                                />
+                                <UButton
+                                    icon="i-lucide-refresh-cw"
+                                    variant="ghost"
+                                    class="self-start"
+                                    label="Refresh"
+                                    @click="loadGiftRegistry"
+                                />
                             </div>
 
                             <!-- Dynamic Step: Wedding Party -->
@@ -3740,7 +3792,7 @@ function togglePreview() {
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <span class="inline-flex items-center gap-1.5">
                                                         <UIcon name="i-lucide-swatch-book" class="size-4" />
-                                                        Wedding Color Palette
+                                                        Color Palette
                                                     </span>
                                                     <span>{{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.presetPaletteName || 'Curated Colors') }}</span>
                                                 </div>
@@ -3749,8 +3801,8 @@ function togglePreview() {
                                                 <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
                                                     class="w-full">
                                                     <div class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2.5 backdrop-blur-xs"
-                                                        @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Wedding Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
-                                                        <img :src="publishedDressCode.paletteImage" alt="Wedding Color Palette Graphic"
+                                                        @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                        <img :src="publishedDressCode.paletteImage" alt="Color Palette Graphic"
                                                             class="w-full max-h-72 object-contain rounded-xl" />
                                                         <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
                                                             <UIcon name="i-lucide-zoom-in" class="size-4" />
@@ -3899,7 +3951,7 @@ function togglePreview() {
                                                 <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                                                    <span>Wedding Moments</span>
+                                                    <span>Moments</span>
                                                 </div>
                                                 <h2 class="font-bold transition-all duration-300 pt-1"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
@@ -4347,6 +4399,14 @@ function togglePreview() {
                                                 [ Travel Component Preview goes here ]
                                             </div>
                                         </div>
+
+                                        <!-- Gifts Preview -->
+                                        <CustomSiteGiftsSection
+                                            v-if="compId === 'gifts' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            :registry="giftRegistry"
+                                            :colors="previewDynamicStyle(index)"
+                                            :heading-font="selectedTypography.subheaderFont"
+                                        />
 
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"

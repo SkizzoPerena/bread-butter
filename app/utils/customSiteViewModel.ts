@@ -1,4 +1,4 @@
-import type { PublicCustomSiteRecord } from '~/types/customSite'
+import type { CustomSiteGiftRegistry, PublicCustomSiteRecord } from '~/types/customSite'
 import type { DressCodeRecord } from '~/types/dressCode'
 import type { GalleryRecord } from '~/types/gallery'
 import aisleImage from '~/assets/bpb-images/login-aisle.webp'
@@ -54,6 +54,7 @@ export interface CustomSiteViewModel {
   whereToStayAccommodations?: { id?: string; name: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
   dressCode?: DressCodeRecord | null
   gallery?: GalleryRecord | null
+  giftRegistry?: CustomSiteGiftRegistry | null
 }
 
 function parseJsonIfString(value: unknown): any {
@@ -184,6 +185,7 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
         }))
       : (motifConfig?.whereToStay?.accommodations || []),
     dressCode: site.dressCode || motifConfig?.dressCode || null,
+    giftRegistry: site.giftRegistry ?? null,
     gallery: site.galleryRecord || motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
       title: 'Captured Moments',
       subtitle: 'A glimpse into our favorite memories and love story.',

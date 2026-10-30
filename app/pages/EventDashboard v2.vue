@@ -31,6 +31,7 @@ import {
   resolveEventTierCode,
   resolveEventDashboardPath,
 } from '~/utils/eventTierFeatures'
+import { isActiveTaskStatus, isParentTask } from '~/utils/taskListUpdates'
 
 definePageMeta({
   layout: 'event-navbar',
@@ -119,7 +120,8 @@ async function loadPlanningHealthData() {
     // 1. Tasks: compute overdue count, status breakdown, and preview tasks
     if (tasksRes && Array.isArray(tasksRes)) {
       const now = Date.now()
-      const overdue = tasksRes.filter((t) => {
+      const parentTasks = tasksRes.filter(isParentTask)
+      const overdue = parentTasks.filter((t) => {
         if (t.status === 'COMPLETED' || t.status === 'CANCELLED') return false
         return Boolean(t.deadline && new Date(t.deadline).getTime() < now)
       }).length
@@ -133,7 +135,7 @@ async function loadPlanningHealthData() {
         COMPLETED: 0,
       }
 
-      for (const t of tasksRes) {
+      for (const t of parentTasks) {
         if (t.status === 'TODO') {
           byStatus['not-started'] = (byStatus['not-started'] ?? 0) + 1
           byStatus.TODO = (byStatus.TODO ?? 0) + 1
@@ -147,7 +149,7 @@ async function loadPlanningHealthData() {
       }
 
       tasksSummary.value = {
-        totalTasks: tasksRes.length,
+        totalTasks: parentTasks.filter((t) => isActiveTaskStatus(t.status)).length,
         overdueCount: overdue,
         byStatus,
         preview: {
@@ -561,7 +563,7 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     label: 'Website',
     icon: 'i-lucide-globe',
     action: 'website',
-    description: 'Design and publish your personalized wedding website.',
+    description: 'Design and publish your personalized event website.',
     bgClass: 'bg-blue-500/10',
     hoverClass: 'group-hover:bg-blue-500/20',
     ringClass: 'ring-1 ring-inset ring-blue-500/25 group-focus-visible:ring-2 group-focus-visible:ring-blue-500',

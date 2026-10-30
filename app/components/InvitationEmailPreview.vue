@@ -424,7 +424,7 @@ async function handleSendTestEmail() {
         <!-- Explanatory note below card -->
         <div class="mt-4 text-center text-xs text-stone-500 flex items-center justify-center gap-1.5 select-none">
           <UIcon name="i-lucide-mouse-pointer-click" class="w-4 h-4 text-violet-500" />
-          <span>In the sent email, the entire stationery card is delivered as a pure PNG; tapping it opens your wedding website RSVP directly.</span>
+          <span>Guests receive your banner and invitation details by email, and the RSVP button opens their RSVP page.</span>
         </div>
       </div>
 

@@ -601,7 +601,7 @@ function openWebsiteMaker() {
               </div>
               <p class="text-xs text-toast-700 leading-relaxed">
                 You have curated <strong>{{ gallery.photos.length }} photos</strong> with the <strong>{{ gallery.layout }}</strong> layout suggestion.
-                Save your changes to sync this gallery directly into your wedding website.
+                Save your changes to sync this gallery directly into your website.
               </p>
               <div class="pt-1 flex flex-col gap-2">
                 <UButton icon="i-lucide-save" color="rose" size="sm" class="font-semibold text-xs justify-center text-white cursor-pointer" :loading="isSaving" @click="handleSave">
