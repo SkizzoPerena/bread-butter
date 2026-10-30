@@ -441,7 +441,7 @@ export function generateInvitationEmailHtml(options: {
                           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                             <tr>
                               <td align="center" style="padding-top: 12px; font-family: ${bodyFontFamily}; font-size: 11px; line-height: 1.4; color: ${colors.secondary_text_color}; opacity: 0.85;">
-                                Press the button above to view our wedding website and submit your RSVP.
+                                Press the button above to view our website and submit your RSVP.
                               </td>
                             </tr>
                             ${ctaLink !== '#' ? `
@@ -497,7 +497,7 @@ export function generateInvitationEmailHtml(options: {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 580px; width: 100%; margin: 18px auto 0 auto; text-align: center;">
           <tr>
             <td align="center" style="font-family: ${bodyFontFamily}; font-size: 11px; color: #8c827a; line-height: 1.4;">
-              Created with Bread + Butter &bull; The Wedding Platform
+              Created with Bread + Butter
             </td>
           </tr>
         </table>

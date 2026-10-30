@@ -34,11 +34,11 @@ const viewModel = computed(() =>
 )
 
 useHead(() => ({
-  title: siteRecord.value?.title ? `${siteRecord.value.title} | Bread + Butter` : 'Wedding Website',
+  title: siteRecord.value?.title ? `${siteRecord.value.title} | Bread + Butter` : 'Event Website',
   meta: [
     {
       name: 'description',
-      content: siteRecord.value?.subtitle || 'Welcome to our wedding website.',
+      content: siteRecord.value?.subtitle || 'Welcome to our website.',
     },
   ],
 }))
