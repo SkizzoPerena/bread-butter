@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { DateFormatter } from '@internationalized/date'
+import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord, TasksSummary } from '~/types/event'
 import type { TaskRecord, TaskStatus } from '~/types/task'
 import { reportApiError } from '~/types/auth'
@@ -370,7 +370,7 @@ const columns = [
     meta: {
       class: {
         th: 'w-full text-start font-sans',
-        td: 'w-full max-w-0 overflow-hidden text-start font-sans',
+        td: 'w-full min-w-48 whitespace-normal text-start font-sans',
       },
     },
   },
@@ -406,10 +406,13 @@ function formatTaskDateStr(dateStr?: string | null): string {
   }
 }
 
+const minTaskDeadline = today(getLocalTimeZone())
+
+// Task deadlines must fall before the event day.
 const maxTaskDeadline = computed(() => {
   const iso = eventRecord.value?.eventDate
   if (!iso) return undefined
-  return parseIsoToCalendarDate(iso) ?? undefined
+  return parseIsoToCalendarDate(iso)?.subtract({ days: 1 }) ?? undefined
 })
 
 function onTaskDeadlineSelected(task: TaskRecord, value: unknown) {
@@ -420,12 +423,13 @@ function onTaskDeadlineSelected(task: TaskRecord, value: unknown) {
 
   const eventIso = eventRecord.value?.eventDate
   if (eventIso) {
-    const eventTime = new Date(eventIso).getTime()
+    const eventDate = new Date(eventIso)
+    const eventDay = Date.UTC(eventDate.getUTCFullYear(), eventDate.getUTCMonth(), eventDate.getUTCDate())
     const selectedTime = new Date(iso).getTime()
-    if (!Number.isNaN(eventTime) && !Number.isNaN(selectedTime) && selectedTime > eventTime) {
+    if (!Number.isNaN(eventDay) && !Number.isNaN(selectedTime) && selectedTime >= eventDay) {
       toast.add({
         title: 'Invalid due date',
-        description: 'Task due date cannot be after the event date.',
+        description: 'Task due date must be before the event date.',
         color: 'error',
       })
       return
@@ -952,11 +956,11 @@ watch(eventId, () => {
                   <div class="text-end">Actions</div>
                 </template>
 
-                <!-- 1. Task Name Column (takes remaining space, truncate/bounded to prevent pushing other columns) -->
+                <!-- 1. Task Name Column (takes remaining space and wraps so the full text stays readable) -->
                 <template #title-cell="{ row }">
-                  <div class="font-sans flex flex-col gap-0.5 min-w-0 w-full py-0.5 cursor-pointer overflow-hidden"
+                  <div class="font-sans flex flex-col gap-0.5 min-w-0 w-full py-0.5 cursor-pointer"
                     @click="openDetailsModal(row.original)">
-                    <div class="font-sans flex items-center gap-1.5 min-w-0 max-w-full">
+                    <div class="font-sans flex items-start gap-1.5 min-w-0 max-w-full">
                       <svg v-if="isTaskImportant(row.original)"
                         class="size-3.5 text-yellow-400 fill-yellow-400 shrink-0" viewBox="0 0 24 24"
                         fill="currentColor" title="Important task">
@@ -964,15 +968,14 @@ watch(eventId, () => {
                           points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                       <span
-                        class="font-sans font-medium text-sm text-highlighted group-hover:text-primary-700 transition-colors truncate min-w-0"
+                        class="font-sans font-medium text-sm text-highlighted group-hover:text-primary-700 transition-colors break-words min-w-0"
                         :class="row.original.status === 'COMPLETED' ? 'line-through text-muted' : ''"
                         :title="row.original.title">
                         {{ row.original.title }}
                       </span>
                     </div>
 
-                    <p v-if="row.original.details" class="font-sans text-xs text-muted truncate max-w-full"
-                      :title="row.original.details">
+                    <p v-if="row.original.details" class="font-sans text-xs text-muted break-words max-w-full">
                       {{ row.original.details }}
                     </p>
 
@@ -1089,6 +1092,7 @@ watch(eventId, () => {
                           </div>
                           <UCalendar
                             :model-value="parseIsoToCalendarDate(row.original.deadline)"
+                            :min-value="minTaskDeadline"
                             :max-value="maxTaskDeadline"
                             class="p-1"
                             @update:model-value="(value) => {

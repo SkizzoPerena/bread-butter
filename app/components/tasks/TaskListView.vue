@@ -156,7 +156,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                     <button
                       type="button"
                       data-row-action
-                      class="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-primary"
+                      class="min-w-0 flex-1 break-words text-left text-sm font-medium hover:text-primary"
                       @click.stop="emit('edit', task)"
                     >
                       {{ task.title }}
@@ -164,7 +164,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                   </div>
                   <p
                     v-if="task.details"
-                    class="mt-0.5 truncate text-[11px] text-muted"
+                    class="mt-0.5 break-words text-[11px] text-muted"
                   >
                     {{ task.details }}
                   </p>
