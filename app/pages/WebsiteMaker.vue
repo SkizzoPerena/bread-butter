@@ -14,6 +14,7 @@ import {
 } from '~/utils/customSiteForm'
 import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
 import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
+import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
 import type { GalleryLayout, GalleryPhoto, GalleryRecord } from '~/types/gallery'
 import {
@@ -1455,6 +1456,7 @@ const selectedMakerGalleryLightboxPhoto = ref<GalleryPhoto | null>(null)
 const isMakerGalleryLightboxOpen = ref(false)
 const makerGalleryFileInputRef = ref<HTMLInputElement | null>(null)
 const isDraggingMakerGalleryFile = ref(false)
+const isAddingMakerGalleryPhotos = ref(false)
 
 function selectMakerGalleryLayout(layoutId: GalleryLayout) {
     galleryData.layout = layoutId
@@ -1547,33 +1549,37 @@ function handleMakerGalleryFileDrop(e: DragEvent) {
     }
 }
 
-function processMakerGalleryFiles(files: File[]) {
+async function processMakerGalleryFiles(files: File[]) {
     const imageFiles = files.filter(f => f.type.startsWith('image/'))
     if (imageFiles.length === 0) {
         toast.add({ title: 'Invalid File', description: 'Please select valid image files.', color: 'error' })
         return
     }
-    for (const file of imageFiles) {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-            const dataUrl = event.target?.result as string
-            if (dataUrl) {
-                galleryData.photos.push({
-                    id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                    url: dataUrl,
-                    name: file.name.replace(/\.[^/.]+$/, ''),
-                    caption: '',
-                    alt: file.name,
-                })
-            }
+    isAddingMakerGalleryPhotos.value = true
+    try {
+        const { images, failedNames } = await compressImageFiles(imageFiles)
+        for (const { file, dataUrl } of images) {
+            galleryData.photos.push({
+                id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                url: dataUrl,
+                name: file.name.replace(/\.[^/.]+$/, ''),
+                caption: '',
+                alt: file.name,
+            })
         }
-        reader.readAsDataURL(file)
+        if (images.length > 0) {
+            toast.add({
+                title: 'Photos Added',
+                description: `Added ${images.length} photo${images.length > 1 ? 's' : ''} to gallery.`,
+                color: 'success',
+            })
+        }
+        if (failedNames.length > 0) {
+            toast.add({ title: 'Some photos were not added', description: failedImagesMessage(failedNames), color: 'warning' })
+        }
+    } finally {
+        isAddingMakerGalleryPhotos.value = false
     }
-    toast.add({
-        title: 'Photos Added',
-        description: `Added ${imageFiles.length} photo${imageFiles.length > 1 ? 's' : ''} to gallery.`,
-        color: 'success',
-    })
 }
 
 function openMakerGalleryLightbox(photo: GalleryPhoto) {
@@ -1781,6 +1787,11 @@ interface SaveCustomSiteOptions {
 }
 
 async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean> {
+    if (isAddingMakerGalleryPhotos.value) {
+        toast.add({ title: 'Still preparing your photos', description: 'Save again in a moment.', color: 'warning' })
+        return false
+    }
+
     const validationError = validateWebsiteEditorForSave(
         websiteData,
         selectedHeaderFile.value
@@ -1812,6 +1823,15 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
     isSaving.value = true
 
     try {
+        const dressCodeImages = publishedDressCode.value
+            ? [publishedDressCode.value.paletteImage, ...publishedDressCode.value.images.map(image => image.dataUrl)]
+            : []
+        const fittedUrls = await fitImagesToBudget(
+            galleryData.photos.map(photo => photo.url),
+            pendingImageBytes(dressCodeImages)
+        )
+        galleryData.photos = galleryData.photos.map((photo, index) => ({ ...photo, url: fittedUrls[index] ?? photo.url }))
+
         const formData = buildCustomSiteFormData({
             eventId: targetEventId,
             websiteData,
@@ -2875,7 +2895,7 @@ function togglePreview() {
                                         <div class="flex flex-col items-center justify-center gap-1">
                                             <UIcon name="i-lucide-upload-cloud" class="size-4 text-rose-500" />
                                             <p class="text-xs font-bold text-toast-900">Upload Photos</p>
-                                            <p class="text-[10px] text-toast-500">Click or drop multiple images</p>
+                                            <p class="text-[10px] text-toast-500">{{ isAddingMakerGalleryPhotos ? 'Preparing your photos...' : 'Click or drop multiple images' }}</p>
                                         </div>
                                     </div>
 
