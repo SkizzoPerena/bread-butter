@@ -290,7 +290,7 @@ onMounted(() => {
 
           <div class="space-y-5">
             <UFormField label="Event Name" required>
-              <UInput v-model="eventForm.eventName" placeholder="e.g. Mark & Sarah's Wedding" size="lg"
+              <UInput v-model="eventForm.eventName" placeholder="e.g. Mark & Sarah's Celebration" size="lg"
                 class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
             </UFormField>
 

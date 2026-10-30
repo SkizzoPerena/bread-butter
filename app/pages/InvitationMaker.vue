@@ -627,7 +627,7 @@ function copyWebsiteRsvpLink() {
     navigator.clipboard.writeText(fullUrl)
     toast.add({
       title: 'Link Copied',
-      description: 'Wedding website RSVP link copied to clipboard.',
+      description: 'Website RSVP link copied to clipboard.',
       color: 'success'
     })
   } else {
