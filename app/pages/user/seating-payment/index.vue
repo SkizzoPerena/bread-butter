@@ -11,7 +11,7 @@ useHead({ title: 'Seating payment - Bread + Butter' })
 const route = useRoute()
 const toast = useToast()
 const { isPaymongoActivated } = usePaymongoActivation()
-const { getGathering, submitProof, submitDraftProof, createCheckout, listPackages } = useSeating()
+const { getGathering, createGathering, submitProof, submitDraftProof, createCheckout, listPackages } = useSeating()
 
 const gatheringId = computed(() => String(route.query.gatheringId || ''))
 const draft = computed(() => ({
@@ -103,9 +103,19 @@ async function payWithProof() {
 }
 
 async function payWithCheckout() {
-  if (!gathering.value) return
+  if (!gathering.value && !draftPackage.value) return
   saving.value = true
   try {
+    if (!gathering.value) {
+      gathering.value = await createGathering({
+        packageId: draft.value.packageId,
+        name: draft.value.name,
+        venue: draft.value.venue,
+        eventDate: draft.value.eventDate,
+      })
+      // Going back from checkout must reopen this plan, not create a second one.
+      await navigateTo({ path: '/user/seating-payment', query: { gatheringId: gathering.value._id } }, { replace: true })
+    }
     const checkout = await createCheckout(
       gathering.value._id,
       `/user/seating-payment?gatheringId=${gathering.value._id}&cancelled=1`,
@@ -190,7 +200,7 @@ async function payWithCheckout() {
         </div>
 
         <PaymentCheckoutPanel
-          v-if="isPaymongoActivated && gathering && summary.payment?.status !== 'PENDING'"
+          v-if="isPaymongoActivated && summary.payment?.status !== 'PENDING'"
           :amount-due="summary.pricePhp"
           :loading="saving"
           submit-label="Pay with PayMongo"
