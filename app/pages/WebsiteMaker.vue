@@ -3,6 +3,8 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import aisleImage from '../assets/bpb-images/login-aisle.webp'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord, GuestRecord } from '~/types/event'
+import { isWeddingEventType } from '~/types/event'
+import type { CustomSiteGiftRegistry } from '~/types/customSite'
 import type { GuestRoleRecord } from '~/types/guest_role'
 import { isEventFullyPaid } from '~/types/payment'
 import {
@@ -10,6 +12,10 @@ import {
     buildCustomSiteFormData,
     validateWebsiteEditorForSave,
 } from '~/utils/customSiteForm'
+import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
+import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
+import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
+import type { GalleryLayout, GalleryPhoto, GalleryRecord } from '~/types/gallery'
 import {
     colorPalettes,
     typographySets,
@@ -50,6 +56,68 @@ const {
 } = useCustomSite()
 const { fetchGuestRolesByEvent } = useGuestRoles()
 const { fetchGuestsByEvent } = useGuests()
+const { fetchDressCode, getLocalDressCode } = useDressCode()
+
+const publishedDressCode = ref<DressCodeRecord | null>(null)
+const isDressCodeLoading = ref(false)
+const selectedDressCodeLightboxImage = ref<UploadedDressCodeImage | null>(null)
+const isDressCodeLightboxOpen = ref(false)
+
+async function loadPublishedDressCode() {
+    const targetId = eventId.value || 'mock'
+    isDressCodeLoading.value = true
+    try {
+        const dc = await fetchDressCode(targetId)
+        if (dc) {
+            publishedDressCode.value = dc
+        }
+    } catch (err) {
+        console.warn('[WebsiteMaker] Failed to fetch published dress code', err)
+    } finally {
+        if (!publishedDressCode.value) {
+            publishedDressCode.value = getLocalDressCode(targetId)
+        }
+        isDressCodeLoading.value = false
+    }
+}
+
+function refreshPublishedDressCode() {
+    const targetId = eventId.value || 'mock'
+    const latest = getLocalDressCode(targetId)
+    if (latest) {
+        publishedDressCode.value = latest
+        toast.add({
+            title: 'Colors & Dress Code Synced',
+            description: 'Refreshed with the latest published palette and guidelines.',
+            color: 'rose',
+        })
+    }
+    loadPublishedDressCode()
+}
+
+function copyHexToClipboard(hex: string) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(hex)
+        toast.add({
+            title: `Copied ${hex}`,
+            description: 'Hex code copied to clipboard.',
+            color: 'rose',
+        })
+    }
+}
+
+function onWindowFocus() {
+    if (eventId.value) {
+        const latest = getLocalDressCode(eventId.value)
+        if (latest && JSON.stringify(latest) !== JSON.stringify(publishedDressCode.value)) {
+            publishedDressCode.value = latest
+        }
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('focus', onWindowFocus)
+}
 
 function displaySaveWebsiteEndpoint(customSiteIdForSave: string | null) {
     if (isUiOnlyMode.value) {
@@ -82,6 +150,9 @@ watch(isSaving, (val) => {
 
 onUnmounted(() => {
     finishPageTransition()
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onWindowFocus)
+    }
     if (typeof document !== 'undefined') {
         document.body.style.overflow = ''
     }
@@ -574,14 +645,40 @@ const getBaseLabel = (id: string) => {
 // 5. Available Components (Step 7)
 const availableComponents = [
     { id: 'rsvp', name: 'RSVP', icon: 'i-lucide-mail', description: 'Allow guests to respond to your invitation.' },
-    { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your wedding day.' },
+    { id: 'dress-code', name: 'Color & Dress Code', icon: 'i-lucide-shirt', description: 'Display your color palette, attire guidelines, and moodboard.' },
+    { id: 'gallery', name: 'Photo Gallery', icon: 'i-lucide-images', description: 'Showcase your favorite photos.' },
+    { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your event.' },
     { id: 'where-to-stay', name: 'Where to Stay', icon: 'i-lucide-bed', description: 'Recommend accommodations for your guests.' },
     { id: 'wedding-party', name: 'Wedding Party', icon: 'i-lucide-users', description: 'Introduce your bridesmaids and groomsmen.' },
     { id: 'q-and-a', name: 'Q&A', icon: 'i-lucide-help-circle', description: 'Answer common questions from your guests.' },
+    { id: 'gifts', name: 'Gifts', icon: 'i-lucide-gift', description: 'Share your wishlist and payment QR codes. Your account name and number will be visible on your website.' },
     { id: 'diy', name: 'DIY Component', icon: 'i-lucide-plus-square', description: 'Create your own custom component.' }
 ]
 
+const offeredComponents = computed(() =>
+    !eventRecord.value || isWeddingEventType(eventRecord.value.eventType)
+        ? availableComponents
+        : availableComponents.filter(comp => comp.id !== 'wedding-party')
+)
+
 const selectedComponents = ref<string[]>([])
+
+const { fetchWishlistByEvent } = useWishlist()
+const giftRegistry = ref<CustomSiteGiftRegistry | null>(null)
+
+async function loadGiftRegistry() {
+    if (!eventId.value) return
+    try {
+        const wishlist = await fetchWishlistByEvent(eventId.value)
+        giftRegistry.value = { qrCodes: wishlist.qrCodes, wishedItems: wishlist.wishedItems }
+    } catch {
+        giftRegistry.value = null
+    }
+}
+
+watch(() => selectedComponents.value.includes('gifts'), (enabled) => {
+    if (enabled) loadGiftRegistry()
+}, { immediate: true })
 const displayComponents = computed(() => {
     return selectedComponents.value.filter(id => id !== 'diy')
 })
@@ -624,10 +721,13 @@ const getStepShortName = (step: StepDef) => {
         'typography': 'Fonts',
         'basic-info': 'Info',
         'components': 'Blocks',
+        'dress-code': 'Dress Code',
+        'gallery': 'Gallery',
         'schedule': 'Schedule',
         'where-to-stay': 'Stay',
         'wedding-party': 'Party',
         'q-and-a': 'Q&A',
+        'gifts': 'Gifts',
         'diy-config': 'DIY',
         'thank-you': 'Closing',
         'review-publish': 'Review'
@@ -806,8 +906,8 @@ interface ScheduleItem {
 const scheduleItems = ref<ScheduleItem[]>([
     {
         id: Date.now(),
-        title: 'Wedding Ceremony',
-        description: 'The exchange of vows and rings.',
+        title: 'Main Program',
+        description: 'The celebration begins.',
         location: 'Main Garden',
         date: '',
         startTime: '15:00',
@@ -902,7 +1002,7 @@ function getAreaHotelsGoogleReviewsUrl(
     if (coords && coords.lat != null && coords.lng != null && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         return `https://www.google.com/maps/search/hotels+and+accommodations/@${coords.lat},${coords.lng},14z`
     }
-    const loc = (location || '').trim() || 'wedding venue'
+    const loc = (location || '').trim() || 'the venue'
     return `https://www.google.com/maps/search/hotels+and+accommodations+near+${encodeURIComponent(loc)}`
 }
 
@@ -913,7 +1013,7 @@ function getVenueGoogleMapsUrl(
     if (coords && coords.lat != null && coords.lng != null && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         return `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
     }
-    const loc = (location || '').trim() || 'wedding venue'
+    const loc = (location || '').trim() || 'the venue'
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`
 }
 
@@ -1338,6 +1438,170 @@ watch(selectedHeaderFile, (newFile) => {
     }
 });
 
+// Photo Gallery State & Composable
+const { fetchGallery: fetchEventGalleryData, swapPhotos: swapGalleryPhotos } = useEventGallery()
+const galleryData = reactive<GalleryRecord>({
+    title: defaultGalleryRecord.title,
+    subtitle: defaultGalleryRecord.subtitle,
+    layout: defaultGalleryRecord.layout,
+    columns: defaultGalleryRecord.columns,
+    photos: [...defaultGalleryRecord.photos],
+    enableLightbox: true,
+})
+const isGalleryLoading = ref(false)
+const draggedMakerGalleryIndex = ref<number | null>(null)
+const dragOverMakerGalleryIndex = ref<number | null>(null)
+const selectedMakerGalleryLightboxPhoto = ref<GalleryPhoto | null>(null)
+const isMakerGalleryLightboxOpen = ref(false)
+const makerGalleryFileInputRef = ref<HTMLInputElement | null>(null)
+const isDraggingMakerGalleryFile = ref(false)
+
+function selectMakerGalleryLayout(layoutId: GalleryLayout) {
+    galleryData.layout = layoutId
+    toast.add({
+        title: 'Layout Updated',
+        description: `Switched gallery layout to ${layoutId}.`,
+        color: 'neutral',
+    })
+}
+
+function onMakerDragStartPhoto(idx: number, e: DragEvent) {
+    draggedMakerGalleryIndex.value = idx
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', String(idx))
+    }
+}
+
+function onMakerDragOverPhoto(idx: number, e: DragEvent) {
+    e.preventDefault()
+    if (draggedMakerGalleryIndex.value !== null && draggedMakerGalleryIndex.value !== idx) {
+        dragOverMakerGalleryIndex.value = idx
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move'
+        }
+    }
+}
+
+function onMakerDragLeavePhoto(idx: number) {
+    if (dragOverMakerGalleryIndex.value === idx) {
+        dragOverMakerGalleryIndex.value = null
+    }
+}
+
+function onMakerDropPhoto(targetIdx: number, e: DragEvent) {
+    e.preventDefault()
+    if (draggedMakerGalleryIndex.value !== null && draggedMakerGalleryIndex.value !== targetIdx) {
+        galleryData.photos = swapGalleryPhotos(galleryData.photos, draggedMakerGalleryIndex.value, targetIdx)
+        toast.add({
+            title: 'Photos Swapped',
+            description: `Swapped photos in position #${draggedMakerGalleryIndex.value + 1} and #${targetIdx + 1}.`,
+            color: 'success',
+        })
+    }
+    draggedMakerGalleryIndex.value = null
+    dragOverMakerGalleryIndex.value = null
+}
+
+function onMakerDragEndPhoto() {
+    draggedMakerGalleryIndex.value = null
+    dragOverMakerGalleryIndex.value = null
+}
+
+function moveMakerGalleryPhoto(idx: number, direction: 'prev' | 'next') {
+    const targetIdx = direction === 'prev' ? idx - 1 : idx + 1
+    if (targetIdx >= 0 && targetIdx < galleryData.photos.length) {
+        galleryData.photos = swapGalleryPhotos(galleryData.photos, idx, targetIdx)
+    }
+}
+
+function removeMakerGalleryPhoto(id: string) {
+    galleryData.photos = galleryData.photos.filter(p => p.id !== id)
+}
+
+function resetMakerGalleryToSamples() {
+    galleryData.photos = [...sampleGalleryPhotos]
+    toast.add({
+        title: 'Samples Restored',
+        description: 'Loaded 6 sample photos.',
+        color: 'neutral',
+    })
+}
+
+function triggerMakerGalleryFileInput() {
+    makerGalleryFileInputRef.value?.click()
+}
+
+function handleMakerGalleryFileInputChange(e: Event) {
+    const input = e.target as HTMLInputElement
+    if (input.files && input.files.length > 0) {
+        processMakerGalleryFiles(Array.from(input.files))
+        input.value = ''
+    }
+}
+
+function handleMakerGalleryFileDrop(e: DragEvent) {
+    isDraggingMakerGalleryFile.value = false
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        processMakerGalleryFiles(Array.from(e.dataTransfer.files))
+    }
+}
+
+function processMakerGalleryFiles(files: File[]) {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'))
+    if (imageFiles.length === 0) {
+        toast.add({ title: 'Invalid File', description: 'Please select valid image files.', color: 'error' })
+        return
+    }
+    for (const file of imageFiles) {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+            const dataUrl = event.target?.result as string
+            if (dataUrl) {
+                galleryData.photos.push({
+                    id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    url: dataUrl,
+                    name: file.name.replace(/\.[^/.]+$/, ''),
+                    caption: '',
+                    alt: file.name,
+                })
+            }
+        }
+        reader.readAsDataURL(file)
+    }
+    toast.add({
+        title: 'Photos Added',
+        description: `Added ${imageFiles.length} photo${imageFiles.length > 1 ? 's' : ''} to gallery.`,
+        color: 'success',
+    })
+}
+
+function openMakerGalleryLightbox(photo: GalleryPhoto) {
+    selectedMakerGalleryLightboxPhoto.value = photo
+    isMakerGalleryLightboxOpen.value = true
+}
+
+async function refreshGalleryData() {
+    const id = eventId.value || 'mock-event-id'
+    isGalleryLoading.value = true
+    try {
+        const loaded = await fetchEventGalleryData(id)
+        if (loaded) {
+            galleryData.title = loaded.title || defaultGalleryRecord.title
+            galleryData.subtitle = loaded.subtitle !== undefined ? loaded.subtitle : defaultGalleryRecord.subtitle
+            galleryData.layout = loaded.layout || defaultGalleryRecord.layout
+            galleryData.columns = loaded.columns || defaultGalleryRecord.columns
+            galleryData.photos = Array.isArray(loaded.photos) && loaded.photos.length > 0 ? [...loaded.photos] : [...sampleGalleryPhotos]
+            galleryData.enableLightbox = loaded.enableLightbox !== false
+        }
+        toast.add({ title: 'Gallery Synced', description: 'Photo gallery refreshed.', color: 'success' })
+    } catch (err) {
+        console.error(err)
+    } finally {
+        isGalleryLoading.value = false
+    }
+}
+
 
 async function loadEventContext() {
     if (!eventId.value && !isUiOnlyMode.value) {
@@ -1474,6 +1738,8 @@ async function loadCustomSite() {
                         customWeddingPartyMembers,
                         weddingPartyIntro,
                         whereToStayAccommodations,
+                        publishedDressCode,
+                        galleryData: { value: galleryData },
                     })
                     if (websiteData.colorPalette === 'Custom') {
                         colorTabSelected.value = 'custom'
@@ -1500,7 +1766,7 @@ const { finishPageTransition } = usePageTransition()
 
 onMounted(async () => {
     try {
-        await Promise.all([loadEventContext(), loadCustomSite()])
+        await Promise.all([loadEventContext(), loadCustomSite(), loadPublishedDressCode()])
         seedWebsiteDefaultsFromEvent()
     } finally {
         await nextTick()
@@ -1560,6 +1826,8 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
             weddingPartyMembers: effectiveWeddingPartyMembers.value,
             weddingPartyIntro: weddingPartyIntro.value,
             whereToStayAccommodations: whereToStayAccommodations.value,
+            dressCode: publishedDressCode.value,
+            gallery: galleryData,
         })
 
         let savedSite
@@ -2361,7 +2629,7 @@ function togglePreview() {
                             <!-- Step 7: Components -->
                             <div v-if="currentStepData?.id === 'components'" class="">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div v-for="comp in availableComponents" :key="comp.id"
+                                    <div v-for="comp in offeredComponents" :key="comp.id"
                                         class="relative rounded-lg p-5 cursor-pointer group transition-all duration-300 border flex flex-col items-center text-center gap-1"
                                         :class="{ 'ring-2 ring-blue-500 shadow-lg border-transparent': selectedComponents.includes(comp.id), 'border-toast-200 hover:border-blue-300': !selectedComponents.includes(comp.id) }"
                                         @click="toggleComponent(comp.id)">
@@ -2376,6 +2644,310 @@ function togglePreview() {
                                         <div v-if="selectedComponents.includes(comp.id)"
                                             class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
                                             <UIcon name="i-lucide-check" class="h-4 w-4" @click.stop />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Step: Color & Dress Code -->
+                            <div v-if="currentStepData?.id === 'dress-code'" class="flex flex-col gap-5">
+                                <!-- Live Sync Status Banner -->
+                                <div class="p-4 rounded-xl border border-rose-200/80 bg-rose-50/70 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="relative flex h-2.5 w-2.5">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                                            </span>
+                                            <span class="text-xs font-bold text-rose-950 uppercase tracking-wide">
+                                                Live Synced with Colors &amp; Dress Code
+                                            </span>
+                                        </div>
+                                        <UButton size="xs" color="rose" variant="subtle" icon="i-lucide-refresh-cw" :loading="isDressCodeLoading" @click="refreshPublishedDressCode">
+                                            Sync Now
+                                        </UButton>
+                                    </div>
+                                    <p class="text-xs text-rose-800 leading-relaxed">
+                                        Content, color palette, and moodboard photos automatically reflect whatever you publish in your event's Colors &amp; Dress Code dashboard.
+                                    </p>
+                                    <div class="pt-1 flex items-center gap-2">
+                                        <UButton :to="'/event/dress-code' + (eventId ? '?eventId=' + eventId : '')" target="_blank" icon="i-lucide-external-link" size="xs" color="rose" variant="solid">
+                                            Open Dress Code Dashboard
+                                        </UButton>
+                                    </div>
+                                </div>
+
+                                <!-- Overview Card -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
+                                    <div class="flex items-center justify-between pb-2 border-b border-toast-100">
+                                        <span class="text-xs font-bold uppercase tracking-wider text-toast-500">Published Overview</span>
+                                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-toast-100 text-toast-800">
+                                            {{ publishedDressCode?.formality || 'Formal Attire' }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Palette Display Overview (Image, Swatches, or Both) -->
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="font-medium text-toast-700">
+                                                Palette: {{ publishedDressCode?.presetPaletteName || 'Curated Colors' }}
+                                            </span>
+                                            <UBadge color="rose" variant="subtle" size="xs">
+                                                {{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.paletteType === 'both' ? 'Image & Swatches' : 'Interactive Swatches') }}
+                                            </UBadge>
+                                        </div>
+
+                                        <!-- If Pre-made Palette Image exists and image or both is enabled -->
+                                        <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
+                                            class="p-2 rounded-xl border border-rose-200 bg-rose-50/50 flex items-center gap-3">
+                                            <div class="size-14 rounded-lg overflow-hidden border border-black/10 bg-white shrink-0 cursor-pointer"
+                                                @click="selectedDressCodeLightboxImage = { id: 'palette-thumb', name: 'Color Palette Graphic', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                <img :src="publishedDressCode.paletteImage" alt="Palette Graphic" class="w-full h-full object-cover" />
+                                            </div>
+                                            <div class="flex-1 min-w-0 text-xs">
+                                                <span class="font-bold text-toast-900 block truncate">Pre-made Palette Graphic</span>
+                                                <span class="text-[11px] text-toast-500">Click to view full size</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Color Swatches Row (if editor or both, or fallback if no image) -->
+                                        <div v-if="publishedDressCode?.paletteType === 'editor' || publishedDressCode?.paletteType === 'both' || !publishedDressCode?.paletteImage"
+                                            class="grid grid-cols-4 gap-2 pt-1">
+                                            <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
+                                                :key="key"
+                                                class="p-2 rounded-lg border border-toast-200 text-center flex flex-col items-center justify-between h-14"
+                                                :style="{ backgroundColor: hex }">
+                                                <span class="text-[9px] font-bold uppercase px-1 py-0.2 bg-black/40 text-white rounded">
+                                                    {{ key }}
+                                                </span>
+                                                <span class="font-mono text-[10px] font-bold px-1 py-0.2 bg-white/80 text-black rounded">
+                                                    {{ hex }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Attire Notes summary -->
+                                    <div class="space-y-2 pt-2 border-t border-toast-100 text-xs">
+                                        <div v-if="publishedDressCode?.menAttire" class="p-2.5 rounded-lg bg-toast-50">
+                                            <span class="font-bold text-toast-900 block mb-0.5">Gentlemen:</span>
+                                            <span class="text-toast-700 leading-relaxed">{{ publishedDressCode.menAttire }}</span>
+                                        </div>
+                                        <div v-if="publishedDressCode?.womenAttire" class="p-2.5 rounded-lg bg-toast-50">
+                                            <span class="font-bold text-toast-900 block mb-0.5">Ladies:</span>
+                                            <span class="text-toast-700 leading-relaxed">{{ publishedDressCode.womenAttire }}</span>
+                                        </div>
+                                        <div v-if="publishedDressCode?.avoidColors" class="p-2.5 rounded-lg bg-red-50 text-red-900 border border-red-200">
+                                            <span class="font-bold block mb-0.5">Avoid:</span>
+                                            <span class="text-red-800 leading-relaxed">{{ publishedDressCode.avoidColors }}</span>
+                                        </div>
+                                        <div v-if="publishedDressCode?.images && publishedDressCode.images.length > 0" class="pt-1 flex items-center justify-between text-toast-600">
+                                            <span class="font-medium flex items-center gap-1.5">
+                                                <UIcon name="i-lucide-image" class="size-3.5 text-rose-500" />
+                                                Moodboard Lookbook
+                                            </span>
+                                            <span class="font-bold text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">
+                                                {{ publishedDressCode.images.length }} photo{{ publishedDressCode.images.length > 1 ? 's' : '' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Step: Photo Gallery -->
+                            <div v-if="currentStepData?.id === 'gallery'" class="flex flex-col gap-5">
+                                <!-- Studio Sync Status Banner -->
+                                <div class="p-4 rounded-xl border border-indigo-200/80 bg-indigo-50/70 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="relative flex h-2.5 w-2.5">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+                                            </span>
+                                            <span class="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                                                Photo Gallery Component
+                                            </span>
+                                        </div>
+                                        <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-refresh-cw" :loading="isGalleryLoading" @click="refreshGalleryData">
+                                            Sync Studio
+                                        </UButton>
+                                    </div>
+                                    <p class="text-xs text-indigo-800 leading-relaxed">
+                                        Pick your preferred layout suggestion below, drag photos to swap order, and customize narrative captions for your guests.
+                                    </p>
+                                    <div class="pt-1 flex items-center gap-2">
+                                        <UButton :to="'/event/gallery' + (eventId ? '?eventId=' + eventId : '')" target="_blank" icon="i-lucide-external-link" size="xs" color="neutral" variant="solid">
+                                            Open Full Gallery Studio
+                                        </UButton>
+                                    </div>
+                                </div>
+
+                                <!-- Gallery Header Configuration -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">Header &amp; Narrative</h4>
+                                    <div class="space-y-3">
+                                        <UFormField label="Gallery Title" description="Main heading shown on the website section">
+                                            <UInput v-model="galleryData.title" placeholder="e.g. Captured Moments" class="w-full" />
+                                        </UFormField>
+                                        <UFormField label="Subtitle Narrative" description="Optional romantic description or note">
+                                            <UInput v-model="galleryData.subtitle" placeholder="A glimpse into our favorite moments..." class="w-full" />
+                                        </UFormField>
+                                    </div>
+                                </div>
+
+                                <!-- Layout Suggestions Selector -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">Layout Suggestions</h4>
+                                        <span class="text-[11px] font-semibold text-rose-600">5 Styles</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-2">
+                                        <button
+                                            v-for="sugg in defaultGallerySuggestions"
+                                            :key="sugg.id"
+                                            type="button"
+                                            class="p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3"
+                                            :class="galleryData.layout === sugg.id
+                                                ? 'border-rose-400 bg-rose-50/60 ring-1 ring-rose-300 shadow-2xs'
+                                                : 'border-toast-200 hover:border-toast-300 hover:bg-toast-50/50'"
+                                            @click="selectMakerGalleryLayout(sugg.id)">
+                                            <div
+                                                class="size-8 rounded-lg flex items-center justify-center shrink-0"
+                                                :class="galleryData.layout === sugg.id ? 'bg-rose-500 text-white' : 'bg-toast-100 text-toast-600'">
+                                                <UIcon :name="sugg.icon" class="size-4" />
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-xs font-bold text-toast-900">{{ sugg.name }}</span>
+                                                    <span v-if="galleryData.layout === sugg.id" class="text-[9px] font-bold text-rose-600 bg-white px-1.5 py-0.2 rounded border border-rose-200">
+                                                        Active
+                                                    </span>
+                                                </div>
+                                                <span class="text-[10px] text-toast-500 truncate block">{{ sugg.description }}</span>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    <!-- Column selector if Grid/Masonry -->
+                                    <div v-if="galleryData.layout === 'grid' || galleryData.layout === 'masonry'" class="pt-2 border-t border-toast-100 space-y-1.5">
+                                        <label class="text-xs font-medium text-toast-700">Display Columns</label>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <button
+                                                v-for="cols in [2, 3, 4] as const"
+                                                :key="cols"
+                                                type="button"
+                                                class="py-1 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer"
+                                                :class="galleryData.columns === cols
+                                                    ? 'bg-toast-900 text-white border-toast-900'
+                                                    : 'border-toast-200 text-toast-700 hover:bg-toast-100'"
+                                                @click="galleryData.columns = cols">
+                                                {{ cols }} Columns
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Photo Uploader & Drag-to-Swap List -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">
+                                            Photos ({{ galleryData.photos.length }})
+                                        </h4>
+                                        <button
+                                            type="button"
+                                            class="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                                            @click="resetMakerGalleryToSamples">
+                                            Load Samples
+                                        </button>
+                                    </div>
+
+                                    <!-- Dropzone -->
+                                    <div
+                                        class="border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer bg-toast-50/40"
+                                        :class="isDraggingMakerGalleryFile
+                                            ? 'border-rose-500 bg-rose-50/80 ring-2 ring-rose-300'
+                                            : 'border-toast-300 hover:border-rose-400 hover:bg-rose-50/20'"
+                                        @dragover.prevent="isDraggingMakerGalleryFile = true"
+                                        @dragleave.prevent="isDraggingMakerGalleryFile = false"
+                                        @drop.prevent="handleMakerGalleryFileDrop"
+                                        @click="triggerMakerGalleryFileInput">
+                                        <input ref="makerGalleryFileInputRef" type="file" multiple accept="image/*" class="hidden" @change="handleMakerGalleryFileInputChange" />
+                                        <div class="flex flex-col items-center justify-center gap-1">
+                                            <UIcon name="i-lucide-upload-cloud" class="size-4 text-rose-500" />
+                                            <p class="text-xs font-bold text-toast-900">Upload Photos</p>
+                                            <p class="text-[10px] text-toast-500">Click or drop multiple images</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Drag hint -->
+                                    <div class="p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-[11px] text-blue-900">
+                                        <UIcon name="i-lucide-move" class="size-3.5 text-blue-600 shrink-0" />
+                                        <span>Drag cards to swap photos in order.</span>
+                                    </div>
+
+                                    <!-- Draggable cards -->
+                                    <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                        <div
+                                            v-for="(photo, pIdx) in galleryData.photos"
+                                            :key="photo.id"
+                                            draggable="true"
+                                            class="p-2 bg-white rounded-xl border flex items-center gap-2.5 transition-all cursor-grab active:cursor-grabbing group select-none"
+                                            :class="[
+                                                draggedMakerGalleryIndex === pIdx ? 'opacity-40 border-dashed border-rose-400' : 'border-toast-200/90 shadow-2xs hover:border-toast-300',
+                                                dragOverMakerGalleryIndex === pIdx ? 'ring-2 ring-rose-500 bg-rose-50/60 border-rose-500 -translate-y-0.5' : '',
+                                            ]"
+                                            @dragstart="onMakerDragStartPhoto(pIdx, $event)"
+                                            @dragover="onMakerDragOverPhoto(pIdx, $event)"
+                                            @dragleave="onMakerDragLeavePhoto(pIdx)"
+                                            @drop="onMakerDropPhoto(pIdx, $event)"
+                                            @dragend="onMakerDragEndPhoto">
+                                            <div class="flex flex-col items-center text-toast-400">
+                                                <UIcon name="i-lucide-grip-vertical" class="size-3.5" />
+                                                <span class="text-[8px] font-mono font-bold">#{{ pIdx + 1 }}</span>
+                                            </div>
+
+                                            <div
+                                                class="size-11 rounded-lg overflow-hidden bg-toast-100 shrink-0 border border-black/10 cursor-pointer relative"
+                                                @click="openMakerGalleryLightbox(photo)">
+                                                <img :src="photo.url" :alt="photo.caption || 'Thumbnail'" class="w-full h-full object-cover" />
+                                                <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                                    <UIcon name="i-lucide-zoom-in" class="size-3" />
+                                                </div>
+                                            </div>
+
+                                            <div class="flex-1 min-w-0">
+                                                <input
+                                                    v-model="photo.caption"
+                                                    type="text"
+                                                    placeholder="Add photo caption..."
+                                                    class="w-full text-xs py-0.5 px-1.5 rounded border border-toast-200 bg-toast-50 text-toast-800 placeholder-toast-400 focus:outline-none focus:ring-1 focus:ring-rose-500" />
+                                            </div>
+
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    v-if="pIdx > 0"
+                                                    type="button"
+                                                    class="p-0.5 text-toast-400 hover:text-toast-700 cursor-pointer"
+                                                    title="Move Up"
+                                                    @click="moveMakerGalleryPhoto(pIdx, 'prev')">
+                                                    <UIcon name="i-lucide-arrow-up" class="size-3" />
+                                                </button>
+                                                <button
+                                                    v-if="pIdx < galleryData.photos.length - 1"
+                                                    type="button"
+                                                    class="p-0.5 text-toast-400 hover:text-toast-700 cursor-pointer"
+                                                    title="Move Down"
+                                                    @click="moveMakerGalleryPhoto(pIdx, 'next')">
+                                                    <UIcon name="i-lucide-arrow-down" class="size-3" />
+                                                </button>
+                                                <UButton
+                                                    icon="i-lucide-trash-2"
+                                                    variant="ghost"
+                                                    color="neutral"
+                                                    size="xs"
+                                                    class="text-toast-400 hover:text-red-500 cursor-pointer"
+                                                    @click="removeMakerGalleryPhoto(photo.id)" />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2423,7 +2995,7 @@ function togglePreview() {
                                                 @click="removeScheduleItem(item.id)" />
                                         </div>
                                         <UFormField label="Title">
-                                            <UInput v-model="item.title" placeholder="e.g., Wedding Ceremony"
+                                            <UInput v-model="item.title" placeholder="e.g., Main Program"
                                                 class="w-full" />
                                         </UFormField>
 
@@ -2720,7 +3292,7 @@ function togglePreview() {
                                                             </span>
                                                             <span class="text-[11px] text-toast-500 truncate block">
                                                                 Top hotels & stays near {{
-                                                                    websiteData.whereToStayLocation || 'wedding venue' }}
+                                                                    websiteData.whereToStayLocation || 'the venue' }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2737,6 +3309,31 @@ function togglePreview() {
                                     <div class="text-center text-toast-500 italic">Travel configuration goes here.</div>
                                     <!-- TODO: Add Travel form fields -->
                                 </div>
+                            </div>
+
+                            <!-- Dynamic Step: Gifts -->
+                            <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-4">
+                                <p class="text-sm text-toast-500">
+                                    Guests will see your QR codes, account names, account numbers, and gift list on your website.
+                                </p>
+                                <p class="text-sm">
+                                    {{ giftRegistry?.qrCodes.length ?? 0 }} QR code(s) and {{ giftRegistry?.wishedItems.length ?? 0 }} gift(s) added.
+                                </p>
+                                <UButton
+                                    :to="{ path: '/event/wishlist', query: { eventId } }"
+                                    target="_blank"
+                                    icon="i-lucide-external-link"
+                                    variant="outline"
+                                    class="self-start"
+                                    label="Manage gifts and QR codes"
+                                />
+                                <UButton
+                                    icon="i-lucide-refresh-cw"
+                                    variant="ghost"
+                                    class="self-start"
+                                    label="Refresh"
+                                    @click="loadGiftRegistry"
+                                />
                             </div>
 
                             <!-- Dynamic Step: Wedding Party -->
@@ -3168,6 +3765,366 @@ function togglePreview() {
 
 
                                     <template v-for="(compId, index) in displayComponents" :key="compId">
+                                        <!-- Color & Dress Code Preview -->
+                                        <div v-if="compId === 'dress-code' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            id="preview-section-dress-code"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
+
+                                            <!-- Header & Formality Pill -->
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    Color &amp; Dress Code
+                                                </h2>
+                                                <div v-if="publishedDressCode?.formality" class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                                                    <span>{{ publishedDressCode.formality }}</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 1: Color Palette (Image, Editor, or Both) -->
+                                            <div class="max-w-2xl mx-auto w-full space-y-3.5">
+                                                <div class="flex items-center justify-between text-xs uppercase tracking-wider font-semibold opacity-80"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <span class="inline-flex items-center gap-1.5">
+                                                        <UIcon name="i-lucide-swatch-book" class="size-4" />
+                                                        Color Palette
+                                                    </span>
+                                                    <span>{{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.presetPaletteName || 'Curated Colors') }}</span>
+                                                </div>
+
+                                                <!-- Option 1: Pre-made Palette Image -->
+                                                <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
+                                                    class="w-full">
+                                                    <div class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2.5 backdrop-blur-xs"
+                                                        @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                        <img :src="publishedDressCode.paletteImage" alt="Color Palette Graphic"
+                                                            class="w-full max-h-72 object-contain rounded-xl" />
+                                                        <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                                                            <UIcon name="i-lucide-zoom-in" class="size-4" />
+                                                            <span>Click to view full palette graphic</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Option 2: 4 Color Swatches -->
+                                                <div v-if="publishedDressCode?.paletteType === 'editor' || publishedDressCode?.paletteType === 'both' || !publishedDressCode?.paletteImage"
+                                                    class="space-y-2">
+                                                    <div v-if="publishedDressCode?.paletteType === 'both' && publishedDressCode?.paletteImage"
+                                                        class="text-[11px] font-bold uppercase tracking-wider text-left opacity-75"
+                                                        :style="{ color: previewDynamicStyle(index).heading }">
+                                                        Color Swatch Breakdown
+                                                    </div>
+                                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                        <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
+                                                            :key="key"
+                                                            class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-22 sm:h-24 transition-transform hover:-translate-y-0.5 cursor-pointer"
+                                                            :style="{ backgroundColor: hex }"
+                                                            @click="copyHexToClipboard(hex)">
+                                                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
+                                                                {{ key }}
+                                                            </span>
+                                                            <div class="flex items-center justify-between">
+                                                                <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
+                                                                    {{ hex }}
+                                                                </span>
+                                                                <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) -->
+                                            <div class="max-w-2xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                                                <!-- Gentlemen -->
+                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
+                                                        <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
+                                                            <UIcon name="i-lucide-user" class="size-4" />
+                                                        </div>
+                                                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                            :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                            Gentlemen / Men's Attire
+                                                        </h3>
+                                                    </div>
+                                                    <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                        {{ publishedDressCode?.menAttire || 'Dark suit, tuxedo, or formal Barong Tagalog with dress trousers and polished shoes.' }}
+                                                    </p>
+                                                </div>
+
+                                                <!-- Ladies -->
+                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
+                                                        <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
+                                                            <UIcon name="i-lucide-heart" class="size-4 text-rose-500" />
+                                                        </div>
+                                                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                            :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                            Ladies / Women's Attire
+                                                        </h3>
+                                                    </div>
+                                                    <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                        {{ publishedDressCode?.womenAttire || 'Floor-length evening gown, midi cocktail dress, or chic formal attire complementing the palette.' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 3: Guest Notes & Colors to Avoid -->
+                                            <div class="max-w-2xl mx-auto w-full space-y-3 text-left">
+                                                <!-- Guest Notes -->
+                                                <div v-if="publishedDressCode?.guestNotes"
+                                                    class="p-4 rounded-xl border border-current/15 backdrop-blur-md shadow-xs"
+                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    <div class="flex items-start gap-2.5">
+                                                        <UIcon name="i-lucide-info" class="size-4 shrink-0 mt-0.5 opacity-80" />
+                                                        <div class="text-xs sm:text-sm leading-relaxed">
+                                                            <span class="font-bold block mb-0.5" :style="{ color: previewDynamicStyle(index).heading }">Guest Guidance:</span>
+                                                            <span class="opacity-90">{{ publishedDressCode.guestNotes }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Colors to Avoid -->
+                                                <div v-if="publishedDressCode?.avoidColors"
+                                                    class="p-3.5 rounded-xl border border-red-300 bg-red-50/80 text-red-950 flex items-start gap-2.5 shadow-xs">
+                                                    <UIcon name="i-lucide-alert-triangle" class="size-4 text-red-600 shrink-0 mt-0.5" />
+                                                    <div class="text-xs sm:text-sm leading-relaxed">
+                                                        <span class="font-bold text-red-900">Colors to Avoid: </span>
+                                                        <span class="text-red-800">{{ publishedDressCode.avoidColors }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 4: Moodboard Inspiration Gallery -->
+                                            <div v-if="publishedDressCode?.images && publishedDressCode.images.length > 0"
+                                                class="max-w-4xl mx-auto w-full space-y-4 pt-4">
+                                                <div class="flex items-center justify-between text-left">
+                                                    <div>
+                                                        <h3 class="text-base sm:text-lg font-bold"
+                                                            :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                            Attire Inspiration &amp; Moodboard
+                                                        </h3>
+                                                        <p class="text-xs opacity-75" :style="{ color: previewDynamicStyle(index).text }">
+                                                            Visual lookbook celebrating our event style.
+                                                        </p>
+                                                    </div>
+                                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full border border-current/20 opacity-80"
+                                                        :style="{ color: previewDynamicStyle(index).heading }">
+                                                        {{ publishedDressCode.images.length }} photo{{ publishedDressCode.images.length > 1 ? 's' : '' }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                                                    <div v-for="img in publishedDressCode.images" :key="img.id"
+                                                        class="group relative aspect-4/5 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                                                        @click="selectedDressCodeLightboxImage = img; isDressCodeLightboxOpen = true">
+                                                        <img :src="img.dataUrl" :alt="img.name"
+                                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                                        <div class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5 text-left">
+                                                            <span class="text-[10px] font-bold text-white uppercase tracking-wider">
+                                                                {{ img.tag }}
+                                                            </span>
+                                                            <span class="text-[10px] text-white/80 truncate">
+                                                                {{ img.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Photo Gallery Preview -->
+                                        <div v-if="compId === 'gallery' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            id="preview-section-gallery"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
+                                            <!-- Title & Subtitle Header -->
+                                            <div class="space-y-3 max-w-3xl mx-auto">
+                                                <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                                                    <span>Moments</span>
+                                                </div>
+                                                <h2 class="font-bold transition-all duration-300 pt-1"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    {{ galleryData.title || 'Captured Moments' }}
+                                                </h2>
+                                                <p v-if="galleryData.subtitle"
+                                                    class="text-xs sm:text-sm opacity-85 max-w-xl mx-auto leading-relaxed"
+                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                    {{ galleryData.subtitle }}
+                                                </p>
+                                            </div>
+
+                                            <!-- Layout 1: Modern Grid -->
+                                            <div v-if="galleryData.layout === 'grid'"
+                                                class="grid gap-4 sm:gap-6 max-w-6xl mx-auto w-full"
+                                                :class="{
+                                                    'grid-cols-1 sm:grid-cols-2': galleryData.columns === 2,
+                                                    'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3': galleryData.columns === 3,
+                                                    'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4': galleryData.columns === 4,
+                                                }">
+                                                <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="group relative aspect-4/3 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === gIdx ? 'opacity-30 scale-95 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 scale-102 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(gIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(gIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(gIdx)"
+                                                    @drop="onMakerDropPhoto(gIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <img :src="photo.url" :alt="photo.caption || 'Gallery photo'" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white text-left">
+                                                        <p v-if="photo.caption" class="text-xs sm:text-sm font-medium line-clamp-2">{{ photo.caption }}</p>
+                                                        <span class="text-[10px] text-white/70 inline-flex items-center gap-1 mt-0.5">
+                                                            <UIcon name="i-lucide-move" class="size-3" /> Drag to swap &bull; Click to zoom
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 2: Editorial Masonry -->
+                                            <div v-else-if="galleryData.layout === 'masonry'"
+                                                class="gap-4 sm:gap-6 max-w-6xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
+                                                :class="{
+                                                    'columns-1 sm:columns-2': galleryData.columns === 2,
+                                                    'columns-1 sm:columns-2 lg:columns-3': galleryData.columns === 3,
+                                                    'columns-2 sm:columns-3 lg:columns-4': galleryData.columns === 4,
+                                                }">
+                                                <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(gIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(gIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(gIdx)"
+                                                    @drop="onMakerDropPhoto(gIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <img :src="photo.url" :alt="photo.caption || 'Gallery photo'" class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
+                                                        <p v-if="photo.caption" class="text-xs sm:text-sm font-medium">{{ photo.caption }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 3: Hero Spotlight / Collage -->
+                                            <div v-else-if="galleryData.layout === 'collage'"
+                                                class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
+                                                <div v-if="galleryData.photos[0]"
+                                                    draggable="true"
+                                                    class="lg:col-span-2 group relative aspect-4/3 lg:aspect-auto lg:h-full min-h-80 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-md cursor-grab active:cursor-grabbing transition-all hover:shadow-2xl"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === 0 ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === 0 ? 'ring-4 ring-rose-500 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(0, $event)"
+                                                    @dragover="onMakerDragOverPhoto(0, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(0)"
+                                                    @drop="onMakerDropPhoto(0, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(galleryData.photos[0])">
+                                                    <img :src="galleryData.photos[0].url" :alt="galleryData.photos[0].caption || 'Hero photo'" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                                    <div class="absolute top-4 left-4 px-3 py-1 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-xs flex items-center gap-1.5">
+                                                        <UIcon name="i-lucide-star" class="size-3.5 fill-amber-400 text-amber-400" />
+                                                        <span>Featured Hero Moment</span>
+                                                    </div>
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                                                        <p v-if="galleryData.photos[0].caption" class="text-lg sm:text-xl font-bold font-serif">{{ galleryData.photos[0].caption }}</p>
+                                                        <span class="text-xs text-white/70">Drag another photo here to feature it</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+                                                    <div v-for="(photo, gIdx) in galleryData.photos.slice(1, 5)" :key="photo.id"
+                                                        draggable="true"
+                                                        class="group relative aspect-4/3 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
+                                                        :class="[
+                                                            draggedMakerGalleryIndex === (gIdx + 1) ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                            dragOverMakerGalleryIndex === (gIdx + 1) ? 'ring-4 ring-rose-500 z-10' : '',
+                                                        ]"
+                                                        @dragstart="onMakerDragStartPhoto(gIdx + 1, $event)"
+                                                        @dragover="onMakerDragOverPhoto(gIdx + 1, $event)"
+                                                        @dragleave="onMakerDragLeavePhoto(gIdx + 1)"
+                                                        @drop="onMakerDropPhoto(gIdx + 1, $event)"
+                                                        @dragend="onMakerDragEndPhoto"
+                                                        @click="openMakerGalleryLightbox(photo)">
+                                                        <img :src="photo.url" :alt="photo.caption || 'Thumbnail photo'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                                        <div class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3 text-white">
+                                                            <p v-if="photo.caption" class="text-xs font-medium truncate">{{ photo.caption }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 4: Filmstrip Carousel -->
+                                            <div v-else-if="galleryData.layout === 'filmstrip'"
+                                                class="max-w-6xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
+                                                <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="snap-start shrink-0 w-64 sm:w-72 aspect-3/4 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-xl hover:-translate-y-1 text-left"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(gIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(gIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(gIdx)"
+                                                    @drop="onMakerDropPhoto(gIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <img :src="photo.url" :alt="photo.caption || 'Filmstrip photo'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4 text-white">
+                                                        <p v-if="photo.caption" class="text-xs sm:text-sm font-medium leading-snug">{{ photo.caption }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 5: Polaroid Keepsakes -->
+                                            <div v-else-if="galleryData.layout === 'polaroid'"
+                                                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto w-full pt-2">
+                                                <div v-for="(photo, pIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="bg-white p-3 sm:p-4 pb-6 rounded-sm shadow-md border border-black/10 transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 cursor-grab active:cursor-grabbing group select-none"
+                                                    :class="[
+                                                        pIdx % 3 === 0 ? '-rotate-1 hover:rotate-0' : (pIdx % 3 === 1 ? 'rotate-1 hover:rotate-0' : '-rotate-0.5 hover:rotate-0'),
+                                                        draggedMakerGalleryIndex === pIdx ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === pIdx ? 'ring-4 ring-rose-500 scale-103 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(pIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(pIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(pIdx)"
+                                                    @drop="onMakerDropPhoto(pIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <div class="aspect-square w-full overflow-hidden bg-stone-100 relative mb-3">
+                                                        <img :src="photo.url" :alt="photo.caption || 'Polaroid moment'" class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500" loading="lazy" />
+                                                    </div>
+                                                    <div class="text-center px-1">
+                                                        <p class="font-serif italic text-xs sm:text-sm text-stone-800 line-clamp-1">
+                                                            {{ photo.caption || photo.name || 'Cherished Memory' }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <!-- Q&A Preview -->
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-q-and-a"
@@ -3443,6 +4400,14 @@ function togglePreview() {
                                             </div>
                                         </div>
 
+                                        <!-- Gifts Preview -->
+                                        <CustomSiteGiftsSection
+                                            v-if="compId === 'gifts' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            :registry="giftRegistry"
+                                            :colors="previewDynamicStyle(index)"
+                                            :heading-font="selectedTypography.subheaderFont"
+                                        />
+
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-wedding-party"
@@ -3619,6 +4584,52 @@ function togglePreview() {
 
         </div>
     </div>
+
+    <!-- Dress Code Moodboard Lightbox Modal -->
+    <UModal v-model:open="isDressCodeLightboxOpen">
+        <template #content>
+            <div v-if="selectedDressCodeLightboxImage" class="p-4 sm:p-6 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-toast-200">
+                    <div>
+                        <h3 class="text-sm font-bold text-toast-900 truncate max-w-sm">
+                            {{ selectedDressCodeLightboxImage.name }}
+                        </h3>
+                        <span class="text-[11px] font-medium text-rose-600">
+                            {{ selectedDressCodeLightboxImage.tag }}
+                        </span>
+                    </div>
+                    <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isDressCodeLightboxOpen = false" />
+                </div>
+                <div class="w-full max-h-[70vh] overflow-hidden rounded-xl bg-toast-100 flex items-center justify-center">
+                    <img :src="selectedDressCodeLightboxImage.dataUrl" :alt="selectedDressCodeLightboxImage.name"
+                        class="max-h-[65vh] w-auto object-contain rounded-lg" />
+                </div>
+            </div>
+        </template>
+    </UModal>
+
+    <!-- Gallery Lightbox Modal -->
+    <UModal v-model:open="isMakerGalleryLightboxOpen">
+        <template #content>
+            <div v-if="selectedMakerGalleryLightboxPhoto" class="p-4 sm:p-6 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-toast-200">
+                    <div>
+                        <h3 class="text-sm font-bold text-toast-900 truncate max-w-sm">
+                            {{ selectedMakerGalleryLightboxPhoto.caption || selectedMakerGalleryLightboxPhoto.name || 'Photo Showcase' }}
+                        </h3>
+                        <span class="text-[11px] font-medium text-rose-600">
+                            Photo Gallery Lightbox
+                        </span>
+                    </div>
+                    <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isMakerGalleryLightboxOpen = false" />
+                </div>
+                <div class="w-full max-h-[75vh] overflow-hidden rounded-xl bg-stone-900 flex items-center justify-center">
+                    <img :src="selectedMakerGalleryLightboxPhoto.url" :alt="selectedMakerGalleryLightboxPhoto.caption || 'Full photo'"
+                        class="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg" />
+                </div>
+            </div>
+        </template>
+    </UModal>
 
     <!-- Google Maps Accommodation Picker Modal -->
     <UModal v-model:open="isAccommodationPickerOpen" :ui="{

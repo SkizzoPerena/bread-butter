@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
   } else if (typeof from === 'string' && from.trim()) {
     fromSender = from.trim()
   }
-  const emailSubject = (typeof subject === 'string' && subject.trim()) ? subject.trim() : 'Wedding Invitation & RSVP'
+  const emailSubject = (typeof subject === 'string' && subject.trim()) ? subject.trim() : 'Event Invitation & RSVP'
 
   // Prepare attachments (including inline CID images)
   let emailAttachments: Array<Record<string, any>> = []
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
     const extension = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
     const rawContent = imageBase64.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '').trim()
     emailAttachments.push({
-      filename: `wedding-invitation.${extension}`,
+      filename: `invitation.${extension}`,
       content: rawContent,
       content_id: 'invitation-card',
       contentId: 'invitation-card',

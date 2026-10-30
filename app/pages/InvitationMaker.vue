@@ -370,7 +370,7 @@ const invitationSteps = computed<StepDef[]>(() => [
     id: 'style-cohesion',
     icon: 'i-lucide-palette',
     label: '4. Style & Cohesion',
-    description: 'Link your invitation design with your wedding website colors and typography.'
+    description: 'Link your invitation design with your website colors and typography.'
   }
 ])
 
@@ -784,11 +784,11 @@ function copyWebsiteRsvpLink() {
                   <div class="flex items-center gap-2">
                     <UIcon name="i-lucide-globe" class="w-4 h-4 text-primary-500" />
                     <h4 class="text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-stone-300">
-                      Destination Wedding Website
+                      Destination Website
                     </h4>
                   </div>
                   <p class="text-xs text-stone-500 dark:text-stone-400">
-                    Your invitation features a prominent <strong>"RSVP Here"</strong> button that directs guests straight to your wedding website RSVP.
+                    Your invitation features a prominent <strong>"RSVP Here"</strong> button that directs guests straight to your website RSVP.
                   </p>
 
                   <div v-if="websiteUrl" class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-white dark:bg-stone-950 border border-stone-200/80 dark:border-stone-800 text-xs">
@@ -848,7 +848,7 @@ function copyWebsiteRsvpLink() {
                         <span v-if="bannerImageSource === 'website'" class="w-2 h-2 rounded-full bg-violet-600"></span>
                       </div>
                       <p class="text-[11px] text-stone-500 dark:text-stone-400">
-                        Use the header image from your wedding website builder.
+                        Use the header image from your website builder.
                       </p>
                     </button>
 
@@ -1407,7 +1407,7 @@ function copyWebsiteRsvpLink() {
                   class="text-[11px] text-stone-500 dark:text-stone-400 mt-1"
                   :style="{ fontFamily: effectiveTypography.bodyFont }"
                 >
-                  {{ websiteUrl ? 'Directs guests to your wedding website RSVP' : 'Will direct guests to your wedding website RSVP once created' }}
+                  {{ websiteUrl ? 'Directs guests to your website RSVP' : 'Will direct guests to your website RSVP once created' }}
                 </p>
               </div>
 

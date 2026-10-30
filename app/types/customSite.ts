@@ -1,3 +1,6 @@
+import type { DressCodeRecord } from './dressCode'
+import type { GalleryRecord } from './gallery'
+
 export interface CustomSiteTidbit {
   _id?: string
   title: string
@@ -65,6 +68,21 @@ export interface CustomSiteColorPalette {
   heading?: string
 }
 
+export interface CustomSiteGiftRegistry {
+  qrCodes: {
+    qrCodeUrl?: string
+    bankType?: string
+    accountName?: string
+    accountNumber?: string
+  }[]
+  wishedItems: {
+    name: string
+    url?: string
+    imageURL?: string | null
+    isFulfilled?: boolean
+  }[]
+}
+
 export interface CustomSiteRecord {
   _id: string
   event: string
@@ -89,12 +107,15 @@ export interface CustomSiteRecord {
   enabledComponents?: string[]
   isPublished?: boolean
   gallery?: { imageURL: string; caption?: string }[]
+  galleryRecord?: GalleryRecord | null
   invertColors?: boolean
   simplifiedColors?: boolean
   singlePageSite?: boolean
   diyComponents?: { id: string; name: string; header: string; content?: string; description?: string }[]
   weddingParty?: CustomSiteWeddingPartyMember[]
   rsvpDeadlineDate?: string | null
+  dressCode?: DressCodeRecord | null
+  giftRegistry?: CustomSiteGiftRegistry | null
 }
 
 export interface CustomSitesListResponse {

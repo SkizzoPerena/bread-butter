@@ -356,6 +356,7 @@ type QuickNavItem = {
 }
 
 const QUICK_NAV_ITEMS: QuickNavItem[] = [
+  // Row 1: website - invitation - rsvp
   {
     label: 'Website',
     icon: 'i-lucide-globe',
@@ -386,6 +387,8 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     ringClass: 'ring-1 ring-inset ring-teal-500/25 group-focus-visible:ring-2 group-focus-visible:ring-teal-500',
     textClass: 'text-teal-600',
   },
+
+  // Row 2: guest list - tasks - requirements
   {
     label: 'Guest List',
     icon: 'i-lucide-users',
@@ -395,26 +398,6 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     hoverClass: 'group-hover:bg-orange-500/20',
     ringClass: 'ring-1 ring-inset ring-orange-500/25 group-focus-visible:ring-2 group-focus-visible:ring-orange-500',
     textClass: 'text-orange-600',
-  },
-  {
-    label: 'Gifts',
-    icon: 'i-lucide-gift',
-    action: 'wishlist',
-    description: 'Organize wishlists, gift registry links, and monetary gifts.',
-    bgClass: 'bg-pink-500/10',
-    hoverClass: 'group-hover:bg-pink-500/20',
-    ringClass: 'ring-1 ring-inset ring-pink-500/25 group-focus-visible:ring-2 group-focus-visible:ring-pink-500',
-    textClass: 'text-pink-600',
-  },
-  {
-    label: 'Playlist',
-    icon: 'i-lucide-music',
-    action: 'playlist',
-    description: 'Curate reception tunes, entry songs, and dance tracks.',
-    bgClass: 'bg-lime-500/15',
-    hoverClass: 'group-hover:bg-lime-500/25',
-    ringClass: 'ring-1 ring-inset ring-lime-600/30 group-focus-visible:ring-2 group-focus-visible:ring-lime-600',
-    textClass: 'text-lime-700',
   },
   {
     label: 'Tasks',
@@ -427,14 +410,69 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     textClass: 'text-red-600',
   },
   {
-    label: 'Schedules',
-    icon: 'i-lucide-calendar',
-    action: 'schedules',
-    description: 'Coordinate day-of itineraries and ceremony schedules.',
-    bgClass: 'bg-cyan-500/10',
-    hoverClass: 'group-hover:bg-cyan-500/20',
-    ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
-    textClass: 'text-cyan-700',
+    label: 'Requirements',
+    icon: 'i-lucide-church',
+    action: 'churchRequirements',
+    weddingOnly: true,
+    description: 'Track canonical and legal document submissions.',
+    bgClass: 'bg-yellow-500/15',
+    hoverClass: 'group-hover:bg-yellow-500/25',
+    ringClass: 'ring-1 ring-inset ring-yellow-600/30 group-focus-visible:ring-2 group-focus-visible:ring-yellow-600',
+    textClass: 'text-yellow-700',
+  },
+
+  // Row 3: gallery - colors / dress code - playlist
+  {
+    label: 'Gallery',
+    icon: 'i-lucide-images',
+    action: 'gallery',
+    description: 'Collect, showcase, and share photo albums and event memories.',
+    bgClass: 'bg-indigo-500/10',
+    hoverClass: 'group-hover:bg-indigo-500/20',
+    ringClass: 'ring-1 ring-inset ring-indigo-500/25 group-focus-visible:ring-2 group-focus-visible:ring-indigo-500',
+    textClass: 'text-indigo-600',
+  },
+  {
+    label: 'Colors / Dress Code',
+    icon: 'i-lucide-palette',
+    action: 'colorsDressCode',
+    description: 'Curate event color palettes, attire guides, and guest dress codes.',
+    bgClass: 'bg-rose-500/10',
+    hoverClass: 'group-hover:bg-rose-500/20',
+    ringClass: 'ring-1 ring-inset ring-rose-500/25 group-focus-visible:ring-2 group-focus-visible:ring-rose-500',
+    textClass: 'text-rose-600',
+  },
+  {
+    label: 'Playlist',
+    icon: 'i-lucide-music',
+    action: 'playlist',
+    description: 'Curate reception tunes, entry songs, and dance tracks.',
+    bgClass: 'bg-lime-500/15',
+    hoverClass: 'group-hover:bg-lime-500/25',
+    ringClass: 'ring-1 ring-inset ring-lime-600/30 group-focus-visible:ring-2 group-focus-visible:ring-lime-600',
+    textClass: 'text-lime-700',
+  },
+
+  // Row 4: gifts - baker database - suppliers
+  {
+    label: 'Gifts',
+    icon: 'i-lucide-gift',
+    action: 'wishlist',
+    description: 'Organize wishlists, gift registry links, and monetary gifts.',
+    bgClass: 'bg-pink-500/10',
+    hoverClass: 'group-hover:bg-pink-500/20',
+    ringClass: 'ring-1 ring-inset ring-pink-500/25 group-focus-visible:ring-2 group-focus-visible:ring-pink-500',
+    textClass: 'text-pink-600',
+  },
+  {
+    label: 'Baker Database',
+    icon: 'i-lucide-cake-slice',
+    action: 'bakerDatabase',
+    description: 'Browse artisan bakers, custom wedding cakes, and dessert partners.',
+    bgClass: 'bg-amber-500/15',
+    hoverClass: 'group-hover:bg-amber-500/25',
+    ringClass: 'ring-1 ring-inset ring-amber-600/30 group-focus-visible:ring-2 group-focus-visible:ring-amber-600',
+    textClass: 'text-amber-700',
   },
   {
     label: 'Suppliers',
@@ -446,16 +484,17 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     ringClass: 'ring-1 ring-inset ring-fuchsia-500/25 group-focus-visible:ring-2 group-focus-visible:ring-fuchsia-500',
     textClass: 'text-fuchsia-600',
   },
+
+  // Row 5: schedules - payments - settings
   {
-    label: 'Requirements',
-    icon: 'i-lucide-church',
-    action: 'churchRequirements',
-    weddingOnly: true,
-    description: 'Track canonical and legal document submissions.',
-    bgClass: 'bg-yellow-500/15',
-    hoverClass: 'group-hover:bg-yellow-500/25',
-    ringClass: 'ring-1 ring-inset ring-yellow-600/30 group-focus-visible:ring-2 group-focus-visible:ring-yellow-600',
-    textClass: 'text-yellow-700',
+    label: 'Schedules',
+    icon: 'i-lucide-calendar',
+    action: 'schedules',
+    description: 'Coordinate day-of itineraries and ceremony schedules.',
+    bgClass: 'bg-cyan-500/10',
+    hoverClass: 'group-hover:bg-cyan-500/20',
+    ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
+    textClass: 'text-cyan-700',
   },
   {
     label: 'Payments',
@@ -489,6 +528,28 @@ function getActiveEventQueryId(): string {
 }
 
 const { startPageTransition, finishPageTransition } = usePageTransition()
+
+function openColorsDressCode() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/dress-code', query: { eventId: id } })
+}
+
+function openGallery() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/gallery', query: { eventId: id } })
+}
+
+function openBakerDatabase() {
+  startPageTransition({ path: '/event/bakers', query: { eventId: getActiveEventQueryId() } })
+}
 
 function openWebsiteMaker() {
   startPageTransition({ path: '/website-maker', query: { eventId: getActiveEventQueryId() } })
@@ -580,6 +641,15 @@ function onQuickNavItemClick(item: QuickNavItem) {
   }
 
   switch (item.action) {
+    case 'colorsDressCode':
+      openColorsDressCode()
+      break
+    case 'gallery':
+      openGallery()
+      break
+    case 'bakerDatabase':
+      openBakerDatabase()
+      break
     case 'website':
       openWebsiteMaker()
       break
@@ -621,6 +691,9 @@ function onQuickNavItemClick(item: QuickNavItem) {
 
 function getQuickNavSolidBgClass(item: QuickNavItem): string {
   const map: Record<string, string> = {
+    'Colors / Dress Code': 'bg-rose-500',
+    Gallery: 'bg-indigo-500',
+    'Baker Database': 'bg-amber-500',
     Website: 'bg-blue-500',
     Invitation: 'bg-violet-500',
     RSVP: 'bg-teal-500',
@@ -1189,29 +1262,29 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
       class="md:hidden white-bread-container h-full flex flex-col flex-1 overflow-hidden m-3 mt-1.5 shadow-sm"
       style="border-radius: 1.25rem;">
       <div class="flex flex-1 items-center justify-center min-h-0 py-4 px-3 w-full">
-        <div class="grid grid-cols-3 gap-x-4 gap-y-5 max-w-xs sm:max-w-sm mx-auto w-full items-center justify-items-center">
+        <div class="grid grid-cols-3 gap-x-5 sm:gap-x-6 gap-y-6 sm:gap-y-7 max-w-[260px] sm:max-w-[290px] mx-auto w-full items-center justify-items-center">
           <div v-for="item in QUICK_NAV_ITEMS" :key="item.label" role="button" :tabindex="0"
-            class="group flex flex-col items-center justify-center mx-auto w-full p-1 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+            class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
             @click="onQuickNavItemClick(item)">
             <div class="relative flex items-center justify-center w-fit mx-auto">
               <div
-                class="size-14 sm:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+                class="size-11 sm:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
                 :class="[
                   getQuickNavSolidBgClass(item),
                   isDashboardItemBlocked(item)
                     ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                     : ['group-hover:scale-105 group-active:scale-95'],
                 ]">
-                <UIcon :name="item.icon" class="size-7 sm:size-8 text-white shrink-0" />
+                <UIcon :name="item.icon" class="size-5 sm:size-6 text-white shrink-0" />
               </div>
               <div v-if="isDashboardItemBlocked(item)"
-                class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
+                class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
                 title="Upgrade to unlock">
-                <UIcon name="i-lucide-lock" class="size-2.5 block" />
+                <UIcon name="i-lucide-lock" class="size-2 block" />
               </div>
             </div>
             <div
-              class="font-medium mt-1.5 text-center text-xs leading-tight max-w-20 truncate">
+              class="font-medium mt-1 text-center text-[11px] sm:text-xs leading-tight max-w-20 truncate">
               {{ item.label }}
             </div>
           </div>
@@ -1660,7 +1733,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
           </div>
 
           <!-- 3-Column App Launcher Grid -->
-          <div class="dash-quicknav-grid grid grid-cols-3 w-full">
+          <div class="dash-quicknav-grid grid grid-cols-3 w-full max-w-[240px] sm:max-w-[260px] lg:max-w-[250px] xl:max-w-[280px] mx-auto">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
               class="dash-quicknav-btn group relative flex flex-col items-center justify-center w-full aspect-square rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
@@ -1818,8 +1891,8 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
   --dash-gap-inner: clamp(0.35rem, 0.9vh, 0.75rem);
   --dash-header-pb: clamp(0.25rem, 0.6vh, 0.5rem);
   --dash-metric-card-p: clamp(0.35rem, 0.9vh, 0.65rem);
-  --dash-quicknav-gap: clamp(0.35rem, 0.9vh, 0.625rem);
-  --dash-quicknav-p: clamp(0.35rem, 0.9vh, 0.5rem);
+  --dash-quicknav-gap: clamp(0.65rem, 1.4vh, 1rem);
+  --dash-quicknav-p: clamp(0.2rem, 0.6vh, 0.375rem);
   --dash-task-item-py: clamp(0.25rem, 0.6vh, 0.5rem);
   --dash-task-item-px: clamp(0.35rem, 0.8vh, 0.5rem);
 }
@@ -1830,8 +1903,8 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
     --dash-gap-inner: 0.55rem;
     --dash-header-pb: 0.35rem;
     --dash-metric-card-p: 0.45rem;
-    --dash-quicknav-gap: 0.5rem;
-    --dash-quicknav-p: 0.45rem;
+    --dash-quicknav-gap: 0.75rem;
+    --dash-quicknav-p: 0.32rem;
     --dash-task-item-py: 0.35rem;
     --dash-task-item-px: 0.45rem;
   }
@@ -1842,8 +1915,8 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
     --dash-gap-inner: 0.45rem;
     --dash-header-pb: 0.25rem;
     --dash-metric-card-p: 0.375rem;
-    --dash-quicknav-gap: 0.375rem;
-    --dash-quicknav-p: 0.375rem;
+    --dash-quicknav-gap: 0.65rem;
+    --dash-quicknav-p: 0.28rem;
     --dash-task-item-py: 0.25rem;
     --dash-task-item-px: 0.375rem;
   }
@@ -1854,8 +1927,8 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
     --dash-gap-inner: 0.35rem;
     --dash-header-pb: 0.2rem;
     --dash-metric-card-p: 0.28rem;
-    --dash-quicknav-gap: 0.3rem;
-    --dash-quicknav-p: 0.3rem;
+    --dash-quicknav-gap: 0.55rem;
+    --dash-quicknav-p: 0.22rem;
     --dash-task-item-py: 0.2rem;
     --dash-task-item-px: 0.3rem;
   }
@@ -1866,8 +1939,8 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
     --dash-gap-inner: 0.25rem;
     --dash-header-pb: 0.15rem;
     --dash-metric-card-p: 0.2rem;
-    --dash-quicknav-gap: 0.25rem;
-    --dash-quicknav-p: 0.25rem;
+    --dash-quicknav-gap: 0.45rem;
+    --dash-quicknav-p: 0.18rem;
     --dash-task-item-py: 0.15rem;
     --dash-task-item-px: 0.25rem;
   }
@@ -2139,14 +2212,14 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 }
 
 .dash-quicknav-icon {
-  font-size: clamp(1rem, 3.8cqmin, 1.75rem);
-  width: clamp(1rem, 3.8cqmin, 1.75rem);
-  height: clamp(1rem, 3.8cqmin, 1.75rem);
+  font-size: clamp(0.85rem, 3cqmin, 1.35rem);
+  width: clamp(0.85rem, 3cqmin, 1.35rem);
+  height: clamp(0.85rem, 3cqmin, 1.35rem);
 }
 
 .dash-quicknav-label {
   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
-  font-size: clamp(0.56rem, 1.8cqmin, 0.75rem);
+  font-size: clamp(0.5rem, 1.5cqmin, 0.68rem);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;

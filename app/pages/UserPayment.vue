@@ -9,7 +9,7 @@ import { usePaymongoActivation } from '~/composables/usePaymongoActivation'
 import { usePayMongoCheckout } from '~/composables/usePayMongoCheckout'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord } from '~/types/event'
-import { mapApiToEventTypeLabel } from '~/types/event'
+import { EVENT_TYPE_OPTIONS, mapApiToEventTypeLabel } from '~/types/event'
 import { hasVoucherCode, normalizeVoucherCode } from '~/utils/referralCode'
 import {
   REFERRAL_DISCOUNT_PERCENT,
@@ -184,15 +184,7 @@ const packageChoices = [
   },
 ]
 
-const eventTypeOptions = [
-  { label: 'Wedding', value: 'WEDDING' },
-  { label: 'Birthday', value: 'BIRTHDAY' },
-  { label: 'Debut', value: 'DEBUT' },
-  { label: 'Baptism', value: 'BAPTISM' },
-  { label: 'Anniversary', value: 'ANNIVERSARY' },
-  { label: 'Corporate Event', value: 'CORPORATE' },
-  { label: 'Special Party', value: 'PARTY' },
-]
+const eventTypeOptions = EVENT_TYPE_OPTIONS
 
 function formatDateInputValue(date: Date): string {
   const year = date.getFullYear()

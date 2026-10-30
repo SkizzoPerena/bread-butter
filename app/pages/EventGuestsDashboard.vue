@@ -1,27 +1,14 @@
 <script lang="ts" setup>
-import { nextTick } from 'vue'
-import { toCanvas } from 'html-to-image'
 import type { TableColumn } from '@nuxt/ui'
 import type { EventRecord, GuestRecord, RsvpSummary } from '~/types/event'
-import type { InvitationRecord } from '~/types/invitation'
-import type { CustomSiteRecord } from '~/types/customSite'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { useGuests } from '~/composables/useGuests'
-import { useInvitation } from '~/composables/useInvitation'
-import { useCustomSite } from '~/composables/useCustomSite'
 import { useEventGuestsManager, addGuestSchema, editGuestSchema } from '~/composables/useEventGuestsManager'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { useEventGuestGroupsManager } from '~/composables/useEventGuestGroupsManager'
 import { useEventGuestRolesAndTablesManager } from '~/composables/useEventGuestRolesAndTablesManager'
 import type { GuestRoleRecord } from '~/types/guest_role'
-import {
-  generateImageInvitationEmailHtml,
-  buildGuestWebsiteUrl,
-  DEFAULT_APP_DOMAIN,
-} from '~/utils/invitationEmailTemplate'
-import { resolveCustomSiteTheme, type ColorPalette, type TypographySet } from '~/utils/websiteTheme'
-import { formatDateWithWeekday, formatTime } from '~/utils/invitationDisplay'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -36,9 +23,7 @@ useWeddingFonts()
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
-const { fetchGuestsByEvent, sendGuestInvite } = useGuests()
-const { fetchInvitationByEvent } = useInvitation()
-const { fetchCustomSitesByEvent } = useCustomSite()
+const { fetchGuestsByEvent } = useGuests()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { isExporting, exportEventPdf } = useEventPdfExport()
@@ -63,182 +48,6 @@ const UCheckbox = resolveComponent('UCheckbox')
 const reloadGuestDataRef = ref<((targetEventId?: string) => Promise<void>) | null>(null)
 const guestRoles = ref<GuestRoleRecord[]>([])
 const selectedTab = ref('guest-list')
-
-// Established Invitation & Custom Site State for Straight JPEG Email Generation
-const establishedInvitation = ref<InvitationRecord | null>(null)
-const establishedCustomSite = ref<CustomSiteRecord | null>(null)
-const headlessCardRef = ref<HTMLElement | null>(null)
-const headlessGuestName = ref('Guest')
-
-const cachedDesign = ref<{
-  eventId?: string
-  palette?: ColorPalette
-  typography?: TypographySet
-  websiteSlug?: string
-  bannerImageUrl?: string
-  bannerImageSource?: string
-  requestLine?: string
-  eventLabel?: string
-  eventDate?: string
-  eventTime?: string
-  eventVenue?: string
-  deadlineText?: string
-  deadlineDate?: string
-  savedAt?: string
-} | null>(null)
-
-const establishedTheme = computed(() => resolveCustomSiteTheme(establishedCustomSite.value))
-
-const palette = computed<ColorPalette>(() => {
-  if (cachedDesign.value?.palette?.colors) {
-    return cachedDesign.value.palette
-  }
-  return establishedTheme.value.palette
-})
-
-const typography = computed<TypographySet>(() => {
-  if (cachedDesign.value?.typography?.headerFont) {
-    return cachedDesign.value.typography
-  }
-  return establishedTheme.value.typography
-})
-
-const effectiveBannerImageUrl = computed(() => {
-  // 1. Direct bannerImageUrl on establishedInvitation record
-  if (establishedInvitation.value?.bannerImageUrl?.trim()) {
-    return establishedInvitation.value.bannerImageUrl.trim()
-  }
-  // 2. Banner image in blocks array (from backend)
-  const blockBanner = establishedInvitation.value?.blocks?.find(b => b.type === 'banner-image')?.content
-  if (blockBanner?.trim()) {
-    return blockBanner.trim()
-  }
-  // 3. Cached established design from InvitationMaker in localStorage
-  if (cachedDesign.value?.bannerImageUrl?.trim()) {
-    return cachedDesign.value.bannerImageUrl.trim()
-  }
-  // 4. Custom site header image (matching InvitationMaker default)
-  if (establishedCustomSite.value?.headerImageURL?.trim()) {
-    return establishedCustomSite.value.headerImageURL.trim()
-  }
-  return ''
-})
-
-const effectiveInvitation = computed(() => ({
-  requestLine: establishedInvitation.value?.requestLine || cachedDesign.value?.requestLine || 'Together with their families',
-  eventLabel: establishedInvitation.value?.eventLabel || cachedDesign.value?.eventLabel || establishedCustomSite.value?.title || 'Alex & Jordan are getting married!',
-  eventDate: establishedInvitation.value?.eventDate || cachedDesign.value?.eventDate || '',
-  eventTime: establishedInvitation.value?.eventTime || cachedDesign.value?.eventTime || '',
-  eventVenue: establishedInvitation.value?.eventVenue || cachedDesign.value?.eventVenue || establishedCustomSite.value?.whereToStay?.location || '',
-  deadlineText: establishedInvitation.value?.deadlineText || cachedDesign.value?.deadlineText || 'Please let us know if you can make it so we can accommodate you.',
-  deadlineDate: establishedInvitation.value?.deadlineDate || cachedDesign.value?.deadlineDate || '',
-  bannerImageUrl: effectiveBannerImageUrl.value,
-}))
-
-const websiteSlug = computed(() => {
-  if (cachedDesign.value?.websiteSlug?.trim()) {
-    return cachedDesign.value.websiteSlug.trim()
-  }
-  if (establishedCustomSite.value?.siteName?.trim()) {
-    return establishedCustomSite.value.siteName.trim()
-  }
-  if (establishedCustomSite.value?.title?.trim()) {
-    return establishedCustomSite.value.title
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 50)
-  }
-  return ''
-})
-
-async function loadEstablishedDesign() {
-  const id = eventId.value
-
-  // Read local cache first for instant synchronization
-  if (typeof window !== 'undefined') {
-    try {
-      const raw =
-        (id ? localStorage.getItem(`bpb_invitation_established_${id}`) : null) ||
-        localStorage.getItem('bpb_invitation_established_latest')
-      if (raw) {
-        cachedDesign.value = JSON.parse(raw)
-      }
-    } catch (err) {
-      console.warn('Could not load cached invitation design:', err)
-    }
-  }
-
-  if (!id) return
-  try {
-    const [inv, sites] = await Promise.all([
-      fetchInvitationByEvent(id).catch(() => null),
-      fetchCustomSitesByEvent(id).catch(() => []),
-    ])
-    establishedInvitation.value = inv
-    establishedCustomSite.value = sites?.[0] ?? null
-  } catch (err) {
-    console.warn('Could not load established invitation/site design:', err)
-  }
-}
-
-async function captureStationeryCard(guestName: string): Promise<string | null> {
-  headlessGuestName.value = guestName || 'Guest'
-  await nextTick()
-  if (typeof document !== 'undefined' && document.fonts) {
-    try {
-      await document.fonts.ready
-    } catch {
-      // Font load fallback
-    }
-  }
-
-  if (headlessCardRef.value) {
-    // Wait for all images inside headlessCardRef to load and decode
-    const images = Array.from(headlessCardRef.value.querySelectorAll('img'))
-    await Promise.all(
-      images.map((img) => {
-        if (img.complete && img.naturalHeight !== 0) return Promise.resolve()
-        return new Promise<void>((resolve) => {
-          img.onload = () => resolve()
-          img.onerror = () => resolve()
-          if ('decode' in img) {
-            img.decode().then(resolve).catch(resolve)
-          }
-          setTimeout(resolve, 800)
-        })
-      })
-    )
-
-    try {
-      const canvas = await toCanvas(headlessCardRef.value, {
-        pixelRatio: 2,
-        cacheBust: true,
-        backgroundColor: '#f7f4ef',
-      })
-
-      // All emails are sent in high-efficiency JPEG format (~100-140KB, 100% universal email client compatibility)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
-
-      if (dataUrl && dataUrl.startsWith('data:image/')) {
-        return dataUrl
-      }
-    } catch (err) {
-      console.warn('Could not capture headless stationery card:', err)
-    }
-  }
-
-  if (typeof window !== 'undefined') {
-    const cached =
-      localStorage.getItem(`bpb_invitation_card_${eventId.value}`) ||
-      localStorage.getItem('bpb_invitation_card_latest')
-    if (cached && cached.startsWith('data:image/')) {
-      return cached
-    }
-  }
-  return null
-}
 
 const {
   isAddGuestModalOpen,
@@ -283,161 +92,6 @@ const {
   autoLoadGuests: false,
   onGuestListMutated: () => reloadGuestDataRef.value?.(),
 })
-
-async function sendStraightInvitation(guestId: string, options: { silent?: boolean } = {}) {
-  const guest = guestList.value.find((g) => g._id === guestId)
-  if (!guest) return
-
-  if (!guest.email || !guest.email.includes('@')) {
-    if (!options.silent) {
-      toast.add({
-        title: 'Missing Email',
-        description: `${guest.firstName || 'Guest'} does not have a valid email address.`,
-        color: 'error',
-      })
-    }
-    throw new Error('Guest has no valid email address.')
-  }
-
-  sendingGuestId.value = guestId
-  try {
-    if (!establishedInvitation.value && !establishedCustomSite.value) {
-      await loadEstablishedDesign()
-    }
-
-    // 1. If guest has no RSVP record yet, register with backend once so MongoDB record exists
-    if (!guest.rsvp?._id) {
-      await sendGuestInvite(guestId).catch(() => null)
-    }
-
-    const rsvpId = guest.rsvp?._id || guest._id
-    const guestFullName = `${guest.firstName} ${guest.lastName}`.trim() || 'Guest'
-
-    // 2. Capture latest stationery PNG card
-    const cardImage = await captureStationeryCard(guestFullName)
-
-    // 3. Resolve destination URL (Strictly NO #rsvp hash)
-    const destinationUrl = websiteSlug.value
-      ? buildGuestWebsiteUrl({
-          origin: DEFAULT_APP_DOMAIN,
-          websiteSlug: websiteSlug.value,
-          rsvpId,
-        })
-      : ''
-
-    // 4. Generate HTML email with clickable PNG card
-    const safeHeadline = effectiveInvitation.value.eventLabel || 'Wedding Invitation & RSVP'
-    const finalHtml = generateImageInvitationEmailHtml({
-      invitation: {
-        requestLine: effectiveInvitation.value.requestLine,
-        eventLabel: safeHeadline,
-        eventDate: effectiveInvitation.value.eventDate,
-        eventTime: effectiveInvitation.value.eventTime,
-        eventVenue: effectiveInvitation.value.eventVenue,
-        deadlineText: effectiveInvitation.value.deadlineText,
-        deadlineDate: effectiveInvitation.value.deadlineDate,
-        bannerImageUrl: effectiveBannerImageUrl.value,
-        guestName: guestFullName,
-      },
-      palette: palette.value,
-      typography: typography.value,
-      websiteUrl: destinationUrl,
-      guestName: guestFullName,
-      imageSrc: 'cid:invitation-card',
-    })
-
-    // 5. Send via server route using Resend (hello@blinkpunch.com)
-    const clientApiKey = typeof window !== 'undefined' ? localStorage.getItem('bpb_resend_api_key')?.trim() : undefined
-    const fromSender = typeof window !== 'undefined' ? localStorage.getItem('bpb_resend_sender')?.trim() || 'hello@blinkpunch.com' : 'hello@blinkpunch.com'
-
-    await $fetch<{ success: boolean; id: string; message: string }>('/api/send-invitation-email', {
-      method: 'POST',
-      body: {
-        to: guest.email.trim(),
-        from: fromSender,
-        subject: `${safeHeadline} — Your Invitation & RSVP`,
-        apiKey: clientApiKey,
-        html: finalHtml,
-        imageBase64: cardImage || undefined,
-      },
-    })
-
-    // 6. Update local state
-    if (!guest.rsvp) {
-      guest.rsvp = {
-        _id: rsvpId,
-        status: 'PENDING',
-        invitedAt: new Date().toISOString(),
-        respondedAt: null,
-      }
-    } else {
-      guest.rsvp.invitedAt = new Date().toISOString()
-    }
-
-    if (!options.silent) {
-      toast.add({
-        title: 'Invitation Sent!',
-        description: `Delivered clickable stationery PNG to ${guest.email}!`,
-        color: 'success',
-        icon: 'i-lucide-check-circle',
-      })
-    }
-  } catch (err: any) {
-    const errorMsg = err?.data?.statusMessage || err?.message || 'Could not send invitation email.'
-    if (!options.silent) {
-      toast.add({
-        title: 'Could not send invitation',
-        description: errorMsg,
-        color: 'error',
-      })
-    }
-    throw err
-  } finally {
-    sendingGuestId.value = null
-  }
-}
-
-async function handleStraightInviteAll() {
-  if (isInvitingAll.value) return
-  const eligibleGuests = guestList.value.filter((g) => canSendGuestInvite(g) && g.email && g.email.includes('@'))
-  if (eligibleGuests.length === 0) {
-    toast.add({
-      title: 'No Pending Guests',
-      description: 'All guests with valid email addresses have already been invited.',
-      color: 'info',
-    })
-    return
-  }
-
-  isInvitingAll.value = true
-  let successCount = 0
-  let failureCount = 0
-
-  for (const guest of eligibleGuests) {
-    try {
-      await sendStraightInvitation(guest._id, { silent: true })
-      successCount++
-    } catch {
-      failureCount++
-    }
-  }
-
-  isInvitingAll.value = false
-  if (successCount > 0) {
-    toast.add({
-      title: 'Invitations Sent!',
-      description: `Successfully delivered stationery invitations to ${successCount} guest(s).`,
-      color: 'success',
-      icon: 'i-lucide-check-circle',
-    })
-  } else if (failureCount > 0) {
-    toast.add({
-      title: 'Sending Failed',
-      description: 'Could not send invitations. Please ensure your RESEND_API_KEY is configured.',
-      color: 'error',
-    })
-  }
-}
 
 const {
   isLoadingGroups,
@@ -713,8 +367,8 @@ const columns: TableColumn<GuestTableRow>[] = [
               loading: isSendingThisGuest,
               disabled: mutationsDisabled.value || Boolean(sendingGuestId.value),
               'aria-label': 'Send invitation',
-              title: 'Send clickable stationery invitation PNG straight',
-              onClick: () => sendStraightInvitation(person.guestId),
+              title: 'Send invitation',
+              onClick: () => handleSendGuestInvite(person.guestId),
             })
           : h(resolveComponent('UButton'), {
               size: 'xs',
@@ -724,8 +378,8 @@ const columns: TableColumn<GuestTableRow>[] = [
               loading: isSendingThisGuest,
               disabled: mutationsDisabled.value || Boolean(sendingGuestId.value),
               'aria-label': 'Resend invitation',
-              title: 'Resend clickable stationery invitation PNG straight',
-              onClick: () => sendStraightInvitation(person.guestId),
+              title: 'Resend invitation',
+              onClick: () => handleSendGuestInvite(person.guestId),
             }),
         canRemove
           ? h(resolveComponent('UButton'), {
@@ -805,10 +459,7 @@ async function loadEventData() {
     rsvpSummary.value = detail.rsvpSummary
     setActiveEvent(detail.event)
 
-    await Promise.all([
-      reloadGuestData(targetEventId),
-      loadEstablishedDesign(),
-    ])
+    await reloadGuestData(targetEventId)
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -860,7 +511,7 @@ watch(eventId, () => {
             :loading="isInvitingAll"
             color="orange"
             variant="soft"
-            @click="handleStraightInviteAll"
+            @click="handleInviteAll"
           >
             Invite All
           </UButton>
@@ -1974,189 +1625,6 @@ watch(eventId, () => {
           </div>
         </template>
       </UModal>
-      <!-- Headless Stationery Card Capture Node (Off-screen for HTML-to-Image Generation) -->
-      <div
-        style="position: fixed; left: -9999px; top: -9999px; width: 560px; pointer-events: none; z-index: -50;"
-        aria-hidden="true"
-      >
-        <div
-          ref="headlessCardRef"
-          class="w-140 text-center relative rounded-2xl shadow-xl overflow-hidden"
-          :class="effectiveBannerImageUrl ? '' : 'p-8'"
-          :style="{
-            backgroundColor: palette.colors.primary,
-            borderColor: palette.colors.secondary,
-            borderWidth: '2px',
-            borderStyle: 'solid',
-          }"
-        >
-          <!-- Top Banner Image Component (Flush Top & Sides, 1:5 Horizontal Banner) -->
-          <div
-            v-if="effectiveBannerImageUrl"
-            class="w-full overflow-hidden border-b"
-            :style="{ borderColor: `${palette.colors.secondary}40` }"
-          >
-            <img
-              :src="effectiveBannerImageUrl"
-              alt="Invitation Header Banner"
-              class="w-full aspect-5/1 object-cover object-center block"
-              crossorigin="anonymous"
-            />
-          </div>
-
-          <!-- Card Content Wrapper -->
-          <div
-            class="relative"
-            :class="effectiveBannerImageUrl ? 'p-6 sm:p-8' : ''"
-          >
-            <!-- Inner Stationery Double Border Frame -->
-            <div
-              class="absolute inset-3 rounded-xl pointer-events-none"
-              :style="{
-                borderColor: `${palette.colors.secondary}45`,
-                borderWidth: '1px',
-                borderStyle: 'solid',
-              }"
-            />
-
-            <!-- Invitation Card Content -->
-            <div class="relative z-10 flex flex-col gap-6 text-center py-4 px-4 sm:px-6">
-              <!-- Personalized Guest Greeting -->
-              <div
-                class="text-xs font-semibold uppercase tracking-[0.18em]"
-                :style="{
-                  color: palette.colors.secondary_text_color,
-                  fontFamily: typography.subheaderFont,
-                }"
-              >
-                Dear {{ headlessGuestName }},
-              </div>
-
-              <!-- 1. Header Area (Fixed Fields) -->
-              <div class="space-y-4">
-                <p
-                  class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em]"
-                  :style="{
-                    color: palette.colors.secondary_text_color,
-                    fontFamily: typography.subheaderFont,
-                  }"
-                >
-                  {{ effectiveInvitation.requestLine || 'Together with their families' }}
-                </p>
-
-                <h1
-                  class="text-4xl sm:text-5xl font-bold leading-tight"
-                  :style="{
-                    color: palette.colors.text_color,
-                    fontFamily: typography.headerFont,
-                  }"
-                >
-                  {{ effectiveInvitation.eventLabel || 'Alex & Jordan are getting married!' }}
-                </h1>
-
-                <!-- Date, Time, and Venue -->
-                <div class="mt-6 flex flex-col items-center gap-1">
-                  <div
-                    class="text-base sm:text-lg font-semibold uppercase tracking-wider"
-                    :style="{
-                      color: palette.colors.text_color,
-                      fontFamily: typography.subheaderFont,
-                    }"
-                  >
-                    {{ formatDateWithWeekday(effectiveInvitation.eventDate) || 'Saturday, October 24, 2026' }}
-                  </div>
-
-                  <div
-                    v-if="effectiveInvitation.eventTime"
-                    class="text-sm sm:text-base font-normal"
-                    :style="{
-                      color: palette.colors.secondary_text_color,
-                      fontFamily: typography.bodyFont,
-                    }"
-                  >
-                    {{ formatTime(effectiveInvitation.eventTime) || '4:00 PM' }}
-                  </div>
-
-                  <div
-                    class="flex items-center justify-center text-sm sm:text-base font-medium pt-2"
-                    :style="{
-                      color: palette.colors.text_color,
-                      fontFamily: typography.subheaderFont,
-                    }"
-                  >
-                    <UIcon name="i-lucide-map-pin" class="w-4 h-4 mr-1.5 opacity-70" />
-                    {{ effectiveInvitation.eventVenue || 'The Grand Promenade, Cityville' }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Decorative Divider -->
-              <div class="flex items-center justify-center my-1">
-                <div
-                  class="w-16 h-[1.5px]"
-                  :style="{ backgroundColor: `${palette.colors.secondary}70` }"
-                />
-                <span
-                  class="mx-3 text-xs"
-                  :style="{ color: palette.colors.secondary }"
-                >
-                  ✦
-                </span>
-                <div
-                  class="w-16 h-[1.5px]"
-                  :style="{ backgroundColor: `${palette.colors.secondary}70` }"
-                />
-              </div>
-
-              <!-- 2. Prominent "RSVP Here" CTA Button -->
-              <div class="my-2 flex flex-col items-center justify-center gap-2">
-                <div
-                  class="inline-flex items-center justify-center gap-2.5 px-8 py-3 rounded-full font-semibold text-sm sm:text-base shadow-md"
-                  :style="{
-                    backgroundColor: palette.colors.secondary,
-                    color: palette.colors.secondary_text_color,
-                    fontFamily: typography.subheaderFont,
-                  }"
-                >
-                  <span>RSVP Here</span>
-                  <UIcon name="i-lucide-arrow-right" class="w-4 h-4" />
-                </div>
-              </div>
-
-              <!-- 3. Footer Area (RSVP Deadline) -->
-              <div
-                v-if="effectiveInvitation.deadlineText || effectiveInvitation.deadlineDate"
-                class="mt-2 pt-5 border-t"
-                :style="{ borderColor: `${palette.colors.secondary}40` }"
-              >
-                <div
-                  v-if="effectiveInvitation.deadlineText"
-                  class="prose max-w-md mx-auto text-center text-xs sm:text-sm leading-relaxed"
-                  :style="{
-                    color: palette.colors.secondary_text_color,
-                    fontFamily: typography.bodyFont,
-                  }"
-                  v-html="effectiveInvitation.deadlineText"
-                />
-
-                <div
-                  v-if="effectiveInvitation.deadlineDate"
-                  class="mt-4 inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full font-medium text-xs sm:text-sm border shadow-xs"
-                  :style="{
-                    backgroundColor: `${palette.colors.secondary}20`,
-                    color: palette.colors.secondary_text_color,
-                    borderColor: `${palette.colors.secondary}60`,
-                    fontFamily: typography.subheaderFont,
-                  }"
-                >
-                  <UIcon name="i-lucide-calendar" class="w-4 h-4 shrink-0" />
-                  <span>RSVP Deadline: {{ formatDateWithWeekday(effectiveInvitation.deadlineDate) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </UPageCard>
   </UContainer>
 </template>
