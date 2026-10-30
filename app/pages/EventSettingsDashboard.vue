@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { DateFormatter } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
-import { EVENT_TYPE_OPTIONS } from '~/types/event'
+import { eventTypeOptionsFor } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover, resolveEventCoverImageUrl } from '~/utils/eventImage'
@@ -190,7 +190,7 @@ watch(eventId, () => {
               </UFormField>
 
               <UFormField label="Event Type" name="eventType" required>
-                <USelect v-model="form.eventType" :items="EVENT_TYPE_OPTIONS" class="w-full" />
+                <USelect v-model="form.eventType" :items="eventTypeOptionsFor(eventRecord?.eventType)" class="w-full" />
               </UFormField>
 
               <UCheckbox

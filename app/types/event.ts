@@ -195,33 +195,35 @@ export function isWeddingEventType(eventType: string): boolean {
   return mapEventTypeToApi(eventType) === 'WEDDING'
 }
 
-const EVENT_TYPE_LABELS = [
-  'Wedding',
-  'Christening',
-  'Birthday Party',
-  'Family Reunion',
-  'Other Events',
-] as const
-
-export const EVENT_TYPE_OPTIONS = [...EVENT_TYPE_LABELS]
-
-export type EventTypeLabel = (typeof EVENT_TYPE_LABELS)[number]
-
-const LEGACY_EVENT_TYPE_TO_LABEL: Record<string, (typeof EVENT_TYPE_LABELS)[number]> = {
-  BAPTISM: 'Christening',
-  GENDER_REVEAL_PARTY: 'Other Events',
-  ENGAGEMENT: 'Other Events',
-}
+export const EVENT_TYPE_OPTIONS = [
+  { label: 'Wedding', value: 'WEDDING' },
+  { label: 'Baptism', value: 'BAPTISM' },
+  { label: 'Adult Birthday', value: 'ADULT_BIRTHDAY' },
+  { label: 'Kiddie Party', value: 'KIDDIE_PARTY' },
+  { label: 'Anniversary', value: 'ANNIVERSARY' },
+  { label: 'Debut', value: 'DEBUT' },
+  { label: 'Corporate Event', value: 'CORPORATE' },
+  { label: 'Special Party', value: 'PARTY' },
+]
 
 export function mapApiToEventTypeLabel(apiValue: string): string {
-  const normalized = apiValue.trim().toUpperCase().replace(/\s+/g, '_')
-  if (LEGACY_EVENT_TYPE_TO_LABEL[normalized]) {
-    return LEGACY_EVENT_TYPE_TO_LABEL[normalized]
+  const normalized = mapEventTypeToApi(apiValue)
+  const option = EVENT_TYPE_OPTIONS.find((item) => item.value === normalized)
+  if (option) return option.label
+  return normalized
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/** Keeps an event's stored type selectable even when it is no longer offered to new events. */
+export function eventTypeOptionsFor(storedType?: string | null) {
+  const normalized = mapEventTypeToApi(storedType ?? '')
+  if (!normalized || EVENT_TYPE_OPTIONS.some((item) => item.value === normalized)) {
+    return EVENT_TYPE_OPTIONS
   }
-  const match = EVENT_TYPE_LABELS.find(
-    (label) => mapEventTypeToApi(label) === normalized
-  )
-  return match ?? EVENT_TYPE_LABELS[0]
+  return [...EVENT_TYPE_OPTIONS, { label: mapApiToEventTypeLabel(normalized), value: normalized }]
 }
 
 export function formatEventPriceTier(

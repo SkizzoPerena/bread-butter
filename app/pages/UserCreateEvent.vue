@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { setUiUnpaidEvent } from '~/utils/paymentPendingGuard'
+import { EVENT_TYPE_OPTIONS } from '~/types/event'
 
 useHead({
   title: 'Create Event - Bread + Butter',
@@ -104,15 +105,7 @@ watch(isWeddingEventType, (isWedding) => {
   }
 })
 
-const eventTypeOptions = [
-  { label: 'Wedding', value: 'WEDDING' },
-  { label: 'Birthday', value: 'BIRTHDAY' },
-  { label: 'Debut', value: 'DEBUT' },
-  { label: 'Baptism', value: 'BAPTISM' },
-  { label: 'Anniversary', value: 'ANNIVERSARY' },
-  { label: 'Corporate Event', value: 'CORPORATE' },
-  { label: 'Special Party', value: 'PARTY' }
-]
+const eventTypeOptions = EVENT_TYPE_OPTIONS
 
 function formatDateInputValue(date: Date): string {
   const year = date.getFullYear()

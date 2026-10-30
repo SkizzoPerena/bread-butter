@@ -50,7 +50,7 @@ const faqs = [
     id: 'faq-3',
     category: 'getting-started',
     question: 'Is Bread + Butter only for weddings?',
-    answer: 'Not at all. Bread + Butter can be used for weddings, birthdays, debuts, baptisms, anniversaries, engagements, baby showers, corporate celebrations, and other special events.'
+    answer: 'Not at all. Bread + Butter can be used for weddings, adult birthdays, kiddie parties, debuts, baptisms, anniversaries, engagements, baby showers, corporate celebrations, and other special events.'
   },
   {
     id: 'faq-4',

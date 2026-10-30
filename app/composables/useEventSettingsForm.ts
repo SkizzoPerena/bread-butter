@@ -1,5 +1,5 @@
-import type { EventRecord, EventTypeLabel } from '~/types/event'
-import { mapApiToEventTypeLabel, mapEventTypeToApi, isWeddingEventType } from '~/types/event'
+import type { EventRecord } from '~/types/event'
+import { mapEventTypeToApi, isWeddingEventType } from '~/types/event'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { useTasks, shiftMockTaskDeadlines } from '~/composables/useTasks'
@@ -24,14 +24,14 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
 
   const form = reactive<{
     eventName: string
-    eventType: EventTypeLabel
+    eventType: string
     eventDate: string
     description: string
     venue: string
     isCatholicWedding: boolean
   }>({
     eventName: '',
-    eventType: 'Wedding',
+    eventType: 'WEDDING',
     eventDate: '',
     description: '',
     venue: '',
@@ -63,7 +63,7 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     }
 
     form.eventName = record.eventName
-    form.eventType = mapApiToEventTypeLabel(record.eventType) as EventTypeLabel
+    form.eventType = mapEventTypeToApi(record.eventType)
     form.eventDate = record.eventDate ? toDateInputValue(record.eventDate) : ''
     form.description = record.description
     form.venue = record.venue

@@ -312,7 +312,7 @@ function getAreaHotelsGoogleReviewsUrl(
   if (coordinates && coordinates.lat != null && coordinates.lng != null && !isNaN(coordinates.lat) && !isNaN(coordinates.lng)) {
     return `https://www.google.com/maps/search/hotels+and+accommodations/@${coordinates.lat},${coordinates.lng},14z`
   }
-  const loc = (location || '').trim() || 'wedding venue'
+  const loc = (location || '').trim() || 'the venue'
   return `https://www.google.com/maps/search/hotels+and+accommodations+near+${encodeURIComponent(loc)}`
 }
 
@@ -323,7 +323,7 @@ function getVenueGoogleMapsUrl(
   if (coordinates && coordinates.lat != null && coordinates.lng != null && !isNaN(coordinates.lat) && !isNaN(coordinates.lng)) {
     return `https://www.google.com/maps/search/?api=1&query=${coordinates.lat},${coordinates.lng}`
   }
-  const loc = (location || '').trim() || 'wedding venue'
+  const loc = (location || '').trim() || 'the venue'
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`
 }
 </script>
@@ -500,7 +500,7 @@ function getVenueGoogleMapsUrl(
                   :style="{ color: getSectionStyle(index).heading }">
                   <span class="inline-flex items-center gap-1.5">
                     <UIcon name="i-lucide-swatch-book" class="size-4" />
-                    Wedding Color Palette
+                    Color Palette
                   </span>
                   <span>{{ (effectiveDressCode?.paletteType === 'image' && effectiveDressCode?.paletteImage) ? 'Pre-made Graphic' : (effectiveDressCode?.presetPaletteName || 'Curated Colors') }}</span>
                 </div>
@@ -509,8 +509,8 @@ function getVenueGoogleMapsUrl(
                 <div v-if="(effectiveDressCode?.paletteType === 'image' || effectiveDressCode?.paletteType === 'both') && effectiveDressCode?.paletteImage"
                   class="w-full">
                   <div class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2.5 backdrop-blur-xs"
-                    @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Wedding Color Palette', size: 0, dataUrl: effectiveDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
-                    <img :src="effectiveDressCode.paletteImage" alt="Wedding Color Palette Graphic"
+                    @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: effectiveDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                    <img :src="effectiveDressCode.paletteImage" alt="Color Palette Graphic"
                       class="w-full max-h-72 object-contain rounded-xl" />
                     <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
                       <UIcon name="i-lucide-zoom-in" class="size-4" />
@@ -663,7 +663,7 @@ function getVenueGoogleMapsUrl(
                 <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
                   :style="{ color: getSectionStyle(index).heading }">
                   <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                  <span>Wedding Moments</span>
+                  <span>Moments</span>
                 </div>
                 <div class="font-bold text-4xl sm:text-5xl pt-1" :style="{
                   color: getSectionStyle(index).heading,
@@ -688,7 +688,7 @@ function getVenueGoogleMapsUrl(
                 <div v-for="photo in effectiveGallery.photos" :key="photo.id"
                   class="group relative aspect-4/3 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                   @click="selectedGalleryLightboxPhoto = photo; isGalleryLightboxOpen = true">
-                  <img :src="photo.url" :alt="photo.caption || 'Wedding moment'"
+                  <img :src="photo.url" :alt="photo.caption || 'Event moment'"
                     class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                   <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white text-left">
                     <p v-if="photo.caption" class="text-xs sm:text-sm font-medium line-clamp-2">{{ photo.caption }}</p>
@@ -710,7 +710,7 @@ function getVenueGoogleMapsUrl(
                 <div v-for="photo in effectiveGallery.photos" :key="photo.id"
                   class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                   @click="selectedGalleryLightboxPhoto = photo; isGalleryLightboxOpen = true">
-                  <img :src="photo.url" :alt="photo.caption || 'Wedding moment'"
+                  <img :src="photo.url" :alt="photo.caption || 'Event moment'"
                     class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
                   <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
                     <p v-if="photo.caption" class="text-xs sm:text-sm font-medium">{{ photo.caption }}</p>
