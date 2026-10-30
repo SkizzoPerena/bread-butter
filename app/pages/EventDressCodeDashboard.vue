@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { compressImageFile, compressImageFiles, failedImagesMessage, fitImagesToBudget } from '~/utils/imageCompression'
 import type { EventRecord } from '~/types/event'
 import type {
   AttireFormality,
@@ -47,6 +48,7 @@ const eventRecord = ref<EventRecord | null>(null)
 const isLoadingEvent = ref(false)
 const isLoadingData = ref(false)
 const isSaving = ref(false)
+const isAddingImages = ref(false)
 const isPreviewing = ref(false)
 
 // Active Step in left sidebar (once an option is selected)
@@ -417,7 +419,7 @@ function handlePaletteImageDrop(e: DragEvent) {
   }
 }
 
-function processPaletteImageFile(file: File) {
+async function processPaletteImageFile(file: File) {
   if (!file.type.startsWith('image/')) {
     toast.add({
       title: 'Invalid file',
@@ -427,16 +429,24 @@ function processPaletteImageFile(file: File) {
     return
   }
 
-  const reader = new FileReader()
-  reader.onload = () => {
-    dressCode.paletteImage = reader.result as string
+  isAddingImages.value = true
+  try {
+    const { dataUrl } = await compressImageFile(file)
+    dressCode.paletteImage = dataUrl
     toast.add({
       title: 'Color Palette Image Uploaded',
       description: 'Your pre-made palette graphic has been loaded.',
       color: 'rose',
     })
+  } catch {
+    toast.add({
+      title: 'Image not added',
+      description: failedImagesMessage([file.name]),
+      color: 'warning',
+    })
+  } finally {
+    isAddingImages.value = false
   }
-  reader.readAsDataURL(file)
 }
 
 function removePaletteImage() {
@@ -467,7 +477,7 @@ function handleDrop(e: DragEvent) {
   }
 }
 
-function processFiles(files: File[]) {
+async function processFiles(files: File[]) {
   const imageFiles = files.filter((f) => f.type.startsWith('image/'))
   if (imageFiles.length === 0) {
     toast.add({
@@ -478,32 +488,32 @@ function processFiles(files: File[]) {
     return
   }
 
-  let count = 0
-  imageFiles.forEach((file) => {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string
-      if (dataUrl) {
-        dressCode.images.push({
-          id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-          name: file.name,
-          size: file.size,
-          dataUrl,
-          tag: dressCode.images.length === 0 ? 'Moodboard' : 'Inspiration',
-          uploadedAt: new Date().toISOString(),
-        })
-        count++
-        if (count === imageFiles.length) {
-          toast.add({
-            title: `Uploaded ${count} image${count > 1 ? 's' : ''}`,
-            description: 'Moodboard lookbook updated.',
-            color: 'rose',
-          })
-        }
-      }
+  isAddingImages.value = true
+  try {
+    const { images, failedNames } = await compressImageFiles(imageFiles)
+    for (const { file, dataUrl, bytes } of images) {
+      dressCode.images.push({
+        id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        name: file.name,
+        size: bytes,
+        dataUrl,
+        tag: dressCode.images.length === 0 ? 'Moodboard' : 'Inspiration',
+        uploadedAt: new Date().toISOString(),
+      })
     }
-    reader.readAsDataURL(file)
-  })
+    if (images.length > 0) {
+      toast.add({
+        title: `Uploaded ${images.length} image${images.length > 1 ? 's' : ''}`,
+        description: 'Moodboard lookbook updated.',
+        color: 'rose',
+      })
+    }
+    if (failedNames.length > 0) {
+      toast.add({ title: 'Some images were not added', description: failedImagesMessage(failedNames), color: 'warning' })
+    }
+  } finally {
+    isAddingImages.value = false
+  }
 }
 
 function removeImage(id: string) {
@@ -547,6 +557,8 @@ async function handleSave() {
   try {
     dressCode.isPublished = true
     dressCode.updatedAt = new Date().toISOString()
+    const fittedUrls = await fitImagesToBudget(dressCode.images.map((image) => image.dataUrl))
+    dressCode.images = dressCode.images.map((image, index) => ({ ...image, dataUrl: fittedUrls[index] ?? image.dataUrl }))
     await saveDressCode(eventId.value, { ...dressCode })
     toast.add({
       title: 'Colors & Dress Code Published!',
@@ -660,7 +672,7 @@ onMounted(async () => {
           </UButton>
 
           <UButton icon="i-lucide-check-circle" color="rose" size="sm"
-            class="font-semibold text-xs sm:text-sm text-white" :loading="isSaving"
+            class="font-semibold text-xs sm:text-sm text-white" :loading="isSaving || isAddingImages"
             :disabled="isLoadingData || isSaving" @click="handleSave">
             Publish Changes
           </UButton>
@@ -1450,7 +1462,7 @@ onMounted(async () => {
 
             <UButton v-else icon="i-lucide-check-circle" color="rose"
               class="flex-1 font-semibold justify-center cursor-pointer text-xs sm:text-sm text-white"
-              :loading="isSaving" @click="handleSave">
+              :loading="isSaving || isAddingImages" @click="handleSave">
               Save & Finish
             </UButton>
           </div>

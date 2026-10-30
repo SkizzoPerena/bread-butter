@@ -35,6 +35,7 @@ const PUBLIC_PATHS = new Set([
   '/about',
   '/news-and-events',
   '/useful-tips',
+  '/seating-unavailable',
   '/user/login',
   '/user/signup',
   '/user/otp',
@@ -93,6 +94,9 @@ export function isPublicPath(path: string): boolean {
   if (normalized === '/ourbakery' || normalized.startsWith('/ourbakery/')) return true
   if (normalized.startsWith('/sites/')) return true
   if (normalized.startsWith('/rsvp/')) return true
+  if (normalized.startsWith('/seat/')) return true
+  if (normalized.startsWith('/attend/')) return true
+  if (normalized.startsWith('/jam/')) return true
   return false
 }
 
@@ -123,6 +127,7 @@ export function isUserExclusivePath(
   if (normalized.startsWith('/user/') && !isUserAuthPublicPath(normalized)) return true
   if (normalized === '/event/dashboard' || normalized === '/event-dashboard') return false
   if (normalized.startsWith('/event/')) return true
+  if (normalized.startsWith('/seating/')) return true
   return false
 }
 

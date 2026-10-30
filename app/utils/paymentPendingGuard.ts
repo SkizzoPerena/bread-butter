@@ -13,6 +13,23 @@ export interface PendingPaymentQueryParams {
 const UI_PENDING_KEY = 'bpb-ui-pending-payment'
 const UI_UNPAID_KEY = 'bpb-ui-unpaid-event'
 
+export function isSeatingFlowPath(path: string): boolean {
+  return (
+    path === '/user/create-seating' ||
+    path === '/seating-unavailable' ||
+    path.startsWith('/user/seating-payment') ||
+    path.startsWith('/seating/') ||
+    path.startsWith('/seat/') ||
+    path.startsWith('/attend/') ||
+    path.startsWith('/jam/')
+  )
+}
+
+/** Seating plans are only listed on home, so a host with plans must be able to reach it. */
+export function isUserHomePath(path: string): boolean {
+  return path === '/' || path === '/user/dashboard'
+}
+
 /**
  * Checks if an event has a proof of payment submitted but is not yet fully paid (approved).
  */
@@ -97,7 +114,7 @@ export function shouldRedirectToPaymentPending(path: string): boolean {
   }
 
   // Public guest-facing or site routes
-  if (path.startsWith('/sites/') || path.startsWith('/rsvp/')) {
+  if (path.startsWith('/sites/') || path.startsWith('/rsvp/') || isSeatingFlowPath(path)) {
     return false
   }
 
@@ -147,7 +164,7 @@ export function shouldRedirectToCreateEvent(path: string): boolean {
     return false
   }
 
-  if (path.startsWith('/sites/') || path.startsWith('/rsvp/')) {
+  if (path.startsWith('/sites/') || path.startsWith('/rsvp/') || isSeatingFlowPath(path)) {
     return false
   }
 
@@ -189,7 +206,7 @@ export function shouldRedirectToUserPayment(path: string): boolean {
     return false
   }
 
-  if (path.startsWith('/sites/') || path.startsWith('/rsvp/')) {
+  if (path.startsWith('/sites/') || path.startsWith('/rsvp/') || isSeatingFlowPath(path)) {
     return false
   }
 
@@ -249,8 +266,13 @@ export function buildUserPaymentQuery(event: EventRecord): Record<string, string
 export function resolveUserPostLoginRedirect(
   events: EventRecord[],
   redirect?: string,
+  gatherings: unknown[] = [],
 ): string | { path: string; query: Record<string, string> } {
   if (events.length === 0) {
+    if (gatherings.length > 0) {
+      if (redirect && redirect !== '/' && redirect !== '/user/create-event') return redirect
+      return '/'
+    }
     return redirect && redirect !== '/' ? redirect : '/user/create-event'
   }
 

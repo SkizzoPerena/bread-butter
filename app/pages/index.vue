@@ -112,11 +112,17 @@ onMounted(async () => {
       try {
         const events = await fetchUserEvents()
         if (events.length === 0) {
-          clearAuthCheckingState()
-          await navigateTo('/user/create-event', { replace: true })
+          if (!(await hasSeatingPlans())) {
+            clearAuthCheckingState()
+            await navigateTo('/user/create-event', { replace: true })
+            return
+          }
+        } else if (
+          (isSinglePendingEventAccount(events) || isSingleUnpaidEventAccount(events))
+          && (await hasSeatingPlans())
+        ) {
           return
-        }
-        if (isSinglePendingEventAccount(events)) {
+        } else if (isSinglePendingEventAccount(events)) {
           clearAuthCheckingState()
           await navigateTo({
             path: '/user/payment-pending',

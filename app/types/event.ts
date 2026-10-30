@@ -49,6 +49,8 @@ export interface GuestRsvpSnapshot {
   status: string
   respondedAt?: string | null
   invitedAt?: string | null
+  inviteEmailSentAt?: string | null
+  inviteEmailCreditRefundedAt?: string | null
 }
 
 export interface GuestRecord {

@@ -15,6 +15,7 @@ import {
   getUiUnpaidEvent,
   isSinglePendingEventAccount,
   isSingleUnpaidEventAccount,
+  isUserHomePath,
   shouldRedirectToCreateEvent,
   shouldRedirectToPaymentPending,
   shouldRedirectToUserPayment
@@ -39,9 +40,15 @@ async function checkPaymentRestriction(targetPath: string) {
     const { fetchUserEvents } = useEvents()
     const events = await fetchUserEvents()
     if (events.length === 0) {
-      if (needsCreateEventCheck) {
+      if (needsCreateEventCheck && !(await hasSeatingPlans())) {
         return navigateTo('/user/create-event', { replace: true })
       }
+    } else if (
+      (isSinglePendingEventAccount(events) || isSingleUnpaidEventAccount(events))
+      && isUserHomePath(targetPath)
+      && (await hasSeatingPlans())
+    ) {
+      return null
     } else if (isSinglePendingEventAccount(events)) {
       if (needsPendingCheck) {
         return navigateTo({

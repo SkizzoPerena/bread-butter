@@ -10,6 +10,7 @@ import {
   type TableAssignmentValue,
 } from '~/utils/tableCode'
 import { formatGuestDisplayName } from '~/utils/guestName'
+import { inviteDeliveryLabel } from '~/utils/guestListUpdates'
 import { guestRowMatchesDirectSearch, mapGuestTableRowToSearchable } from '~/utils/guestSearch'
 
 export type RoleAssignmentMode = 'existing' | 'new'
@@ -58,6 +59,7 @@ function mapGuestRecordToTableRow(guest: GuestRecord): GuestTableRow {
           ? 'Not Attending'
           : 'Pending',
     invitationSent: Boolean(guest.rsvp?.invitedAt),
+    inviteDelivery: inviteDeliveryLabel(guest.rsvp),
     roleNames,
     tableCode: guest.tableCode ?? null,
     tableLabel: formatTableLabel(guest.tableCode),

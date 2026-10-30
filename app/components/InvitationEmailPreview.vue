@@ -1,9 +1,8 @@
 <script lang="ts" setup>
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { toCanvas } from 'html-to-image'
 import type { ColorPalette, TypographySet } from '~/utils/websiteTheme'
 import {
-  generateImageInvitationEmailHtml,
   buildHiddenInvitationPreviewText,
   resolveAbsoluteWebsiteUrl,
   type InvitationEmailData
@@ -19,23 +18,9 @@ const props = defineProps<{
   eventId?: string
 }>()
 
-const toast = useToast()
-const { user } = useAuth()
-
 const cardImageRef = ref<HTMLElement | null>(null)
-const isSendTestModalOpen = ref(false)
-const isSendingTestEmail = ref(false)
 const isCapturing = ref(false)
-const testEmailSuccessMessage = ref('')
-const testEmailErrorMessage = ref('')
 const capturedCardDataUrl = ref<string | null>(null)
-
-const testForm = reactive({
-  to: '',
-  from: 'onboarding@resend.dev',
-  apiKey: '',
-  subject: '',
-})
 
 // Resolve absolute URL for RSVP destination
 const resolvedAbsoluteUrl = computed(() => {
@@ -100,91 +85,12 @@ async function captureCardImage(): Promise<string | null> {
 }
 
 onMounted(() => {
-  if (typeof window !== 'undefined') {
-    const savedKey = localStorage.getItem('bpb_resend_api_key')
-    if (savedKey) testForm.apiKey = savedKey
-    const savedSender = localStorage.getItem('bpb_resend_sender')
-    if (savedSender) testForm.from = savedSender
-  }
-  if (user.value?.email) {
-    testForm.to = user.value.email
-  }
-  testForm.subject = emailSubject.value
-
   // Warm-up initial card snapshot after fonts render
   setTimeout(() => {
     captureCardImage()
   }, 350)
 })
 
-function openSendTestModal() {
-  testEmailSuccessMessage.value = ''
-  testEmailErrorMessage.value = ''
-  if (!testForm.subject) testForm.subject = emailSubject.value
-  if (!testForm.to && user.value?.email) testForm.to = user.value.email
-  isSendTestModalOpen.value = true
-}
-
-async function handleSendTestEmail() {
-  if (!testForm.to.trim()) {
-    testEmailErrorMessage.value = 'Please provide a recipient email address.'
-    return
-  }
-
-  isSendingTestEmail.value = true
-  testEmailErrorMessage.value = ''
-  testEmailSuccessMessage.value = ''
-
-  try {
-    const captured = await captureCardImage()
-
-    const finalHtml = generateImageInvitationEmailHtml({
-      invitation: props.invitation,
-      palette: props.palette,
-      typography: props.typography,
-      websiteUrl: resolvedAbsoluteUrl.value,
-      guestName: props.invitation.guestName || 'Valued Guest',
-      imageSrc: 'cid:invitation-card'
-    })
-
-    const res = await $fetch<{ success: boolean; id: string; message: string }>('/api/send-invitation-email', {
-      method: 'POST',
-      body: {
-        to: testForm.to.trim(),
-        from: testForm.from.trim() || 'onboarding@resend.dev',
-        subject: testForm.subject.trim() || emailSubject.value,
-        apiKey: testForm.apiKey.trim() || undefined,
-        html: finalHtml,
-        imageBase64: captured || undefined,
-      },
-    })
-
-    if (testForm.apiKey.trim() && typeof window !== 'undefined') {
-      localStorage.setItem('bpb_resend_api_key', testForm.apiKey.trim())
-    }
-    if (testForm.from.trim() && typeof window !== 'undefined') {
-      localStorage.setItem('bpb_resend_sender', testForm.from.trim())
-    }
-
-    testEmailSuccessMessage.value = `Test email sent successfully! (Resend ID: ${res.id})`
-    toast.add({
-      title: 'Test Email Delivered!',
-      description: `Your custom invitation was delivered to ${testForm.to.trim()} via Resend.`,
-      color: 'success',
-      icon: 'i-lucide-check-circle'
-    })
-  } catch (err: any) {
-    const errorMsg = err?.data?.statusMessage || err?.statusMessage || err?.message || 'Failed to send test email.'
-    testEmailErrorMessage.value = errorMsg
-    toast.add({
-      title: 'Send Failed',
-      description: errorMsg,
-      color: 'error'
-    })
-  } finally {
-    isSendingTestEmail.value = false
-  }
-}
 </script>
 
 <template>
@@ -203,19 +109,6 @@ async function handleSendTestEmail() {
             <UIcon name="i-lucide-mail" class="w-3.5 h-3.5 text-stone-500" />
             Email Client Preview
           </span>
-        </div>
-
-        <!-- The ONLY Action: Send Test Email -->
-        <div>
-          <UButton
-            size="xs"
-            variant="solid"
-            color="violet"
-            icon="i-lucide-send"
-            @click="openSendTestModal"
-          >
-            Send Test Email
-          </UButton>
         </div>
       </div>
 
@@ -438,133 +331,5 @@ async function handleSendTestEmail() {
 
     </div>
 
-    <!-- Send Test Email Modal -->
-    <UModal v-model:open="isSendTestModalOpen" title="Send Live Test Email via Resend" :ui="{ content: 'max-w-lg' }">
-      <template #body>
-        <div class="space-y-4 text-sm">
-          <!-- Information notice -->
-          <div class="p-3 rounded-lg border text-xs flex items-start gap-2.5 bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200/60 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200">
-            <UIcon name="i-lucide-image" class="w-4 h-4 shrink-0 mt-0.5" />
-            <div class="space-y-1">
-              <p class="font-semibold">
-                Pure PNG Invitation Card (Exact Custom Fonts + Hidden Inbox Preheader)
-              </p>
-              <p class="text-emerald-700 dark:text-emerald-300">
-                The email contains purely your high-resolution invitation PNG linking to the website RSVP, with all custom fonts preserved. Full invitation details are embedded as hidden preheader text so recipients see readable text in their inbox list view.
-              </p>
-            </div>
-          </div>
-
-          <!-- Recipient Field -->
-          <div class="space-y-1.5">
-            <label class="text-xs font-semibold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Recipient Email (To) <span class="text-red-500">*</span>
-            </label>
-            <UInput
-              v-model="testForm.to"
-              placeholder="e.g. yourname@example.com"
-              icon="i-lucide-mail"
-              class="w-full"
-            />
-            <p class="text-[11px] text-stone-500">
-              If using a free Resend test key without a custom domain, send to your verified Resend account email.
-            </p>
-          </div>
-
-          <!-- Destination URL Confirmation Box -->
-          <div class="space-y-1.5">
-            <div class="flex items-center justify-between">
-              <label class="text-xs font-semibold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-                Button Destination URL
-              </label>
-              <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Absolute Link</span>
-            </div>
-            <div class="p-2.5 rounded-lg bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-700 dark:text-stone-300 break-all flex items-center gap-2">
-              <UIcon name="i-lucide-link" class="w-4 h-4 text-violet-500 shrink-0" />
-              <span class="truncate">{{ resolvedAbsoluteUrl }}</span>
-            </div>
-            <p class="text-[11px] text-stone-500">
-              Recipients tapping "RSVP Here" in the email will land on this complete address.
-            </p>
-          </div>
-
-          <!-- Sender Field -->
-          <div class="space-y-1.5">
-            <label class="text-xs font-semibold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Sender Address (From)
-            </label>
-            <UInput
-              v-model="testForm.from"
-              placeholder="onboarding@resend.dev"
-              icon="i-lucide-send"
-              class="w-full"
-            />
-            <p class="text-[11px] text-stone-500">
-              Default: <code>onboarding@resend.dev</code> (required for unverified test accounts). Or use <code>Name &lt;invites@yourdomain.com&gt;</code>.
-            </p>
-          </div>
-
-          <!-- Subject Line -->
-          <div class="space-y-1.5">
-            <label class="text-xs font-semibold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Subject Line
-            </label>
-            <UInput
-              v-model="testForm.subject"
-              placeholder="Your Invitation & RSVP"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Resend API Key Field -->
-          <div class="space-y-1.5">
-            <div class="flex items-center justify-between">
-              <label class="text-xs font-semibold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-                Resend API Key
-              </label>
-              <span class="text-[10px] text-stone-500">Starts with <code>re_</code></span>
-            </div>
-            <UInput
-              v-model="testForm.apiKey"
-              type="password"
-              placeholder="re_..."
-              icon="i-lucide-key"
-              class="w-full font-mono text-xs"
-            />
-            <p class="text-[11px] text-stone-500">
-              Saved securely in your local browser storage, or you can configure <code>RESEND_API_KEY</code> in your <code>.env</code> file.
-            </p>
-          </div>
-
-          <!-- Success Alert -->
-          <div v-if="testEmailSuccessMessage" class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-            <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{{ testEmailSuccessMessage }}</span>
-          </div>
-
-          <!-- Error Alert -->
-          <div v-if="testEmailErrorMessage" class="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-800 dark:text-red-200 flex items-center gap-2">
-            <UIcon name="i-lucide-alert-circle" class="w-4 h-4 text-red-600 shrink-0" />
-            <span>{{ testEmailErrorMessage }}</span>
-          </div>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-between items-center w-full">
-          <UButton variant="ghost" color="neutral" @click="isSendTestModalOpen = false">
-            Cancel
-          </UButton>
-          <UButton
-            color="violet"
-            icon="i-lucide-send"
-            :loading="isSendingTestEmail"
-            :disabled="!testForm.to.trim()"
-            @click="handleSendTestEmail"
-          >
-            Send Email Now
-          </UButton>
-        </div>
-      </template>
-    </UModal>
   </div>
 </template>

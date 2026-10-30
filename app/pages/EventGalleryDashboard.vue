@@ -8,6 +8,7 @@ import {
   sampleGalleryPhotos,
   useEventGallery,
 } from '~/composables/useEventGallery'
+import { compressImageFiles, failedImagesMessage, fitImagesToBudget } from '~/utils/imageCompression'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -45,6 +46,7 @@ const eventId = computed(() => {
 const activeEvent = ref<EventRecord | null>(null)
 const isLoading = ref(true)
 const isSaving = ref(false)
+const isAddingPhotos = ref(false)
 const isPreviewing = ref(false)
 const isDraggingFile = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -185,35 +187,38 @@ function handleFileDrop(e: DragEvent) {
   }
 }
 
-function processFiles(files: File[]) {
+async function processFiles(files: File[]) {
   const imageFiles = files.filter((f) => f.type.startsWith('image/'))
   if (imageFiles.length === 0) {
     toast.add({ title: 'Invalid File', description: 'Please select valid image files.', color: 'error' })
     return
   }
 
-  for (const file of imageFiles) {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string
-      if (dataUrl) {
-        gallery.photos.push({
-          id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          url: dataUrl,
-          name: file.name.replace(/\.[^/.]+$/, ''),
-          caption: '',
-          alt: file.name,
-        })
-      }
+  isAddingPhotos.value = true
+  try {
+    const { images, failedNames } = await compressImageFiles(imageFiles)
+    for (const { file, dataUrl } of images) {
+      gallery.photos.push({
+        id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        url: dataUrl,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        caption: '',
+        alt: file.name,
+      })
     }
-    reader.readAsDataURL(file)
+    if (images.length > 0) {
+      toast.add({
+        title: 'Photos Added',
+        description: `Added ${images.length} photo${images.length > 1 ? 's' : ''} to gallery.`,
+        color: 'success',
+      })
+    }
+    if (failedNames.length > 0) {
+      toast.add({ title: 'Some photos were not added', description: failedImagesMessage(failedNames), color: 'warning' })
+    }
+  } finally {
+    isAddingPhotos.value = false
   }
-
-  toast.add({
-    title: 'Photos Added',
-    description: `Added ${imageFiles.length} photo${imageFiles.length > 1 ? 's' : ''} to gallery.`,
-    color: 'success',
-  })
 }
 
 function removePhoto(id: string) {
@@ -239,6 +244,8 @@ async function handleSave() {
   isSaving.value = true
   try {
     const id = eventId.value || 'mock-event-id'
+    const fittedUrls = await fitImagesToBudget(gallery.photos.map((photo) => photo.url))
+    gallery.photos = gallery.photos.map((photo, index) => ({ ...photo, url: fittedUrls[index] ?? photo.url }))
     await saveGallery(id, {
       title: gallery.title.trim() || 'Captured Moments',
       subtitle: gallery.subtitle?.trim() || '',
@@ -302,7 +309,7 @@ function openWebsiteMaker() {
             color="rose"
             size="sm"
             class="font-semibold text-xs sm:text-sm text-white cursor-pointer"
-            :loading="isSaving"
+            :loading="isSaving || isAddingPhotos"
             @click="handleSave">
             Save Gallery
           </UButton>
@@ -484,7 +491,7 @@ function openWebsiteMaker() {
                 </div>
                 <div>
                   <p class="text-xs font-bold text-toast-900">Upload New Photos</p>
-                  <p class="text-[10px] text-toast-500">Click or drop multiple image files here</p>
+                  <p class="text-[10px] text-toast-500">{{ isAddingPhotos ? 'Preparing your photos...' : 'Click or drop multiple image files here' }}</p>
                 </div>
               </div>
             </div>
@@ -604,7 +611,7 @@ function openWebsiteMaker() {
                 Save your changes to sync this gallery directly into your website.
               </p>
               <div class="pt-1 flex flex-col gap-2">
-                <UButton icon="i-lucide-save" color="rose" size="sm" class="font-semibold text-xs justify-center text-white cursor-pointer" :loading="isSaving" @click="handleSave">
+                <UButton icon="i-lucide-save" color="rose" size="sm" class="font-semibold text-xs justify-center text-white cursor-pointer" :loading="isSaving || isAddingPhotos" @click="handleSave">
                   Save Gallery
                 </UButton>
                 <UButton icon="i-lucide-globe" variant="outline" color="neutral" size="sm" class="text-xs justify-center cursor-pointer" @click="openWebsiteMaker">
@@ -646,7 +653,7 @@ function openWebsiteMaker() {
           <UButton v-if="currentStep < stepsList.length - 1" icon="i-lucide-arrow-right" color="rose" size="sm" class="flex-1 font-semibold justify-center text-white cursor-pointer text-xs" @click="currentStep++">
             Next
           </UButton>
-          <UButton v-else icon="i-lucide-check-circle" color="rose" size="sm" class="flex-1 font-semibold justify-center text-white cursor-pointer text-xs" :loading="isSaving" @click="handleSave">
+          <UButton v-else icon="i-lucide-check-circle" color="rose" size="sm" class="flex-1 font-semibold justify-center text-white cursor-pointer text-xs" :loading="isSaving || isAddingPhotos" @click="handleSave">
             Save &amp; Finish
           </UButton>
         </div>

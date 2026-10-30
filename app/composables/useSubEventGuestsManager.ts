@@ -3,6 +3,8 @@ import { reportApiError } from '~/types/auth'
 import {
   applyBulkSendInvitesToGuestList,
   clearSubEventInviteFromList,
+  inviteDeliveryLabel,
+  inviteResultToast,
 } from '~/utils/guestListUpdates'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { mapRsvpStatusToBadgeColor, mapRsvpStatusToLabel } from '~/utils/rsvpDisplay'
@@ -82,6 +84,7 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
       guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
       invitationSent: true,
+      inviteDelivery: inviteDeliveryLabel(guest.rsvp),
     }))
   )
 
@@ -242,10 +245,7 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
       }
       await loadGuests()
       await options.onInvitesSent?.()
-      toast.add({
-        title: 'Invitations sent',
-        description: response.message,
-      })
+      toast.add(inviteResultToast(response))
     } catch (error) {
       reportApiError(toast, { title: 'Could not send invitations', error })
     } finally {

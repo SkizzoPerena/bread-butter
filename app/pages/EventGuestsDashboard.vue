@@ -345,7 +345,7 @@ const columns: TableColumn<GuestTableRow>[] = [
   {
     accessorKey: 'invitationSent',
     header: 'Invitation Sent',
-    cell: ({ row }) => (row.getValue('invitationSent') ? 'Yes' : 'No'),
+    cell: ({ row }) => row.original.inviteDelivery,
   },
   {
     id: 'actions',

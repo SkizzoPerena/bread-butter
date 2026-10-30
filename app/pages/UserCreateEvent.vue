@@ -8,6 +8,7 @@ useHead({
 })
 
 const toast = useToast()
+const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { isUiOnlyMode } = useApiMode()
 const { finishPageTransition } = usePageTransition()
 
@@ -204,6 +205,7 @@ function submitEventSetup() {
 }
 
 onMounted(() => {
+  loadSeatingFeature()
   finishPageTransition()
 })
 </script>
@@ -225,6 +227,10 @@ onMounted(() => {
           {{ currentView === 'packages'
             ? 'Choose a package tailored to your planning needs and celebration budget.'
             : 'Fill in your initial event details to customize your platform experience.' }}
+        </p>
+        <p v-if="seatingPlansEnabled" class="text-xs text-white/80">
+          Need tables and QR codes only?
+          <NuxtLink to="/user/create-seating" class="underline font-semibold">Start a seating plan</NuxtLink>
         </p>
 
         <!-- View Switcher Tabs indicator -->
@@ -284,7 +290,7 @@ onMounted(() => {
 
           <div class="space-y-5">
             <UFormField label="Event Name" required>
-              <UInput v-model="eventForm.eventName" placeholder="e.g. Mark & Sarah's Wedding" size="lg"
+              <UInput v-model="eventForm.eventName" placeholder="e.g. Mark & Sarah's Celebration" size="lg"
                 class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
             </UFormField>
 
