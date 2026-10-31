@@ -1,10 +1,13 @@
 import type { EventQuestion } from '~/types/event'
+import type { RsvpAnswer } from '~/types/rsvp'
 import type {
   CheckInResult,
   GatheringRecord,
   JamInvitation,
   JamInviteDetails,
   JamInviteUnlocked,
+  JamOpenInvitation,
+  JamOpenRegistration,
   JamReplyBody,
   JamPackageRecord,
   JamRsvpResult,
@@ -775,6 +778,99 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
+  async function setOpenInvite(
+    gatheringId: string,
+    body: { enabled?: boolean, regenerate?: boolean },
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = gathering.openInvite ?? { enabled: false, token: null }
+      gathering.openInvite = {
+        enabled: body.enabled ?? current.enabled,
+        token: body.regenerate || !current.token ? mockToken() : current.token,
+      }
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/open-invite`, {
+      method: 'PATCH',
+      body,
+    })
+    return response.gathering
+  }
+
+  function mockOpenGathering(token: string) {
+    const gathering = gatherings.value.find((item) => item.openInvite?.enabled && item.openInvite.token === token)
+    if (!gathering) throw new Error('This invite link is not available.')
+    return gathering
+  }
+
+  async function fetchOpenInvite(token: string): Promise<JamInviteDetails> {
+    if (isUiOnlyMode.value) {
+      const gathering = mockOpenGathering(token)
+      return { gatheringName: gathering.name, passcodeRequired: Boolean(gathering.passcode) }
+    }
+    return apiRequest<JamInviteDetails>(`/guest/seating/open/${token}`, { authenticated: false })
+  }
+
+  async function unlockOpenInvite(token: string, passcode: string): Promise<JamOpenInvitation> {
+    if (isUiOnlyMode.value) {
+      const gathering = mockOpenGathering(token)
+      if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+      return {
+        gatheringName: gathering.name,
+        venue: gathering.venue,
+        eventDate: gathering.eventDate,
+        invitationMessage: gathering.invitationMessage || '',
+        questions: gathering.questions ?? [],
+      }
+    }
+    return apiRequest<JamOpenInvitation>(`/guest/seating/open/${token}/unlock`, {
+      method: 'POST',
+      body: { passcode },
+      authenticated: false,
+    })
+  }
+
+  async function registerOpenGuest(token: string, body: {
+    passcode: string
+    firstName: string
+    lastName: string
+    email: string
+    answers: RsvpAnswer[]
+  }): Promise<JamOpenRegistration> {
+    if (isUiOnlyMode.value) {
+      const gathering = mockOpenGathering(token)
+      const guests = mockGuests(gathering._id)
+      if (guests.some((guest) => guest.email === body.email.toLowerCase())) {
+        return { alreadyRegistered: true, message: 'That email is already on the guest list. We sent its invitation link there.' }
+      }
+      if (guests.length >= gathering.maxGuests) throw new Error('This gathering is full. Please contact the host.')
+      const attendanceToken = mockToken()
+      guests.push({
+        _id: `mock-guest-${Date.now()}`,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        email: body.email.toLowerCase(),
+        partyName: '',
+        rsvpStatus: 'GOING',
+        answers: body.answers,
+        isAttending: true,
+        tableId: null,
+        seatNumber: null,
+        attendanceToken,
+        attendanceQrSentAt: null,
+        checkedInAt: null,
+      })
+      recount(gathering, guests)
+      return { message: 'You are on the guest list.', attendanceToken, attendPath: `/attend/${attendanceToken}` }
+    }
+    return apiRequest<JamOpenRegistration>(`/guest/seating/open/${token}/register`, {
+      method: 'POST',
+      body,
+      authenticated: false,
+    })
+  }
+
   async function unlockJamInvite(token: string, passcode: string): Promise<JamInviteUnlocked> {
     if (isUiOnlyMode.value) {
       for (const gathering of gatherings.value) {
@@ -858,6 +954,10 @@ export function useSeating() {
     fetchJamSite,
     fetchJamInvite,
     unlockJamInvite,
+    setOpenInvite,
+    fetchOpenInvite,
+    unlockOpenInvite,
+    registerOpenGuest,
     unlockJamSite,
     respondToJamInvite,
     fetchSeatMap,

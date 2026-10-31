@@ -59,6 +59,7 @@ export interface GatheringRecord {
   invitationSubject?: string
   invitationMessage?: string
   tables: SeatingTable[]
+  openInvite?: { enabled: boolean, token: string | null }
   questions?: EventQuestion[]
   seatSelectionLocked?: boolean
   guestCount: number
@@ -116,6 +117,21 @@ export interface JamInviteUnlocked {
   answers?: RsvpAnswer[]
   rsvpStatus?: RsvpStatus
   needsName?: boolean
+}
+
+export interface JamOpenInvitation {
+  gatheringName: string
+  venue: string
+  eventDate: string
+  invitationMessage: string
+  questions?: EventQuestion[]
+}
+
+export interface JamOpenRegistration {
+  message: string
+  alreadyRegistered?: boolean
+  attendanceToken?: string
+  attendPath?: string
 }
 
 export interface JamReplyBody {

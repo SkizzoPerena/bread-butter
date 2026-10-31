@@ -34,6 +34,7 @@ const statusFilter = ref<'ALL' | 'GOING' | 'PENDING' | 'NOT_GOING'>('ALL')
 const isQuestionsOpen = ref(false)
 const isCopiedPasscode = ref(false)
 const isCopiedLookupUrl = ref(false)
+const isCopiedOpenInvite = ref(false)
 
 const guestForm = reactive({
   firstName: '',
@@ -49,6 +50,10 @@ const inviteForm = reactive({
 
 const active = computed(() => gathering.value?.status === 'ACTIVE')
 const lookupUrl = computed(() => (gathering.value ? currentOriginPath(`/seat/${gathering.value.publicToken}`) : ''))
+const openInviteUrl = computed(() => {
+  const openInvite = gathering.value?.openInvite
+  return openInvite?.enabled && openInvite.token ? currentOriginPath(`/jam/open/${openInvite.token}`) : ''
+})
 
 const daysRemaining = computed(() => {
   if (gathering.value?.eventDate) {
@@ -506,6 +511,33 @@ async function copyPasscode() {
     }, 2000)
   } catch {
     toast.add({ title: 'Could not copy passcode', color: 'warning' })
+  }
+}
+
+async function updateOpenInvite(body: { enabled?: boolean, regenerate?: boolean }) {
+  try {
+    gathering.value = await seating.setOpenInvite(gatheringId.value, body)
+  } catch (error) {
+    toast.add({ title: 'Could not update the open invite', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
+function replaceOpenInvite() {
+  if (window.confirm('Replace this link? The old link will stop working for anyone who has it.')) {
+    updateOpenInvite({ regenerate: true })
+  }
+}
+
+async function copyOpenInvite() {
+  try {
+    await navigator.clipboard.writeText(openInviteUrl.value)
+    isCopiedOpenInvite.value = true
+    toast.add({ title: 'Open invite link copied', color: 'success' })
+    setTimeout(() => {
+      isCopiedOpenInvite.value = false
+    }, 2000)
+  } catch {
+    toast.add({ title: 'Could not copy link', color: 'warning' })
   }
 }
 
@@ -1169,6 +1201,68 @@ async function copyLookupUrl() {
                 </UButton>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- ================= WORKSPACE MODULE: OPEN INVITE ================= -->
+        <div v-if="active && section === 'invite'" class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
+          <div class="flex items-center gap-1.5 border-b border-bread-200/60 pb-2">
+            <UIcon name="i-lucide-share-2" class="size-4 text-toast-600" />
+            <h3 class="font-serif font-bold text-base text-toast-900">Open Invite Link</h3>
+          </div>
+          <p class="text-xs text-muted">
+            Anyone with this link can add themselves as a guest who is coming, up to your plan's limit of {{ gathering.maxGuests }}. Their email isn't checked, so turn it off if it spreads further than you want.
+          </p>
+          <div
+            v-if="openInviteUrl"
+            class="bg-toast-50 p-2.5 rounded-lg border border-bread-200 text-xs font-mono break-all text-toast-900"
+            data-testid="open-invite-link"
+          >
+            {{ openInviteUrl }}
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <template v-if="openInviteUrl">
+              <UButton
+                size="sm"
+                color="primary"
+                variant="solid"
+                icon="i-lucide-copy"
+                class="cursor-pointer"
+                @click="copyOpenInvite"
+              >
+                {{ isCopiedOpenInvite ? 'Link Copied' : 'Copy Link' }}
+              </UButton>
+              <UButton
+                size="sm"
+                color="toast"
+                variant="outline"
+                icon="i-lucide-refresh-cw"
+                class="cursor-pointer"
+                @click="replaceOpenInvite"
+              >
+                Replace Link
+              </UButton>
+              <UButton
+                size="sm"
+                color="error"
+                variant="ghost"
+                class="cursor-pointer"
+                @click="updateOpenInvite({ enabled: false })"
+              >
+                Turn Off Open Invite
+              </UButton>
+            </template>
+            <UButton
+              v-else
+              size="sm"
+              color="primary"
+              variant="solid"
+              icon="i-lucide-link"
+              class="cursor-pointer"
+              @click="updateOpenInvite({ enabled: true })"
+            >
+              Turn On Open Invite
+            </UButton>
           </div>
         </div>
 
