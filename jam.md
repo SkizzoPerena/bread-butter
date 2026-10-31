@@ -26,7 +26,7 @@ The workspace uses the same buttons and containers for four sections:
 
 - **Guests.** Add one person at a time. A new guest always starts as pending. Each row has a response of pending, going, or not going, which changes when the guest replies or the host records a reply. Going is what marks someone attending.
 - **Invitation.** Edit the subject, message, and passcode, then send to guests who are still pending. Counts show pending, going, and not going.
-- **Tables and seats.** Set the table count and seats per table, auto-assign attending guests, and move someone after. A party sits together when the table has room. Replacing the layout asks before it clears seats. A table's label is optional, and shows as "Table 2" by position when empty.
+- **Tables and seats.** Give each table its own seat count and an optional label, which shows as "Table 2" by position when empty. Then auto-assign attending guests, and move someone after. A party sits together when the table has room. Saving a layout keeps guests in their seats, and only asks first when it would remove someone. There can be more seats than guests, up to 500.
 - **QR and check-in.** Shows the gathering QR, lists attending guests, and checks in a personal pass by camera scan or by uploading an image of the QR. Upload also works when the camera is broken or blocked.
 
 **Download seated list** on the guests section saves `jam-guests.csv`.

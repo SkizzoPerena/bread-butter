@@ -339,20 +339,28 @@ export function useSeating() {
     await apiRequest(`/user/seating/gatherings/${gatheringId}/guests/${guestId}`, { method: 'DELETE' })
   }
 
-  async function replaceTables(gatheringId: string, tables: { capacity: number }[], confirmClear = false) {
+  async function replaceTables(
+    gatheringId: string,
+    tables: { _id?: string, label?: string, capacity: number }[],
+    confirmClear = false,
+  ) {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const sum = tables.reduce((total, table) => total + table.capacity, 0)
-      if (sum > gathering.maxGuests) throw new Error('Total seats cannot exceed the package guest cap.')
+      if (sum > 500) throw new Error('A seating plan can have at most 500 seats.')
       gathering.tables = tables.map((table, index) => ({
-        _id: `mock-table-${gatheringId}-${index}`,
-        label: `Table ${index + 1}`,
+        _id: table._id || `mock-table-${gatheringId}-${Date.now()}-${index}`,
+        label: table.label?.trim() || `Table ${index + 1}`,
+        customLabel: table.label?.trim() || '',
         capacity: table.capacity,
         sortOrder: index,
       }))
       for (const guest of mockGuests(gatheringId)) {
-        guest.tableId = null
-        guest.seatNumber = null
+        const table = gathering.tables.find((item) => item._id === guest.tableId)
+        if (!table || (guest.seatNumber || 0) > table.capacity) {
+          guest.tableId = null
+          guest.seatNumber = null
+        }
       }
       return gathering
     }
@@ -360,64 +368,6 @@ export function useSeating() {
       method: 'PUT',
       body: { tables, confirmClear },
     })
-    return response.gathering
-  }
-
-  async function updateTableCapacity(
-    gatheringId: string,
-    tableId: string,
-    capacity: number,
-    confirmClear = false,
-  ): Promise<GatheringRecord> {
-    if (isUiOnlyMode.value) {
-      const gathering = await getGathering(gatheringId)
-      const table = gathering.tables.find((item) => item._id === tableId)
-      if (!table) throw new Error('Table not found.')
-      const otherSeats = gathering.tables.reduce(
-        (sum, item) => sum + (item._id === tableId ? 0 : item.capacity),
-        0,
-      )
-      if (otherSeats + capacity > gathering.maxGuests) {
-        throw new Error('Total seats cannot exceed the package guest cap.')
-      }
-      if (capacity < table.capacity && !confirmClear) {
-        const overflow = mockGuests(gatheringId).some(
-          (guest) => guest.tableId === tableId && (guest.seatNumber || 0) > capacity,
-        )
-        if (overflow) throw new Error('This capacity removes guests from seats. Confirm to continue.')
-      }
-      table.capacity = capacity
-      if (confirmClear) {
-        for (const guest of mockGuests(gatheringId)) {
-          if (guest.tableId === tableId && (guest.seatNumber || 0) > capacity) {
-            guest.tableId = null
-            guest.seatNumber = null
-          }
-        }
-      }
-      return gathering
-    }
-    const response = await apiRequest<GatheringResponse>(
-      `/user/seating/gatherings/${gatheringId}/tables/${tableId}`,
-      { method: 'PATCH', body: { capacity, confirmClear } },
-    )
-    return response.gathering
-  }
-
-  async function updateTableLabel(gatheringId: string, tableId: string, label: string): Promise<GatheringRecord> {
-    if (isUiOnlyMode.value) {
-      const gathering = await getGathering(gatheringId)
-      const index = gathering.tables.findIndex((item) => item._id === tableId)
-      const table = gathering.tables[index]
-      if (!table) throw new Error('Table not found.')
-      table.customLabel = label.trim()
-      table.label = table.customLabel || `Table ${index + 1}`
-      return gathering
-    }
-    const response = await apiRequest<GatheringResponse>(
-      `/user/seating/gatherings/${gatheringId}/tables/${tableId}`,
-      { method: 'PATCH', body: { label } },
-    )
     return response.gathering
   }
 
@@ -750,8 +700,6 @@ export function useSeating() {
     updateGuest,
     deleteGuest,
     replaceTables,
-    updateTableCapacity,
-    updateTableLabel,
     autoAssign,
     moveSeat,
     resendPass,

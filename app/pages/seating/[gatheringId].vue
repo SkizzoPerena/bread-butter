@@ -21,8 +21,9 @@ const loading = ref(true)
 const saving = ref(false)
 const section = ref<'guests' | 'tables' | 'checkin' | 'invite'>('guests')
 const activeMobileTab = ref<'launcher' | 'overview'>('overview')
-const tableCount = ref(1)
-const seatsPerTable = ref(8)
+const layoutRows = ref<LayoutRow[]>([])
+const quickTableCount = ref(1)
+const quickSeatCount = ref(8)
 const lastScan = ref('')
 const searchQuery = ref('')
 const statusFilter = ref<'ALL' | 'GOING' | 'PENDING' | 'NOT_GOING'>('ALL')
@@ -81,6 +82,8 @@ const seatedPercent = computed(() => {
   return Math.round((seatedCount.value / attendingGuests.value.length) * 100)
 })
 
+const layoutSeatTotal = computed(() => layoutRows.value.reduce((total, row) => total + (Number(row.capacity) || 0), 0))
+
 const totalSeatsCapacity = computed(() => {
   return (gathering.value?.tables || []).reduce((acc, t) => acc + (t.capacity || 0), 0)
 })
@@ -108,6 +111,20 @@ const filteredGuests = computed(() => {
     return true
   })
 })
+
+interface LayoutRow {
+  key: string
+  _id?: string
+  label: string
+  capacity: number
+}
+
+let nextRowKey = 0
+
+function layoutRow(fields: Omit<LayoutRow, 'key'>): LayoutRow {
+  nextRowKey += 1
+  return { key: `row-${nextRowKey}`, ...fields }
+}
 
 interface QuickNavItem {
   id: 'guests' | 'invite' | 'tables' | 'checkin' | 'view_pass' | 'export_csv'
@@ -195,10 +212,11 @@ async function load() {
       inviteForm.passcode = gathering.value.passcode || ''
       inviteForm.invitationSubject = gathering.value.invitationSubject || ''
       inviteForm.invitationMessage = gathering.value.invitationMessage || ''
-      if (gathering.value.tables?.length) {
-        tableCount.value = gathering.value.tables.length
-        seatsPerTable.value = gathering.value.tables[0]?.capacity || 8
-      }
+      layoutRows.value = gathering.value.tables.map((table) => layoutRow({
+        _id: table._id,
+        label: table.customLabel || '',
+        capacity: table.capacity,
+      }))
       if (gathering.value.status === 'ACTIVE') {
         const listed = await seating.listGuests(gatheringId.value)
         guests.value = listed.guests
@@ -288,14 +306,34 @@ async function removeGuest(guest: SeatingGuestRecord) {
   }
 }
 
+function addLayoutRows() {
+  const count = Math.max(Math.floor(Number(quickTableCount.value)) || 0, 0)
+  const capacity = Math.max(Math.floor(Number(quickSeatCount.value)) || 0, 1)
+  for (let index = 0; index < count; index += 1) {
+    layoutRows.value.push(layoutRow({ label: '', capacity }))
+  }
+}
+
+function removeLayoutRow(key: string) {
+  layoutRows.value = layoutRows.value.filter((row) => row.key !== key)
+}
+
+async function saveLayout(confirmClear = false): Promise<void> {
+  const tables = layoutRows.value.map(({ _id, label, capacity }) => ({ _id, label, capacity: Number(capacity) }))
+  gathering.value = await seating.replaceTables(gatheringId.value, tables, confirmClear)
+}
+
 async function applyTables() {
   if (!gathering.value) return
-  const seated = guests.value.some((guest) => guest.seatNumber != null)
-  if (seated && !window.confirm('Replacing the table layout clears current seats. Continue?')) return
   saving.value = true
   try {
-    const tables = Array.from({ length: tableCount.value }, () => ({ capacity: seatsPerTable.value }))
-    gathering.value = await seating.replaceTables(gatheringId.value, tables, seated)
+    try {
+      await saveLayout()
+    } catch (error) {
+      const message = getApiErrorMessage(error)
+      if (!message.includes('Confirm to continue') || !window.confirm(message)) throw error
+      await saveLayout(true)
+    }
     await load()
     toast.add({ title: 'Table layout updated', color: 'success' })
   } catch (error) {
@@ -338,33 +376,6 @@ async function onSeatChange(guest: SeatingGuestRecord, value: string) {
     await load()
   } catch (error) {
     toast.add({ title: 'Could not move seat', description: getApiErrorMessage(error), color: 'error' })
-  }
-}
-
-async function saveTableCapacity(tableId: string, capacity: number) {
-  try {
-    gathering.value = await seating.updateTableCapacity(gatheringId.value, tableId, capacity, false)
-    await load()
-  } catch (error) {
-    const message = getApiErrorMessage(error)
-    if (message.includes('Confirm to continue') && window.confirm(message)) {
-      try {
-        gathering.value = await seating.updateTableCapacity(gatheringId.value, tableId, capacity, true)
-        await load()
-      } catch (retryError) {
-        toast.add({ title: 'Could not update table', description: getApiErrorMessage(retryError), color: 'error' })
-      }
-      return
-    }
-    toast.add({ title: 'Could not update table', description: message, color: 'error' })
-  }
-}
-
-async function saveTableLabel(tableId: string, label: string) {
-  try {
-    gathering.value = await seating.updateTableLabel(gatheringId.value, tableId, label)
-  } catch (error) {
-    toast.add({ title: 'Could not rename table', description: getApiErrorMessage(error), color: 'error' })
   }
 }
 
@@ -1085,23 +1096,62 @@ async function copyLookupUrl() {
                 <h3 class="font-serif font-bold text-base text-toast-900">Table & Seating Layout</h3>
               </div>
               <div class="flex items-center gap-2 text-xs">
-                <span class="text-muted">Total Table Capacity:</span>
-                <span class="font-bold text-toast-900 font-mono">{{ totalSeatsCapacity }} / {{ gathering.maxGuests }} max</span>
+                <span class="text-muted">Total Seats:</span>
+                <span class="font-bold text-toast-900 font-mono">{{ layoutSeatTotal }}</span>
               </div>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-3 items-end">
-              <UFormField label="Number of Tables">
-                <UInput v-model.number="tableCount" type="number" min="1" size="sm" class="w-full" />
+            <div v-if="layoutRows.length" class="space-y-2">
+              <div
+                v-for="(row, index) in layoutRows"
+                :key="row.key"
+                class="grid grid-cols-[1fr_5rem_auto] items-end gap-2"
+                data-testid="layout-row"
+              >
+                <UFormField :label="`Table ${index + 1} label (optional)`">
+                  <UInput v-model="row.label" maxlength="40" :placeholder="`Table ${index + 1}`" size="sm" class="w-full" />
+                </UFormField>
+                <UFormField label="Seats">
+                  <UInput v-model.number="row.capacity" type="number" min="1" size="sm" class="w-full" />
+                </UFormField>
+                <UButton
+                  size="sm"
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  class="cursor-pointer"
+                  :aria-label="`Remove table ${index + 1}`"
+                  @click="removeLayoutRow(row.key)"
+                />
+              </div>
+            </div>
+            <p v-else class="py-2 text-xs text-muted">
+              No tables yet. Add as many as your venue has.
+            </p>
+
+            <div class="flex flex-wrap items-end gap-2 border-t border-bread-200/60 pt-3">
+              <UFormField label="Tables to add">
+                <UInput v-model.number="quickTableCount" type="number" min="1" size="sm" class="w-24" />
               </UFormField>
-              <UFormField label="Seats per Table">
-                <UInput v-model.number="seatsPerTable" type="number" min="1" size="sm" class="w-full" />
+              <UFormField label="Seats each">
+                <UInput v-model.number="quickSeatCount" type="number" min="1" size="sm" class="w-24" />
               </UFormField>
-              <div class="flex items-center gap-2">
+              <UButton
+                color="toast"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-plus"
+                class="cursor-pointer"
+                @click="addLayoutRows"
+              >
+                Add Tables
+              </UButton>
+              <div class="ml-auto flex items-center gap-2">
                 <UButton
                   color="primary"
                   size="sm"
                   :loading="saving"
+                  :disabled="layoutRows.length === 0"
                   variant="solid"
                   @click="applyTables"
                 >
@@ -1121,7 +1171,7 @@ async function copyLookupUrl() {
               </div>
             </div>
             <p class="text-[11px] text-muted italic">
-              Auto-assign seats groups guests who share the same Party/Group at the same table whenever space allows.
+              You can have more seats than guests, up to 500, so guests have a choice. Auto-assign seats groups guests who share the same Party/Group at the same table whenever space allows.
             </p>
           </div>
 
@@ -1182,28 +1232,8 @@ async function copyLookupUrl() {
             >
               <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
                 <span class="font-serif font-bold text-sm text-toast-900">{{ table.label }}</span>
-                <label class="flex items-center gap-1.5 text-xs text-toast-700">
-                  <span>Seats:</span>
-                  <input
-                    :value="table.capacity"
-                    type="number"
-                    min="1"
-                    class="w-14 rounded-md border border-toast-300 bg-white px-1.5 py-0.5 text-center text-xs font-bold"
-                    @change="saveTableCapacity(table._id, Number(($event.target as HTMLInputElement).value))"
-                  />
-                </label>
+                <span class="text-xs text-toast-700">{{ table.capacity }} seats</span>
               </div>
-              <label class="flex items-center gap-1.5 text-xs text-toast-700">
-                <span>Label:</span>
-                <input
-                  :value="table.customLabel"
-                  maxlength="40"
-                  placeholder="Optional"
-                  :aria-label="`Label for ${table.label}`"
-                  class="min-w-0 flex-1 rounded-md border border-toast-300 bg-white px-1.5 py-0.5 text-xs"
-                  @change="saveTableLabel(table._id, ($event.target as HTMLInputElement).value)"
-                />
-              </label>
 
               <!-- Seat List -->
               <div class="space-y-1 text-xs">
