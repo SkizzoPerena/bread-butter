@@ -5,6 +5,9 @@ import { getApiErrorMessage } from '~/types/auth'
 import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
 import SeatingQrImage from '~/components/SeatingQrImage.vue'
 import SeatingCheckInScanner from '~/components/SeatingCheckInScanner.vue'
+import EventQuestionsModal from '~/components/EventQuestionsModal.vue'
+import type { EventQuestion } from '~/types/event'
+import { formatRsvpAnswerNotes, formatRsvpAnswerValue } from '~/utils/rsvpDisplay'
 
 definePageMeta({ layout: 'event-navbar', middleware: 'seating-enabled' })
 
@@ -28,6 +31,7 @@ const lastScan = ref('')
 const searchQuery = ref('')
 const statusFilter = ref<'ALL' | 'GOING' | 'PENDING' | 'NOT_GOING'>('ALL')
 
+const isQuestionsOpen = ref(false)
 const isCopiedPasscode = ref(false)
 const isCopiedLookupUrl = ref(false)
 
@@ -294,6 +298,16 @@ async function saveInvitation() {
   } finally {
     saving.value = false
   }
+}
+
+async function saveQuestions(questions: EventQuestion[]) {
+  gathering.value = await seating.saveInvitation(gatheringId.value, { questions })
+}
+
+function answerSummary(answer: NonNullable<SeatingGuestRecord['answers']>[number]) {
+  const notes = formatRsvpAnswerNotes(answer.notes)
+  const value = formatRsvpAnswerValue(answer.answer)
+  return `${answer.question}: ${value}${notes ? ` (${notes})` : ''}`
 }
 
 async function sendInvitation() {
@@ -972,6 +986,21 @@ async function copyLookupUrl() {
                     <div class="text-xs text-muted truncate">
                       {{ guest.email }}
                     </div>
+                    <details
+                      v-if="guest.answers?.length"
+                      class="mt-1 text-xs text-toast-800"
+                    >
+                      <summary class="cursor-pointer font-medium">
+                        Answers ({{ guest.answers.length }})
+                      </summary>
+                      <p
+                        v-for="answer in guest.answers"
+                        :key="answer.question"
+                        class="mt-0.5 whitespace-pre-line"
+                      >
+                        {{ answerSummary(answer) }}
+                      </p>
+                    </details>
                   </div>
                 </div>
 
@@ -1070,6 +1099,17 @@ async function copyLookupUrl() {
                     variant="solid"
                   >
                     Save Invitation
+                  </UButton>
+                  <UButton
+                    type="button"
+                    color="toast"
+                    variant="soft"
+                    size="sm"
+                    icon="i-lucide-list-checks"
+                    class="font-semibold cursor-pointer"
+                    @click="isQuestionsOpen = true"
+                  >
+                    RSVP Questions ({{ gathering.questions?.length || 0 }})
                   </UButton>
                   <UButton
                     type="button"
@@ -1359,6 +1399,13 @@ async function copyLookupUrl() {
         </div>
       </section>
     </UPageGrid>
+
+    <EventQuestionsModal
+      v-if="gathering"
+      v-model:open="isQuestionsOpen"
+      :initial-questions="gathering.questions ?? []"
+      :save="saveQuestions"
+    />
   </div>
 </template>
 

@@ -25,7 +25,7 @@ flowchart TD
 The workspace uses the same buttons and containers for four sections:
 
 - **Guests.** Add one person at a time. A new guest always starts as pending. Each row has a response of pending, going, or not going, which changes when the guest replies or the host records a reply. Going is what marks someone attending.
-- **Invitation.** Edit the subject, message, and passcode, then send to guests who are still pending. Counts show pending, going, and not going.
+- **Invitation.** Edit the subject, message, and passcode, add custom RSVP questions, then send to guests who are still pending. Counts show pending, going, and not going. Guest rows show each guest's answers, and the seat plan has a column per question.
 - **Tables and seats.** Give each table its own seat count and an optional label, which shows as "Table 2" by position when empty. Then auto-assign attending guests, and move someone after. A party sits together when the table has room. Saving a layout keeps guests in their seats, and only asks first when it would remove someone. There can be more seats than guests, up to 500. Each empty seat can be marked unavailable, so nobody can be placed there. Guests who are coming can choose their own seats until the host locks seat selection, and auto-assign only fills guests with no seat.
 - **QR and check-in.** Shows the gathering QR, lists attending guests, and checks in a personal pass by camera scan or by uploading an image of the QR. Upload also works when the camera is broken or blocked.
 
@@ -53,7 +53,7 @@ flowchart TD
 These pages use the same simple card as the seat pass. They do not require a login. `/jam/` is public in the auth guard, and a host with an unpaid wedding event is not redirected away from it.
 
 - `/jam/:token` shows the message, date, and venue. If the plan has a passcode, it asks for that first.
-- `/jam/rsvp/:token` asks yes or no. If the plan has a passcode, it asks for that first. Saying yes shows the seat picker right away.
+- `/jam/rsvp/:token` asks yes or no. If the plan has a passcode, it asks for that first. Saying yes shows the host's questions, and asks for a name if the guest hasn't given one. Earlier answers come back on a second visit. After replying yes, the seat picker shows right away.
 - `/seat/:token` is the gathering QR. The guest picks their name and sees the table and seat. It does not check them in.
 - `/attend/:token` is the personal pass. It shows the seat, or “Your seat is not assigned yet” until one exists. It also has the seat picker, where a guest presses "Sit here" on an open seat, or changes or gives up their seat, unless the host has locked seat selection. Other guests' names aren't shown. `?checkin=1` records check-in once, and hides the picker.
 

@@ -1,48 +1,106 @@
 <script setup lang="ts">
+import type { EventQuestion } from '~/types/event'
 import { getApiErrorMessage } from '~/types/auth'
+import {
+  guestAnswerMapFromRsvp,
+  guestNotesMapFromRsvp,
+  validateGuestRsvpSubmission,
+  type GuestAnswerMap,
+  type GuestNotesMap,
+} from '~/utils/guestRsvpValidation'
+import GuestRsvpQuestionForm from '~/components/GuestRsvpQuestionForm.vue'
 
 definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
-const { fetchJamInvite, respondToJamInvite } = useSeating()
+const { fetchJamInvite, unlockJamInvite, respondToJamInvite } = useSeating()
 
 const token = computed(() => String(route.params.token || ''))
+const step = ref<'loading' | 'passcode' | 'reply' | 'unavailable'>('loading')
 const passcode = ref('')
-const unlocked = ref(false)
+const gatheringName = ref('')
+const questions = ref<EventQuestion[]>([])
+const needsName = ref(false)
+const firstName = ref('')
+const lastName = ref('')
+const attendanceStatus = ref<'GOING' | 'NOT_GOING' | null>(null)
+const answerMap = ref<GuestAnswerMap>({})
+const notesMap = ref<GuestNotesMap>({})
 const resultMessage = ref('')
+const attendPath = ref('')
 const errorMessage = ref('')
 const saving = ref(false)
-const loading = ref(true)
-const attendPath = ref('')
+
+// Someone who isn't coming isn't asked things like a meal choice.
+const visibleQuestions = computed(() => (attendanceStatus.value === 'GOING' ? questions.value : []))
+const askForName = computed(() => needsName.value && attendanceStatus.value === 'GOING')
 
 useHead({ title: 'Reply' })
 
 onMounted(async () => {
   try {
     const invite = await fetchJamInvite(token.value)
-    unlocked.value = invite.passcodeRequired === false
+    gatheringName.value = invite.gatheringName || ''
+    if (invite.passcodeRequired === false) {
+      await unlock()
+    } else {
+      step.value = 'passcode'
+    }
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'This invitation is not available.')
-  } finally {
-    loading.value = false
+    step.value = 'unavailable'
   }
 })
 
-function openReply() {
+async function unlock() {
   errorMessage.value = ''
-  unlocked.value = true
+  saving.value = true
+  try {
+    const unlocked = await unlockJamInvite(token.value, passcode.value)
+    questions.value = unlocked.questions ?? []
+    needsName.value = Boolean(unlocked.needsName)
+    answerMap.value = guestAnswerMapFromRsvp(unlocked.answers ?? [])
+    notesMap.value = guestNotesMapFromRsvp(unlocked.answers ?? [])
+    if (unlocked.rsvpStatus === 'GOING' || unlocked.rsvpStatus === 'NOT_GOING') {
+      attendanceStatus.value = unlocked.rsvpStatus
+    }
+    step.value = 'reply'
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Incorrect passcode.')
+    step.value = 'passcode'
+  } finally {
+    saving.value = false
+  }
 }
 
-async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
-  saving.value = true
+async function sendReply() {
   errorMessage.value = ''
+  const { payload, error } = validateGuestRsvpSubmission(
+    visibleQuestions.value,
+    attendanceStatus.value,
+    answerMap.value,
+    notesMap.value,
+  )
+  if (!payload) {
+    errorMessage.value = error || 'Please check your reply.'
+    return
+  }
+  if (askForName.value && (!firstName.value.trim() || !lastName.value.trim())) {
+    errorMessage.value = 'Please enter your first and last name.'
+    return
+  }
+  saving.value = true
   try {
-    const result = await respondToJamInvite(token.value, passcode.value, rsvpStatus)
+    const result = await respondToJamInvite(token.value, {
+      passcode: passcode.value,
+      rsvpStatus: payload.status,
+      answers: payload.answers,
+      ...(askForName.value ? { firstName: firstName.value.trim(), lastName: lastName.value.trim() } : {}),
+    })
     resultMessage.value = result.message
     attendPath.value = result.attendPath || ''
-  } catch (error) {
-    resultMessage.value = ''
-    errorMessage.value = getApiErrorMessage(error, 'Could not save your reply.')
+  } catch (replyError) {
+    errorMessage.value = getApiErrorMessage(replyError, 'Could not save your reply.')
   } finally {
     saving.value = false
   }
@@ -56,10 +114,19 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
         Reply
       </p>
       <h1 class="text-3xl font-serif font-bold">
-        Are you coming?
+        {{ gatheringName || 'Are you coming?' }}
       </h1>
+      <p v-if="step === 'loading'">
+        Loading...
+      </p>
       <p v-if="resultMessage">
         {{ resultMessage }}
+      </p>
+      <p
+        v-else-if="errorMessage"
+        role="alert"
+      >
+        {{ errorMessage }}
       </p>
       <template v-if="attendPath">
         <JamSeatPicker :token="token" />
@@ -70,16 +137,10 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
           See my seat pass
         </NuxtLink>
       </template>
-      <p v-else-if="errorMessage">
-        {{ errorMessage }}
-      </p>
-      <p v-if="loading">
-        Loading...
-      </p>
       <form
-        v-else-if="!unlocked && !resultMessage"
+        v-if="step === 'passcode' && !resultMessage"
         class="space-y-3 text-left"
-        @submit.prevent="openReply"
+        @submit.prevent="unlock"
       >
         <label class="block text-sm font-semibold">
           Passcode
@@ -93,31 +154,56 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
         <button
           type="submit"
           class="rounded-md bg-toast-800 px-4 py-2 text-bread-100"
+          :disabled="saving"
         >
           Continue
         </button>
       </form>
-      <div
-        v-else-if="!resultMessage"
-        class="flex justify-center gap-2"
+      <form
+        v-else-if="step === 'reply' && !resultMessage"
+        class="space-y-4 text-left"
+        @submit.prevent="sendReply"
       >
+        <GuestRsvpQuestionForm
+          v-model:attendance-status="attendanceStatus"
+          v-model:answer-map="answerMap"
+          v-model:notes-map="notesMap"
+          :questions="visibleQuestions"
+          :disabled="saving"
+        />
+        <div
+          v-if="askForName"
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <label class="block text-sm font-semibold">
+            First name
+            <input
+              v-model="firstName"
+              required
+              maxlength="50"
+              autocomplete="given-name"
+              class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
+            >
+          </label>
+          <label class="block text-sm font-semibold">
+            Last name
+            <input
+              v-model="lastName"
+              required
+              maxlength="50"
+              autocomplete="family-name"
+              class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
+            >
+          </label>
+        </div>
         <button
-          type="button"
+          type="submit"
           class="rounded-md bg-toast-800 px-4 py-2 text-bread-100"
           :disabled="saving"
-          @click="reply('GOING')"
         >
-          Yes, I'm coming
+          Send reply
         </button>
-        <button
-          type="button"
-          class="rounded-md border border-toast-800 px-4 py-2"
-          :disabled="saving"
-          @click="reply('NOT_GOING')"
-        >
-          No
-        </button>
-      </div>
+      </form>
     </div>
   </div>
 </template>

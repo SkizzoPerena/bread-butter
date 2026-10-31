@@ -1,8 +1,11 @@
+import type { EventQuestion } from '~/types/event'
 import type {
   CheckInResult,
   GatheringRecord,
   JamInvitation,
   JamInviteDetails,
+  JamInviteUnlocked,
+  JamReplyBody,
   JamPackageRecord,
   JamRsvpResult,
   JamSeatMap,
@@ -614,6 +617,7 @@ export function useSeating() {
     invitationSubject?: string
     invitationMessage?: string
     seatSelectionLocked?: boolean
+    questions?: EventQuestion[]
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
@@ -771,12 +775,37 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
-  async function respondToJamInvite(token: string, passcode: string, rsvpStatus: 'GOING' | 'NOT_GOING'): Promise<JamRsvpResult> {
+  async function unlockJamInvite(token: string, passcode: string): Promise<JamInviteUnlocked> {
     if (isUiOnlyMode.value) {
       for (const gathering of gatherings.value) {
         const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
         if (!guest) continue
         if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        return {
+          gatheringName: gathering.name,
+          questions: gathering.questions ?? [],
+          answers: guest.answers ?? [],
+          rsvpStatus: guest.rsvpStatus,
+          needsName: !guest.firstName || !guest.lastName,
+        }
+      }
+      throw new Error('Invitation not found.')
+    }
+    return apiRequest<JamInviteUnlocked>(`/guest/seating/rsvp/${token}/unlock`, {
+      method: 'POST',
+      body: { passcode },
+      authenticated: false,
+    })
+  }
+
+  async function respondToJamInvite(token: string, body: JamReplyBody): Promise<JamRsvpResult> {
+    if (isUiOnlyMode.value) {
+      const { passcode, rsvpStatus } = body
+      for (const gathering of gatherings.value) {
+        const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+        if (!guest) continue
+        if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        guest.answers = body.answers ?? []
         guest.rsvpStatus = rsvpStatus
         guest.isAttending = rsvpStatus === 'GOING'
         if (rsvpStatus !== 'GOING') {
@@ -793,7 +822,7 @@ export function useSeating() {
     }
     return apiRequest<JamRsvpResult>(`/guest/seating/rsvp/${token}`, {
       method: 'POST',
-      body: { passcode, rsvpStatus },
+      body,
       authenticated: false,
     })
   }
@@ -828,6 +857,7 @@ export function useSeating() {
     exportGuests,
     fetchJamSite,
     fetchJamInvite,
+    unlockJamInvite,
     unlockJamSite,
     respondToJamInvite,
     fetchSeatMap,

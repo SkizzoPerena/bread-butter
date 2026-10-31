@@ -56,9 +56,12 @@ export function seatingTable(_id: string, label: string, capacity: number, custo
   return { _id, label, customLabel, capacity, sortOrder: 0 }
 }
 
-export async function openWorkspace(page: Page, { tables = [] as unknown[], routes = {} as RouteMap } = {}) {
+export async function openWorkspace(
+  page: Page,
+  { tables = [] as unknown[], routes = {} as RouteMap, guests: guestOverrides = [{}] as object[] } = {},
+) {
   await signIn(page)
-  const guests = [guestRecord()]
+  const guests = guestOverrides.map(guestRecord)
   const calls = await stubApi(page, {
     routes: {
       [`GET /gatherings/${GATHERING_ID}/guests`]: route => route.fulfill({

@@ -1,3 +1,6 @@
+import type { EventQuestion } from '~/types/event'
+import type { RsvpAnswer } from '~/types/rsvp'
+
 export type GatheringStatus = 'PENDING_PAYMENT' | 'ACTIVE'
 export type SeatingPaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
 export type RsvpStatus = 'PENDING' | 'GOING' | 'NOT_GOING'
@@ -56,6 +59,7 @@ export interface GatheringRecord {
   invitationSubject?: string
   invitationMessage?: string
   tables: SeatingTable[]
+  questions?: EventQuestion[]
   seatSelectionLocked?: boolean
   guestCount: number
   attendingCount: number
@@ -70,6 +74,7 @@ export interface SeatingGuestRecord {
   email: string
   partyName: string
   rsvpStatus: RsvpStatus
+  answers?: RsvpAnswer[]
   respondedAt?: string | null
   inviteSentAt?: string | null
   isAttending: boolean
@@ -103,6 +108,22 @@ export interface JamInviteDetails {
   gatheringName: string
   passcodeRequired?: boolean
   needsName?: boolean
+}
+
+export interface JamInviteUnlocked {
+  gatheringName: string
+  questions?: EventQuestion[]
+  answers?: RsvpAnswer[]
+  rsvpStatus?: RsvpStatus
+  needsName?: boolean
+}
+
+export interface JamReplyBody {
+  passcode: string
+  rsvpStatus: 'GOING' | 'NOT_GOING'
+  answers?: RsvpAnswer[]
+  firstName?: string
+  lastName?: string
 }
 
 export interface JamInvitation {

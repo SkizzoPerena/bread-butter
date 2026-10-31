@@ -116,7 +116,8 @@ test('saying yes to the invitation leads straight to choosing a seat', async ({ 
   await page.goto(`/jam/rsvp/${PASS_TOKEN}`)
   await page.getByLabel('Passcode').fill('jam-door')
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: "Yes, I'm coming" }).click()
+  await page.getByLabel('Yes, I will attend').check()
+  await page.getByRole('button', { name: 'Send reply' }).click()
 
   await expect(page.getByText('You are marked as coming.')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Choose your seat' })).toBeVisible()

@@ -58,10 +58,11 @@ test('a guest replies with no passcode step when the plan has none', async ({ pa
   await page.goto(`/jam/rsvp/${PASS_TOKEN}`)
 
   await expect(page.getByLabel('Passcode')).toHaveCount(0)
-  await page.getByRole('button', { name: 'No', exact: true }).click()
+  await page.getByLabel('No, I cannot attend').check()
+  await page.getByRole('button', { name: 'Send reply' }).click()
   await expect(page.getByText('You are marked as not coming.')).toBeVisible()
   const reply = calls.find(call => call.method === 'POST' && call.url.endsWith(`/rsvp/${PASS_TOKEN}`))
-  expect(reply?.body).toEqual({ passcode: '', rsvpStatus: 'NOT_GOING' })
+  expect(reply?.body).toEqual({ passcode: '', rsvpStatus: 'NOT_GOING', answers: [] })
 })
 
 test('a host can save an invitation with the passcode left empty', async ({ page }) => {
