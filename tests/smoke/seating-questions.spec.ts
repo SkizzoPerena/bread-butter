@@ -9,9 +9,6 @@ const QUESTIONS = [
 async function openReply(page: Parameters<typeof stubApi>[0], unlocked = {}) {
   return stubApi(page, {
     routes: {
-      [`GET /guest/seating/rsvp/${PASS_TOKEN}`]: route => route.fulfill({
-        json: { success: true, status: 200, gatheringName: 'Damson supper', passcodeRequired: false, needsName: false },
-      }),
       [`POST /guest/seating/rsvp/${PASS_TOKEN}/unlock`]: route => route.fulfill({
         json: { success: true, status: 200, gatheringName: 'Damson supper', questions: QUESTIONS, answers: [], rsvpStatus: 'PENDING', needsName: false, ...unlocked },
       }),
@@ -46,7 +43,6 @@ test('a guest answers the questions to say yes, and is told what is missing firs
 
   await expect(page.getByText('You are marked as coming.')).toBeVisible()
   expect(replyBody(calls)).toEqual({
-    passcode: '',
     rsvpStatus: 'GOING',
     answers: [
       { question: 'Any dietary needs?', answer: 'No nuts', notes: '' },
@@ -63,7 +59,7 @@ test('a guest who declines is not asked the questions', async ({ page }) => {
   await expect(page.getByText('1. Any dietary needs?')).toHaveCount(0)
   await page.getByRole('button', { name: 'Send reply' }).click()
 
-  await expect.poll(() => replyBody(calls)).toEqual({ passcode: '', rsvpStatus: 'NOT_GOING', answers: [] })
+  await expect.poll(() => replyBody(calls)).toEqual({ rsvpStatus: 'NOT_GOING', answers: [] })
 })
 
 test('a guest who has not given a name is asked for one to say yes', async ({ page }) => {
@@ -76,7 +72,6 @@ test('a guest who has not given a name is asked for one to say yes', async ({ pa
   await page.getByRole('button', { name: 'Send reply' }).click()
 
   await expect.poll(() => replyBody(calls)).toEqual({
-    passcode: '',
     rsvpStatus: 'GOING',
     answers: [],
     firstName: 'Mina',

@@ -107,6 +107,9 @@ test('the door scan shows the pass without the seat picker', async ({ page }) =>
 test('saying yes to the invitation leads straight to choosing a seat', async ({ page }) => {
   await stubApi(page, {
     routes: {
+      [`POST /guest/seating/rsvp/${PASS_TOKEN}/unlock`]: route => route.fulfill({
+        json: { success: true, status: 200, gatheringName: 'Damson supper', questions: [], answers: [], rsvpStatus: 'PENDING', needsName: false },
+      }),
       [`POST /guest/seating/rsvp/${PASS_TOKEN}`]: route => route.fulfill({
         json: { success: true, status: 200, message: 'You are marked as coming.', rsvpStatus: 'GOING', attendPath: `/attend/${PASS_TOKEN}` },
       }),
@@ -114,8 +117,6 @@ test('saying yes to the invitation leads straight to choosing a seat', async ({ 
     },
   })
   await page.goto(`/jam/rsvp/${PASS_TOKEN}`)
-  await page.getByLabel('Passcode').fill('jam-door')
-  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Yes, I will attend').check()
   await page.getByRole('button', { name: 'Send reply' }).click()
 

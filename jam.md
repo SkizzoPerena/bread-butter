@@ -43,15 +43,11 @@ The workspace uses the same buttons and containers for its sections:
 ```mermaid
 flowchart TD
   mail[Invitation email]
-  site["/jam/:token"]
-  code[Enter the passcode]
-  read[Read the invitation]
   rsvp["/jam/rsvp/:token"]
-  answer[Yes or no]
+  answer[Read the invitation, then yes or no]
   pass["/attend/:token"]
   seat["/seat/:token"]
-  mail --> site --> code --> read
-  mail --> rsvp --> code --> answer
+  mail --> rsvp --> answer
   answer -->|Yes| pass
   answer -->|No| done[No seat]
   seat --> lookup[Pick a name and see the seat]
@@ -59,8 +55,8 @@ flowchart TD
 
 These pages use the same simple card as the seat pass. They do not require a login. `/jam/` is public in the auth guard, and a host with an unpaid wedding event is not redirected away from it.
 
-- `/jam/:token` shows the invitation as the host designed it. If the plan has a passcode, it asks for that first.
-- `/jam/rsvp/:token` asks yes or no. If the plan has a passcode, it asks for that first. Saying yes shows the host's questions, and asks for a name if the guest hasn't given one. Earlier answers come back on a second visit. After replying yes, the seat picker shows right away.
+- `/jam/:token` shows the invitation as the host designed it. If the plan has a passcode, it asks for that first. Emails no longer link here, and older invitations still can.
+- `/jam/rsvp/:token` is the guest's personal link, and the only link in the invitation email. It shows the invitation and asks yes or no, and never asks for the passcode. Saying yes shows the host's questions, and asks for a name if the guest hasn't given one. Earlier answers come back on a second visit. After replying yes, the seat picker shows right away.
 - `/jam/open/:token` is the host's shareable open invite. Anyone with the link enters their name and email, plus any passcode and answers, and becomes a guest who is coming, then can choose a seat. An email already on the list gets its link sent to that inbox instead.
 - `/seat/:token` is the gathering QR. The guest picks their name and sees the table and seat. It does not check them in.
 - `/attend/:token` is the personal pass. It shows the seat, or “Your seat is not assigned yet” until one exists. It also has the seat picker, where a guest presses "Sit here" on an open seat, or changes or gives up their seat, unless the host has locked seat selection. Other guests' names aren't shown. `?checkin=1` records check-in once, and hides the picker.
