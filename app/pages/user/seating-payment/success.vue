@@ -11,10 +11,11 @@ const { isUiOnlyMode } = useApiMode()
 const status = ref<'loading' | 'approved' | 'processing' | 'error'>('loading')
 const gatheringName = ref('')
 const gatheringId = ref('')
+const isUpgrade = computed(() => String(route.query.upgrade || '') === '1')
 
 onMounted(async () => {
   gatheringId.value = String(route.query.gatheringId || '')
-  const checkoutId = String(route.query.checkout_id || route.query.checkoutId || '')
+  const checkoutId = String(route.query.checkout_id || route.query.checkoutId || route.query.payment_id || '')
   try {
     if (isUiOnlyMode.value && gatheringId.value) {
       const gathering = await getGathering(gatheringId.value)
@@ -43,7 +44,7 @@ onMounted(async () => {
     <UContainer class="max-w-lg">
       <div class="white-bread-container p-8 space-y-4 text-center">
         <h1 class="text-3xl font-serif font-bold">
-          {{ status === 'approved' ? 'Payment received' : status === 'processing' ? 'Payment processing' : status === 'error' ? 'Payment not confirmed' : 'Checking payment' }}
+          {{ status === 'approved' ? (isUpgrade ? 'Your plan is upgraded' : 'Payment received') : status === 'processing' ? 'Payment processing' : status === 'error' ? 'Payment not confirmed' : 'Checking payment' }}
         </h1>
         <p v-if="gatheringName">
           {{ gatheringName }}
@@ -52,10 +53,12 @@ onMounted(async () => {
           v-if="status === 'processing'"
           class="text-sm"
         >
-          If you paid with a manual receipt, the seating plan opens after review.
+          {{ isUpgrade
+            ? 'Your guest limit goes up as soon as the payment is confirmed.'
+            : 'If you paid with a manual receipt, the seating plan opens after review.' }}
         </p>
         <UButton
-          v-if="status === 'approved' && gatheringId"
+          v-if="(status === 'approved' || isUpgrade) && gatheringId"
           :to="`/seating/${gatheringId}`"
         >
           Open seating plan

@@ -34,6 +34,10 @@ The workspace uses the same buttons and containers for its sections:
 
 **Export Seat Plan** saves `jam-seat-plan.csv`: table by table, with guests alphabetized by last name then first name, and anyone with no seat at the end.
 
+## Upgrading a plan
+
+`/user/seating-upgrade/:gatheringId` lists bigger plans at the price difference. The host pays by PayMongo or manual proof, the same way as the first payment, and the guest limit goes up once it's confirmed. A pending proof blocks another upgrade. An open checkout can be resumed, or replaced by choosing again. The sidebar links here, and the guests section does too once the list is full. Seat plans, guests, and links don't change.
+
 ## Guest path
 
 ```mermaid

@@ -14,6 +14,7 @@ import type {
   JamPackageRecord,
   JamRsvpResult,
   JamSeatMap,
+  JamUpgradeOptions,
   JamSitePreview,
   PublicSeatDetail,
   PublicSeatList,
@@ -784,6 +785,83 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
+  async function getUpgradeOptions(gatheringId: string): Promise<JamUpgradeOptions> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      return {
+        current: {
+          packageId: gathering.jamPackage || '',
+          packageName: gathering.packageName,
+          pricePhp: gathering.pricePhp,
+          maxGuests: gathering.maxGuests,
+        },
+        options: packages.value
+          .filter((item) => item.isEnabled && item.maxGuests > gathering.maxGuests && item.pricePhp > gathering.pricePhp)
+          .map((item) => ({
+            _id: item._id,
+            name: item.name,
+            pricePhp: item.pricePhp,
+            maxGuests: item.maxGuests,
+            priceDifferencePhp: item.pricePhp - gathering.pricePhp,
+            additionalGuests: item.maxGuests - gathering.maxGuests,
+          })),
+        pendingUpgrade: gathering.pendingUpgrade ?? null,
+      }
+    }
+    return apiRequest<JamUpgradeOptions>(`/user/seating/gatherings/${gatheringId}/upgrade-options`)
+  }
+
+  async function listGatheringPayments(gatheringId: string): Promise<SeatingPaymentRecord[]> {
+    if (isUiOnlyMode.value) return []
+    const response = await apiRequest<{ payments: SeatingPaymentRecord[] }>(`/user/seating/gatherings/${gatheringId}/payments`)
+    return response.payments
+  }
+
+  function mockApplyUpgrade(gathering: GatheringRecord, packageId: string) {
+    const jamPackage = packages.value.find((item) => item._id === packageId)
+    if (!jamPackage) throw new Error('This package is not available.')
+    gathering.jamPackage = jamPackage._id
+    gathering.packageName = jamPackage.name
+    gathering.pricePhp = jamPackage.pricePhp
+    gathering.maxGuests = jamPackage.maxGuests
+  }
+
+  async function submitUpgradeProof(gatheringId: string, packageId: string, payload: {
+    transactionId: string
+    paymentMethod: string
+    proofOfPayment: File
+  }): Promise<SeatingPaymentRecord> {
+    if (isUiOnlyMode.value) {
+      mockApplyUpgrade(await getGathering(gatheringId), packageId)
+      return { _id: `mock-upgrade-${Date.now()}`, type: 'SEATING_UPGRADE', amount: 0, status: 'APPROVED' }
+    }
+    const form = new FormData()
+    form.append('packageId', packageId)
+    form.append('transactionId', payload.transactionId)
+    form.append('paymentMethod', payload.paymentMethod)
+    form.append('proofOfPayment', payload.proofOfPayment)
+    const response = await apiUpload<PaymentResponse>(
+      `/user/seating/gatherings/${gatheringId}/upgrade/payment-proof`,
+      form,
+    )
+    return response.payment
+  }
+
+  async function createUpgradeCheckout(gatheringId: string, body: {
+    packageId: string
+    cancelPath: string
+    idempotencyKey: string
+  }): Promise<CheckoutResponse> {
+    if (isUiOnlyMode.value) {
+      mockApplyUpgrade(await getGathering(gatheringId), body.packageId)
+      return { checkoutUrl: null, alreadyPaid: true }
+    }
+    return apiRequest<CheckoutResponse>(`/user/seating/gatherings/${gatheringId}/upgrade/checkout-session`, {
+      method: 'POST',
+      body,
+    })
+  }
+
   async function listImportableGuests(
     gatheringId: string,
     sourceId: string,
@@ -1052,6 +1130,10 @@ export function useSeating() {
     fetchJamSite,
     fetchJamInvite,
     unlockJamInvite,
+    getUpgradeOptions,
+    listGatheringPayments,
+    submitUpgradeProof,
+    createUpgradeCheckout,
     listImportableGuests,
     importGuests,
     uploadInvitationImage,

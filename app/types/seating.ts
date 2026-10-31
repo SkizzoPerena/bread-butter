@@ -42,8 +42,19 @@ export interface JamInvitationDesign {
   bannerImageUrl?: string
 }
 
+export interface SeatingUpgradeSnapshot {
+  packageName: string
+  pricePhp?: number
+  maxGuests: number
+  fromPackageName: string
+  fromPricePhp?: number
+  fromMaxGuests: number
+}
+
 export interface SeatingPaymentRecord {
   _id: string
+  type?: 'SEATING_PACKAGE' | 'SEATING_UPGRADE'
+  upgrade?: SeatingUpgradeSnapshot | null
   amount: number
   amountReceived?: number | null
   status: SeatingPaymentStatus
@@ -79,6 +90,22 @@ export interface GatheringRecord {
   attendingCount: number
   checkedInCount: number
   payment: SeatingPaymentRecord | null
+  pendingUpgrade?: SeatingPaymentRecord | null
+}
+
+export interface JamUpgradeOption {
+  _id: string
+  name: string
+  pricePhp: number
+  maxGuests: number
+  priceDifferencePhp: number
+  additionalGuests: number
+}
+
+export interface JamUpgradeOptions {
+  current: { packageId: string, packageName: string, pricePhp: number, maxGuests: number }
+  options: JamUpgradeOption[]
+  pendingUpgrade: SeatingPaymentRecord | null
 }
 
 export interface SeatingGuestRecord {

@@ -76,6 +76,9 @@ const gatheringDateFormatted = computed(() => {
   return ''
 })
 
+const upgradePath = computed(() => `/user/seating-upgrade/${gatheringId.value}`)
+const guestListFull = computed(() => Boolean(gathering.value) && guests.value.length >= (gathering.value?.maxGuests ?? 0))
+
 const goingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus === 'GOING').length)
 const notGoingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus === 'NOT_GOING').length)
 const pendingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus !== 'GOING' && guest.rsvpStatus !== 'NOT_GOING').length)
@@ -719,6 +722,18 @@ async function copyLookupUrl() {
               <span>Max Guests</span>
               <span class="font-bold text-toast-900">{{ gathering.maxGuests }}</span>
             </div>
+            <UButton
+              v-if="active"
+              :to="upgradePath"
+              size="2xs"
+              color="toast"
+              variant="soft"
+              icon="i-lucide-arrow-up-circle"
+              block
+              class="mt-1"
+            >
+              Upgrade Plan
+            </UButton>
           </div>
 
           <!-- Passcode Copy Pill -->
@@ -905,6 +920,14 @@ async function copyLookupUrl() {
               </span>
             </div>
 
+            <p
+              v-if="guestListFull"
+              class="rounded-lg bg-amber-50 p-2.5 text-xs text-toast-900"
+            >
+              Your guest list is full.
+              <NuxtLink :to="upgradePath" class="font-semibold underline">Upgrade your plan</NuxtLink>
+              to invite more people.
+            </p>
             <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end" @submit.prevent="addGuest">
               <div>
                 <label class="block text-[11px] font-semibold text-toast-800 mb-1">First Name</label>
