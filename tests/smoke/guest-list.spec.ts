@@ -29,22 +29,26 @@ const GUESTS = [
 
 test('the guest list shows each guest\'s RSVP status', async ({ page }) => {
   await signIn(page)
+  const event = {
+    _id: EVENT_ID,
+    eventName: 'Guest list wedding',
+    eventType: 'WEDDING',
+    eventDate: '2030-06-01T00:00:00.000Z',
+    priceTier: { code: 'BREAD_BUTTER', name: 'Bread + Butter' },
+    paymentSummary: { isFullyPaid: true },
+    latestPayment: { status: 'APPROVED' },
+  }
   await stubApi(page, {
     routes: {
       [`GET /guests/event/${EVENT_ID}`]: route => route.fulfill({
         json: { success: true, status: 200, guests: GUESTS.map(item => item.row) },
       }),
+      'GET /user/events': route => route.fulfill({ json: { success: true, status: 200, events: [event] } }),
       [`GET /events/${EVENT_ID}`]: route => route.fulfill({
         json: {
           success: true,
           status: 200,
-          event: {
-            _id: EVENT_ID,
-            eventName: 'Guest list wedding',
-            eventType: 'WEDDING',
-            eventDate: '2030-06-01T00:00:00.000Z',
-            priceTier: { code: 'BREAD_BUTTER', name: 'Bread + Butter' },
-          },
+          event,
           guestList: GUESTS.map(item => item.row),
           rsvpSummary: { totalSent: 4, going: 1, notGoing: 1, pending: 1, noResponse: 1 },
           tasks: null,

@@ -49,7 +49,13 @@ export async function stubApi(
   await page.route('**/api/**', (route) => {
     const request = route.request()
     const url = new URL(request.url())
-    calls.push({ method: request.method(), url: url.pathname + url.search, body: request.postDataJSON() })
+    let body: unknown = null
+    try {
+      body = request.postDataJSON()
+    } catch {
+      // A file upload is not JSON. Tests that care read the raw request.
+    }
+    calls.push({ method: request.method(), url: url.pathname + url.search, body })
 
     if (url.pathname.endsWith('/public/platform-settings')) {
       return route.fulfill({ json: { success: true, status: 200, seatingPlansEnabled: seatingEnabled } })
@@ -63,6 +69,7 @@ export async function stubApi(
         status: 200,
         accessToken: FAKE_JWT,
         events: [],
+        gatherings: [],
         user: { _id: GATHERING_ID, firstName: 'Host', lastName: 'Person', email: 'host@example.com' },
       },
     })
