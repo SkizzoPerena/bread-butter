@@ -14,6 +14,7 @@ const passcode = ref('')
 const errorMessage = ref('')
 const loading = ref(true)
 const unlocking = ref(false)
+const passcodeRequired = ref(true)
 
 useHead({ title: 'Invitation' })
 
@@ -21,6 +22,8 @@ onMounted(async () => {
   try {
     const site = await fetchJamSite(token.value)
     gatheringName.value = site.gatheringName
+    passcodeRequired.value = site.passcodeRequired !== false
+    if (!passcodeRequired.value) await unlock()
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'This invitation is not available.')
   } finally {
@@ -59,7 +62,7 @@ async function unlock() {
         {{ errorMessage }}
       </p>
       <form
-        v-if="!loading && gatheringName && !invitation"
+        v-if="!loading && gatheringName && !invitation && passcodeRequired"
         class="space-y-3"
         @submit.prevent="unlock"
       >

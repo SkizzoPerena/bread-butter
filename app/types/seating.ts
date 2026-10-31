@@ -96,6 +96,13 @@ export interface PublicSeatList {
 
 export interface JamSitePreview {
   gatheringName: string
+  passcodeRequired?: boolean
+}
+
+export interface JamInviteDetails {
+  gatheringName: string
+  passcodeRequired?: boolean
+  needsName?: boolean
 }
 
 export interface JamInvitation {

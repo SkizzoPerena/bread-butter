@@ -2,6 +2,7 @@ import type {
   CheckInResult,
   GatheringRecord,
   JamInvitation,
+  JamInviteDetails,
   JamPackageRecord,
   JamRsvpResult,
   JamSeatMap,
@@ -668,15 +669,31 @@ export function useSeating() {
     if (isUiOnlyMode.value) {
       const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
       if (!gathering) throw new Error('Seating plan not found.')
-      return { gatheringName: gathering.name }
+      return { gatheringName: gathering.name, passcodeRequired: Boolean(gathering.passcode) }
     }
     return apiRequest<JamSitePreview>(`/guest/seating/site/${publicToken}`, { authenticated: false })
+  }
+
+  async function fetchJamInvite(token: string): Promise<JamInviteDetails> {
+    if (isUiOnlyMode.value) {
+      for (const gathering of gatherings.value) {
+        const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+        if (!guest) continue
+        return {
+          gatheringName: gathering.name,
+          passcodeRequired: Boolean(gathering.passcode),
+          needsName: !guest.firstName || !guest.lastName,
+        }
+      }
+      throw new Error('Invitation not found.')
+    }
+    return apiRequest<JamInviteDetails>(`/guest/seating/rsvp/${token}`, { authenticated: false })
   }
 
   async function unlockJamSite(publicToken: string, passcode: string): Promise<JamInvitation> {
     if (isUiOnlyMode.value) {
       const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
-      if (!gathering || gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+      if (!gathering || (gathering.passcode && gathering.passcode !== passcode)) throw new Error('Incorrect passcode.')
       return {
         gatheringName: gathering.name,
         venue: gathering.venue,
@@ -759,7 +776,7 @@ export function useSeating() {
       for (const gathering of gatherings.value) {
         const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
         if (!guest) continue
-        if (gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
         guest.rsvpStatus = rsvpStatus
         guest.isAttending = rsvpStatus === 'GOING'
         if (rsvpStatus !== 'GOING') {
@@ -810,6 +827,7 @@ export function useSeating() {
     sendInvites,
     exportGuests,
     fetchJamSite,
+    fetchJamInvite,
     unlockJamSite,
     respondToJamInvite,
     fetchSeatMap,

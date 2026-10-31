@@ -1043,9 +1043,9 @@ async function copyLookupUrl() {
                   />
                 </UFormField>
 
-                <UFormField label="Passcode" required description="Guests must enter this code to unlock the gathering details">
+                <UFormField label="Passcode (optional)" description="If you set one, guests must enter it to open the invitation and reply. Without one, anyone with a link can open the invitation, and anyone with a guest's personal link can reply as them.">
                   <div class="flex items-center gap-2">
-                    <UInput v-model="inviteForm.passcode" placeholder="Enter gathering passcode" required size="sm" class="flex-1 font-mono font-bold" />
+                    <UInput v-model="inviteForm.passcode" placeholder="No passcode" size="sm" class="flex-1 font-mono font-bold" />
                     <UButton
                       type="button"
                       size="sm"
@@ -1095,7 +1095,7 @@ async function copyLookupUrl() {
                   <h3 class="font-serif font-bold text-base text-toast-900">Guest Invitation Link</h3>
                 </div>
                 <p class="text-xs text-muted">
-                  Guests use this link along with your passcode to read your invitation and RSVP:
+                  Guests use this link, along with your passcode if you set one, to read your invitation and RSVP:
                 </p>
                 <div class="bg-toast-50 p-2.5 rounded-lg border border-bread-200 text-xs font-mono break-all text-toast-900">
                   {{ lookupUrl || 'Generating link...' }}

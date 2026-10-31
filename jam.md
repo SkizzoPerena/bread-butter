@@ -1,6 +1,6 @@
 # Jam seating
 
-Jam is the customer-app side of a seating plan that is separate from a wedding event. The host buys a package, invites guests with a passcode, seats the people who are coming, and checks them in. The wedding invitation designer and website builder are not part of this flow.
+Jam is the customer-app side of a seating plan that is separate from a wedding event. The host buys a package, invites guests, optionally with a passcode, seats the people who are coming, and checks them in. The wedding invitation designer and website builder are not part of this flow.
 
 ## Host path
 
@@ -10,7 +10,7 @@ flowchart TD
   pay[Pay for the jam package]
   workspace[Seating workspace unlocks]
   guests[Add guests]
-  invite[Save the message and passcode]
+  invite[Save the message and an optional passcode]
   send[Send invitations to pending guests]
   replies[See pending, going, and not going]
   tables[Set tables and auto-assign]
@@ -52,8 +52,8 @@ flowchart TD
 
 These pages use the same simple card as the seat pass. They do not require a login. `/jam/` is public in the auth guard, and a host with an unpaid wedding event is not redirected away from it.
 
-- `/jam/:token` asks for the passcode, then shows the message, date, and venue.
-- `/jam/rsvp/:token` asks for the passcode, then yes or no. Saying yes shows the seat picker right away.
+- `/jam/:token` shows the message, date, and venue. If the plan has a passcode, it asks for that first.
+- `/jam/rsvp/:token` asks yes or no. If the plan has a passcode, it asks for that first. Saying yes shows the seat picker right away.
 - `/seat/:token` is the gathering QR. The guest picks their name and sees the table and seat. It does not check them in.
 - `/attend/:token` is the personal pass. It shows the seat, or “Your seat is not assigned yet” until one exists. It also has the seat picker, where a guest presses "Sit here" on an open seat, or changes or gives up their seat, unless the host has locked seat selection. Other guests' names aren't shown. `?checkin=1` records check-in once, and hides the picker.
 

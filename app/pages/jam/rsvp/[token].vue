@@ -4,7 +4,7 @@ import { getApiErrorMessage } from '~/types/auth'
 definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
-const { respondToJamInvite } = useSeating()
+const { fetchJamInvite, respondToJamInvite } = useSeating()
 
 const token = computed(() => String(route.params.token || ''))
 const passcode = ref('')
@@ -12,9 +12,21 @@ const unlocked = ref(false)
 const resultMessage = ref('')
 const errorMessage = ref('')
 const saving = ref(false)
+const loading = ref(true)
 const attendPath = ref('')
 
 useHead({ title: 'Reply' })
+
+onMounted(async () => {
+  try {
+    const invite = await fetchJamInvite(token.value)
+    unlocked.value = invite.passcodeRequired === false
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'This invitation is not available.')
+  } finally {
+    loading.value = false
+  }
+})
 
 function openReply() {
   errorMessage.value = ''
@@ -61,8 +73,11 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
       <p v-else-if="errorMessage">
         {{ errorMessage }}
       </p>
+      <p v-if="loading">
+        Loading...
+      </p>
       <form
-        v-if="!unlocked && !resultMessage"
+        v-else-if="!unlocked && !resultMessage"
         class="space-y-3 text-left"
         @submit.prevent="openReply"
       >
