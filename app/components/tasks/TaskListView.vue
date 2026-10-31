@@ -85,14 +85,14 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
     v-else
     class="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-default bg-white shadow-sm [-webkit-overflow-scrolling:touch]"
   >
-    <table class="w-full min-w-[44rem] text-left text-sm lg:min-w-full">
+    <table class="w-full min-w-176 text-left text-sm lg:min-w-full">
       <thead>
         <tr class="border-b border-default bg-muted/30 text-[11px] font-semibold uppercase tracking-wide text-muted">
           <th class="min-w-[16rem] px-4 py-2 lg:min-w-[18rem]">Work</th>
-          <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Priority</th>
-          <th class="min-w-[8rem] whitespace-nowrap px-4 py-2">Status</th>
-          <th class="min-w-[7rem] whitespace-nowrap px-4 py-2">Deadline</th>
-          <th class="min-w-[6rem] whitespace-nowrap px-4 py-2">Actions</th>
+          <th class="min-w-28 whitespace-nowrap px-4 py-2">Priority</th>
+          <th class="min-w-32 whitespace-nowrap px-4 py-2">Status</th>
+          <th class="min-w-28 whitespace-nowrap px-4 py-2">Deadline</th>
+          <th class="min-w-24 whitespace-nowrap px-4 py-2">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -156,7 +156,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                     <button
                       type="button"
                       data-row-action
-                      class="min-w-0 flex-1 break-words text-left text-sm font-medium hover:text-primary"
+                      class="min-w-0 flex-1 wrap-break-word text-left text-sm font-medium hover:text-primary"
                       @click.stop="emit('edit', task)"
                     >
                       {{ task.title }}
@@ -164,7 +164,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                   </div>
                   <p
                     v-if="task.details"
-                    class="mt-0.5 break-words text-[11px] text-muted"
+                    class="mt-0.5 wrap-break-word text-[11px] text-muted"
                   >
                     {{ task.details }}
                   </p>
@@ -176,7 +176,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                     value-key="value"
                     label-key="label"
                     size="sm"
-                    class="min-w-[8.5rem]"
+                    class="min-w-34"
                     :disabled="disabled || updatingTaskId === task._id"
                     @update:model-value="emit('priority-change', { taskId: task._id, priority: Number($event) })"
                     @click.stop
@@ -189,7 +189,7 @@ function onRowClick(task: TaskRecord, event: MouseEvent) {
                     value-key="value"
                     label-key="label"
                     size="sm"
-                    class="min-w-[8.5rem]"
+                    class="min-w-34"
                     :disabled="disabled || updatingTaskId === task._id"
                     @update:model-value="emit('status-change', { taskId: task._id, status: $event as TaskStatus })"
                     @click.stop

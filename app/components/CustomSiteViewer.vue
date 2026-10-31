@@ -736,7 +736,7 @@ function getVenueGoogleMapsUrl(
                   }">
                   <div v-for="img in effectiveDressCode.images" :key="img.id"
                     class="group relative rounded-xl overflow-hidden bg-black/5 border border-current/20 shadow-sm cursor-pointer"
-                    :class="(effectiveDressCode?.images?.length || 0) === 1 ? 'aspect-16/9 sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
+                    :class="(effectiveDressCode?.images?.length || 0) === 1 ? 'aspect-video sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
                     @click="selectedDressCodeLightboxImage = img; isDressCodeLightboxOpen = true">
                     <img :src="img.dataUrl" :alt="img.name"
                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />

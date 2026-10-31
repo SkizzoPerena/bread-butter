@@ -139,7 +139,7 @@ const deadlineDateInput = computed(() => {
       <img
         :src="invitation.bannerImageUrl"
         alt="Invitation Banner"
-        class="w-full aspect-[5/1] object-cover object-center block"
+        class="w-full aspect-5/1 object-cover object-center block"
       />
     </div>
 

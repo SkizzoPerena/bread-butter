@@ -36,7 +36,7 @@ export const SUPPLIER_TIER_CONFIG = {
     label: 'Bread Basket',
     subtitle: 'Premier Partners',
     description: 'Premier highlighted suppliers with iconic portfolios, bespoke packages, and official verified partner status.',
-    badgeClass: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs',
+    badgeClass: 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-xs',
     pillClass: 'bg-amber-100 text-amber-900 border-amber-300',
     icon: 'i-lucide-sparkles',
     breadIcon: 'i-lucide-crown'

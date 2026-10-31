@@ -110,7 +110,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             </template>
           </UFormField>
 
-          <UButton type="submit" block :loading="isSubmitting" class="!bg-toast-500 hover:!bg-toast-600 !text-white font-semibold cursor-pointer">Sign in</UButton>
+          <UButton type="submit" block :loading="isSubmitting" class="bg-toast-500! hover:bg-toast-600! text-white! font-semibold cursor-pointer">Sign in</UButton>
 
           <p class="text-sm text-center mb-2">
             New Baker? <ULink to="/bakers/signup" class="text-bread-400 font-medium hover:text-bread-50">Sign up here.</ULink>

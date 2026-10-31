@@ -328,9 +328,9 @@ function openWebsiteMaker() {
         :resizable="false"
         :collapsible="false"
         :toggle="false"
-        class="w-full lg:w-[400px] xl:w-[420px] lg:min-w-[400px] lg:max-w-[400px] xl:min-w-[420px] xl:max-w-[420px] shrink-0 rounded-none overflow-hidden flex flex-row lg:sticky lg:top-16 h-145 sm:h-160 lg:h-[calc(100vh-64px)] z-20"
+        class="w-full lg:w-100 xl:w-105 lg:min-w-100 lg:max-w-100 xl:min-w-105 xl:max-w-105 shrink-0 rounded-none overflow-hidden flex flex-row lg:sticky lg:top-16 h-145 sm:h-160 lg:h-[calc(100vh-64px)] z-20"
         :ui="{
-          root: '!flex !flex-row !w-full lg:!w-[400px] xl:!w-[420px] shrink-0 h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
+          root: 'flex! flex-row! w-full! lg:w-100! xl:w-105! shrink-0 h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
           header: 'hidden',
           body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white',
           footer: 'hidden',

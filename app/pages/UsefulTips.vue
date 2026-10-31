@@ -100,7 +100,7 @@ function closeArticleModal() {
           <span class="text-toast-600 font-normal text-[11px]">Swipe to select</span>
         </div>
         <div
-          class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-1 px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-1 px-1 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button v-for="cat in TIP_CATEGORIES" :key="'mobile-' + cat.id" @click="activeCategory = cat.id" :class="[
             'flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer shadow-2xs',
             activeCategory === cat.id
@@ -198,7 +198,7 @@ function closeArticleModal() {
 
               <div class="pt-1.5 sm:pt-2">
                 <UButton label="Read more" icon="i-lucide-arrow-right" trailing size="sm"
-                  class="!bg-toast-700 hover:!bg-toast-800 !text-white font-semibold cursor-pointer rounded-lg px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm shadow-sm transition-all inline-flex items-center gap-1.5"
+                  class="bg-toast-700! hover:bg-toast-800! text-white! font-semibold cursor-pointer rounded-lg px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm shadow-sm transition-all inline-flex items-center gap-1.5"
                   @click.stop="openArticleModal(article)" />
               </div>
             </article>
@@ -225,7 +225,7 @@ function closeArticleModal() {
             </h3>
           </div>
           <UButton icon="i-lucide-x" size="md"
-            class="rounded-full !text-toast-900 hover:!bg-toast-500/20 shrink-0 cursor-pointer -mr-1 -mt-1 p-1.5 sm:p-2 text-base sm:text-lg"
+            class="rounded-full text-toast-900! hover:bg-toast-500/20! shrink-0 cursor-pointer -mr-1 -mt-1 p-1.5 sm:p-2 text-base sm:text-lg"
             aria-label="Close modal" @click="closeArticleModal" />
         </div>
       </template>

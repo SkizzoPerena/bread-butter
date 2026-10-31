@@ -27,7 +27,7 @@ const { isTransitionActive, isTransitionVisible } = usePageTransition()
           <img
             src="~/assets/bpb-icons/logo-toast-700.svg"
             alt="Bread + Butter"
-            class="h-10 sm:h-12 w-auto max-w-[240px] object-contain drop-shadow-xs pointer-events-none"
+            class="h-10 sm:h-12 w-auto max-w-60 object-contain drop-shadow-xs pointer-events-none"
           />
 
           <!-- Circular Loading Animation -->

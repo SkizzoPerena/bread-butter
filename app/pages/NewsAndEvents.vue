@@ -175,7 +175,7 @@ const totalItemsCount = computed(() => {
 
           <!-- Category Chips: Touch scrollable on mobile, wrapped and centered on desktop -->
           <div
-            class="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto sm:flex-wrap pb-1.5 sm:pb-0 pt-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1 sm:mx-0 sm:px-0">
+            class="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto sm:flex-wrap pb-1.5 sm:pb-0 pt-1 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1 sm:mx-0 sm:px-0">
             <button type="button"
               class="px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer shrink-0 shadow-2xs"
               :class="selectedCategoryId === 'all'

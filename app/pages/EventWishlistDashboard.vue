@@ -316,7 +316,7 @@ onMounted(() => {
         <div class="space-y-2">
           <div>
             <h1
-              class="font-serif text-xl sm:text-2xl font-bold text-highlighted leading-tight tracking-tight break-words"
+              class="font-serif text-xl sm:text-2xl font-bold text-highlighted leading-tight tracking-tight wrap-break-word"
             >
               {{ eventTitle }}
             </h1>
@@ -418,7 +418,7 @@ onMounted(() => {
         </div>
 
         <!-- 3. Website Maker Custom Component Link -->
-        <div class="bg-gradient-to-br from-pink-50/60 to-bread-50/60 border border-pink-200/70 rounded-xl p-3.5 space-y-2.5">
+        <div class="bg-linear-to-br from-pink-50/60 to-bread-50/60 border border-pink-200/70 rounded-xl p-3.5 space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
               <UIcon name="i-lucide-sparkles" class="size-4 text-pink-600" />
@@ -623,7 +623,7 @@ onMounted(() => {
                   <!-- Gift Title: Wrapped in full with no truncation -->
                   <div>
                     <h3
-                      class="font-serif font-bold text-base text-highlighted break-words whitespace-normal leading-snug"
+                      class="font-serif font-bold text-base text-highlighted wrap-break-word whitespace-normal leading-snug"
                       :class="{ 'line-through text-muted': entry.isFulfilled }"
                     >
                       {{ entry.name }}
@@ -883,7 +883,7 @@ onMounted(() => {
                 </span>
               </div>
 
-              <div class="py-12 px-6 sm:px-12 text-center bg-pink-50/20 space-y-10 min-h-[350px] flex flex-col justify-center">
+              <div class="py-12 px-6 sm:px-12 text-center bg-pink-50/20 space-y-10 min-h-87.5 flex flex-col justify-center">
                 <!-- Heading -->
                 <div class="space-y-3 max-w-2xl mx-auto">
                   <h2 class="font-serif text-3xl sm:text-4xl font-bold text-highlighted tracking-tight">

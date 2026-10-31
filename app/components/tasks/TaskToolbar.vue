@@ -70,7 +70,7 @@ const sortOptions = [
             value-key="value"
             label-key="label"
             size="sm"
-            class="min-w-[10rem]"
+            class="min-w-40"
           />
           <USelect
             v-model="sortBy"
@@ -78,7 +78,7 @@ const sortOptions = [
             value-key="value"
             label-key="label"
             size="sm"
-            class="min-w-[9rem]"
+            class="min-w-36"
           />
         </div>
       </div>
