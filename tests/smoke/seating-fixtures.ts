@@ -81,8 +81,13 @@ export async function openWorkspace(page: Page) {
     },
   })
   await page.goto(`/seating/${GATHERING_ID}`)
-  await expect(page.getByRole('heading', { name: 'Damson supper' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Quick Navigation' })).toBeVisible()
   return calls
+}
+
+export async function openCheckIn(page: Page) {
+  await page.goto(`/seating/checkin/${GATHERING_ID}`)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 }
 
 export function checkInCalls(calls: ApiCall[]) {
