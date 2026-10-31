@@ -360,6 +360,14 @@ async function saveTableCapacity(tableId: string, capacity: number) {
   }
 }
 
+async function saveTableLabel(tableId: string, label: string) {
+  try {
+    gathering.value = await seating.updateTableLabel(gatheringId.value, tableId, label)
+  } catch (error) {
+    toast.add({ title: 'Could not rename table', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
 async function resend(guest: SeatingGuestRecord) {
   if (isUiOnlyMode.value) {
     toast.add({ title: 'Preview only', description: 'Seat pass emails send when the API is connected.', color: 'warning' })
@@ -1185,6 +1193,17 @@ async function copyLookupUrl() {
                   />
                 </label>
               </div>
+              <label class="flex items-center gap-1.5 text-xs text-toast-700">
+                <span>Label:</span>
+                <input
+                  :value="table.customLabel"
+                  maxlength="40"
+                  placeholder="Optional"
+                  :aria-label="`Label for ${table.label}`"
+                  class="min-w-0 flex-1 rounded-md border border-toast-300 bg-white px-1.5 py-0.5 text-xs"
+                  @change="saveTableLabel(table._id, ($event.target as HTMLInputElement).value)"
+                />
+              </label>
 
               <!-- Seat List -->
               <div class="space-y-1 text-xs">

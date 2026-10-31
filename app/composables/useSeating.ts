@@ -404,6 +404,23 @@ export function useSeating() {
     return response.gathering
   }
 
+  async function updateTableLabel(gatheringId: string, tableId: string, label: string): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const index = gathering.tables.findIndex((item) => item._id === tableId)
+      const table = gathering.tables[index]
+      if (!table) throw new Error('Table not found.')
+      table.customLabel = label.trim()
+      table.label = table.customLabel || `Table ${index + 1}`
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(
+      `/user/seating/gatherings/${gatheringId}/tables/${tableId}`,
+      { method: 'PATCH', body: { label } },
+    )
+    return response.gathering
+  }
+
   async function autoAssign(gatheringId: string): Promise<AssignResponse> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
@@ -734,6 +751,7 @@ export function useSeating() {
     deleteGuest,
     replaceTables,
     updateTableCapacity,
+    updateTableLabel,
     autoAssign,
     moveSeat,
     resendPass,

@@ -10,11 +10,21 @@ export interface JamPackageRecord {
   isEnabled: boolean
 }
 
+export interface SeatingSeat {
+  number: number
+  unavailable: boolean
+  guest: string | null
+}
+
 export interface SeatingTable {
   _id: string
+  /** What to show: the host's label, or "Table 2" by position. */
   label: string
+  /** What the host typed, which may be empty. */
+  customLabel?: string
   capacity: number
   sortOrder: number
+  seats?: SeatingSeat[]
 }
 
 export interface SeatingPaymentRecord {
