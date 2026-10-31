@@ -457,6 +457,17 @@ function guestInSeat(table: SeatingTable, seatNumber: number) {
   return guests.value.find((guest) => guest.tableId === table._id && guest.seatNumber === seatNumber)
 }
 
+async function toggleSeatSelectionLock() {
+  if (!gathering.value) return
+  try {
+    gathering.value = await seating.saveInvitation(gatheringId.value, {
+      seatSelectionLocked: !gathering.value.seatSelectionLocked,
+    })
+  } catch (error) {
+    toast.add({ title: 'Could not change seat selection', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
 async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
   try {
     gathering.value = await seating.setSeatUnavailable(gatheringId.value, table._id, seat.number, !seat.unavailable)
@@ -1206,8 +1217,24 @@ async function copyLookupUrl() {
               </div>
             </div>
             <p class="text-[11px] text-muted italic">
-              You can have more seats than guests, up to 500, so guests have a choice. Auto-assign seats groups guests who share the same Party/Group at the same table whenever space allows.
+              You can have more seats than guests, up to 500, so guests have a choice. Auto-assign only fills guests with no seat, and groups guests who share the same Party/Group at the same table whenever space allows.
             </p>
+            <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-toast-50/70 p-2.5 text-xs">
+              <span>
+                {{ gathering.seatSelectionLocked
+                  ? 'Seat selection is locked. Guests can see their seats, but only you can change them.'
+                  : 'Guests who are coming can choose and change their own seats.' }}
+              </span>
+              <UButton
+                size="xs"
+                color="toast"
+                variant="outline"
+                class="cursor-pointer"
+                @click="toggleSeatSelectionLock"
+              >
+                {{ gathering.seatSelectionLocked ? 'Unlock seat selection' : 'Lock seat selection' }}
+              </UButton>
+            </div>
           </div>
 
           <!-- Per-Guest Seat Allocation Card -->

@@ -4,6 +4,7 @@ import type {
   JamInvitation,
   JamPackageRecord,
   JamRsvpResult,
+  JamSeatMap,
   JamSitePreview,
   PublicSeatDetail,
   PublicSeatList,
@@ -611,6 +612,7 @@ export function useSeating() {
     passcode?: string
     invitationSubject?: string
     invitationMessage?: string
+    seatSelectionLocked?: boolean
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
@@ -688,6 +690,69 @@ export function useSeating() {
     })
   }
 
+  function mockSeatMap(token: string): JamSeatMap {
+    for (const gathering of gatherings.value) {
+      const guests = mockGuests(gathering._id)
+      const guest = guests.find((item) => item.attendanceToken === token && item.isAttending)
+      if (!guest) continue
+      const table = gathering.tables.find((item) => item._id === guest.tableId)
+      return {
+        gatheringName: gathering.name,
+        locked: Boolean(gathering.seatSelectionLocked),
+        seat: table && guest.seatNumber
+          ? { tableId: table._id, tableLabel: table.label, seatNumber: guest.seatNumber }
+          : null,
+        tables: gathering.tables.map((item) => ({
+          _id: item._id,
+          label: item.label,
+          seats: (item.seats ?? []).map((seat) => {
+            const holder = guests.find((other) => other.tableId === item._id && other.seatNumber === seat.number)
+            if (holder) return { number: seat.number, status: holder._id === guest._id ? 'YOURS' as const : 'TAKEN' as const }
+            return { number: seat.number, status: seat.unavailable ? 'UNAVAILABLE' as const : 'OPEN' as const }
+          }),
+        })),
+      }
+    }
+    throw new Error('Reply that you are coming before choosing a seat.')
+  }
+
+  function mockGuestByToken(token: string) {
+    for (const gathering of gatherings.value) {
+      const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+      if (guest) return guest
+    }
+    throw new Error('Invitation not found.')
+  }
+
+  async function fetchSeatMap(token: string): Promise<JamSeatMap> {
+    if (isUiOnlyMode.value) return mockSeatMap(token)
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { authenticated: false })
+  }
+
+  async function claimSeat(token: string, tableId: string, seatNumber: number): Promise<JamSeatMap> {
+    if (isUiOnlyMode.value) {
+      const guest = mockGuestByToken(token)
+      guest.tableId = tableId
+      guest.seatNumber = seatNumber
+      return { ...mockSeatMap(token), message: 'Your seat is saved.' }
+    }
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, {
+      method: 'POST',
+      body: { tableId, seatNumber },
+      authenticated: false,
+    })
+  }
+
+  async function giveUpSeat(token: string): Promise<JamSeatMap> {
+    if (isUiOnlyMode.value) {
+      const guest = mockGuestByToken(token)
+      guest.tableId = null
+      guest.seatNumber = null
+      return { ...mockSeatMap(token), message: 'You gave up your seat.' }
+    }
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
+  }
+
   async function respondToJamInvite(token: string, passcode: string, rsvpStatus: 'GOING' | 'NOT_GOING'): Promise<JamRsvpResult> {
     if (isUiOnlyMode.value) {
       for (const gathering of gatherings.value) {
@@ -703,6 +768,7 @@ export function useSeating() {
         return {
           message: rsvpStatus === 'GOING' ? 'You are marked as coming.' : 'You are marked as not coming.',
           rsvpStatus,
+          attendPath: rsvpStatus === 'GOING' ? `/attend/${token}` : undefined,
         }
       }
       throw new Error('Invitation not found.')
@@ -745,6 +811,9 @@ export function useSeating() {
     fetchJamSite,
     unlockJamSite,
     respondToJamInvite,
+    fetchSeatMap,
+    claimSeat,
+    giveUpSeat,
   }
 }
 

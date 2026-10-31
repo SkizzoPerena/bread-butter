@@ -12,6 +12,7 @@ const unlocked = ref(false)
 const resultMessage = ref('')
 const errorMessage = ref('')
 const saving = ref(false)
+const attendPath = ref('')
 
 useHead({ title: 'Reply' })
 
@@ -26,6 +27,7 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
   try {
     const result = await respondToJamInvite(token.value, passcode.value, rsvpStatus)
     resultMessage.value = result.message
+    attendPath.value = result.attendPath || ''
   } catch (error) {
     resultMessage.value = ''
     errorMessage.value = getApiErrorMessage(error, 'Could not save your reply.')
@@ -37,7 +39,7 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
 
 <template>
   <div class="min-h-screen bg-toast-800 text-bread-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
+    <div class="w-full max-w-xl rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
       <p class="text-sm uppercase tracking-wide">
         Reply
       </p>
@@ -47,6 +49,15 @@ async function reply(rsvpStatus: 'GOING' | 'NOT_GOING') {
       <p v-if="resultMessage">
         {{ resultMessage }}
       </p>
+      <template v-if="attendPath">
+        <JamSeatPicker :token="token" />
+        <NuxtLink
+          :to="attendPath"
+          class="inline-block rounded-md border border-toast-800 px-4 py-2"
+        >
+          See my seat pass
+        </NuxtLink>
+      </template>
       <p v-else-if="errorMessage">
         {{ errorMessage }}
       </p>

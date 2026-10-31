@@ -56,6 +56,7 @@ export interface GatheringRecord {
   invitationSubject?: string
   invitationMessage?: string
   tables: SeatingTable[]
+  seatSelectionLocked?: boolean
   guestCount: number
   attendingCount: number
   checkedInCount: number
@@ -107,6 +108,17 @@ export interface JamInvitation {
 export interface JamRsvpResult {
   message: string
   rsvpStatus: RsvpStatus
+  attendPath?: string
+}
+
+export type JamSeatStatus = 'OPEN' | 'TAKEN' | 'UNAVAILABLE' | 'YOURS'
+
+export interface JamSeatMap {
+  gatheringName: string
+  locked: boolean
+  message?: string
+  seat: { tableId: string, tableLabel: string, seatNumber: number } | null
+  tables: { _id: string, label: string, seats: { number: number, status: JamSeatStatus }[] }[]
 }
 
 export interface PublicSeatDetail {
