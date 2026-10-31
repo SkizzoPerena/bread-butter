@@ -110,8 +110,10 @@ export interface JamUpgradeOptions {
 
 export interface SeatingGuestRecord {
   _id: string
-  firstName: string
-  lastName: string
+  /** Missing until a guest invited by email alone gives their name. */
+  firstName?: string
+  lastName?: string
+  isBulkInvite?: boolean
   email: string
   partyName: string
   rsvpStatus: RsvpStatus
@@ -173,6 +175,26 @@ export interface JamOpenRegistration {
   alreadyRegistered?: boolean
   attendanceToken?: string
   attendPath?: string
+}
+
+export interface JamBulkPreview {
+  requested: number
+  toInvite: number
+  invalidEmails: string[]
+  duplicateCount: number
+  alreadyOnList: number
+  creditsRemaining: number
+  shortBy: number
+  canSend: boolean
+}
+
+export interface JamBulkResult {
+  message: string
+  created: number
+  alreadyOnList: number
+  sent: number
+  skipped: number
+  creditsRemaining: number
 }
 
 export interface JamImportableGuest {
@@ -238,6 +260,10 @@ export interface CheckInResult {
   attendanceToken: string
 }
 
-export function guestDisplayName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName'>): string {
-  return `${guest.firstName} ${guest.lastName}`.trim()
+export function guestNeedsName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName'>): boolean {
+  return !guest.firstName || !guest.lastName
+}
+
+export function guestDisplayName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName' | 'email'>): string {
+  return `${guest.firstName ?? ''} ${guest.lastName ?? ''}`.trim() || guest.email
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GatheringRecord, RsvpStatus, SeatingGuestRecord, SeatingSeat, SeatingTable } from '~/types/seating'
-import { guestDisplayName } from '~/types/seating'
+import { guestDisplayName, guestNeedsName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
 import SeatingQrImage from '~/components/SeatingQrImage.vue'
@@ -8,6 +8,7 @@ import SeatingCheckInScanner from '~/components/SeatingCheckInScanner.vue'
 import EventQuestionsModal from '~/components/EventQuestionsModal.vue'
 import JamInvitationMaker from '~/components/JamInvitationMaker.vue'
 import JamGuestImport from '~/components/JamGuestImport.vue'
+import JamBulkInvite from '~/components/JamBulkInvite.vue'
 import type { EventQuestion } from '~/types/event'
 import { formatRsvpAnswerNotes, formatRsvpAnswerValue } from '~/utils/rsvpDisplay'
 
@@ -110,7 +111,7 @@ const checkInPercent = computed(() => {
 
 const filteredGuests = computed(() => {
   return guests.value.filter((guest) => {
-    const fullName = `${guest.firstName} ${guest.lastName}`.toLowerCase()
+    const fullName = guestDisplayName(guest).toLowerCase()
     const email = (guest.email || '').toLowerCase()
     const party = (guest.partyName || '').toLowerCase()
     const q = searchQuery.value.trim().toLowerCase()
@@ -225,7 +226,8 @@ function layoutHasUnsavedEdits() {
 }
 
 async function load({ keepLayoutEdits = true } = {}) {
-  loading.value = true
+  // Only the first load replaces the page. A reload must not unmount what the host is working in.
+  loading.value = !gathering.value
   // Other actions reload the page data, and must not throw away a layout still being edited.
   const syncLayout = !keepLayoutEdits || !layoutHasUnsavedEdits()
   try {
@@ -274,7 +276,49 @@ async function addGuest() {
   }
 }
 
+const namePrompt = reactive({
+  guest: null as SeatingGuestRecord | null,
+  firstName: '',
+  lastName: '',
+  saving: false,
+})
+const isNamePromptOpen = computed({
+  get: () => Boolean(namePrompt.guest),
+  set: (open) => {
+    if (!open) closeNamePrompt()
+  },
+})
+
+function closeNamePrompt() {
+  namePrompt.guest = null
+  // The dropdown already shows "Attending", so put it back to what is saved.
+  load()
+}
+
+async function saveNameAndAttend() {
+  if (!namePrompt.guest) return
+  namePrompt.saving = true
+  try {
+    await seating.updateGuest(gatheringId.value, namePrompt.guest._id, {
+      rsvpStatus: 'GOING',
+      firstName: namePrompt.firstName.trim(),
+      lastName: namePrompt.lastName.trim(),
+    })
+    closeNamePrompt()
+  } catch (error) {
+    toast.add({ title: 'Could not update guest', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    namePrompt.saving = false
+  }
+}
+
 async function setResponse(guest: SeatingGuestRecord, rsvpStatus: RsvpStatus) {
+  if (rsvpStatus === 'GOING' && guestNeedsName(guest)) {
+    namePrompt.guest = guest
+    namePrompt.firstName = guest.firstName || ''
+    namePrompt.lastName = guest.lastName || ''
+    return
+  }
   try {
     await seating.updateGuest(gatheringId.value, guest._id, { rsvpStatus })
     await load()
@@ -725,7 +769,7 @@ async function copyLookupUrl() {
             <UButton
               v-if="active"
               :to="upgradePath"
-              size="2xs"
+              size="xs"
               color="toast"
               variant="soft"
               icon="i-lucide-arrow-up-circle"
@@ -908,6 +952,11 @@ async function copyLookupUrl() {
             @imported="load()"
           />
 
+          <JamBulkInvite
+            :gathering-id="gatheringId"
+            @sent="load()"
+          />
+
           <!-- Add Guest Card -->
           <div class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
             <div class="flex items-center justify-between border-b border-bread-200/60 pb-2">
@@ -1036,6 +1085,15 @@ async function copyLookupUrl() {
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
                       <span class="font-semibold text-sm text-toast-900 truncate">{{ guestDisplayName(guest) }}</span>
+                      <UBadge
+                        v-if="guestNeedsName(guest)"
+                        color="warning"
+                        variant="subtle"
+                        size="xs"
+                        class="text-[10px] shrink-0"
+                      >
+                        Waiting for name
+                      </UBadge>
                       <UBadge
                         v-if="guest.partyName"
                         color="neutral"
@@ -1497,7 +1555,7 @@ async function copyLookupUrl() {
                   </span>
                   <UButton
                     v-if="!guestInSeat(table, seat.number)"
-                    size="2xs"
+                    size="xs"
                     color="neutral"
                     variant="ghost"
                     class="cursor-pointer shrink-0"
@@ -1537,6 +1595,51 @@ async function copyLookupUrl() {
         </div>
       </section>
     </UPageGrid>
+
+    <UModal
+      v-model:open="isNamePromptOpen"
+      title="Add this guest's name"
+      :description="`${namePrompt.guest?.email} hasn't given a name yet. Add it to mark them as attending.`"
+    >
+      <template #body>
+        <form
+          class="space-y-3"
+          @submit.prevent="saveNameAndAttend"
+        >
+          <UFormField label="First name">
+            <UInput
+              v-model="namePrompt.firstName"
+              required
+              maxlength="50"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Last name">
+            <UInput
+              v-model="namePrompt.lastName"
+              required
+              maxlength="50"
+              class="w-full"
+            />
+          </UFormField>
+          <div class="flex justify-end gap-2">
+            <UButton
+              type="button"
+              variant="ghost"
+              @click="closeNamePrompt"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              type="submit"
+              :loading="namePrompt.saving"
+            >
+              Mark as Attending
+            </UButton>
+          </div>
+        </form>
+      </template>
+    </UModal>
 
     <EventQuestionsModal
       v-if="gathering"

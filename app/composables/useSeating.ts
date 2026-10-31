@@ -6,6 +6,8 @@ import type {
   JamInvitation,
   JamInvitationDesign,
   JamInviteDetails,
+  JamBulkPreview,
+  JamBulkResult,
   JamImportableGuest,
   JamInviteUnlocked,
   JamOpenInvitation,
@@ -785,6 +787,69 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
+  async function previewBulkInvites(gatheringId: string, emails: string[]): Promise<JamBulkPreview> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = mockGuests(gatheringId)
+      const invalidEmails = emails.filter((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      const unique = [...new Set(emails.filter((email) => !invalidEmails.includes(email)).map((email) => email.toLowerCase()))]
+      const fresh = unique.filter((email) => !current.some((guest) => guest.email === email))
+      const creditsRemaining = Math.max(gathering.maxGuests - current.length, 0)
+      const shortBy = Math.max(fresh.length - creditsRemaining, 0)
+      return {
+        requested: emails.length,
+        toInvite: fresh.length,
+        invalidEmails,
+        duplicateCount: emails.length - invalidEmails.length - unique.length,
+        alreadyOnList: unique.length - fresh.length,
+        creditsRemaining,
+        shortBy,
+        canSend: fresh.length > 0 && !invalidEmails.length && shortBy === 0,
+      }
+    }
+    return apiRequest<JamBulkPreview>(`/user/seating/gatherings/${gatheringId}/invites/bulk/preview`, {
+      method: 'POST',
+      body: { emails },
+    })
+  }
+
+  async function sendBulkInvites(gatheringId: string, emails: string[]): Promise<JamBulkResult> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = mockGuests(gatheringId)
+      const fresh = [...new Set(emails.map((email) => email.toLowerCase()))]
+        .filter((email) => !current.some((guest) => guest.email === email))
+      for (const email of fresh) {
+        current.push({
+          _id: `mock-guest-${Date.now()}-${email}`,
+          isBulkInvite: true,
+          email,
+          partyName: '',
+          rsvpStatus: 'PENDING',
+          isAttending: false,
+          tableId: null,
+          seatNumber: null,
+          attendanceToken: mockToken(),
+          attendanceQrSentAt: null,
+          checkedInAt: null,
+        })
+      }
+      recount(gathering, current)
+      return {
+        message: `Sent ${fresh.length} invitations.`,
+        created: fresh.length,
+        alreadyOnList: emails.length - fresh.length,
+        sent: fresh.length,
+        skipped: 0,
+        creditsRemaining: Math.max(gathering.maxGuests - current.length, 0),
+      }
+    }
+    return apiRequest<JamBulkResult>(`/user/seating/gatherings/${gatheringId}/invites/bulk`, {
+      method: 'POST',
+      body: { emails },
+    })
+  }
+
   async function getUpgradeOptions(gatheringId: string): Promise<JamUpgradeOptions> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
@@ -873,8 +938,8 @@ export function useSeating() {
         creditsRemaining: Math.max(gathering.maxGuests - current.length, 0),
         guests: mockGuests(sourceId).map((guest) => ({
           _id: guest._id,
-          firstName: guest.firstName,
-          lastName: guest.lastName,
+          firstName: guest.firstName ?? '',
+          lastName: guest.lastName ?? '',
           email: guest.email,
           partyName: guest.partyName,
           alreadyOnList: current.some((item) => item.email === guest.email),
@@ -1130,6 +1195,8 @@ export function useSeating() {
     fetchJamSite,
     fetchJamInvite,
     unlockJamInvite,
+    previewBulkInvites,
+    sendBulkInvites,
     getUpgradeOptions,
     listGatheringPayments,
     submitUpgradeProof,
