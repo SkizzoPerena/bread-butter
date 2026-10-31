@@ -1,7 +1,7 @@
 import type { ChartSlice, EventQuestion } from '~/types/event'
 import type { RsvpRecord } from '~/types/rsvp'
 
-export type RsvpStatusLabel = 'Attending' | 'Not Attending' | 'Pending'
+export type RsvpStatusLabel = 'Attending' | 'Not Attending' | 'Pending' | 'No Response'
 
 export function mapRsvpStatusToLabel(
   status?: string | null
@@ -12,17 +12,23 @@ export function mapRsvpStatusToLabel(
   if (status === 'NOT_GOING') {
     return 'Not Attending'
   }
+  if (status === 'NO_RESPONSE') {
+    return 'No Response'
+  }
   return 'Pending'
 }
 
 export function mapRsvpStatusToBadgeColor(
   status?: string | null
-): 'success' | 'error' | 'secondary' {
+): 'success' | 'error' | 'warning' | 'secondary' {
   if (status === 'GOING') {
     return 'success'
   }
   if (status === 'NOT_GOING') {
     return 'error'
+  }
+  if (status === 'NO_RESPONSE') {
+    return 'warning'
   }
   return 'secondary'
 }

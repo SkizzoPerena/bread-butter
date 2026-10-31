@@ -169,6 +169,9 @@ export function clearSubEventInviteFromList(
       notGoing: status === 'NOT_GOING'
         ? Math.max(0, rsvpSummary.notGoing - 1)
         : rsvpSummary.notGoing,
+      noResponse: status === 'NO_RESPONSE'
+        ? Math.max(0, (rsvpSummary.noResponse ?? 0) - 1)
+        : rsvpSummary.noResponse,
     }
   }
 
@@ -245,6 +248,9 @@ export function removeGuestFromList(
       notGoing: status === 'NOT_GOING'
         ? Math.max(0, rsvpSummary.notGoing - 1)
         : rsvpSummary.notGoing,
+      noResponse: status === 'NO_RESPONSE'
+        ? Math.max(0, (rsvpSummary.noResponse ?? 0) - 1)
+        : rsvpSummary.noResponse,
     }
   }
 

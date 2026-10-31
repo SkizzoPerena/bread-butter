@@ -239,9 +239,10 @@ const canAssignToExistingInModal = computed(
   () => guestGroups.value.length > 0
 )
 
-function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
+function rsvpStatusColor(status: string): 'success' | 'error' | 'warning' | 'secondary' {
   if (status === 'Attending') return 'success'
   if (status === 'Not Attending') return 'error'
+  if (status === 'No Response') return 'warning'
   return 'secondary'
 }
 
@@ -335,6 +336,7 @@ const columns: TableColumn<GuestTableRow>[] = [
         Attending: 'success' as const,
         'Not Attending': 'error' as const,
         Pending: 'secondary' as const,
+        'No Response': 'warning' as const,
       }[row.getValue('rsvpStatus') as string]
 
       return h(UBadge, { class: 'capitalize', variant: 'subtle', color }, () =>

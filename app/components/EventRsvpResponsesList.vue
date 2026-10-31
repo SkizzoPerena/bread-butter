@@ -24,6 +24,7 @@ const STATUS_FILTER_OPTIONS = [
   { label: 'Attending', value: 'GOING' as const },
   { label: 'Not Attending', value: 'NOT_GOING' as const },
   { label: 'Pending', value: 'PENDING' as const },
+  { label: 'No Response', value: 'NO_RESPONSE' as const },
 ]
 
 const PAGE_SIZE = 25
@@ -178,6 +179,12 @@ defineExpose({ reload: loadRsvps })
               class="text-xs text-muted"
             >
               Invited {{ formatRsvpDate(rsvp.invitedAt) }}
+            </p>
+            <p
+              v-if="formatRsvpDate(rsvp.rsvpReminderSentAt)"
+              class="text-xs text-muted"
+            >
+              Reminder sent {{ formatRsvpDate(rsvp.rsvpReminderSentAt) }}
             </p>
           </div>
         </div>

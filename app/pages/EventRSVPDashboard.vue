@@ -52,6 +52,7 @@ const STATUS_FILTER_OPTIONS = [
   { label: 'Attending', value: 'GOING' as const },
   { label: 'Not Attending', value: 'NOT_GOING' as const },
   { label: 'Pending', value: 'PENDING' as const },
+  { label: 'No Response', value: 'NO_RESPONSE' as const },
 ]
 
 const PAGE_SIZE = 25
@@ -528,6 +529,9 @@ watch(eventId, () => {
                       </div>
                       <div v-else-if="formatRsvpDate(rsvp.invitedAt)" class="text-xs text-muted">
                         Invited {{ formatRsvpDate(rsvp.invitedAt) }}
+                      </div>
+                      <div v-if="formatRsvpDate(rsvp.rsvpReminderSentAt)" class="text-xs text-muted">
+                        Reminder sent {{ formatRsvpDate(rsvp.rsvpReminderSentAt) }}
                       </div>
                     </div>
                   </div>
