@@ -198,10 +198,22 @@ function onQuickNavItemClick(item: QuickNavItem) {
 
 useHead({ title: computed(() => (gathering.value ? `${gathering.value.name} Seating | Jam` : 'Jam Seating Dashboard')) })
 
-onMounted(load)
+onMounted(() => load())
 
-async function load() {
+function layoutHasUnsavedEdits() {
+  const saved = gathering.value?.tables ?? []
+  return layoutRows.value.length !== saved.length || layoutRows.value.some((row, index) => {
+    const table = saved[index]
+    return row._id !== table?._id
+      || row.label !== (table?.customLabel || '')
+      || Number(row.capacity) !== table?.capacity
+  })
+}
+
+async function load({ keepLayoutEdits = true } = {}) {
   loading.value = true
+  // Other actions reload the page data, and must not throw away a layout still being edited.
+  const syncLayout = !keepLayoutEdits || !layoutHasUnsavedEdits()
   try {
     gathering.value = await seating.getGathering(gatheringId.value)
     if (gathering.value) {
@@ -212,11 +224,13 @@ async function load() {
       inviteForm.passcode = gathering.value.passcode || ''
       inviteForm.invitationSubject = gathering.value.invitationSubject || ''
       inviteForm.invitationMessage = gathering.value.invitationMessage || ''
-      layoutRows.value = gathering.value.tables.map((table) => layoutRow({
-        _id: table._id,
-        label: table.customLabel || '',
-        capacity: table.capacity,
-      }))
+      if (syncLayout) {
+        layoutRows.value = gathering.value.tables.map((table) => layoutRow({
+          _id: table._id,
+          label: table.customLabel || '',
+          capacity: table.capacity,
+        }))
+      }
       if (gathering.value.status === 'ACTIVE') {
         const listed = await seating.listGuests(gatheringId.value)
         guests.value = listed.guests
@@ -334,7 +348,7 @@ async function applyTables() {
       if (!message.includes('Confirm to continue') || !window.confirm(message)) throw error
       await saveLayout(true)
     }
-    await load()
+    await load({ keepLayoutEdits: false })
     toast.add({ title: 'Table layout updated', color: 'success' })
   } catch (error) {
     toast.add({ title: 'Could not update tables', description: getApiErrorMessage(error), color: 'error' })

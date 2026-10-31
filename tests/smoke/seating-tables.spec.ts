@@ -36,6 +36,37 @@ test('a host gives each table its own size and an optional label', async ({ page
   })
 })
 
+test('a saved layout shows after a refresh, however the tables differ', async ({ page }) => {
+  await openWorkspace(page, {
+    tables: [seatingTable('t1', 'Family', 10, 'Family'), seatingTable('t2', 'Table 2', 4), seatingTable('t3', 'Table 3', 6)],
+  })
+  await page.reload()
+  await page.getByRole('button', { name: /^Tables & Seats \(/ }).click()
+
+  const rows = page.getByTestId('layout-row')
+  await expect(rows).toHaveCount(3)
+  await expect(rows.nth(0).getByRole('textbox')).toHaveValue('Family')
+  await expect(rows.nth(0).getByRole('spinbutton')).toHaveValue('10')
+  await expect(rows.nth(1).getByRole('spinbutton')).toHaveValue('4')
+  await expect(rows.nth(2).getByRole('spinbutton')).toHaveValue('6')
+})
+
+test('reloading the data after another action keeps a layout still being edited', async ({ page }) => {
+  await openWorkspace(page, { tables: [seatingTable('t1', 'Table 1', 8)] })
+  await page.getByRole('button', { name: /^Tables & Seats \(/ }).click()
+  await page.getByTestId('layout-row').getByRole('spinbutton').fill('5')
+
+  await page.getByRole('button', { name: /^Guests \(/ }).click()
+  await page.getByPlaceholder('First name').fill('Otto')
+  await page.getByPlaceholder('Last name').fill('Reyes')
+  await page.getByPlaceholder('guest@example.com').fill('otto@example.com')
+  await page.getByRole('button', { name: 'Add Guest' }).click()
+  await expect(page.getByText('otto@example.com')).toBeVisible()
+
+  await page.getByRole('button', { name: /^Tables & Seats \(/ }).click()
+  await expect(page.getByTestId('layout-row').getByRole('spinbutton')).toHaveValue('5')
+})
+
 test('removing a seated guest asks first, and only then sends the confirmation', async ({ page }) => {
   let attempts = 0
   const calls = await openWorkspace(page, {
