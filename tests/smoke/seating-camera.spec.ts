@@ -15,7 +15,8 @@ test('upload checks the guest in and leaves the camera running', async ({ page }
   await expect(video).toBeVisible()
 
   await page.locator('input[type="file"]').setInputFiles(png(await passQr()))
-  await expect(page.getByText('Maria Santos checked in')).toBeVisible()
+  // Exact, because a toast briefly has a hidden screen-reader copy of its text.
+  await expect(page.getByText('Maria Santos checked in', { exact: true })).toBeVisible()
   expect(checkInCalls(calls).map(call => call.body)).toEqual([{ token: PASS_TOKEN }])
   await expect(video).toBeVisible()
 })
