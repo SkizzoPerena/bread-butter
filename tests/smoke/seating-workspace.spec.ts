@@ -1,9 +1,9 @@
 import { PASS_TOKEN, expect, test } from './helpers'
-import { BLANK_PNG, checkInCalls, gatheringQr, openWorkspace, passQr, png } from './seating-fixtures'
+import { BLANK_PNG, checkInCalls, gatheringQr, openCheckIn, openWorkspace, passQr, png } from './seating-fixtures'
 
 test('with the camera unavailable, upload checks the guest in and rejects anything else', async ({ page }) => {
   const calls = await openWorkspace(page)
-  await page.getByRole('button', { name: 'QR and check-in' }).click()
+  await openCheckIn(page)
   await expect(page.getByText('Camera scanning is unavailable')).toBeVisible()
 
   const upload = page.locator('input[type="file"]')
@@ -17,7 +17,7 @@ test('with the camera unavailable, upload checks the guest in and rejects anythi
 
   await upload.setInputFiles(png(await passQr()))
   // Exact, because a toast briefly has a hidden screen-reader copy of its text.
-  await expect(page.getByText('Maria Santos checked in', { exact: true })).toBeVisible()
+  await expect(page.getByText('Maria Santos checked in!', { exact: true })).toBeVisible()
   expect(checkInCalls(calls).map(call => call.body)).toEqual([{ token: PASS_TOKEN }])
   await expect(page.getByText('No QR code was found in that image.')).toHaveCount(0)
 })
@@ -29,7 +29,7 @@ test('a new guest starts as pending, with no status choice on the form', async (
 
   await page.getByPlaceholder('First name').fill('Otto')
   await page.getByPlaceholder('Last name').fill('Reyes')
-  await page.getByPlaceholder('Email').fill('otto@example.com')
+  await page.getByPlaceholder('guest@example.com').fill('otto@example.com')
   await page.getByRole('button', { name: 'Add guest' }).click()
 
   const row = page.locator('div', { hasText: 'otto@example.com' }).locator('select').last()

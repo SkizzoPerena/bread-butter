@@ -1,9 +1,22 @@
+import type { EventQuestion } from '~/types/event'
+import type { RsvpAnswer } from '~/types/rsvp'
 import type {
   CheckInResult,
   GatheringRecord,
   JamInvitation,
+  JamInvitationDesign,
+  JamInviteDetails,
+  JamBulkPreview,
+  JamBulkResult,
+  JamImportableGuest,
+  JamInviteUnlocked,
+  JamOpenInvitation,
+  JamOpenRegistration,
+  JamReplyBody,
   JamPackageRecord,
   JamRsvpResult,
+  JamSeatMap,
+  JamUpgradeOptions,
   JamSitePreview,
   PublicSeatDetail,
   PublicSeatList,
@@ -339,20 +352,37 @@ export function useSeating() {
     await apiRequest(`/user/seating/gatherings/${gatheringId}/guests/${guestId}`, { method: 'DELETE' })
   }
 
-  async function replaceTables(gatheringId: string, tables: { capacity: number }[], confirmClear = false) {
+  async function replaceTables(
+    gatheringId: string,
+    tables: { _id?: string, label?: string, capacity: number }[],
+    confirmClear = false,
+  ) {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const sum = tables.reduce((total, table) => total + table.capacity, 0)
-      if (sum > gathering.maxGuests) throw new Error('Total seats cannot exceed the package guest cap.')
-      gathering.tables = tables.map((table, index) => ({
-        _id: `mock-table-${gatheringId}-${index}`,
-        label: `Table ${index + 1}`,
-        capacity: table.capacity,
-        sortOrder: index,
-      }))
+      if (sum > 500) throw new Error('A seating plan can have at most 500 seats.')
+      const previous = gathering.tables
+      gathering.tables = tables.map((table, index) => {
+        const seats = previous.find((item) => item._id === table._id)?.seats ?? []
+        return {
+          _id: table._id || `mock-table-${gatheringId}-${Date.now()}-${index}`,
+          label: table.label?.trim() || `Table ${index + 1}`,
+          customLabel: table.label?.trim() || '',
+          capacity: table.capacity,
+          sortOrder: index,
+          seats: Array.from({ length: table.capacity }, (_, seatIndex) => ({
+            number: seatIndex + 1,
+            unavailable: seats[seatIndex]?.unavailable ?? false,
+            guest: null,
+          })),
+        }
+      })
       for (const guest of mockGuests(gatheringId)) {
-        guest.tableId = null
-        guest.seatNumber = null
+        const table = gathering.tables.find((item) => item._id === guest.tableId)
+        if (!table || (guest.seatNumber || 0) > table.capacity) {
+          guest.tableId = null
+          guest.seatNumber = null
+        }
       }
       return gathering
     }
@@ -363,43 +393,22 @@ export function useSeating() {
     return response.gathering
   }
 
-  async function updateTableCapacity(
+  async function setSeatUnavailable(
     gatheringId: string,
     tableId: string,
-    capacity: number,
-    confirmClear = false,
+    seatNumber: number,
+    unavailable: boolean,
   ): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      const table = gathering.tables.find((item) => item._id === tableId)
-      if (!table) throw new Error('Table not found.')
-      const otherSeats = gathering.tables.reduce(
-        (sum, item) => sum + (item._id === tableId ? 0 : item.capacity),
-        0,
-      )
-      if (otherSeats + capacity > gathering.maxGuests) {
-        throw new Error('Total seats cannot exceed the package guest cap.')
-      }
-      if (capacity < table.capacity && !confirmClear) {
-        const overflow = mockGuests(gatheringId).some(
-          (guest) => guest.tableId === tableId && (guest.seatNumber || 0) > capacity,
-        )
-        if (overflow) throw new Error('This capacity removes guests from seats. Confirm to continue.')
-      }
-      table.capacity = capacity
-      if (confirmClear) {
-        for (const guest of mockGuests(gatheringId)) {
-          if (guest.tableId === tableId && (guest.seatNumber || 0) > capacity) {
-            guest.tableId = null
-            guest.seatNumber = null
-          }
-        }
-      }
+      const seat = gathering.tables.find((item) => item._id === tableId)?.seats?.find((item) => item.number === seatNumber)
+      if (!seat) throw new Error('Seat number is not on this table.')
+      seat.unavailable = unavailable
       return gathering
     }
     const response = await apiRequest<GatheringResponse>(
-      `/user/seating/gatherings/${gatheringId}/tables/${tableId}`,
-      { method: 'PATCH', body: { capacity, confirmClear } },
+      `/user/seating/gatherings/${gatheringId}/tables/${tableId}/seats/${seatNumber}`,
+      { method: 'PATCH', body: { unavailable } },
     )
     return response.gathering
   }
@@ -410,8 +419,8 @@ export function useSeating() {
       const guests = mockGuests(gatheringId)
       const seats: { tableId: string, seatNumber: number }[] = []
       for (const table of gathering.tables) {
-        for (let seatNumber = 1; seatNumber <= table.capacity; seatNumber += 1) {
-          seats.push({ tableId: table._id, seatNumber })
+        for (const seat of table.seats ?? []) {
+          if (!seat.unavailable) seats.push({ tableId: table._id, seatNumber: seat.number })
         }
       }
       for (const guest of guests) {
@@ -615,10 +624,15 @@ export function useSeating() {
     passcode?: string
     invitationSubject?: string
     invitationMessage?: string
+    seatSelectionLocked?: boolean
+    questions?: EventQuestion[]
+    invitationDesign?: JamInvitationDesign
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      Object.assign(gathering, body)
+      const { invitationDesign, ...fields } = body
+      Object.assign(gathering, fields)
+      if (invitationDesign) gathering.invitationDesign = { ...gathering.invitationDesign, ...invitationDesign }
       return gathering
     }
     const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}`, {
@@ -647,16 +661,17 @@ export function useSeating() {
   async function exportGuests(gatheringId: string): Promise<Blob> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      const rows = ['name,email,party,response,table,seat,checked in']
+      const rows = ['table,seat,last name,first name,email,party,response,checked in']
       for (const guest of mockGuests(gatheringId)) {
         const table = gathering.tables.find((item) => item._id === guest.tableId)
         rows.push([
-          `${guest.firstName} ${guest.lastName}`,
+          table?.label || 'Unseated',
+          guest.seatNumber ?? '',
+          guest.lastName,
+          guest.firstName,
           guest.email,
           guest.partyName,
           guest.rsvpStatus,
-          table?.label || '',
-          guest.seatNumber ?? '',
           guest.checkedInAt ? 'yes' : 'no',
         ].join(','))
       }
@@ -669,20 +684,37 @@ export function useSeating() {
     if (isUiOnlyMode.value) {
       const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
       if (!gathering) throw new Error('Seating plan not found.')
-      return { gatheringName: gathering.name }
+      return { gatheringName: gathering.name, passcodeRequired: Boolean(gathering.passcode) }
     }
     return apiRequest<JamSitePreview>(`/guest/seating/site/${publicToken}`, { authenticated: false })
+  }
+
+  async function fetchJamInvite(token: string): Promise<JamInviteDetails> {
+    if (isUiOnlyMode.value) {
+      for (const gathering of gatherings.value) {
+        const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+        if (!guest) continue
+        return {
+          gatheringName: gathering.name,
+          passcodeRequired: Boolean(gathering.passcode),
+          needsName: !guest.firstName || !guest.lastName,
+        }
+      }
+      throw new Error('Invitation not found.')
+    }
+    return apiRequest<JamInviteDetails>(`/guest/seating/rsvp/${token}`, { authenticated: false })
   }
 
   async function unlockJamSite(publicToken: string, passcode: string): Promise<JamInvitation> {
     if (isUiOnlyMode.value) {
       const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
-      if (!gathering || gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+      if (!gathering || (gathering.passcode && gathering.passcode !== passcode)) throw new Error('Incorrect passcode.')
       return {
         gatheringName: gathering.name,
         venue: gathering.venue,
         eventDate: gathering.eventDate,
         invitationMessage: gathering.invitationMessage || '',
+        design: gathering.invitationDesign,
       }
     }
     return apiRequest<JamInvitation>(`/guest/seating/site/${publicToken}/unlock`, {
@@ -692,12 +724,425 @@ export function useSeating() {
     })
   }
 
-  async function respondToJamInvite(token: string, passcode: string, rsvpStatus: 'GOING' | 'NOT_GOING'): Promise<JamRsvpResult> {
+  function mockSeatMap(token: string): JamSeatMap {
+    for (const gathering of gatherings.value) {
+      const guests = mockGuests(gathering._id)
+      const guest = guests.find((item) => item.attendanceToken === token && item.isAttending)
+      if (!guest) continue
+      const table = gathering.tables.find((item) => item._id === guest.tableId)
+      return {
+        gatheringName: gathering.name,
+        locked: Boolean(gathering.seatSelectionLocked),
+        seat: table && guest.seatNumber
+          ? { tableId: table._id, tableLabel: table.label, seatNumber: guest.seatNumber }
+          : null,
+        tables: gathering.tables.map((item) => ({
+          _id: item._id,
+          label: item.label,
+          seats: (item.seats ?? []).map((seat) => {
+            const holder = guests.find((other) => other.tableId === item._id && other.seatNumber === seat.number)
+            if (holder) return { number: seat.number, status: holder._id === guest._id ? 'YOURS' as const : 'TAKEN' as const }
+            return { number: seat.number, status: seat.unavailable ? 'UNAVAILABLE' as const : 'OPEN' as const }
+          }),
+        })),
+      }
+    }
+    throw new Error('Reply that you are coming before choosing a seat.')
+  }
+
+  function mockGuestByToken(token: string) {
+    for (const gathering of gatherings.value) {
+      const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+      if (guest) return guest
+    }
+    throw new Error('Invitation not found.')
+  }
+
+  async function fetchSeatMap(token: string): Promise<JamSeatMap> {
+    if (isUiOnlyMode.value) return mockSeatMap(token)
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { authenticated: false })
+  }
+
+  async function claimSeat(token: string, tableId: string, seatNumber: number): Promise<JamSeatMap> {
+    if (isUiOnlyMode.value) {
+      const guest = mockGuestByToken(token)
+      guest.tableId = tableId
+      guest.seatNumber = seatNumber
+      return { ...mockSeatMap(token), message: 'Your seat is saved.' }
+    }
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, {
+      method: 'POST',
+      body: { tableId, seatNumber },
+      authenticated: false,
+    })
+  }
+
+  async function giveUpSeat(token: string): Promise<JamSeatMap> {
+    if (isUiOnlyMode.value) {
+      const guest = mockGuestByToken(token)
+      guest.tableId = null
+      guest.seatNumber = null
+      return { ...mockSeatMap(token), message: 'You gave up your seat.' }
+    }
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
+  }
+
+  async function previewBulkInvites(gatheringId: string, emails: string[]): Promise<JamBulkPreview> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = mockGuests(gatheringId)
+      const invalidEmails = emails.filter((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      const unique = [...new Set(emails.filter((email) => !invalidEmails.includes(email)).map((email) => email.toLowerCase()))]
+      const fresh = unique.filter((email) => !current.some((guest) => guest.email === email))
+      const creditsRemaining = Math.max(gathering.maxGuests - current.length, 0)
+      const shortBy = Math.max(fresh.length - creditsRemaining, 0)
+      return {
+        requested: emails.length,
+        toInvite: fresh.length,
+        invalidEmails,
+        duplicateCount: emails.length - invalidEmails.length - unique.length,
+        alreadyOnList: unique.length - fresh.length,
+        creditsRemaining,
+        shortBy,
+        canSend: fresh.length > 0 && !invalidEmails.length && shortBy === 0,
+      }
+    }
+    return apiRequest<JamBulkPreview>(`/user/seating/gatherings/${gatheringId}/invites/bulk/preview`, {
+      method: 'POST',
+      body: { emails },
+    })
+  }
+
+  async function sendBulkInvites(gatheringId: string, emails: string[]): Promise<JamBulkResult> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = mockGuests(gatheringId)
+      const fresh = [...new Set(emails.map((email) => email.toLowerCase()))]
+        .filter((email) => !current.some((guest) => guest.email === email))
+      for (const email of fresh) {
+        current.push({
+          _id: `mock-guest-${Date.now()}-${email}`,
+          isBulkInvite: true,
+          email,
+          partyName: '',
+          rsvpStatus: 'PENDING',
+          isAttending: false,
+          tableId: null,
+          seatNumber: null,
+          attendanceToken: mockToken(),
+          attendanceQrSentAt: null,
+          checkedInAt: null,
+        })
+      }
+      recount(gathering, current)
+      return {
+        message: `Sent ${fresh.length} invitations.`,
+        created: fresh.length,
+        alreadyOnList: emails.length - fresh.length,
+        sent: fresh.length,
+        skipped: 0,
+        creditsRemaining: Math.max(gathering.maxGuests - current.length, 0),
+      }
+    }
+    return apiRequest<JamBulkResult>(`/user/seating/gatherings/${gatheringId}/invites/bulk`, {
+      method: 'POST',
+      body: { emails },
+    })
+  }
+
+  async function getUpgradeOptions(gatheringId: string): Promise<JamUpgradeOptions> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      return {
+        current: {
+          packageId: gathering.jamPackage || '',
+          packageName: gathering.packageName,
+          pricePhp: gathering.pricePhp,
+          maxGuests: gathering.maxGuests,
+        },
+        options: packages.value
+          .filter((item) => item.isEnabled && item.maxGuests > gathering.maxGuests && item.pricePhp > gathering.pricePhp)
+          .map((item) => ({
+            _id: item._id,
+            name: item.name,
+            pricePhp: item.pricePhp,
+            maxGuests: item.maxGuests,
+            priceDifferencePhp: item.pricePhp - gathering.pricePhp,
+            additionalGuests: item.maxGuests - gathering.maxGuests,
+          })),
+        pendingUpgrade: gathering.pendingUpgrade ?? null,
+      }
+    }
+    return apiRequest<JamUpgradeOptions>(`/user/seating/gatherings/${gatheringId}/upgrade-options`)
+  }
+
+  async function listGatheringPayments(gatheringId: string): Promise<SeatingPaymentRecord[]> {
+    if (isUiOnlyMode.value) return []
+    const response = await apiRequest<{ payments: SeatingPaymentRecord[] }>(`/user/seating/gatherings/${gatheringId}/payments`)
+    return response.payments
+  }
+
+  function mockApplyUpgrade(gathering: GatheringRecord, packageId: string) {
+    const jamPackage = packages.value.find((item) => item._id === packageId)
+    if (!jamPackage) throw new Error('This package is not available.')
+    gathering.jamPackage = jamPackage._id
+    gathering.packageName = jamPackage.name
+    gathering.pricePhp = jamPackage.pricePhp
+    gathering.maxGuests = jamPackage.maxGuests
+  }
+
+  async function submitUpgradeProof(gatheringId: string, packageId: string, payload: {
+    transactionId: string
+    paymentMethod: string
+    proofOfPayment: File
+  }): Promise<SeatingPaymentRecord> {
+    if (isUiOnlyMode.value) {
+      mockApplyUpgrade(await getGathering(gatheringId), packageId)
+      return { _id: `mock-upgrade-${Date.now()}`, type: 'SEATING_UPGRADE', amount: 0, status: 'APPROVED' }
+    }
+    const form = new FormData()
+    form.append('packageId', packageId)
+    form.append('transactionId', payload.transactionId)
+    form.append('paymentMethod', payload.paymentMethod)
+    form.append('proofOfPayment', payload.proofOfPayment)
+    const response = await apiUpload<PaymentResponse>(
+      `/user/seating/gatherings/${gatheringId}/upgrade/payment-proof`,
+      form,
+    )
+    return response.payment
+  }
+
+  async function createUpgradeCheckout(gatheringId: string, body: {
+    packageId: string
+    cancelPath: string
+    idempotencyKey: string
+  }): Promise<CheckoutResponse> {
+    if (isUiOnlyMode.value) {
+      mockApplyUpgrade(await getGathering(gatheringId), body.packageId)
+      return { checkoutUrl: null, alreadyPaid: true }
+    }
+    return apiRequest<CheckoutResponse>(`/user/seating/gatherings/${gatheringId}/upgrade/checkout-session`, {
+      method: 'POST',
+      body,
+    })
+  }
+
+  async function listImportableGuests(
+    gatheringId: string,
+    sourceId: string,
+  ): Promise<{ guests: JamImportableGuest[], creditsRemaining: number }> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = mockGuests(gatheringId)
+      return {
+        creditsRemaining: Math.max(gathering.maxGuests - current.length, 0),
+        guests: mockGuests(sourceId).map((guest) => ({
+          _id: guest._id,
+          firstName: guest.firstName ?? '',
+          lastName: guest.lastName ?? '',
+          email: guest.email,
+          partyName: guest.partyName,
+          alreadyOnList: current.some((item) => item.email === guest.email),
+        })),
+      }
+    }
+    return apiRequest(`/user/seating/gatherings/${gatheringId}/guest-import/${sourceId}`)
+  }
+
+  async function importGuests(
+    gatheringId: string,
+    sourceId: string,
+    guestIds: string[],
+  ): Promise<{ message: string, created: number }> {
+    if (isUiOnlyMode.value) {
+      const current = mockGuests(gatheringId)
+      const toCopy = mockGuests(sourceId).filter((guest) => guestIds.includes(guest._id))
+      for (const guest of toCopy) {
+        current.push({
+          ...guest,
+          _id: `mock-guest-${Date.now()}-${guest._id}`,
+          rsvpStatus: 'PENDING',
+          answers: [],
+          isAttending: false,
+          tableId: null,
+          seatNumber: null,
+          attendanceToken: mockToken(),
+          attendanceQrSentAt: null,
+          checkedInAt: null,
+        })
+      }
+      recount(await getGathering(gatheringId), current)
+      return { message: `Added ${toCopy.length} guests.`, created: toCopy.length }
+    }
+    return apiRequest(`/user/seating/gatherings/${gatheringId}/guest-import/${sourceId}`, {
+      method: 'POST',
+      body: { guestIds },
+    })
+  }
+
+  async function uploadInvitationImage(
+    gatheringId: string,
+    kind: 'banner' | 'invitation',
+    file: File,
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const url = URL.createObjectURL(file)
+      gathering.invitationDesign = kind === 'banner'
+        ? { ...gathering.invitationDesign, bannerImageUrl: url }
+        : { ...gathering.invitationDesign, imageUrl: url, mode: 'IMAGE' }
+      return gathering
+    }
+    const form = new FormData()
+    form.append('image', file)
+    const response = await apiUpload<GatheringResponse>(
+      `/user/seating/gatherings/${gatheringId}/invitation/images/${kind}`,
+      form,
+      { method: 'PATCH' },
+    )
+    return response.gathering
+  }
+
+  async function removeInvitationImage(gatheringId: string, kind: 'banner' | 'invitation'): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      gathering.invitationDesign = kind === 'banner'
+        ? { ...gathering.invitationDesign, bannerImageUrl: '' }
+        : { ...gathering.invitationDesign, imageUrl: '', mode: 'MAKER' }
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(
+      `/user/seating/gatherings/${gatheringId}/invitation/images/${kind}`,
+      { method: 'DELETE' },
+    )
+    return response.gathering
+  }
+
+  async function setOpenInvite(
+    gatheringId: string,
+    body: { enabled?: boolean, regenerate?: boolean },
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = gathering.openInvite ?? { enabled: false, token: null }
+      gathering.openInvite = {
+        enabled: body.enabled ?? current.enabled,
+        token: body.regenerate || !current.token ? mockToken() : current.token,
+      }
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/open-invite`, {
+      method: 'PATCH',
+      body,
+    })
+    return response.gathering
+  }
+
+  function mockOpenGathering(token: string) {
+    const gathering = gatherings.value.find((item) => item.openInvite?.enabled && item.openInvite.token === token)
+    if (!gathering) throw new Error('This invite link is not available.')
+    return gathering
+  }
+
+  async function fetchOpenInvite(token: string): Promise<JamInviteDetails> {
+    if (isUiOnlyMode.value) {
+      const gathering = mockOpenGathering(token)
+      return { gatheringName: gathering.name, passcodeRequired: Boolean(gathering.passcode) }
+    }
+    return apiRequest<JamInviteDetails>(`/guest/seating/open/${token}`, { authenticated: false })
+  }
+
+  async function unlockOpenInvite(token: string, passcode: string): Promise<JamOpenInvitation> {
+    if (isUiOnlyMode.value) {
+      const gathering = mockOpenGathering(token)
+      if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+      return {
+        gatheringName: gathering.name,
+        venue: gathering.venue,
+        eventDate: gathering.eventDate,
+        invitationMessage: gathering.invitationMessage || '',
+        design: gathering.invitationDesign,
+        questions: gathering.questions ?? [],
+      }
+    }
+    return apiRequest<JamOpenInvitation>(`/guest/seating/open/${token}/unlock`, {
+      method: 'POST',
+      body: { passcode },
+      authenticated: false,
+    })
+  }
+
+  async function registerOpenGuest(token: string, body: {
+    passcode: string
+    firstName: string
+    lastName: string
+    email: string
+    answers: RsvpAnswer[]
+  }): Promise<JamOpenRegistration> {
+    if (isUiOnlyMode.value) {
+      const gathering = mockOpenGathering(token)
+      const guests = mockGuests(gathering._id)
+      if (guests.some((guest) => guest.email === body.email.toLowerCase())) {
+        return { alreadyRegistered: true, message: 'That email is already on the guest list. We sent its invitation link there.' }
+      }
+      if (guests.length >= gathering.maxGuests) throw new Error('This gathering is full. Please contact the host.')
+      const attendanceToken = mockToken()
+      guests.push({
+        _id: `mock-guest-${Date.now()}`,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        email: body.email.toLowerCase(),
+        partyName: '',
+        rsvpStatus: 'GOING',
+        answers: body.answers,
+        isAttending: true,
+        tableId: null,
+        seatNumber: null,
+        attendanceToken,
+        attendanceQrSentAt: null,
+        checkedInAt: null,
+      })
+      recount(gathering, guests)
+      return { message: 'You are on the guest list.', attendanceToken, attendPath: `/attend/${attendanceToken}` }
+    }
+    return apiRequest<JamOpenRegistration>(`/guest/seating/open/${token}/register`, {
+      method: 'POST',
+      body,
+      authenticated: false,
+    })
+  }
+
+  async function unlockJamInvite(token: string, passcode: string): Promise<JamInviteUnlocked> {
     if (isUiOnlyMode.value) {
       for (const gathering of gatherings.value) {
         const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
         if (!guest) continue
-        if (gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        return {
+          gatheringName: gathering.name,
+          questions: gathering.questions ?? [],
+          answers: guest.answers ?? [],
+          rsvpStatus: guest.rsvpStatus,
+          needsName: !guest.firstName || !guest.lastName,
+        }
+      }
+      throw new Error('Invitation not found.')
+    }
+    return apiRequest<JamInviteUnlocked>(`/guest/seating/rsvp/${token}/unlock`, {
+      method: 'POST',
+      body: { passcode },
+      authenticated: false,
+    })
+  }
+
+  async function respondToJamInvite(token: string, body: JamReplyBody): Promise<JamRsvpResult> {
+    if (isUiOnlyMode.value) {
+      const { passcode, rsvpStatus } = body
+      for (const gathering of gatherings.value) {
+        const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
+        if (!guest) continue
+        if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
+        guest.answers = body.answers ?? []
         guest.rsvpStatus = rsvpStatus
         guest.isAttending = rsvpStatus === 'GOING'
         if (rsvpStatus !== 'GOING') {
@@ -707,13 +1152,14 @@ export function useSeating() {
         return {
           message: rsvpStatus === 'GOING' ? 'You are marked as coming.' : 'You are marked as not coming.',
           rsvpStatus,
+          attendPath: rsvpStatus === 'GOING' ? `/attend/${token}` : undefined,
         }
       }
       throw new Error('Invitation not found.')
     }
     return apiRequest<JamRsvpResult>(`/guest/seating/rsvp/${token}`, {
       method: 'POST',
-      body: { passcode, rsvpStatus },
+      body,
       authenticated: false,
     })
   }
@@ -733,9 +1179,9 @@ export function useSeating() {
     updateGuest,
     deleteGuest,
     replaceTables,
-    updateTableCapacity,
     autoAssign,
     moveSeat,
+    setSeatUnavailable,
     resendPass,
     checkInGuest,
     undoCheckIn,
@@ -747,8 +1193,27 @@ export function useSeating() {
     sendInvites,
     exportGuests,
     fetchJamSite,
+    fetchJamInvite,
+    unlockJamInvite,
+    previewBulkInvites,
+    sendBulkInvites,
+    getUpgradeOptions,
+    listGatheringPayments,
+    submitUpgradeProof,
+    createUpgradeCheckout,
+    listImportableGuests,
+    importGuests,
+    uploadInvitationImage,
+    removeInvitationImage,
+    setOpenInvite,
+    fetchOpenInvite,
+    unlockOpenInvite,
+    registerOpenGuest,
     unlockJamSite,
     respondToJamInvite,
+    fetchSeatMap,
+    claimSeat,
+    giveUpSeat,
   }
 }
 

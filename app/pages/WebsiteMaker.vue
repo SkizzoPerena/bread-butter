@@ -205,7 +205,7 @@ const websiteData = reactive({
     contactEmail: '', // Default motif
     motif: '', // Motif selection step removed, default to empty
     colorPalette: 'Gilded Flora', // Default color palette
-    invertColors: false,
+    invertColors: true,
     simplifiedColors: false,
     singlePageSite: true, // New: single page vs multi-section
     typography: 'Custom', // Default typography
@@ -3766,19 +3766,26 @@ function togglePreview() {
                                     <!-- Dynamic Content Sections Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
                                         id="preview-section-about-us"
-                                        class="flex flex-col justify-center mx-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                        class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }">
-                                        <UContainer v-if="headingSectionContent"
-                                            class="font-bold italic transition-all duration-300 pt-2 sm:pt-4 mb-6"
-                                            :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            {{ headingSectionContent }}
-                                        </UContainer>
-                                        <div v-if="websiteData.siteDescription"
-                                            class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                            :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
-                                            :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }">
-                                            {{ websiteData.siteDescription }}
+                                        <div class="space-y-3 max-w-2xl mx-auto w-full">
+                                            <UContainer v-if="headingSectionContent"
+                                                class="font-bold italic transition-all duration-300 pt-2 sm:pt-4"
+                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                {{ headingSectionContent }}
+                                            </UContainer>
+                                            <div v-if="headingSectionContent" class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }" />
+                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }" />
+                                            </div>
+                                            <div v-if="websiteData.siteDescription"
+                                                class="prose max-w-none mx-auto text-center transition-all duration-300"
+                                                :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
+                                                :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }">
+                                                {{ websiteData.siteDescription }}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -3788,7 +3795,7 @@ function togglePreview() {
                                         <!-- Color & Dress Code Preview -->
                                         <div v-if="compId === 'dress-code' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-dress-code"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
@@ -3799,7 +3806,12 @@ function togglePreview() {
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Color &amp; Dress Code
                                                 </h2>
-                                                <div v-if="publishedDressCode?.formality" class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                                <div v-if="publishedDressCode?.formality" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
                                                     <span>{{ publishedDressCode.formality }}</span>
@@ -3807,7 +3819,7 @@ function togglePreview() {
                                             </div>
 
                                             <!-- Section 1: Color Palette (Image, Editor, or Both) -->
-                                            <div class="max-w-2xl mx-auto w-full space-y-3.5">
+                                            <div class="max-w-5xl mx-auto w-full space-y-3.5">
                                                 <div class="flex items-center justify-between text-xs uppercase tracking-wider font-semibold opacity-80"
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <span class="inline-flex items-center gap-1.5">
@@ -3817,28 +3829,66 @@ function togglePreview() {
                                                     <span>{{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.presetPaletteName || 'Curated Colors') }}</span>
                                                 </div>
 
-                                                <!-- Option 1: Pre-made Palette Image -->
-                                                <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
-                                                    class="w-full">
-                                                    <div class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2.5 backdrop-blur-xs"
-                                                        @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
-                                                        <img :src="publishedDressCode.paletteImage" alt="Color Palette Graphic"
-                                                            class="w-full max-h-72 object-contain rounded-xl" />
-                                                        <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
-                                                            <UIcon name="i-lucide-zoom-in" class="size-4" />
-                                                            <span>Click to view full palette graphic</span>
+                                                <!-- Option: Both Image & Swatches in a Single Row -->
+                                                <div v-if="publishedDressCode?.paletteType === 'both' && publishedDressCode?.paletteImage"
+                                                    class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch">
+                                                    <!-- Col-span-2: Color Palette Image -->
+                                                    <div class="sm:col-span-2 h-full">
+                                                        <div class="relative h-full min-h-64 sm:min-h-72 rounded-2xl overflow-hidden border border-current/20 shadow-xs cursor-pointer group flex items-center justify-center p-3 backdrop-blur-md"
+                                                            :style="{
+                                                                backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                                borderColor: previewDynamicStyle(index).text + '25',
+                                                            }"
+                                                            @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                            <img :src="publishedDressCode.paletteImage" alt="Color Palette Graphic"
+                                                                class="w-full h-full max-h-72 object-contain rounded-xl" />
+                                                            <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                                                                <UIcon name="i-lucide-zoom-in" class="size-4" />
+                                                                <span>Click to view full palette graphic</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Col-span-1: Color Breakdown (Vertical) -->
+                                                    <div class="sm:col-span-1 flex flex-col justify-between gap-2.5 h-full">
+                                                        <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
+                                                            :key="key"
+                                                            class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 cursor-pointer flex-1 min-h-12"
+                                                            :style="{ backgroundColor: hex }"
+                                                            @click="copyHexToClipboard(hex)">
+                                                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
+                                                                {{ key }}
+                                                            </span>
+                                                            <div class="flex items-center gap-1.5">
+                                                                <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
+                                                                    {{ hex }}
+                                                                </span>
+                                                                <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <!-- Option 2: 4 Color Swatches -->
-                                                <div v-if="publishedDressCode?.paletteType === 'editor' || publishedDressCode?.paletteType === 'both' || !publishedDressCode?.paletteImage"
-                                                    class="space-y-2">
-                                                    <div v-if="publishedDressCode?.paletteType === 'both' && publishedDressCode?.paletteImage"
-                                                        class="text-[11px] font-bold uppercase tracking-wider text-left opacity-75"
-                                                        :style="{ color: previewDynamicStyle(index).heading }">
-                                                        Color Swatch Breakdown
+                                                <!-- Option: Pre-made Palette Image Only -->
+                                                <div v-else-if="publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage"
+                                                    class="w-full">
+                                                    <div class="relative rounded-2xl overflow-hidden border border-current/20 shadow-xs cursor-pointer group flex items-center justify-center p-3 backdrop-blur-md"
+                                                        :style="{
+                                                            backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                            borderColor: previewDynamicStyle(index).text + '25',
+                                                        }"
+                                                        @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                            <img :src="publishedDressCode.paletteImage" alt="Color Palette Graphic"
+                                                                class="w-full max-h-72 object-contain rounded-xl" />
+                                                            <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                                                                <UIcon name="i-lucide-zoom-in" class="size-4" />
+                                                                <span>Click to view full palette graphic</span>
+                                                            </div>
                                                     </div>
+                                                </div>
+
+                                                <!-- Option: 4 Color Swatches (Editor Mode or Fallback) -->
+                                                <div v-else class="space-y-2">
                                                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                         <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
                                                             :key="key"
@@ -3860,12 +3910,16 @@ function togglePreview() {
                                             </div>
 
                                             <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) -->
-                                            <div class="max-w-2xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                                            <div class="max-w-5xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                                                 <!-- Gentlemen -->
-                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
-                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/20 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                                                    :style="{
+                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                        borderColor: previewDynamicStyle(index).text + '25',
+                                                        color: previewDynamicStyle(index).text,
+                                                    }">
                                                     <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
-                                                        <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
+                                                        <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center">
                                                             <UIcon name="i-lucide-user" class="size-4" />
                                                         </div>
                                                         <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
@@ -3879,11 +3933,15 @@ function togglePreview() {
                                                 </div>
 
                                                 <!-- Ladies -->
-                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
-                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/20 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                                                    :style="{
+                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                        borderColor: previewDynamicStyle(index).text + '25',
+                                                        color: previewDynamicStyle(index).text,
+                                                    }">
                                                     <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
-                                                        <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
-                                                            <UIcon name="i-lucide-heart" class="size-4 text-rose-500" />
+                                                        <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center">
+                                                            <UIcon name="i-lucide-heart" class="size-4 text-current" />
                                                         </div>
                                                         <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
                                                             :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
@@ -3897,11 +3955,15 @@ function togglePreview() {
                                             </div>
 
                                             <!-- Section 3: Guest Notes & Colors to Avoid -->
-                                            <div class="max-w-2xl mx-auto w-full space-y-3 text-left">
+                                            <div class="max-w-5xl mx-auto w-full space-y-3 text-left">
                                                 <!-- Guest Notes -->
                                                 <div v-if="publishedDressCode?.guestNotes"
-                                                    class="p-4 rounded-xl border border-current/15 backdrop-blur-md shadow-xs"
-                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    class="p-4 rounded-xl border border-current/20 backdrop-blur-md shadow-xs"
+                                                    :style="{
+                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                        borderColor: previewDynamicStyle(index).text + '25',
+                                                        color: previewDynamicStyle(index).text,
+                                                    }">
                                                     <div class="flex items-start gap-2.5">
                                                         <UIcon name="i-lucide-info" class="size-4 shrink-0 mt-0.5 opacity-80" />
                                                         <div class="text-xs sm:text-sm leading-relaxed">
@@ -3913,18 +3975,23 @@ function togglePreview() {
 
                                                 <!-- Colors to Avoid -->
                                                 <div v-if="publishedDressCode?.avoidColors"
-                                                    class="p-3.5 rounded-xl border border-red-300 bg-red-50/80 text-red-950 flex items-start gap-2.5 shadow-xs">
-                                                    <UIcon name="i-lucide-alert-triangle" class="size-4 text-red-600 shrink-0 mt-0.5" />
+                                                    class="p-4 rounded-xl border border-current/20 backdrop-blur-md shadow-xs flex items-start gap-2.5"
+                                                    :style="{
+                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                        borderColor: previewDynamicStyle(index).text + '25',
+                                                        color: previewDynamicStyle(index).text,
+                                                    }">
+                                                    <UIcon name="i-lucide-ban" class="size-4 shrink-0 mt-0.5" :style="{ color: previewDynamicStyle(index).heading }" />
                                                     <div class="text-xs sm:text-sm leading-relaxed">
-                                                        <span class="font-bold text-red-900">Colors to Avoid: </span>
-                                                        <span class="text-red-800">{{ publishedDressCode.avoidColors }}</span>
+                                                        <span class="font-bold block mb-0.5" :style="{ color: previewDynamicStyle(index).heading }">Colors to Avoid:</span>
+                                                        <span class="opacity-90">{{ publishedDressCode.avoidColors }}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <!-- Section 4: Moodboard Inspiration Gallery -->
                                             <div v-if="publishedDressCode?.images && publishedDressCode.images.length > 0"
-                                                class="max-w-4xl mx-auto w-full space-y-4 pt-4">
+                                                class="max-w-5xl mx-auto w-full space-y-4 pt-4">
                                                 <div class="flex items-center justify-between text-left">
                                                     <div>
                                                         <h3 class="text-base sm:text-lg font-bold"
@@ -3941,9 +4008,16 @@ function togglePreview() {
                                                     </span>
                                                 </div>
 
-                                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                                                <div class="grid gap-3.5"
+                                                    :class="{
+                                                        'grid-cols-1': (publishedDressCode?.images?.length || 0) === 1,
+                                                        'grid-cols-1 sm:grid-cols-2': (publishedDressCode?.images?.length || 0) === 2,
+                                                        'grid-cols-1 sm:grid-cols-3': (publishedDressCode?.images?.length || 0) === 3,
+                                                        'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4': (publishedDressCode?.images?.length || 0) >= 4,
+                                                    }">
                                                     <div v-for="img in publishedDressCode.images" :key="img.id"
-                                                        class="group relative aspect-4/5 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                                                        class="group relative rounded-xl overflow-hidden bg-black/5 border border-current/20 shadow-sm cursor-pointer"
+                                                        :class="(publishedDressCode?.images?.length || 0) === 1 ? 'aspect-16/9 sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
                                                         @click="selectedDressCodeLightboxImage = img; isDressCodeLightboxOpen = true">
                                                         <img :src="img.dataUrl" :alt="img.name"
                                                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -3968,16 +4042,16 @@ function togglePreview() {
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <!-- Title & Subtitle Header -->
                                             <div class="space-y-3 max-w-3xl mx-auto">
-                                                <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
-                                                    :style="{ color: previewDynamicStyle(index).heading }">
-                                                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                                                    <span>Moments</span>
-                                                </div>
                                                 <h2 class="font-bold transition-all duration-300 pt-1"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ galleryData.title || 'Captured Moments' }}
                                                 </h2>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
                                                 <p v-if="galleryData.subtitle"
                                                     class="text-xs sm:text-sm opacity-85 max-w-xl mx-auto leading-relaxed"
                                                     :style="{ color: previewDynamicStyle(index).text }">
@@ -3987,7 +4061,7 @@ function togglePreview() {
 
                                             <!-- Layout 1: Modern Grid -->
                                             <div v-if="galleryData.layout === 'grid'"
-                                                class="grid gap-4 sm:gap-6 max-w-6xl mx-auto w-full"
+                                                class="grid gap-4 sm:gap-6 max-w-5xl mx-auto w-full"
                                                 :class="{
                                                     'grid-cols-1 sm:grid-cols-2': galleryData.columns === 2,
                                                     'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3': galleryData.columns === 3,
@@ -4018,7 +4092,7 @@ function togglePreview() {
 
                                             <!-- Layout 2: Editorial Masonry -->
                                             <div v-else-if="galleryData.layout === 'masonry'"
-                                                class="gap-4 sm:gap-6 max-w-6xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
+                                                class="gap-4 sm:gap-6 max-w-5xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
                                                 :class="{
                                                     'columns-1 sm:columns-2': galleryData.columns === 2,
                                                     'columns-1 sm:columns-2 lg:columns-3': galleryData.columns === 3,
@@ -4046,7 +4120,7 @@ function togglePreview() {
 
                                             <!-- Layout 3: Hero Spotlight / Collage -->
                                             <div v-else-if="galleryData.layout === 'collage'"
-                                                class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
+                                                class="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
                                                 <div v-if="galleryData.photos[0]"
                                                     draggable="true"
                                                     class="lg:col-span-2 group relative aspect-4/3 lg:aspect-auto lg:h-full min-h-80 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-md cursor-grab active:cursor-grabbing transition-all hover:shadow-2xl"
@@ -4095,7 +4169,7 @@ function togglePreview() {
 
                                             <!-- Layout 4: Filmstrip Carousel -->
                                             <div v-else-if="galleryData.layout === 'filmstrip'"
-                                                class="max-w-6xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
+                                                class="max-w-5xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
                                                 <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
                                                     class="snap-start shrink-0 w-64 sm:w-72 aspect-3/4 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-xl hover:-translate-y-1 text-left"
@@ -4118,7 +4192,7 @@ function togglePreview() {
 
                                             <!-- Layout 5: Polaroid Keepsakes -->
                                             <div v-else-if="galleryData.layout === 'polaroid'"
-                                                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto w-full pt-2">
+                                                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto w-full pt-2">
                                                 <div v-for="(photo, pIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
                                                     class="bg-white p-3 sm:p-4 pb-6 rounded-sm shadow-md border border-black/10 transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 cursor-grab active:cursor-grabbing group select-none"
@@ -4148,14 +4222,21 @@ function togglePreview() {
                                         <!-- Q&A Preview -->
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-q-and-a"
-                                            class="flex flex-col justify-center gap-10 px-6 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(index).bg,
                                             }">
-                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                Q&A</div>
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    Q&A</div>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                            </div>
 
 
                                             <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
@@ -4177,13 +4258,20 @@ function togglePreview() {
                                         <!-- Schedule Preview -->
                                         <div v-if="compId === 'schedule' && scheduleItems.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-schedule"
-                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                Schedule</div>
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    Schedule</div>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                            </div>
 
                                             <div v-for="item in scheduleItems" :key="item.id"
                                                 class="flex flex-col gap-3">
@@ -4235,13 +4323,20 @@ function togglePreview() {
                                         <!-- RSVP Preview Placeholder -->
                                         <div v-if="compId === 'rsvp' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-rsvp"
-                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                RSVP</div>
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    RSVP</div>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                            </div>
                                             <div class="flex flex-col items-center gap-5 text-sm"
                                                 :style="{ color: previewDynamicStyle(index).text }">
                                                 <div v-if="websiteData.rsvpDeadlineDate"
@@ -4265,35 +4360,38 @@ function togglePreview() {
                                         <!-- Where to Stay Preview Placeholder -->
                                         <div v-if="compId === 'where-to-stay' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-where-to-stay"
-                                            class="flex flex-col justify-center gap-8 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="space-y-2">
+                                            <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Where to Stay
                                                 </div>
-                                                <p v-if="websiteData.whereToStayLocation"
-                                                    class="text-xs sm:text-sm opacity-75 inline-flex items-center gap-1.5 flex-wrap justify-center"
-                                                    :style="{ color: previewDynamicStyle(index).text }">
-                                                    <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5 shrink-0" />
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                                <div v-if="websiteData.whereToStayLocation"
+                                                    class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5" />
                                                     <span>{{ websiteData.whereToStayLocation }}</span>
                                                     <a v-if="websiteData.whereToStayLatitude && websiteData.whereToStayLongitude"
                                                         :href="getVenueGoogleMapsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })"
                                                         target="_blank" rel="noopener noreferrer"
-                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-current/20 hover:border-current/50 opacity-80 hover:opacity-100 transition-opacity ml-1"
+                                                        class="inline-flex items-center gap-1 pl-1.5 border-l border-current/20 hover:opacity-100 opacity-75 transition-opacity normal-case"
                                                         title="View pin on Google Maps">
-                                                        <span>{{ Number(websiteData.whereToStayLatitude).toFixed(4) }}°,
-                                                            {{ Number(websiteData.whereToStayLongitude).toFixed(4)
-                                                            }}°</span>
+                                                        <span class="text-[11px]">{{ Number(websiteData.whereToStayLatitude).toFixed(4) }}°, {{ Number(websiteData.whereToStayLongitude).toFixed(4) }}°</span>
                                                         <UIcon name="i-lucide-external-link" class="w-3 h-3" />
                                                     </a>
-                                                </p>
+                                                </div>
                                             </div>
 
                                             <div v-if="websiteData.whereToStayLocation"
-                                                class="relative w-full h-80 max-w-4xl mx-auto rounded-xl overflow-hidden shadow-lg border"
+                                                class="relative w-full h-80 max-w-5xl mx-auto rounded-xl overflow-hidden shadow-lg border"
                                                 :style="{ borderColor: previewDynamicStyle(index).text }">
                                                 <iframe width="100%" height="100%" frameborder="0" scrolling="no"
                                                     marginheight="0" marginwidth="0"
@@ -4311,7 +4409,7 @@ function togglePreview() {
                                             </div>
 
                                             <!-- 4 Suggested Accommodations Buttons (Google Reviews) -->
-                                            <div class="max-w-4xl mx-auto w-full pt-4 space-y-4">
+                                            <div class="max-w-5xl mx-auto w-full pt-4 space-y-4">
                                                 <div
                                                     class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-left">
                                                     <div>
@@ -4334,17 +4432,18 @@ function togglePreview() {
                                                     </a>
                                                 </div>
 
-                                                <!-- 4 Accommodation UPageCard Grid -->
-                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                                    <UPageCard v-for="(hotel, slotIdx) in previewAccommodations"
+                                                <!-- 4 Accommodation Grid -->
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    <a v-for="(hotel, slotIdx) in previewAccommodations"
                                                         :key="hotel.id || slotIdx"
-                                                        :to="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
+                                                        :href="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
                                                         target="_blank" rel="noopener noreferrer"
-                                                        class="group overflow-hidden rounded-2xl border border-current/15 hover:border-current/40 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col backdrop-blur-md"
+                                                        class="group overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col"
                                                         :style="{
-                                                            backgroundColor: previewDynamicStyle(index).bg,
+                                                            backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                            borderColor: previewDynamicStyle(index).text + '25',
                                                             color: previewDynamicStyle(index).text
-                                                        }" :ui="{ container: 'p-0 flex flex-col h-full ring-0' }">
+                                                        }">
                                                         <!-- Venue Image Section -->
                                                         <div
                                                             class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5">
@@ -4399,7 +4498,7 @@ function togglePreview() {
                                                                     class="w-4 h-4 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                                                             </div>
                                                         </div>
-                                                    </UPageCard>
+                                                    </a>
                                                 </div>
                                             </div>
                                         </div>
@@ -4407,13 +4506,20 @@ function togglePreview() {
                                         <!-- Travel Preview Placeholder -->
                                         <div v-if="compId === 'travel' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-travel"
-                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                Travel</div>
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    Travel</div>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                            </div>
                                             <div class="text-sm italic opacity-70"
                                                 :style="{ color: previewDynamicStyle(index).text }">
                                                 [ Travel Component Preview goes here ]
@@ -4431,7 +4537,7 @@ function togglePreview() {
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-wedding-party"
-                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
@@ -4442,6 +4548,11 @@ function togglePreview() {
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Wedding Party
                                                 </h2>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
                                                 <p v-if="weddingPartyIntro"
                                                     class="text-sm sm:text-base leading-relaxed opacity-80"
                                                     :style="{ color: previewDynamicStyle(index).text }">
@@ -4451,7 +4562,7 @@ function togglePreview() {
 
                                             <!-- 2 Columns: Maid of Honor & Bridesmaids on Left, Best Man & Groomsmen on Right -->
                                             <div
-                                                class="max-w-2xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-14 pt-2">
+                                                class="max-w-5xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-14 pt-2">
                                                 <!-- Left Column: Maid of Honor + Bridesmaids -->
                                                 <div class="flex flex-col gap-8 text-center">
                                                     <!-- Maid of Honor -->
@@ -4522,7 +4633,7 @@ function togglePreview() {
                                             <!-- Other Entourage Members (if any exist) -->
                                             <div v-if="otherWeddingPartyMembers.length > 0"
                                                 class="max-w-xl mx-auto w-full pt-4 space-y-6 text-center">
-                                                <div class="space-y-2">
+                                                <div class="space-y-3 max-w-2xl mx-auto">
                                                     <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80"
                                                         :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                         Entourage
@@ -4543,15 +4654,22 @@ function togglePreview() {
                                     <template v-for="(diy, diyIndex) in diyComponents" :key="`diy-${diy.id}`">
                                         <div v-if="websiteData.singlePageSite || activeComponentId === `diy-${diy.id}`"
                                             :id="`preview-section-diy-${diy.id}`"
-                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).bg,
                                             }">
-                                            <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                {{ diy.header }}
-                                            </h2>
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    {{ diy.header }}
+                                                </h2>
+                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).heading }" />
+                                                </div>
+                                            </div>
                                             <div class="prose max-w-none mx-auto text-center transition-all duration-300"
                                                 :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
                                                 :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).text }">
@@ -4562,14 +4680,21 @@ function togglePreview() {
 
                                     <!-- Thank You / Ending Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
-                                        class="flex flex-col justify-center gap-6 px-6 pt-28 sm:pt-36 pb-20 text-center"
+                                        class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg }">
-                                        <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                            :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                            :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                            {{ websiteData.endingTitle }}
-                                        </h2>
+                                        <div class="space-y-3 max-w-2xl mx-auto">
+                                            <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                                {{ websiteData.endingTitle }}
+                                            </h2>
+                                            <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
+                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
+                                            </div>
+                                        </div>
                                         <p class="prose max-w-none mx-auto text-center transition-all duration-300"
                                             :class="isLive || isPreviewing ? 'text-2xl' : 'text-lg'"
                                             :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).text }">

@@ -694,7 +694,7 @@ function openWebsiteMaker() {
             <!-- LAYOUT 1: MODERN GRID -->
             <div
               v-else-if="gallery.layout === 'grid'"
-              class="grid gap-4 sm:gap-6 max-w-6xl mx-auto"
+              class="grid gap-4 sm:gap-6 max-w-5xl mx-auto"
               :class="{
                 'grid-cols-1 sm:grid-cols-2': gallery.columns === 2,
                 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3': gallery.columns === 3,
@@ -726,7 +726,7 @@ function openWebsiteMaker() {
             <!-- LAYOUT 2: EDITORIAL MASONRY -->
             <div
               v-else-if="gallery.layout === 'masonry'"
-              class="gap-4 sm:gap-6 max-w-6xl mx-auto space-y-4 sm:space-y-6"
+              class="gap-4 sm:gap-6 max-w-5xl mx-auto space-y-4 sm:space-y-6"
               :class="{
                 'columns-1 sm:columns-2': gallery.columns === 2,
                 'columns-1 sm:columns-2 lg:columns-3': gallery.columns === 3,
@@ -756,7 +756,7 @@ function openWebsiteMaker() {
             </div>
 
             <!-- LAYOUT 3: HERO SPOTLIGHT / COLLAGE -->
-            <div v-else-if="gallery.layout === 'collage'" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div v-else-if="gallery.layout === 'collage'" class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
               <!-- Featured Hero (First Photo) -->
               <div
                 v-if="gallery.photos[0]"
@@ -810,7 +810,7 @@ function openWebsiteMaker() {
             </div>
 
             <!-- LAYOUT 4: FILMSTRIP CAROUSEL -->
-            <div v-else-if="gallery.layout === 'filmstrip'" class="w-full min-w-0 max-w-6xl mx-auto space-y-3">
+            <div v-else-if="gallery.layout === 'filmstrip'" class="w-full min-w-0 max-w-5xl mx-auto space-y-3">
               <div class="flex items-center justify-between text-xs text-toast-500">
                 <span class="inline-flex items-center gap-1.5 font-medium">
                   <UIcon name="i-lucide-arrow-left-right" class="size-3.5" />
@@ -850,7 +850,7 @@ function openWebsiteMaker() {
             <!-- LAYOUT 5: POLAROID KEEPSAKES -->
             <div
               v-else-if="gallery.layout === 'polaroid'"
-              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto pt-2">
+              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto pt-2">
               <div
                 v-for="(photo, idx) in gallery.photos"
                 :key="photo.id"

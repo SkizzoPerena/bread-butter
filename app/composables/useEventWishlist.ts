@@ -51,6 +51,7 @@ export function useEventWishlist(options: {
   const giftForm = reactive({
     name: '',
     url: '',
+    isFulfilled: false,
   })
 
   const isDeleteQrModalOpen = ref(false)
@@ -59,6 +60,7 @@ export function useEventWishlist(options: {
   const giftToDelete = ref<GiftItemEntry | null>(null)
   const deletingQrId = ref<string | null>(null)
   const deletingGiftId = ref<string | null>(null)
+  const togglingGiftId = ref<string | null>(null)
 
   const qrCodes = computed(() => wishlist.value?.qrCodes ?? [])
   const giftItems = computed(() => wishlist.value?.wishedItems ?? [])
@@ -85,6 +87,7 @@ export function useEventWishlist(options: {
   function resetGiftForm() {
     giftForm.name = ''
     giftForm.url = ''
+    giftForm.isFulfilled = false
     editingGiftId.value = null
   }
 
@@ -227,6 +230,7 @@ export function useEventWishlist(options: {
     editingGiftId.value = entry._id
     giftForm.name = entry.name
     giftForm.url = entry.url ?? ''
+    giftForm.isFulfilled = Boolean(entry.isFulfilled)
     isGiftModalOpen.value = true
   }
 
@@ -261,6 +265,7 @@ export function useEventWishlist(options: {
       const payload = {
         name,
         ...(url ? { url } : {}),
+        ...(giftModalMode.value === 'edit' ? { isFulfilled: giftForm.isFulfilled } : {}),
       }
 
       let response
@@ -280,6 +285,31 @@ export function useEventWishlist(options: {
       reportApiError(toast, { title: 'Could not save gift item', error })
     } finally {
       isSubmitting.value = false
+    }
+  }
+
+  async function toggleGiftFulfilled(entry: GiftItemEntry) {
+    const eventId = options.eventId.value
+    if (!eventId || options.mutationsDisabled.value) {
+      return
+    }
+
+    togglingGiftId.value = entry._id
+    try {
+      const nextFulfilled = !entry.isFulfilled
+      const response = await updateGiftItem(eventId, entry._id, {
+        isFulfilled: nextFulfilled,
+      })
+      wishlist.value = response.wishlist
+      toast.add({
+        title: nextFulfilled ? 'Gift Marked as Claimed' : 'Gift Available',
+        description: `Marked "${entry.name}" as ${nextFulfilled ? 'claimed / fulfilled' : 'available'}.`,
+        color: 'success',
+      })
+    } catch (error) {
+      reportApiError(toast, { title: 'Could not update gift status', error })
+    } finally {
+      togglingGiftId.value = null
     }
   }
 
@@ -330,6 +360,7 @@ export function useEventWishlist(options: {
     giftToDelete,
     deletingQrId,
     deletingGiftId,
+    togglingGiftId,
     loadWishlist,
     openCreateQrModal,
     openEditQrModal,
@@ -342,6 +373,7 @@ export function useEventWishlist(options: {
     openEditGiftModal,
     closeGiftModal,
     submitGiftModal,
+    toggleGiftFulfilled,
     openDeleteGiftModal,
     confirmDeleteGift,
   }

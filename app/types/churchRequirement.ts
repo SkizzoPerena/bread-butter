@@ -46,6 +46,7 @@ export interface ChurchRequirementRecord {
   description: string
   groom: PartyTracking
   bride: PartyTracking
+  completed?: boolean
   createdAt?: string
   updatedAt?: string
 }
@@ -87,6 +88,7 @@ export interface UpdateRequirementDetailsPayload {
   timeline?: string
   sourceUrl?: string
   description?: string
+  completed?: boolean
 }
 
 export interface UpdatePartyRequirementPayload {

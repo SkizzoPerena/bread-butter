@@ -479,20 +479,27 @@ function getVenueGoogleMapsUrl(
             (site.headingContent || site.siteDescription || site.paragraphContent) &&
             (site.singlePageSite || activeComponentId === 'about-us')
           " id="section-about-us"
-            class="flex flex-col justify-center mx-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+            class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
             :style="{ minHeight: componentMinHeight }">
-            <UContainer v-if="site.headingContent"
-              class="font-bold italic text-5xl mb-6 pt-2 sm:pt-4 transition-all duration-300" :style="{
-                color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
-                fontFamily: `'${typography.subheaderFont}'`,
-              }">
-              {{ site.headingContent }}
-            </UContainer>
-            <div v-if="site.siteDescription || site.paragraphContent"
-              class="prose max-w-none mx-auto text-center text-xl transition-all duration-300" :style="{
-                color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
-              }">
-              {{ site.siteDescription || site.paragraphContent }}
+            <div class="space-y-3 max-w-2xl mx-auto w-full">
+              <UContainer v-if="site.headingContent"
+                class="font-bold italic text-5xl pt-2 sm:pt-4 transition-all duration-300" :style="{
+                  color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+                  fontFamily: `'${typography.subheaderFont}'`,
+                }">
+                {{ site.headingContent }}
+              </UContainer>
+              <div v-if="site.headingContent" class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
+                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
+              </div>
+              <div v-if="site.siteDescription || site.paragraphContent"
+                class="prose max-w-none mx-auto text-center text-xl transition-all duration-300" :style="{
+                  color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+                }">
+                {{ site.siteDescription || site.paragraphContent }}
+              </div>
             </div>
           </div>
 
@@ -503,7 +510,7 @@ function getVenueGoogleMapsUrl(
               compId === 'dress-code' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-dress-code"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -517,6 +524,11 @@ function getVenueGoogleMapsUrl(
                 }">
                   Color &amp; Dress Code
                 </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
                 <div v-if="effectiveDressCode?.formality"
                   class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
                   :style="{ color: getSectionStyle(index).heading }">
@@ -526,7 +538,7 @@ function getVenueGoogleMapsUrl(
               </div>
 
               <!-- Section 1: Color Palette (Image, Editor, or Both) -->
-              <div class="max-w-2xl mx-auto w-full space-y-3.5">
+              <div class="max-w-5xl mx-auto w-full space-y-3.5">
                 <div class="flex items-center justify-between text-xs uppercase tracking-wider font-semibold opacity-80"
                   :style="{ color: getSectionStyle(index).heading }">
                   <span class="inline-flex items-center gap-1.5">
@@ -536,10 +548,54 @@ function getVenueGoogleMapsUrl(
                   <span>{{ (effectiveDressCode?.paletteType === 'image' && effectiveDressCode?.paletteImage) ? 'Pre-made Graphic' : (effectiveDressCode?.presetPaletteName || 'Curated Colors') }}</span>
                 </div>
 
-                <!-- Option 1: Pre-made Palette Image -->
-                <div v-if="(effectiveDressCode?.paletteType === 'image' || effectiveDressCode?.paletteType === 'both') && effectiveDressCode?.paletteImage"
+                <!-- Option: Both Image & Swatches in a Single Row -->
+                <div v-if="effectiveDressCode?.paletteType === 'both' && effectiveDressCode?.paletteImage"
+                  class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch">
+                  <!-- Col-span-2: Color Palette Image -->
+                  <div class="sm:col-span-2 h-full">
+                    <div class="relative h-full min-h-64 sm:min-h-72 rounded-2xl overflow-hidden border border-current/20 shadow-xs cursor-pointer group flex items-center justify-center p-3 backdrop-blur-md"
+                      :style="{
+                        backgroundColor: getSectionStyle(index).text + '0D',
+                        borderColor: getSectionStyle(index).text + '25',
+                      }"
+                      @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: effectiveDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                      <img :src="effectiveDressCode.paletteImage" alt="Color Palette Graphic"
+                        class="w-full h-full max-h-72 object-contain rounded-xl" />
+                      <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                        <UIcon name="i-lucide-zoom-in" class="size-4" />
+                        <span>Click to view full palette graphic</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Col-span-1: Color Breakdown (Vertical) -->
+                  <div class="sm:col-span-1 flex flex-col justify-between gap-2.5 h-full">
+                    <div v-for="(hex, key) in (effectiveDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
+                      :key="key"
+                      class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 cursor-pointer flex-1 min-h-12"
+                      :style="{ backgroundColor: hex }"
+                      @click="copyHexToClipboard(hex)">
+                      <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
+                        {{ key }}
+                      </span>
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
+                          {{ hex }}
+                        </span>
+                        <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Option: Pre-made Palette Image Only -->
+                <div v-else-if="effectiveDressCode?.paletteType === 'image' && effectiveDressCode?.paletteImage"
                   class="w-full">
-                  <div class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2.5 backdrop-blur-xs"
+                  <div class="relative rounded-2xl overflow-hidden border border-current/20 shadow-xs cursor-pointer group flex items-center justify-center p-3 backdrop-blur-md"
+                    :style="{
+                      backgroundColor: getSectionStyle(index).text + '0D',
+                      borderColor: getSectionStyle(index).text + '25',
+                    }"
                     @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: effectiveDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
                     <img :src="effectiveDressCode.paletteImage" alt="Color Palette Graphic"
                       class="w-full max-h-72 object-contain rounded-xl" />
@@ -550,14 +606,8 @@ function getVenueGoogleMapsUrl(
                   </div>
                 </div>
 
-                <!-- Option 2: 4 Color Swatches -->
-                <div v-if="effectiveDressCode?.paletteType === 'editor' || effectiveDressCode?.paletteType === 'both' || !effectiveDressCode?.paletteImage"
-                  class="space-y-2">
-                  <div v-if="effectiveDressCode?.paletteType === 'both' && effectiveDressCode?.paletteImage"
-                    class="text-[11px] font-bold uppercase tracking-wider text-left opacity-75"
-                    :style="{ color: getSectionStyle(index).heading }">
-                    Color Swatch Breakdown
-                  </div>
+                <!-- Option: 4 Color Swatches (Editor Mode or Fallback) -->
+                <div v-else class="space-y-2">
                   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div v-for="(hex, key) in (effectiveDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
                       :key="key"
@@ -579,12 +629,16 @@ function getVenueGoogleMapsUrl(
               </div>
 
               <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) -->
-              <div class="max-w-2xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+              <div class="max-w-5xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                 <!-- Gentlemen -->
-                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
-                  :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: getSectionStyle(index).text }">
+                <div class="p-4 sm:p-5 rounded-2xl border border-current/20 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                  :style="{
+                    backgroundColor: getSectionStyle(index).text + '0D',
+                    borderColor: getSectionStyle(index).text + '25',
+                    color: getSectionStyle(index).text,
+                  }">
                   <div class="flex items-center gap-2 mb-2" :style="{ color: getSectionStyle(index).heading }">
-                    <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
+                    <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center">
                       <UIcon name="i-lucide-user" class="size-4" />
                     </div>
                     <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
@@ -598,11 +652,15 @@ function getVenueGoogleMapsUrl(
                 </div>
 
                 <!-- Ladies -->
-                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
-                  :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: getSectionStyle(index).text }">
+                <div class="p-4 sm:p-5 rounded-2xl border border-current/20 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                  :style="{
+                    backgroundColor: getSectionStyle(index).text + '0D',
+                    borderColor: getSectionStyle(index).text + '25',
+                    color: getSectionStyle(index).text,
+                  }">
                   <div class="flex items-center gap-2 mb-2" :style="{ color: getSectionStyle(index).heading }">
-                    <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
-                      <UIcon name="i-lucide-heart" class="size-4 text-rose-500" />
+                    <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center">
+                      <UIcon name="i-lucide-heart" class="size-4 text-current" />
                     </div>
                     <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
                       :style="{ fontFamily: `'${typography.subheaderFont}'` }">
@@ -616,11 +674,15 @@ function getVenueGoogleMapsUrl(
               </div>
 
               <!-- Section 3: Guest Notes & Colors to Avoid -->
-              <div class="max-w-2xl mx-auto w-full space-y-3 text-left">
+              <div class="max-w-5xl mx-auto w-full space-y-3 text-left">
                 <!-- Guest Notes -->
                 <div v-if="effectiveDressCode?.guestNotes"
-                  class="p-4 rounded-xl border border-current/15 backdrop-blur-md shadow-xs"
-                  :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: getSectionStyle(index).text }">
+                  class="p-4 rounded-xl border border-current/20 backdrop-blur-md shadow-xs"
+                  :style="{
+                    backgroundColor: getSectionStyle(index).text + '0D',
+                    borderColor: getSectionStyle(index).text + '25',
+                    color: getSectionStyle(index).text,
+                  }">
                   <div class="flex items-start gap-2.5">
                     <UIcon name="i-lucide-info" class="size-4 shrink-0 mt-0.5 opacity-80" />
                     <div class="text-xs sm:text-sm leading-relaxed">
@@ -632,18 +694,23 @@ function getVenueGoogleMapsUrl(
 
                 <!-- Colors to Avoid -->
                 <div v-if="effectiveDressCode?.avoidColors"
-                  class="p-3.5 rounded-xl border border-red-300 bg-red-50/80 text-red-950 flex items-start gap-2.5 shadow-xs">
-                  <UIcon name="i-lucide-alert-triangle" class="size-4 text-red-600 shrink-0 mt-0.5" />
+                  class="p-4 rounded-xl border border-current/20 backdrop-blur-md shadow-xs flex items-start gap-2.5"
+                  :style="{
+                    backgroundColor: getSectionStyle(index).text + '0D',
+                    borderColor: getSectionStyle(index).text + '25',
+                    color: getSectionStyle(index).text,
+                  }">
+                  <UIcon name="i-lucide-ban" class="size-4 shrink-0 mt-0.5" :style="{ color: getSectionStyle(index).heading }" />
                   <div class="text-xs sm:text-sm leading-relaxed">
-                    <span class="font-bold text-red-900">Colors to Avoid: </span>
-                    <span class="text-red-800">{{ effectiveDressCode.avoidColors }}</span>
+                    <span class="font-bold block mb-0.5" :style="{ color: getSectionStyle(index).heading }">Colors to Avoid:</span>
+                    <span class="opacity-90">{{ effectiveDressCode.avoidColors }}</span>
                   </div>
                 </div>
               </div>
 
               <!-- Section 4: Moodboard Inspiration Gallery -->
               <div v-if="effectiveDressCode?.images && effectiveDressCode.images.length > 0"
-                class="max-w-4xl mx-auto w-full space-y-4 pt-4">
+                class="max-w-5xl mx-auto w-full space-y-4 pt-4">
                 <div class="flex items-center justify-between text-left">
                   <div>
                     <h3 class="text-base sm:text-lg font-bold"
@@ -660,9 +727,16 @@ function getVenueGoogleMapsUrl(
                   </span>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                <div class="grid gap-3.5"
+                  :class="{
+                    'grid-cols-1': (effectiveDressCode?.images?.length || 0) === 1,
+                    'grid-cols-1 sm:grid-cols-2': (effectiveDressCode?.images?.length || 0) === 2,
+                    'grid-cols-1 sm:grid-cols-3': (effectiveDressCode?.images?.length || 0) === 3,
+                    'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4': (effectiveDressCode?.images?.length || 0) >= 4,
+                  }">
                   <div v-for="img in effectiveDressCode.images" :key="img.id"
-                    class="group relative aspect-4/5 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                    class="group relative rounded-xl overflow-hidden bg-black/5 border border-current/20 shadow-sm cursor-pointer"
+                    :class="(effectiveDressCode?.images?.length || 0) === 1 ? 'aspect-16/9 sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
                     @click="selectedDressCodeLightboxImage = img; isDressCodeLightboxOpen = true">
                     <img :src="img.dataUrl" :alt="img.name"
                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -691,16 +765,16 @@ function getVenueGoogleMapsUrl(
               }">
               <!-- Header -->
               <div class="space-y-3 max-w-3xl mx-auto">
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
-                  :style="{ color: getSectionStyle(index).heading }">
-                  <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                  <span>Moments</span>
-                </div>
                 <div class="font-bold text-4xl sm:text-5xl pt-1" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ effectiveGallery.title || 'Captured Moments' }}
+                </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
                 <p v-if="effectiveGallery.subtitle" class="text-sm sm:text-base opacity-80 max-w-xl mx-auto leading-relaxed"
                   :style="{ color: getSectionStyle(index).text }">
@@ -710,7 +784,7 @@ function getVenueGoogleMapsUrl(
 
               <!-- Layout 1: Modern Grid -->
               <div v-if="effectiveGallery.layout === 'grid'"
-                class="grid gap-4 sm:gap-6 max-w-6xl mx-auto w-full"
+                class="grid gap-4 sm:gap-6 max-w-5xl mx-auto w-full"
                 :class="{
                   'grid-cols-1 sm:grid-cols-2': effectiveGallery.columns === 2,
                   'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3': effectiveGallery.columns === 3,
@@ -732,7 +806,7 @@ function getVenueGoogleMapsUrl(
 
               <!-- Layout 2: Editorial Masonry -->
               <div v-else-if="effectiveGallery.layout === 'masonry'"
-                class="gap-4 sm:gap-6 max-w-6xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
+                class="gap-4 sm:gap-6 max-w-5xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
                 :class="{
                   'columns-1 sm:columns-2': effectiveGallery.columns === 2,
                   'columns-1 sm:columns-2 lg:columns-3': effectiveGallery.columns === 3,
@@ -751,7 +825,7 @@ function getVenueGoogleMapsUrl(
 
               <!-- Layout 3: Hero Spotlight -->
               <div v-else-if="effectiveGallery.layout === 'collage'"
-                class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
+                class="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
                 <div v-if="effectiveGallery.photos[0]"
                   class="lg:col-span-2 group relative aspect-4/3 lg:aspect-auto lg:h-full min-h-80 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-md cursor-pointer transition-all hover:shadow-2xl"
                   @click="selectedGalleryLightboxPhoto = effectiveGallery.photos[0]; isGalleryLightboxOpen = true">
@@ -777,7 +851,7 @@ function getVenueGoogleMapsUrl(
 
               <!-- Layout 4: Filmstrip Carousel -->
               <div v-else-if="effectiveGallery.layout === 'filmstrip'"
-                class="max-w-6xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
+                class="max-w-5xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
                 <div v-for="photo in effectiveGallery.photos" :key="photo.id"
                   class="snap-start shrink-0 w-64 sm:w-72 aspect-3/4 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 text-left"
                   @click="selectedGalleryLightboxPhoto = photo; isGalleryLightboxOpen = true">
@@ -791,7 +865,7 @@ function getVenueGoogleMapsUrl(
 
               <!-- Layout 5: Polaroid Keepsakes -->
               <div v-else-if="effectiveGallery.layout === 'polaroid'"
-                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto w-full pt-2">
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto w-full pt-2">
                 <div v-for="(photo, pIdx) in effectiveGallery.photos" :key="photo.id"
                   class="bg-white p-3 sm:p-4 pb-6 rounded-sm shadow-md border border-black/10 transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 cursor-pointer group"
                   :class="pIdx % 3 === 0 ? '-rotate-1 hover:rotate-0' : (pIdx % 3 === 1 ? 'rotate-1 hover:rotate-0' : '-rotate-0.5 hover:rotate-0')"
@@ -815,16 +889,23 @@ function getVenueGoogleMapsUrl(
               site.tidbits.length > 0 &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-q-and-a"
-              class="flex flex-col justify-center gap-10 px-6 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                color: getSectionStyle(index).heading,
-                fontFamily: `'${typography.subheaderFont}'`,
-              }">
-                Q&amp;A
+              <div class="space-y-3 max-w-2xl mx-auto">
+                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                  color: getSectionStyle(index).heading,
+                  fontFamily: `'${typography.subheaderFont}'`,
+                }">
+                  Q&amp;A
+                </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
               </div>
               <div v-for="(tidbit, tidbitIndex) in site.tidbits" :key="tidbitIndex" class="flex flex-col gap-3">
                 <h3 class="font-bold text-4xl" :style="{
@@ -846,16 +927,23 @@ function getVenueGoogleMapsUrl(
               site.scheduleItems.length > 0 &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-schedule"
-              class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                color: getSectionStyle(index).heading,
-                fontFamily: `'${typography.subheaderFont}'`,
-              }">
-                Schedule
+              <div class="space-y-3 max-w-2xl mx-auto">
+                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                  color: getSectionStyle(index).heading,
+                  fontFamily: `'${typography.subheaderFont}'`,
+                }">
+                  Schedule
+                </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
               </div>
               <div v-for="(item, itemIndex) in site.scheduleItems" :key="itemIndex" class="flex flex-col gap-3">
                 <!-- Date & Time badge -->
@@ -898,16 +986,23 @@ function getVenueGoogleMapsUrl(
 
             <!-- RSVP -->
             <div v-if="compId === 'rsvp' && (site.singlePageSite || activeComponentId === compId)" id="section-rsvp"
-              class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                color: getSectionStyle(index).heading,
-                fontFamily: `'${typography.subheaderFont}'`,
-              }">
-                RSVP
+              <div class="space-y-3 max-w-2xl mx-auto">
+                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                  color: getSectionStyle(index).heading,
+                  fontFamily: `'${typography.subheaderFont}'`,
+                }">
+                  RSVP
+                </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
               </div>
               <div class="flex flex-col items-center gap-5 text-sm" :style="{ color: getSectionStyle(index).text }">
                 <div v-if="site.rsvpDeadlineDate" class="font-semibold uppercase tracking-widest text-xs opacity-80">
@@ -947,37 +1042,42 @@ function getVenueGoogleMapsUrl(
               compId === 'where-to-stay' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-where-to-stay"
-              class="flex flex-col justify-center gap-8 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="space-y-2">
+              <div class="space-y-3 max-w-2xl mx-auto">
                 <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   Where to Stay
                 </div>
-                <p v-if="site.whereToStayLocation"
-                  class="text-sm sm:text-base opacity-75 inline-flex items-center gap-1.5 flex-wrap justify-center"
-                  :style="{ color: getSectionStyle(index).text }">
-                  <UIcon name="i-lucide-map-pin" class="w-4 h-4 shrink-0" />
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
+                <div v-if="site.whereToStayLocation"
+                  class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                  :style="{ color: getSectionStyle(index).heading }">
+                  <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5" />
                   <span>{{ site.whereToStayLocation }}</span>
                   <a v-if="site.whereToStayLatitude && site.whereToStayLongitude"
                     :href="getVenueGoogleMapsUrl(site.whereToStayLocation, { lat: site.whereToStayLatitude, lng: site.whereToStayLongitude })"
                     target="_blank" rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-current/20 hover:border-current/50 opacity-80 hover:opacity-100 transition-opacity ml-1"
+                    class="inline-flex items-center gap-1 pl-1.5 border-l border-current/20 hover:opacity-100 opacity-75 transition-opacity normal-case"
                     title="View pin on Google Maps">
-                    <span>{{ Number(site.whereToStayLatitude).toFixed(4) }}°, {{
+                    <span class="text-[11px]">{{ Number(site.whereToStayLatitude).toFixed(4) }}°, {{
                       Number(site.whereToStayLongitude).toFixed(4) }}°</span>
                     <UIcon name="i-lucide-external-link" class="w-3 h-3" />
                   </a>
-                </p>
+                </div>
               </div>
 
               <div v-if="site.whereToStayLocation"
-                class="relative w-full h-80 max-w-4xl mx-auto rounded-xl overflow-hidden shadow-lg border"
+                class="relative w-full h-80 max-w-5xl mx-auto rounded-xl overflow-hidden shadow-lg border"
                 :style="{ borderColor: getSectionStyle(index).text }">
                 <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"
                   :src="getGoogleMapsUrl(site.whereToStayLocation, { lat: site.whereToStayLatitude, lng: site.whereToStayLongitude })"
@@ -989,7 +1089,7 @@ function getVenueGoogleMapsUrl(
               </div>
 
               <!-- 4 Suggested Accommodations Buttons (Google Reviews) -->
-              <div class="max-w-4xl mx-auto w-full pt-4 space-y-4">
+              <div class="max-w-5xl mx-auto w-full pt-4 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-left">
                   <div>
                     <h3 class="text-xl sm:text-2xl font-bold" :style="{
@@ -1011,16 +1111,17 @@ function getVenueGoogleMapsUrl(
                   </a>
                 </div>
 
-                <!-- 4 Accommodation UPageCard Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <UPageCard v-for="(hotel, slotIdx) in effectiveAccommodations.slice(0, 4)" :key="hotel.id || slotIdx"
-                    :to="getAccommodationGoogleUrl(hotel, site.whereToStayLocation)" target="_blank"
+                <!-- 4 Accommodation Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <a v-for="(hotel, slotIdx) in effectiveAccommodations.slice(0, 4)" :key="hotel.id || slotIdx"
+                    :href="getAccommodationGoogleUrl(hotel, site.whereToStayLocation)" target="_blank"
                     rel="noopener noreferrer"
-                    class="group overflow-hidden rounded-2xl border border-current/15 hover:border-current/40 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col backdrop-blur-md"
+                    class="group overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col"
                     :style="{
-                      backgroundColor: getSectionStyle(index).bg,
+                      backgroundColor: getSectionStyle(index).text + '0D',
+                      borderColor: getSectionStyle(index).text + '25',
                       color: getSectionStyle(index).text,
-                    }" :ui="{ container: 'p-0 flex flex-col h-full ring-0' }">
+                    }">
                     <!-- Venue Image Section -->
                     <div class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5">
                       <img :src="getAccommodationImage(hotel)" :alt="hotel.name || 'Venue Accommodation'"
@@ -1069,23 +1170,30 @@ function getVenueGoogleMapsUrl(
                           class="w-4 h-4 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                       </div>
                     </div>
-                  </UPageCard>
+                  </a>
                 </div>
               </div>
             </div>
 
             <!-- Travel -->
             <div v-if="compId === 'travel' && (site.singlePageSite || activeComponentId === compId)" id="section-travel"
-              class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                color: getSectionStyle(index).heading,
-                fontFamily: `'${typography.subheaderFont}'`,
-              }">
-                Travel
+              <div class="space-y-3 max-w-2xl mx-auto">
+                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                  color: getSectionStyle(index).heading,
+                  fontFamily: `'${typography.subheaderFont}'`,
+                }">
+                  Travel
+                </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
               </div>
             </div>
 
@@ -1094,7 +1202,7 @@ function getVenueGoogleMapsUrl(
               compId === 'wedding-party' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-wedding-party"
-              class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -1107,6 +1215,11 @@ function getVenueGoogleMapsUrl(
                 }">
                   Wedding Party
                 </div>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
                 <p v-if="site.weddingPartyIntro" class="text-base sm:text-lg leading-relaxed opacity-80"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ site.weddingPartyIntro }}
@@ -1114,7 +1227,7 @@ function getVenueGoogleMapsUrl(
               </div>
 
               <!-- 2 Columns: Maid of Honor & Bridesmaids on Left, Best Man & Groomsmen on Right -->
-              <div class="max-w-2xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-14 pt-2">
+              <div class="max-w-5xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-14 pt-2">
                 <!-- Left Column: Maid of Honor + Bridesmaids -->
                 <div class="flex flex-col gap-8 text-center">
                   <!-- Maid of Honor -->
@@ -1201,7 +1314,7 @@ function getVenueGoogleMapsUrl(
               <!-- Other Entourage Members (if any exist) -->
               <div v-if="otherWeddingPartyMembers.length > 0"
                 class="max-w-xl mx-auto w-full pt-4 space-y-6 text-center">
-                <div class="space-y-2">
+                <div class="space-y-3 max-w-2xl mx-auto">
                   <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80" :style="{
                     color: getSectionStyle(index).heading,
                     fontFamily: `'${typography.subheaderFont}'`,
@@ -1225,17 +1338,24 @@ function getVenueGoogleMapsUrl(
           <!-- DIY Components -->
           <template v-for="(diy, diyIndex) in site.diyComponents" :key="`diy-${diy.id}`">
             <div v-if="site.singlePageSite || activeComponentId === `diy-${diy.id}`" :id="`section-diy-${diy.id}`"
-              class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(displayComponents.length + diyIndex).bg,
               }">
-              <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                color: getSectionStyle(displayComponents.length + diyIndex).heading,
-                fontFamily: `'${typography.subheaderFont}'`,
-              }">
-                {{ diy.header }}
-              </h2>
+              <div class="space-y-3 max-w-2xl mx-auto">
+                <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                  color: getSectionStyle(displayComponents.length + diyIndex).heading,
+                  fontFamily: `'${typography.subheaderFont}'`,
+                }">
+                  {{ diy.header }}
+                </h2>
+                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + diyIndex).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + diyIndex).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + diyIndex).heading }" />
+                </div>
+              </div>
               <div class="prose max-w-none mx-auto text-center text-xl" :style="{
                 color: getSectionStyle(displayComponents.length + diyIndex).text,
               }">
@@ -1246,21 +1366,28 @@ function getVenueGoogleMapsUrl(
 
           <!-- Thank You / Ending Section -->
           <div v-if="site.singlePageSite || activeComponentId === 'about-us'"
-            class="flex flex-col justify-center gap-6 px-6 pt-28 sm:pt-36 pb-20 text-center transition-colors duration-500"
+            class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center transition-colors duration-500"
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: getSectionStyle(
                 displayComponents.length + (site.diyComponents?.length || 0)
               ).bg,
             }">
-            <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-              color: getSectionStyle(
-                displayComponents.length + (site.diyComponents?.length || 0)
-              ).heading,
-              fontFamily: `'${typography.headerFont}'`,
-            }">
-              {{ site.endingTitle }}
-            </h2>
+            <div class="space-y-3 max-w-2xl mx-auto">
+              <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                color: getSectionStyle(
+                  displayComponents.length + (site.diyComponents?.length || 0)
+                ).heading,
+                fontFamily: `'${typography.headerFont}'`,
+              }">
+                {{ site.endingTitle }}
+              </h2>
+              <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading }" />
+                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading }" />
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading }" />
+              </div>
+            </div>
             <p class="prose max-w-none mx-auto text-center text-2xl" :style="{
               color: getSectionStyle(
                 displayComponents.length + (site.diyComponents?.length || 0)

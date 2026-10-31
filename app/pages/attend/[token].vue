@@ -17,6 +17,10 @@ const loading = ref(true)
 
 const qrValue = computed(() => currentOriginPath(`/attend/${token.value}?checkin=1`))
 
+async function reloadPass() {
+  pass.value = await fetchAttendance(token.value).catch(() => pass.value)
+}
+
 useHead({ title: 'Your seat pass' })
 
 onMounted(async () => {
@@ -32,7 +36,7 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-toast-800 text-bread-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
+    <div class="w-full max-w-xl rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
       <p class="text-sm uppercase tracking-wide">
         Seat pass
       </p>
@@ -67,6 +71,11 @@ onMounted(async () => {
         <p class="text-xs">
           Show this QR at the door.
         </p>
+        <JamSeatPicker
+          v-if="!checkIn"
+          :token="token"
+          @changed="reloadPass"
+        />
       </template>
     </div>
   </div>

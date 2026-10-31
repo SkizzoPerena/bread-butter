@@ -2,6 +2,8 @@ import type { Page } from '@playwright/test'
 import QRCode from 'qrcode'
 import { type ApiCall, GATHERING_ID, PASS_TOKEN, expect, signIn, stubApi } from './helpers'
 
+type RouteMap = NonNullable<NonNullable<Parameters<typeof stubApi>[1]>['routes']>
+
 export const BLANK_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
@@ -50,16 +52,23 @@ export function png(buffer: Buffer, name = 'pass.png') {
 export const passQr = () => QRCode.toBuffer(`https://example.com/attend/${PASS_TOKEN}?checkin=1`, { width: 480, margin: 1 })
 export const gatheringQr = () => QRCode.toBuffer(`https://example.com/seat/${PASS_TOKEN}`, { width: 480, margin: 1 })
 
-export async function openWorkspace(page: Page) {
+export function seatingTable(_id: string, label: string, capacity: number, customLabel = '') {
+  return { _id, label, customLabel, capacity, sortOrder: 0 }
+}
+
+export async function openWorkspace(
+  page: Page,
+  { tables = [] as unknown[], routes = {} as RouteMap, guests: guestOverrides = [{}] as object[] } = {},
+) {
   await signIn(page)
-  const guests = [guestRecord()]
+  const guests = guestOverrides.map(guestRecord)
   const calls = await stubApi(page, {
     routes: {
       [`GET /gatherings/${GATHERING_ID}/guests`]: route => route.fulfill({
         json: { success: true, status: 200, guests, maxGuests: 10, guestCount: guests.length, attendingCount: 1 },
       }),
       [`GET /gatherings/${GATHERING_ID}`]: route => route.fulfill({
-        json: { success: true, status: 200, gathering: GATHERING },
+        json: { success: true, status: 200, gathering: { ...GATHERING, tables } },
       }),
       [`POST /gatherings/${GATHERING_ID}/guests`]: async (route) => {
         const guest = guestRecord({
@@ -78,11 +87,17 @@ export async function openWorkspace(page: Page) {
           guest: { id: 'g1', name: 'Maria Santos', tableLabel: 'Table 1', seatNumber: 2, checkedInAt: new Date().toISOString() },
         },
       }),
+      ...routes,
     },
   })
   await page.goto(`/seating/${GATHERING_ID}`)
-  await expect(page.getByRole('heading', { name: 'Damson supper' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Quick Navigation' })).toBeVisible()
   return calls
+}
+
+export async function openCheckIn(page: Page) {
+  await page.goto(`/seating/checkin/${GATHERING_ID}`)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 }
 
 export function checkInCalls(calls: ApiCall[]) {

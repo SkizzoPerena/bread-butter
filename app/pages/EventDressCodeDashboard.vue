@@ -1563,8 +1563,45 @@ onMounted(async () => {
                 </span>
               </div>
 
-              <!-- Option 1: Pre-made Palette Graphic (Image or Both) -->
-              <div v-if="(dressCode.paletteType === 'image' || dressCode.paletteType === 'both') && dressCode.paletteImage"
+              <!-- Option: Both Image & Swatches in a Single Row -->
+              <div v-if="dressCode.paletteType === 'both' && dressCode.paletteImage"
+                class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch mb-4">
+                <!-- Col-span-2: Color Palette Image -->
+                <div class="sm:col-span-2 h-full">
+                  <div
+                    class="relative h-full min-h-60 sm:min-h-64 rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2"
+                    @click="openImageLightboxUrl(dressCode.paletteImage, 'Event Color Palette')">
+                    <img :src="dressCode.paletteImage" alt="Event Color Palette Graphic"
+                      class="w-full h-full max-h-72 object-contain rounded-xl" />
+                    <div
+                      class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                      <UIcon name="i-lucide-zoom-in" class="size-4" />
+                      <span>Click to view full palette graphic</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Col-span-1: Color Breakdown (Vertical) -->
+                <div class="sm:col-span-1 flex flex-col justify-between gap-2 h-full">
+                  <div v-for="(hex, key) in dressCode.colors" :key="key"
+                    class="p-2.5 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 cursor-pointer flex-1 min-h-11"
+                    :style="{ backgroundColor: hex }"
+                    @click="copyHex(hex)">
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
+                      {{ key }}
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
+                        {{ hex }}
+                      </span>
+                      <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Option 1: Pre-made Palette Graphic (Image Only) -->
+              <div v-else-if="dressCode.paletteType === 'image' && dressCode.paletteImage"
                 class="mb-4">
                 <div
                   class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2"
@@ -1589,13 +1626,8 @@ onMounted(async () => {
                 </UButton>
               </div>
 
-              <!-- Option 2: 4 Interactive Swatches (Editor or Both) -->
-              <div v-if="dressCode.paletteType === 'editor' || dressCode.paletteType === 'both'">
-                <div v-if="dressCode.paletteType === 'both' && dressCode.paletteImage"
-                  class="text-[11px] font-bold uppercase tracking-wider opacity-75 mb-2.5 flex items-center gap-1.5">
-                  <UIcon name="i-lucide-palette" class="size-3.5" />
-                  <span>Color Swatch Breakdown</span>
-                </div>
+              <!-- Option 2: 4 Interactive Swatches (Editor Mode or Fallback) -->
+              <div v-else>
                 <!-- 4 Interactive Swatches -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <!-- Primary -->
@@ -1678,9 +1710,16 @@ onMounted(async () => {
               </div>
 
               <!-- Has uploaded images -->
-              <div v-if="dressCode.images.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+              <div v-if="dressCode.images.length > 0" class="grid gap-3.5"
+                :class="{
+                  'grid-cols-1': dressCode.images.length === 1,
+                  'grid-cols-1 sm:grid-cols-2': dressCode.images.length === 2,
+                  'grid-cols-1 sm:grid-cols-3': dressCode.images.length === 3,
+                  'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4': dressCode.images.length >= 4,
+                }">
                 <div v-for="img in dressCode.images" :key="img.id"
-                  class="group relative aspect-4/5 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                  class="group relative rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                  :class="dressCode.images.length === 1 ? 'aspect-16/9 sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
                   @click="openImageLightbox(img)">
                   <img :src="img.dataUrl" :alt="img.name"
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />

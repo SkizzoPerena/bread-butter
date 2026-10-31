@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { DateFormatter } from '@internationalized/date'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import type { EventRecord } from '~/types/event'
 import { isWeddingEventType } from '~/types/event'
 import type {
@@ -60,10 +61,12 @@ const requirements = ref<ChurchRequirementRecord[]>([])
 const isLoadingEvent = ref(false)
 const savingPartyKey = ref<string | null>(null)
 const isSavingModal = ref(false)
+const isEditingGeneralInfo = ref(false)
+const completedRequirementIds = ref<Set<string>>(new Set())
 
-// Tabs and search state (matching Suppliers structure)
-type RequirementTab = 'tracked' | 'checklist' | 'all'
-const activeTab = ref<RequirementTab>('tracked')
+// Tabs and search state: To Do, Ongoing, and Finished
+type RequirementTab = 'todo' | 'ongoing' | 'finished'
+const activeTab = ref<RequirementTab>('todo')
 const searchQuery = ref('')
 
 // Modals
@@ -137,6 +140,15 @@ const churchRequirementModalUi = {
   overlay: 'bg-yellow-950/40',
 }
 
+const churchRequirementDetailsModalUi = {
+  header: 'bg-yellow-500 border-none px-5 py-4',
+  title: 'text-white font-serif text-xl',
+  content: 'border-none ring-transparent w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl',
+  body: 'p-0 overflow-y-auto max-h-[72vh] focus:outline-none',
+  footer: 'px-5 py-3.5 bg-white border-t border-bread-100 flex items-center justify-between w-full',
+  overlay: 'bg-yellow-950/40',
+}
+
 const isEventCancelled = computed(() => eventRecord.value?.status === 'CANCELLED')
 const isWeddingEvent = computed(() =>
   isWeddingEventType(eventRecord.value?.eventType ?? (isUiOnlyMode.value ? 'WEDDING' : ''))
@@ -169,19 +181,68 @@ const statusSelectItems = computed(() =>
   }))
 )
 
-// Helper: Determine if a requirement has been actioned / tracked
-function isRequirementTracked(item: ChurchRequirementRecord): boolean {
-  const gActive =
-    item.groom?.status !== 'required' ||
-    Boolean(item.groom?.dateAcquired) ||
-    Boolean(item.groom?.notes) ||
-    Boolean(item.groom?.attachedFile)
-  const bActive =
-    item.bride?.status !== 'required' ||
-    Boolean(item.bride?.dateAcquired) ||
-    Boolean(item.bride?.notes) ||
-    Boolean(item.bride?.attachedFile)
-  return gActive || bActive
+// Storage helpers for finished state
+function getStorageKey(id: string): string {
+  return `church_req_completed_${id}`
+}
+
+function loadCompletedFromStorage() {
+  const currentEventId = eventId.value || 'mock-event-id'
+  try {
+    const raw = localStorage.getItem(getStorageKey(currentEventId))
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        completedRequirementIds.value = new Set(parsed)
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function saveCompletedToStorage() {
+  const currentEventId = eventId.value || 'mock-event-id'
+  try {
+    localStorage.setItem(
+      getStorageKey(currentEventId),
+      JSON.stringify(Array.from(completedRequirementIds.value))
+    )
+  } catch {
+    // ignore
+  }
+}
+
+// Helpers: Determine if a party/requirement has been partially touched or completed
+function isPartyTouched(party?: PartyTracking | null): boolean {
+  if (!party) return false
+  return (
+    party.status !== 'required' ||
+    Boolean(party.dateAcquired) ||
+    Boolean(party.notes && party.notes.trim()) ||
+    Boolean(party.attachedFile)
+  )
+}
+
+function isRequirementTouched(item: ChurchRequirementRecord): boolean {
+  return isPartyTouched(item.groom) || isPartyTouched(item.bride)
+}
+
+function isPartyComplete(party?: PartyTracking | null): boolean {
+  if (!party) return false
+  if (party.status === 'waived' || party.status === 'not required') return true
+  if (party.status === 'acquired') return true
+  if (Boolean(party.attachedFile)) return true
+  return false
+}
+
+function hasCompleteDetails(item: ChurchRequirementRecord): boolean {
+  return isPartyComplete(item.groom) && isPartyComplete(item.bride)
+}
+
+function isRequirementFinished(item?: ChurchRequirementRecord | null): boolean {
+  if (!item) return false
+  return Boolean(item.completed) || completedRequirementIds.value.has(item._id)
 }
 
 // Requirements Overview Progress Calculations
@@ -201,38 +262,42 @@ const pendingChecksCount = computed(() => {
   return Math.max(0, totalPartyChecks.value - acquiredChecksCount.value)
 })
 
+// Tab split lists: To Do, Ongoing, and Finished
+const finishedRequirements = computed(() =>
+  requirements.value.filter((r) => isRequirementFinished(r))
+)
+
+const ongoingRequirements = computed(() =>
+  requirements.value.filter((r) => !isRequirementFinished(r) && isRequirementTouched(r))
+)
+
+const todoRequirements = computed(() =>
+  requirements.value.filter((r) => !isRequirementFinished(r) && !isRequirementTouched(r))
+)
+
 const progressPercentage = computed(() => {
-  if (totalPartyChecks.value === 0) return 0
-  return Math.round((acquiredChecksCount.value / totalPartyChecks.value) * 100)
+  if (totalRequirementsCount.value === 0) return 0
+  return Math.round((finishedRequirements.value.length / totalRequirementsCount.value) * 100)
 })
-
-// Tab split lists
-const trackedRequirements = computed(() =>
-  requirements.value.filter((r) => isRequirementTracked(r))
-)
-
-const checklistRequirements = computed(() =>
-  requirements.value.filter((r) => !isRequirementTracked(r))
-)
 
 const tabItems = computed(() => [
   {
-    label: 'Tracked',
-    value: 'tracked',
-    icon: 'i-lucide-bookmark-check',
-    badge: String(trackedRequirements.value.length),
-  },
-  {
-    label: 'To Action',
-    value: 'checklist',
+    label: 'To Do',
+    value: 'todo',
     icon: 'i-lucide-list-todo',
-    badge: String(checklistRequirements.value.length),
+    badge: String(todoRequirements.value.length),
   },
   {
-    label: 'All Documents',
-    value: 'all',
-    icon: 'i-lucide-scroll',
-    badge: String(requirements.value.length),
+    label: 'Ongoing',
+    value: 'ongoing',
+    icon: 'i-lucide-clock',
+    badge: String(ongoingRequirements.value.length),
+  },
+  {
+    label: 'Finished',
+    value: 'finished',
+    icon: 'i-lucide-check-circle-2',
+    badge: String(finishedRequirements.value.length),
   },
 ])
 
@@ -252,16 +317,16 @@ function filterListBySearch(list: ChurchRequirementRecord[]): ChurchRequirementR
   })
 }
 
-const displayedTrackedGrouped = computed(() =>
-  groupRequirementsByCategoryAndTimeline(filterListBySearch(trackedRequirements.value))
+const displayedTodoGrouped = computed(() =>
+  groupRequirementsByCategoryAndTimeline(filterListBySearch(todoRequirements.value))
 )
 
-const displayedChecklistGrouped = computed(() =>
-  groupRequirementsByCategoryAndTimeline(filterListBySearch(checklistRequirements.value))
+const displayedOngoingGrouped = computed(() =>
+  groupRequirementsByCategoryAndTimeline(filterListBySearch(ongoingRequirements.value))
 )
 
-const displayedAllGrouped = computed(() =>
-  groupRequirementsByCategoryAndTimeline(filterListBySearch(requirements.value))
+const displayedFinishedGrouped = computed(() =>
+  groupRequirementsByCategoryAndTimeline(filterListBySearch(finishedRequirements.value))
 )
 
 // Dynamic Category list for "Add [Category] Requirement" buttons
@@ -356,6 +421,12 @@ async function loadChurchRequirementsData() {
     const response = await fetchRequirementsByEvent(targetEventId)
     if (response) {
       requirements.value = response.requirements ?? []
+      loadCompletedFromStorage()
+      for (const item of requirements.value) {
+        if (item.completed) {
+          completedRequirementIds.value.add(item._id)
+        }
+      }
     }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load church requirements', error })
@@ -371,9 +442,141 @@ function replaceRequirementInList(updated: ChurchRequirementRecord) {
   }
 }
 
+// Download attached document helper
+async function downloadDocument(file?: RequirementAttachedFile | null) {
+  if (!file?.fileURL) {
+    toast.add({
+      title: 'No file available',
+      description: 'There is no document attached to download.',
+      color: 'warning',
+    })
+    return
+  }
+
+  try {
+    if (file.fileURL.startsWith('blob:') || file.fileURL.startsWith('data:')) {
+      const link = document.createElement('a')
+      link.href = file.fileURL
+      link.download = file.fileName || 'church-requirement-document'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      try {
+        const res = await fetch(file.fileURL)
+        const blob = await res.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = blobUrl
+        link.download = file.fileName || 'church-requirement-document'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(blobUrl)
+      } catch {
+        const link = document.createElement('a')
+        link.href = file.fileURL
+        link.download = file.fileName || 'church-requirement-document'
+        link.target = '_blank'
+        link.rel = 'noopener noreferrer'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+    }
+    toast.add({
+      title: 'Document download started',
+      description: `Downloading ${file.fileName}...`,
+      color: 'success',
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not download document', error })
+  }
+}
+
+// Mark requirement as complete (moves to finished)
+async function markRequirementComplete(item: ChurchRequirementRecord) {
+  if (mutationsDisabled.value) return
+  try {
+    completedRequirementIds.value.add(item._id)
+    saveCompletedToStorage()
+    const updated = { ...item, completed: true }
+    replaceRequirementInList(updated)
+    await updateRequirementDetails(item._id, { completed: true })
+    toast.add({
+      title: 'Requirement Complete!',
+      description: `"${item.displayName}" has been moved to Finished.`,
+      color: 'success',
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not complete requirement', error })
+  }
+}
+
+// Reopen finished requirement back to ongoing
+async function markRequirementOngoing(item: ChurchRequirementRecord) {
+  if (mutationsDisabled.value) return
+  try {
+    completedRequirementIds.value.delete(item._id)
+    saveCompletedToStorage()
+    const updated = { ...item, completed: false }
+    replaceRequirementInList(updated)
+    await updateRequirementDetails(item._id, { completed: false })
+    toast.add({
+      title: 'Requirement Reopened',
+      description: `"${item.displayName}" has been moved back to Ongoing.`,
+      color: 'neutral',
+    })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not reopen requirement', error })
+  }
+}
+
+// Check if modal form has complete details
+function hasModalFormCompleteDetails(): boolean {
+  const form = requirementModalForm.value
+  const isGroomDone =
+    form.groom.status === 'waived' ||
+    form.groom.status === 'not required' ||
+    form.groom.status === 'acquired' ||
+    Boolean(form.groom.pendingFile) ||
+    Boolean(form.groom.existingFile)
+
+  const isBrideDone =
+    form.bride.status === 'waived' ||
+    form.bride.status === 'not required' ||
+    form.bride.status === 'acquired' ||
+    Boolean(form.bride.pendingFile) ||
+    Boolean(form.bride.existingFile)
+
+  return isGroomDone && isBrideDone
+}
+
+const saveDropdownItems = computed<DropdownMenuItem[][]>(() => {
+  const canComplete =
+    hasModalFormCompleteDetails() &&
+    !isRequirementFinished(selectedRequirementForModal.value)
+  return [
+    [
+      {
+        label: 'Save Changes',
+        icon: 'i-lucide-save',
+        onSelect: () => handleSaveRequirementModal(false),
+      },
+      {
+        label: 'Save & Mark Complete',
+        icon: 'i-lucide-check-circle-2',
+        disabled: !canComplete,
+        onSelect: () => handleSaveRequirementModal(true),
+      },
+    ],
+  ]
+})
+
 // Open unified requirement modal (matching supplier modal)
 function openRequirementModal(item: ChurchRequirementRecord) {
   selectedRequirementForModal.value = item
+  isEditingGeneralInfo.value = false
   requirementModalForm.value = {
     displayName: item.displayName,
     category: item.category || 'Church Requirements',
@@ -426,7 +629,7 @@ async function handleRemoveModalFile(party: ChurchRequirementParty) {
   }
 }
 
-async function handleSaveRequirementModal() {
+async function handleSaveRequirementModal(markComplete = false) {
   if (!selectedRequirementForModal.value || mutationsDisabled.value) return
   if (!requirementModalForm.value.displayName.trim()) {
     toast.add({ title: 'Validation Error', description: 'Requirement name is required.', color: 'error' })
@@ -445,10 +648,9 @@ async function handleSaveRequirementModal() {
       timeline: form.timeline.trim(),
       sourceUrl: form.sourceUrl.trim(),
       description: form.description.trim(),
+      ...(markComplete ? { completed: true } : {}),
     })
-    if (detailsResponse?.requirement) {
-      replaceRequirementInList(detailsResponse.requirement)
-    }
+    let currentItem = detailsResponse?.requirement || { ...item, ...form }
 
     // 2. Update Groom tracking
     const groomResponse = await updatePartyRequirement(
@@ -462,7 +664,7 @@ async function handleSaveRequirementModal() {
       form.groom.pendingFile ?? undefined
     )
     if (groomResponse?.requirement) {
-      replaceRequirementInList(groomResponse.requirement)
+      currentItem = groomResponse.requirement
     }
 
     // 3. Update Bride tracking
@@ -477,13 +679,24 @@ async function handleSaveRequirementModal() {
       form.bride.pendingFile ?? undefined
     )
     if (brideResponse?.requirement) {
-      replaceRequirementInList(brideResponse.requirement)
+      currentItem = brideResponse.requirement
     }
 
+    if (markComplete) {
+      completedRequirementIds.value.add(item._id)
+      saveCompletedToStorage()
+      currentItem = { ...currentItem, completed: true }
+    }
+
+    replaceRequirementInList(currentItem)
     isRequirementModalOpen.value = false
+    isEditingGeneralInfo.value = false
+
     toast.add({
-      title: 'Requirement Saved',
-      description: 'Document details and tracking updated successfully.',
+      title: markComplete ? 'Requirement Completed' : 'Requirement Saved',
+      description: markComplete
+        ? `"${form.displayName}" marked as complete and moved to Finished.`
+        : 'Requirement details updated successfully.',
       color: 'success',
     })
   } catch (error) {
@@ -608,28 +821,17 @@ watch(eventId, async () => {
 
 <template>
   <div
-    class="church-requirements-page-root w-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden bg-bread-50/30"
-  >
+    class="church-requirements-page-root w-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden bg-bread-50/30">
     <!-- Navbar Teleport Actions (Matching Suppliers layout) -->
     <ClientOnly>
       <Teleport to="#navbar-actions">
         <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            icon="i-lucide-plus"
-            color="yellow"
-            :disabled="mutationsDisabled || isSubmitting"
-            @click="openAddRequirementModal()"
-          >
+          <UButton icon="i-lucide-plus" color="yellow" :disabled="mutationsDisabled || isSubmitting"
+            @click="openAddRequirementModal()">
             Add Requirement
           </UButton>
-          <UButton
-            icon="i-lucide-file-down"
-            color="neutral"
-            variant="outline"
-            :loading="isExporting"
-            :disabled="!eventId || isExporting"
-            @click="exportEventPdf(eventId, 'church-requirements')"
-          >
+          <UButton icon="i-lucide-file-down" color="neutral" variant="outline" :loading="isExporting"
+            :disabled="!eventId || isExporting" @click="exportEventPdf(eventId, 'church-requirements')">
             Export PDF
           </UButton>
         </div>
@@ -638,15 +840,13 @@ watch(eventId, async () => {
 
     <!-- ================= LEFT DIVISION (col-span-1): Event Details & Requirements Overview ================= -->
     <aside
-      class="col-span-1 lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6"
-    >
+      class="col-span-1 lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6">
       <div class="space-y-6">
         <!-- 1. Event Details -->
         <div class="space-y-2">
           <div>
             <h1
-              class="font-serif text-xl sm:text-2xl font-bold text-highlighted leading-tight tracking-tight wrap-break-word"
-            >
+              class="font-serif text-xl sm:text-2xl font-bold text-highlighted leading-tight tracking-tight wrap-break-word">
               {{ eventTitle || "Jane & John's Wedding" }}
             </h1>
           </div>
@@ -678,9 +878,7 @@ watch(eventId, async () => {
           <!-- Metric Cards -->
           <div class="space-y-2.5">
             <!-- Total Requirements Card -->
-            <div
-              class="bg-yellow-50/70 border border-yellow-200/70 rounded-xl p-3 flex items-center justify-between"
-            >
+            <div class="bg-yellow-50/70 border border-yellow-200/70 rounded-xl p-3 flex items-center justify-between">
               <div>
                 <span class="text-[11px] font-semibold text-yellow-800 font-sans block">Total Documents</span>
                 <span class="text-xl sm:text-2xl font-bold font-serif text-yellow-950 tracking-tight mt-0.5 block">
@@ -692,49 +890,59 @@ watch(eventId, async () => {
               </div>
             </div>
 
-            <!-- Acquired & Pending (2 columns, matching Paid & Remaining in Suppliers) -->
-            <div class="grid grid-cols-2 gap-2">
-              <!-- Acquired Checks -->
-              <div
-                class="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-3 flex flex-col justify-between"
-              >
+            <!-- 3 Columns: To Do, Ongoing, Finished -->
+            <div class="grid grid-cols-3 gap-2">
+              <!-- To Do -->
+              <div class="bg-bread-50/70 border border-bread-200/70 rounded-xl p-2.5 flex flex-col justify-between">
                 <div class="flex items-center justify-between">
-                  <span class="text-[11px] font-semibold text-emerald-700 font-sans">Acquired</span>
-                  <UIcon name="i-lucide-check-circle-2" class="size-4 text-emerald-600" />
+                  <span class="text-[11px] font-semibold text-toast-700 font-sans">To Do</span>
+                  <UIcon name="i-lucide-list-todo" class="size-3.5 text-toast-500" />
                 </div>
-                <span class="text-lg sm:text-xl font-bold font-serif text-emerald-950 tracking-tight mt-1">
-                  {{ acquiredChecksCount }}
+                <span class="text-base sm:text-lg font-bold font-serif text-highlighted tracking-tight mt-1">
+                  {{ todoRequirements.length }}
                 </span>
               </div>
 
-              <!-- Pending Checks -->
-              <div
-                class="bg-yellow-50/70 border border-yellow-200/70 rounded-xl p-3 flex flex-col justify-between"
-              >
+              <!-- Ongoing -->
+              <div class="bg-yellow-50/70 border border-yellow-200/70 rounded-xl p-2.5 flex flex-col justify-between">
                 <div class="flex items-center justify-between">
-                  <span class="text-[11px] font-semibold text-yellow-800 font-sans">Pending</span>
-                  <UIcon name="i-lucide-hourglass" class="size-4 text-yellow-600" />
+                  <span class="text-[11px] font-semibold text-yellow-800 font-sans">Ongoing</span>
+                  <UIcon name="i-lucide-clock" class="size-3.5 text-yellow-600" />
                 </div>
-                <span class="text-lg sm:text-xl font-bold font-serif text-yellow-950 tracking-tight mt-1">
-                  {{ pendingChecksCount }}
+                <span class="text-base sm:text-lg font-bold font-serif text-yellow-950 tracking-tight mt-1">
+                  {{ ongoingRequirements.length }}
+                </span>
+              </div>
+
+              <!-- Finished -->
+              <div class="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-2.5 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-semibold text-emerald-700 font-sans">Finished</span>
+                  <UIcon name="i-lucide-check-circle-2" class="size-3.5 text-emerald-600" />
+                </div>
+                <span class="text-base sm:text-lg font-bold font-serif text-emerald-950 tracking-tight mt-1">
+                  {{ finishedRequirements.length }}
                 </span>
               </div>
             </div>
           </div>
 
-          <!-- Progress Card (Matching Suppliers Payment Progress) -->
+          <!-- Progress Card -->
           <div class="bg-toast-50/70 border border-bread-200/60 rounded-xl p-3.5 space-y-2">
             <div class="flex items-center justify-between text-xs font-sans">
-              <span class="font-semibold text-toast-800">Acquisition Progress</span>
+              <span class="font-semibold text-toast-800">Completion Progress</span>
               <span class="font-bold font-serif text-black text-sm">{{ progressPercentage }}%</span>
             </div>
             <UProgress :model-value="progressPercentage" color="yellow" size="xs" />
             <div class="flex items-center justify-between text-[11px] text-muted font-sans pt-0.5">
-              <span>{{ acquiredChecksCount }} of {{ totalPartyChecks }} checks ready</span>
-              <span v-if="pendingChecksCount > 0" class="text-yellow-800 font-medium">
-                {{ pendingChecksCount }} checks pending
+              <span>{{ finishedRequirements.length }} of {{ totalRequirementsCount }} finished</span>
+              <span v-if="ongoingRequirements.length > 0" class="text-yellow-800 font-medium">
+                {{ ongoingRequirements.length }} ongoing
               </span>
-              <span v-else class="text-emerald-700 font-medium">All documents ready!</span>
+              <span v-else-if="todoRequirements.length > 0" class="text-toast-600 font-medium">
+                {{ todoRequirements.length }} to do
+              </span>
+              <span v-else class="text-emerald-700 font-medium">All completed!</span>
             </div>
           </div>
         </div>
@@ -742,28 +950,14 @@ watch(eventId, async () => {
 
       <!-- Left Panel Bottom Links (Matching Suppliers) -->
       <div class="space-y-2 pt-4">
-        <UButton
-          icon="i-lucide-file-down"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          block
-          class="w-full justify-center"
-          :loading="isExporting"
-          :disabled="!eventId || isExporting"
-          @click="exportEventPdf(eventId, 'church-requirements')"
-        >
+        <UButton icon="i-lucide-file-down" color="neutral" variant="outline" size="sm" block
+          class="w-full justify-center" :loading="isExporting" :disabled="!eventId || isExporting"
+          @click="exportEventPdf(eventId, 'church-requirements')">
           Export PDF
         </UButton>
-        <UButton
-          icon="i-lucide-plus"
-          color="yellow"
-          size="md"
-          block
+        <UButton icon="i-lucide-plus" color="yellow" size="md" block
           class="w-full font-semibold shadow-xs justify-center py-2.5 transition-all hover:shadow hover:brightness-105 active:scale-[0.99] cursor-pointer"
-          :disabled="mutationsDisabled || isSubmitting"
-          @click="openAddRequirementModal()"
-        >
+          :disabled="mutationsDisabled || isSubmitting" @click="openAddRequirementModal()">
           Add Custom Requirement
         </UButton>
       </div>
@@ -771,58 +965,35 @@ watch(eventId, async () => {
 
     <!-- ================= RIGHT DIVISION (col-span-3): Scrollable Requirements View ================= -->
     <main
-      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-toast-50/30"
-    >
+      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-toast-50/30">
       <!-- Top Sticky Toolbar with UTabs and Search -->
       <header
-        class="bg-white/95 backdrop-blur border-b border-bread-200/80 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10"
-      >
+        class="bg-white/95 backdrop-blur border-b border-bread-200/80 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
         <div class="flex items-center gap-3">
-          <UTabs
-            v-model="activeTab"
-            :items="tabItems"
-            value-key="value"
-            color="yellow"
-            :content="false"
-          />
+          <UTabs v-model="activeTab" :items="tabItems" value-key="value" color="yellow" :content="false" />
         </div>
 
         <div class="flex items-center gap-3">
-          <UInput
-            v-model="searchQuery"
-            icon="i-lucide-search"
-            type="search"
-            placeholder="Search requirements..."
-            class="w-full sm:w-64"
-          />
+          <UInput v-model="searchQuery" icon="i-lucide-search" type="search" placeholder="Search requirements..."
+            class="w-full sm:w-64" />
         </div>
       </header>
 
       <!-- Scrollable Main Content -->
       <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         <!-- Loading State -->
-        <div
-          v-if="isPageLoading"
-          class="flex items-center justify-center py-16 text-muted"
-        >
+        <div v-if="isPageLoading" class="flex items-center justify-center py-16 text-muted">
           <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-yellow-600" />
           <span class="ml-2 text-sm font-medium">Loading church requirements...</span>
         </div>
 
         <div v-else class="space-y-6">
-          <UAlert
-            v-if="isEventCancelled"
-            color="warning"
-            variant="subtle"
-            title="Event cancelled"
-            description="Church requirement updates are disabled for a cancelled event."
-          />
+          <UAlert v-if="isEventCancelled" color="warning" variant="subtle" title="Event cancelled"
+            description="Church requirement updates are disabled for a cancelled event." />
 
           <!-- Global empty state if no requirements exist at all -->
-          <div
-            v-if="isRequirementListEmpty"
-            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center"
-          >
+          <div v-if="isRequirementListEmpty"
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center">
             <div class="size-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center mb-3">
               <UIcon name="i-lucide-scroll" class="size-6" />
             </div>
@@ -830,60 +1001,120 @@ watch(eventId, async () => {
             <p class="mt-1 max-w-sm text-sm text-muted">
               Add your own custom requirements or create a wedding event to load default parish checklist items.
             </p>
-            <UButton
-              v-if="!mutationsDisabled"
-              class="mt-5"
-              icon="i-lucide-plus"
-              color="yellow"
-              :disabled="isSubmitting"
-              @click="openAddRequirementModal()"
-            >
+            <UButton v-if="!mutationsDisabled" class="mt-5" icon="i-lucide-plus" color="yellow" :disabled="isSubmitting"
+              @click="openAddRequirementModal()">
               Add Requirement
             </UButton>
           </div>
 
-          <!-- ================= TAB 1: TRACKED REQUIREMENTS ================= -->
-          <div v-else-if="activeTab === 'tracked'" class="space-y-8">
-            <!-- Empty state for Tracked tab -->
-            <div
-              v-if="trackedRequirements.length === 0"
-              class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center"
-            >
-              <div class="size-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center mb-3">
-                <UIcon name="i-lucide-bookmark" class="size-6" />
+          <!-- ================= TAB 1: TO DO REQUIREMENTS ================= -->
+          <div v-else-if="activeTab === 'todo'" class="space-y-8">
+            <!-- Empty state for To Do tab -->
+            <div v-if="todoRequirements.length === 0"
+              class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center">
+              <div class="size-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                <UIcon name="i-lucide-check-circle-2" class="size-6" />
               </div>
-              <p class="text-base font-semibold text-highlighted">No tracked requirements yet</p>
+              <p class="text-base font-semibold text-highlighted">No requirements to do!</p>
               <p class="mt-1 max-w-sm text-sm text-muted">
-                You haven't actioned any requirements yet. Switch to the "To Action" tab to update status, dates, or documents.
+                All church requirements have been started or completed. You can view them in the Ongoing or Finished
+                tabs.
               </p>
               <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
-                <UButton
-                  color="yellow"
-                  variant="subtle"
-                  icon="i-lucide-list-todo"
-                  @click="activeTab = 'checklist'"
-                >
-                  Browse To Action Checklist
+                <UButton color="yellow" variant="subtle" icon="i-lucide-clock" @click="activeTab = 'ongoing'">
+                  View Ongoing Checklist
                 </UButton>
-                <UButton
-                  v-if="!mutationsDisabled"
-                  color="yellow"
-                  icon="i-lucide-plus"
-                  :disabled="isSubmitting"
-                  @click="openAddRequirementModal()"
-                >
+                <UButton v-if="!mutationsDisabled" color="yellow" icon="i-lucide-plus" :disabled="isSubmitting"
+                  @click="openAddRequirementModal()">
                   Add Custom Requirement
                 </UButton>
               </div>
             </div>
 
-            <!-- Grouped Tracked Requirements in 3-column grid -->
+            <!-- Categories with "Add [[Category]] Item" button -->
             <template v-else>
-              <section
-                v-for="section in displayedTrackedGrouped"
-                :key="section.category"
-                class="space-y-4"
-              >
+              <section v-for="section in displayedTodoGrouped" :key="section.category" class="space-y-4">
+                <!-- Category Header -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-bread-200/70">
+                  <div class="flex items-center gap-2.5">
+                    <h2 class="text-xl font-bold font-serif text-highlighted">
+                      {{ section.category }}
+                    </h2>
+                    <UBadge color="neutral" variant="subtle" size="xs">
+                      {{section.timelines.reduce((acc, t) => acc + t.items.length, 0)}} to do
+                    </UBadge>
+                  </div>
+
+                  <UButton icon="i-lucide-plus" color="yellow" variant="subtle" size="sm"
+                    :disabled="mutationsDisabled || isSubmitting" @click="openAddRequirementModal(section.category)">
+                    Add {{ section.category }} Item
+                  </UButton>
+                </div>
+
+                <!-- 3-Column Grid of Clean To Do Items -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <template v-for="timeline in section.timelines" :key="timeline.timeline">
+                    <template v-for="item in timeline.items" :key="item._id">
+                      <div
+                        class="group p-4 rounded-xl border border-bread-200/90 bg-white hover:border-yellow-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left">
+                        <div class="space-y-1">
+                          <h3
+                            class="text-sm sm:text-base font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors break-words whitespace-normal leading-snug"
+                            :title="item.displayName">
+                            {{ item.displayName }}
+                          </h3>
+                          <div class="flex flex-wrap items-center gap-2 text-xs text-muted">
+                            <span>{{ item.category }}</span>
+                            <span v-if="item.timeline">•</span>
+                            <span v-if="item.timeline">{{ item.timeline }}</span>
+                          </div>
+                          <p v-if="item.description" class="text-xs text-toast-500 line-clamp-2 mt-1">
+                            {{ item.description }}
+                          </p>
+                        </div>
+
+                        <div class="flex items-center justify-end pt-2 border-t border-bread-100">
+                          <UButton size="xs" color="yellow" variant="soft" icon="i-lucide-pencil"
+                            @click="openRequirementModal(item)">
+                            Fill Details
+                          </UButton>
+                        </div>
+                      </div>
+                    </template>
+                  </template>
+                </div>
+              </section>
+            </template>
+          </div>
+
+          <!-- ================= TAB 2: ONGOING REQUIREMENTS ================= -->
+          <div v-else-if="activeTab === 'ongoing'" class="space-y-8">
+            <!-- Empty state for Ongoing tab -->
+            <div v-if="ongoingRequirements.length === 0"
+              class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center">
+              <div class="size-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center mb-3">
+                <UIcon name="i-lucide-clock" class="size-6" />
+              </div>
+              <p class="text-base font-semibold text-highlighted">No ongoing requirements</p>
+              <p class="mt-1 max-w-sm text-sm text-muted">
+                Any requirement partially filled and saved will be automatically moved here. Complete all details to
+                mark as
+                finished.
+              </p>
+              <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <UButton color="yellow" variant="subtle" icon="i-lucide-list-todo" @click="activeTab = 'todo'">
+                  Browse To Do Items
+                </UButton>
+                <UButton v-if="!mutationsDisabled" color="yellow" icon="i-lucide-plus" :disabled="isSubmitting"
+                  @click="openAddRequirementModal()">
+                  Add Custom Requirement
+                </UButton>
+              </div>
+            </div>
+
+            <!-- Grouped Ongoing Requirements in 3-column grid -->
+            <template v-else>
+              <section v-for="section in displayedOngoingGrouped" :key="section.category" class="space-y-4">
                 <!-- Category Header -->
                 <div class="flex items-center justify-between pb-1 border-b border-bread-200/70">
                   <div class="flex items-center gap-2.5">
@@ -891,7 +1122,7 @@ watch(eventId, async () => {
                       {{ section.category }}
                     </h2>
                     <UBadge color="yellow" variant="subtle" size="xs">
-                      {{ section.timelines.reduce((acc, t) => acc + t.items.length, 0) }} tracked
+                      {{section.timelines.reduce((acc, t) => acc + t.items.length, 0)}} ongoing
                     </UBadge>
                   </div>
                 </div>
@@ -901,40 +1132,22 @@ watch(eventId, async () => {
                   <template v-for="timeline in section.timelines" :key="timeline.timeline">
                     <template v-for="item in timeline.items" :key="item._id">
                       <div
-                        class="group p-4 rounded-xl border border-bread-200/90 bg-white hover:border-yellow-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left"
-                      >
+                        class="group p-4 rounded-xl border border-bread-200/90 bg-white hover:border-yellow-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left">
                         <div>
-                          <!-- Top: Title & Edit Button -->
-                          <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0 flex-1">
-                              <h3
-                                class="text-base sm:text-lg font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors truncate"
-                                :title="item.displayName"
-                              >
-                                {{ item.displayName }}
-                              </h3>
-                              <p
-                                class="text-xs text-yellow-700 font-medium mt-0.5 truncate flex items-center gap-1.5"
-                                :title="item.category"
-                              >
-                                <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 text-yellow-500" />
-                                <span class="truncate">{{ item.category }}</span>
-                                <span v-if="item.timeline" class="text-toast-300">•</span>
-                                <span v-if="item.timeline" class="text-toast-500">{{ item.timeline }}</span>
-                              </p>
-                            </div>
-
-                            <!-- Edit button in top right -->
-                            <div class="flex items-center gap-1 shrink-0">
-                              <UButton
-                                icon="i-lucide-pencil"
-                                color="yellow"
-                                variant="soft"
-                                size="xs"
-                                aria-label="Edit requirement"
-                                @click="openRequirementModal(item)"
-                              />
-                            </div>
+                          <!-- Top: Title -->
+                          <div>
+                            <h3
+                              class="text-base sm:text-lg font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors break-words whitespace-normal leading-snug"
+                              :title="item.displayName">
+                              {{ item.displayName }}
+                            </h3>
+                            <p class="text-xs text-yellow-700 font-medium mt-1 flex flex-wrap items-center gap-1.5"
+                              :title="item.category">
+                              <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 text-yellow-500" />
+                              <span>{{ item.category }}</span>
+                              <span v-if="item.timeline" class="text-toast-300">•</span>
+                              <span v-if="item.timeline" class="text-toast-500">{{ item.timeline }}</span>
+                            </p>
                           </div>
 
                           <!-- Description & Source link -->
@@ -942,13 +1155,8 @@ watch(eventId, async () => {
                             <p v-if="item.description" class="line-clamp-2 leading-relaxed" :title="item.description">
                               {{ item.description }}
                             </p>
-                            <a
-                              v-if="item.sourceUrl"
-                              :href="item.sourceUrl"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-1"
-                            >
+                            <a v-if="item.sourceUrl" :href="item.sourceUrl" target="_blank" rel="noopener noreferrer"
+                              class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-1">
                               <UIcon name="i-lucide-external-link" class="size-3" />
                               Source link
                             </a>
@@ -959,81 +1167,73 @@ watch(eventId, async () => {
                             <!-- Groom Box -->
                             <div class="bg-bread-50/70 rounded-lg p-2.5 border border-bread-100/70 space-y-1.5">
                               <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-toast-600 flex items-center gap-1">
+                                <span
+                                  class="text-[10px] font-bold uppercase tracking-wider text-toast-600 flex items-center gap-1">
                                   <UIcon name="i-lucide-user" class="size-3 text-toast-500" />
                                   Groom
                                 </span>
-                                <UBadge
-                                  :color="getStatusBadgeColor(item.groom?.status ?? 'required')"
-                                  variant="subtle"
-                                  size="xs"
-                                  class="text-[10px] capitalize"
-                                >
+                                <UBadge :color="getStatusBadgeColor(item.groom?.status ?? 'required')" variant="subtle"
+                                  size="xs" class="text-[10px] capitalize">
                                   {{ formatRequirementStatusLabel(item.groom?.status ?? 'required') }}
                                 </UBadge>
                               </div>
-                              <div v-if="item.groom?.dateAcquired" class="text-[10px] text-muted flex items-center gap-1">
+                              <div v-if="item.groom?.dateAcquired"
+                                class="text-[10px] text-muted flex items-center gap-1">
                                 <UIcon name="i-lucide-calendar" class="size-3" />
                                 {{ toDateInputValue(item.groom.dateAcquired) }}
                               </div>
                               <div v-if="item.groom?.attachedFile" class="pt-0.5">
-                                <a
-                                  :href="item.groom.attachedFile.fileURL"
-                                  target="_blank"
-                                  class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline truncate max-w-full font-medium"
-                                  :title="item.groom.attachedFile.fileName"
-                                >
+                                <button type="button"
+                                  class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline truncate max-w-full font-medium cursor-pointer"
+                                  :title="`Click to download: ${item.groom.attachedFile.fileName}`"
+                                  @click.stop="downloadDocument(item.groom.attachedFile)">
                                   <UIcon name="i-lucide-paperclip" class="size-3 shrink-0" />
                                   <span class="truncate">{{ item.groom.attachedFile.fileName }}</span>
-                                </a>
+                                </button>
                               </div>
                             </div>
 
                             <!-- Bride Box -->
                             <div class="bg-bread-50/70 rounded-lg p-2.5 border border-bread-100/70 space-y-1.5">
                               <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-toast-600 flex items-center gap-1">
+                                <span
+                                  class="text-[10px] font-bold uppercase tracking-wider text-toast-600 flex items-center gap-1">
                                   <UIcon name="i-lucide-user-check" class="size-3 text-toast-500" />
                                   Bride
                                 </span>
-                                <UBadge
-                                  :color="getStatusBadgeColor(item.bride?.status ?? 'required')"
-                                  variant="subtle"
-                                  size="xs"
-                                  class="text-[10px] capitalize"
-                                >
+                                <UBadge :color="getStatusBadgeColor(item.bride?.status ?? 'required')" variant="subtle"
+                                  size="xs" class="text-[10px] capitalize">
                                   {{ formatRequirementStatusLabel(item.bride?.status ?? 'required') }}
                                 </UBadge>
                               </div>
-                              <div v-if="item.bride?.dateAcquired" class="text-[10px] text-muted flex items-center gap-1">
+                              <div v-if="item.bride?.dateAcquired"
+                                class="text-[10px] text-muted flex items-center gap-1">
                                 <UIcon name="i-lucide-calendar" class="size-3" />
                                 {{ toDateInputValue(item.bride.dateAcquired) }}
                               </div>
                               <div v-if="item.bride?.attachedFile" class="pt-0.5">
-                                <a
-                                  :href="item.bride.attachedFile.fileURL"
-                                  target="_blank"
-                                  class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline truncate max-w-full font-medium"
-                                  :title="item.bride.attachedFile.fileName"
-                                >
+                                <button type="button"
+                                  class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline truncate max-w-full font-medium cursor-pointer"
+                                  :title="`Click to download: ${item.bride.attachedFile.fileName}`"
+                                  @click.stop="downloadDocument(item.bride.attachedFile)">
                                   <UIcon name="i-lucide-paperclip" class="size-3 shrink-0" />
                                   <span class="truncate">{{ item.bride.attachedFile.fileName }}</span>
-                                </a>
+                                </button>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <!-- Card Bottom: Manage Details -->
-                        <div class="pt-2 border-t border-bread-100 flex items-center justify-end">
-                          <UButton
-                            size="xs"
-                            color="yellow"
-                            variant="ghost"
-                            icon="i-lucide-sliders-horizontal"
-                            @click="openRequirementModal(item)"
-                          >
-                            Update Tracking
+                        <!-- Card Bottom: Actions -->
+                        <div class="pt-2 border-t border-bread-100 flex items-center justify-end gap-1.5">
+                          <UButton v-if="hasCompleteDetails(item)" size="xs" color="emerald" variant="solid"
+                            icon="i-lucide-check-circle-2" class="font-medium cursor-pointer"
+                            :disabled="mutationsDisabled" @click="markRequirementComplete(item)">
+                            Mark Complete
+                          </UButton>
+                          <UButton size="xs" color="yellow" variant="ghost" icon="i-lucide-sliders-horizontal"
+                            class="cursor-pointer" @click="openRequirementModal(item)">
+                            Update Details
                           </UButton>
                         </div>
                       </div>
@@ -1044,105 +1244,183 @@ watch(eventId, async () => {
             </template>
           </div>
 
-          <!-- ================= TAB 2: TO ACTION / CHECKLIST ================= -->
-          <div v-else-if="activeTab === 'checklist'" class="space-y-8">
-            <!-- Empty state for Checklist tab -->
-            <div
-              v-if="checklistRequirements.length === 0"
-              class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center"
-            >
+          <!-- ================= TAB 3: FINISHED REQUIREMENTS ================= -->
+          <div v-else class="space-y-8">
+            <!-- Empty state for Finished tab -->
+            <div v-if="finishedRequirements.length === 0"
+              class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-200 bg-white/70 px-6 py-14 text-center">
               <div class="size-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
-                <UIcon name="i-lucide-check-circle-2" class="size-6" />
+                <UIcon name="i-lucide-award" class="size-6" />
               </div>
-              <p class="text-base font-semibold text-highlighted">All checklist documents actioned!</p>
+              <p class="text-base font-semibold text-highlighted">No finished requirements yet</p>
               <p class="mt-1 max-w-sm text-sm text-muted">
-                Wonderful! Every church requirement is now being actively tracked. You can add custom requirements anytime.
+                When a requirement's details are complete, you can mark it as complete in the Ongoing tab to finish it.
               </p>
               <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
-                <UButton
-                  color="yellow"
-                  variant="subtle"
-                  icon="i-lucide-bookmark-check"
-                  @click="activeTab = 'tracked'"
-                >
-                  View Tracked Documents
-                </UButton>
-                <UButton
-                  v-if="!mutationsDisabled"
-                  color="yellow"
-                  icon="i-lucide-plus"
-                  :disabled="isSubmitting"
-                  @click="openAddRequirementModal()"
-                >
-                  Add Custom Requirement
+                <UButton color="yellow" variant="subtle" icon="i-lucide-clock" @click="activeTab = 'ongoing'">
+                  View Ongoing Checklist
                 </UButton>
               </div>
             </div>
 
-            <!-- Categories with "Add [[Category]] Requirement" button (matching Suppliers "Add [[supplier type]]") -->
+            <!-- Grouped Finished Requirements (Static document display with click-to-download) -->
             <template v-else>
-              <section
-                v-for="section in displayedChecklistGrouped"
-                :key="section.category"
-                class="space-y-4"
-              >
-                <!-- Category Header with Clean "Add [[category]] Requirement" Button -->
-                <div class="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-bread-200/70">
+              <section v-for="section in displayedFinishedGrouped" :key="section.category" class="space-y-4">
+                <!-- Category Header -->
+                <div class="flex items-center justify-between pb-1 border-b border-bread-200/70">
                   <div class="flex items-center gap-2.5">
                     <h2 class="text-xl font-bold font-serif text-highlighted">
                       {{ section.category }}
                     </h2>
-                    <UBadge color="neutral" variant="subtle" size="xs">
-                      {{ section.timelines.reduce((acc, t) => acc + t.items.length, 0) }} to action
+                    <UBadge color="emerald" variant="subtle" size="xs">
+                      {{section.timelines.reduce((acc, t) => acc + t.items.length, 0)}} finished
                     </UBadge>
                   </div>
-
-                  <UButton
-                    icon="i-lucide-plus"
-                    color="yellow"
-                    variant="subtle"
-                    size="sm"
-                    :disabled="mutationsDisabled || isSubmitting"
-                    @click="openAddRequirementModal(section.category)"
-                  >
-                    Add {{ section.category }} Item
-                  </UButton>
                 </div>
 
-                <!-- 3-Column Grid of Clean Checklist Items (matching Suppliers No Assignment items) -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 3-Column Responsive Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   <template v-for="timeline in section.timelines" :key="timeline.timeline">
                     <template v-for="item in timeline.items" :key="item._id">
                       <div
-                        class="group p-4 rounded-xl border border-bread-200/90 bg-white hover:border-yellow-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left"
-                      >
-                        <div class="space-y-1">
-                          <h3
-                            class="text-sm font-semibold text-highlighted group-hover:text-yellow-700 transition-colors truncate"
-                            :title="item.displayName"
-                          >
-                            {{ item.displayName }}
-                          </h3>
-                          <div class="flex items-center gap-2 text-xs text-muted">
-                            <span>{{ item.category }}</span>
-                            <span v-if="item.timeline">•</span>
-                            <span v-if="item.timeline">{{ item.timeline }}</span>
+                        class="p-4 rounded-xl border border-emerald-200/80 bg-white hover:border-emerald-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left">
+                        <div>
+                          <!-- Top: Title & Finished Badge -->
+                          <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0 flex-1">
+                              <h3
+                                class="text-base sm:text-lg font-bold font-serif text-highlighted break-words whitespace-normal leading-snug"
+                                :title="item.displayName">
+                                {{ item.displayName }}
+                              </h3>
+                              <p class="text-xs text-toast-600 font-medium mt-1 flex flex-wrap items-center gap-1.5"
+                                :title="item.category">
+                                <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 text-toast-400" />
+                                <span>{{ item.category }}</span>
+                                <span v-if="item.timeline" class="text-toast-300">•</span>
+                                <span v-if="item.timeline" class="text-toast-500">{{ item.timeline }}</span>
+                              </p>
+                            </div>
+
+                            <UBadge color="emerald" variant="subtle" size="xs" class="gap-1 font-medium shrink-0">
+                              <UIcon name="i-lucide-check-circle-2" class="size-3 text-emerald-600" />
+                              Finished
+                            </UBadge>
                           </div>
-                          <p v-if="item.description" class="text-xs text-toast-500 line-clamp-2 mt-1">
-                            {{ item.description }}
-                          </p>
+
+                          <!-- Description & Source link -->
+                          <div v-if="item.description || item.sourceUrl" class="mt-2 text-xs text-muted">
+                            <p v-if="item.description" class="line-clamp-2 leading-relaxed" :title="item.description">
+                              {{ item.description }}
+                            </p>
+                            <a v-if="item.sourceUrl" :href="item.sourceUrl" target="_blank" rel="noopener noreferrer"
+                              class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-1">
+                              <UIcon name="i-lucide-external-link" class="size-3" />
+                              Source link
+                            </a>
+                          </div>
+
+                          <!-- Static Groom & Bride Documents with Download Function -->
+                          <div class="mt-3 pt-3 border-t border-bread-100 grid grid-cols-2 gap-2 text-xs">
+                            <!-- Static Groom Document Box -->
+                            <div class="bg-bread-50/70 rounded-lg p-2.5 border border-bread-100/70 space-y-1.5">
+                              <div class="flex items-center justify-between">
+                                <span
+                                  class="text-[10px] font-bold uppercase tracking-wider text-toast-600 flex items-center gap-1">
+                                  <UIcon name="i-lucide-user" class="size-3 text-toast-500" />
+                                  Groom
+                                </span>
+                                <UBadge :color="getStatusBadgeColor(item.groom?.status ?? 'acquired')" variant="subtle"
+                                  size="xs" class="text-[10px] capitalize">
+                                  {{ formatRequirementStatusLabel(item.groom?.status ?? 'acquired') }}
+                                </UBadge>
+                              </div>
+                              <div v-if="item.groom?.dateAcquired"
+                                class="text-[10px] text-muted flex items-center gap-1">
+                                <UIcon name="i-lucide-calendar" class="size-3" />
+                                {{ toDateInputValue(item.groom.dateAcquired) }}
+                              </div>
+                              <div v-if="item.groom?.notes" class="text-[10px] text-toast-600 italic line-clamp-1"
+                                :title="item.groom.notes">
+                                "{{ item.groom.notes }}"
+                              </div>
+
+                              <!-- Clickable Document with Download Function -->
+                              <div v-if="item.groom?.attachedFile" class="pt-1">
+                                <button type="button"
+                                  class="w-full p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 flex items-center justify-between gap-1.5 text-left cursor-pointer transition-all group"
+                                  title="Click to download document" @click="downloadDocument(item.groom.attachedFile)">
+                                  <div class="flex items-center gap-1.5 min-w-0">
+                                    <UIcon name="i-lucide-file-text" class="size-3.5 text-emerald-700 shrink-0" />
+                                    <span class="text-[11px] font-medium text-emerald-950 truncate">
+                                      {{ item.groom.attachedFile.fileName }}
+                                    </span>
+                                  </div>
+                                  <UIcon name="i-lucide-download"
+                                    class="size-3.5 text-emerald-700 shrink-0 group-hover:scale-110 transition-transform" />
+                                </button>
+                              </div>
+                              <div v-else class="text-[10px] text-toast-400 italic pt-0.5">
+                                No attached file
+                              </div>
+                            </div>
+
+                            <!-- Static Bride Document Box -->
+                            <div class="bg-bread-50/70 rounded-lg p-2.5 border border-bread-100/70 space-y-1.5">
+                              <div class="flex items-center justify-between">
+                                <span
+                                  class="text-[10px] font-bold uppercase tracking-wider text-toast-600 flex items-center gap-1">
+                                  <UIcon name="i-lucide-user-check" class="size-3 text-toast-500" />
+                                  Bride
+                                </span>
+                                <UBadge :color="getStatusBadgeColor(item.bride?.status ?? 'acquired')" variant="subtle"
+                                  size="xs" class="text-[10px] capitalize">
+                                  {{ formatRequirementStatusLabel(item.bride?.status ?? 'acquired') }}
+                                </UBadge>
+                              </div>
+                              <div v-if="item.bride?.dateAcquired"
+                                class="text-[10px] text-muted flex items-center gap-1">
+                                <UIcon name="i-lucide-calendar" class="size-3" />
+                                {{ toDateInputValue(item.bride.dateAcquired) }}
+                              </div>
+                              <div v-if="item.bride?.notes" class="text-[10px] text-toast-600 italic line-clamp-1"
+                                :title="item.bride.notes">
+                                "{{ item.bride.notes }}"
+                              </div>
+
+                              <!-- Clickable Document with Download Function -->
+                              <div v-if="item.bride?.attachedFile" class="pt-1">
+                                <button type="button"
+                                  class="w-full p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 flex items-center justify-between gap-1.5 text-left cursor-pointer transition-all group"
+                                  title="Click to download document" @click="downloadDocument(item.bride.attachedFile)">
+                                  <div class="flex items-center gap-1.5 min-w-0">
+                                    <UIcon name="i-lucide-file-text" class="size-3.5 text-emerald-700 shrink-0" />
+                                    <span class="text-[11px] font-medium text-emerald-950 truncate">
+                                      {{ item.bride.attachedFile.fileName }}
+                                    </span>
+                                  </div>
+                                  <UIcon name="i-lucide-download"
+                                    class="size-3.5 text-emerald-700 shrink-0 group-hover:scale-110 transition-transform" />
+                                </button>
+                              </div>
+                              <div v-else class="text-[10px] text-toast-400 italic pt-0.5">
+                                No attached file
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        <div class="flex items-center justify-between pt-2 border-t border-bread-100">
-                          <span class="text-[11px] text-muted font-sans">Not yet tracked</span>
-                          <UButton
-                            size="xs"
-                            color="yellow"
-                            variant="soft"
-                            icon="i-lucide-plus"
-                            @click="openRequirementModal(item)"
-                          >
-                            Add Details
+                        <!-- Card Bottom: Actions -->
+                        <div class="pt-2 border-t border-bread-100 flex items-center justify-between gap-2">
+                          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-undo-2"
+                            title="Move back to Ongoing" :disabled="mutationsDisabled"
+                            @click="markRequirementOngoing(item)">
+                            Reopen
+                          </UButton>
+
+                          <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-eye"
+                            @click="openRequirementModal(item)">
+                            View Details
                           </UButton>
                         </div>
                       </div>
@@ -1151,201 +1429,111 @@ watch(eventId, async () => {
                 </div>
               </section>
             </template>
-          </div>
-
-          <!-- ================= TAB 3: ALL DOCUMENTS ================= -->
-          <div v-else class="space-y-8">
-            <section
-              v-for="section in displayedAllGrouped"
-              :key="section.category"
-              class="space-y-4"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-bread-200/70">
-                <div class="flex items-center gap-2.5">
-                  <h2 class="text-xl font-bold font-serif text-highlighted">
-                    {{ section.category }}
-                  </h2>
-                  <UBadge color="yellow" variant="subtle" size="xs">
-                    {{ section.timelines.reduce((acc, t) => acc + t.items.length, 0) }} total
-                  </UBadge>
-                </div>
-                <UButton
-                  icon="i-lucide-plus"
-                  color="yellow"
-                  variant="subtle"
-                  size="sm"
-                  :disabled="mutationsDisabled || isSubmitting"
-                  @click="openAddRequirementModal(section.category)"
-                >
-                  Add {{ section.category }} Item
-                </UButton>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                <template v-for="timeline in section.timelines" :key="timeline.timeline">
-                  <template v-for="item in timeline.items" :key="item._id">
-                    <div
-                      class="group p-4 rounded-xl border border-bread-200/90 bg-white hover:border-yellow-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left"
-                    >
-                      <div>
-                        <div class="flex items-start justify-between gap-2">
-                          <div class="min-w-0 flex-1">
-                            <h3
-                              class="text-base sm:text-lg font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors truncate"
-                              :title="item.displayName"
-                            >
-                              {{ item.displayName }}
-                            </h3>
-                            <p class="text-xs text-yellow-700 font-medium mt-0.5 truncate flex items-center gap-1.5">
-                              <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 text-yellow-500" />
-                              <span class="truncate">{{ item.category }}</span>
-                              <span v-if="item.timeline" class="text-toast-300">•</span>
-                              <span v-if="item.timeline" class="text-toast-500">{{ item.timeline }}</span>
-                            </p>
-                          </div>
-                          <div class="flex items-center gap-1 shrink-0">
-                            <UButton
-                              icon="i-lucide-pencil"
-                              color="yellow"
-                              variant="soft"
-                              size="xs"
-                              aria-label="Edit requirement"
-                              @click="openRequirementModal(item)"
-                            />
-                          </div>
-                        </div>
-
-                        <div v-if="item.description" class="mt-2 text-xs text-muted line-clamp-2">
-                          {{ item.description }}
-                        </div>
-
-                        <div class="mt-3 pt-3 border-t border-bread-100 grid grid-cols-2 gap-2 text-xs">
-                          <div class="bg-bread-50/70 rounded-lg p-2.5 border border-bread-100/70 space-y-1">
-                            <div class="flex items-center justify-between">
-                              <span class="text-[10px] font-bold uppercase tracking-wider text-toast-600">Groom</span>
-                              <UBadge
-                                :color="getStatusBadgeColor(item.groom?.status ?? 'required')"
-                                variant="subtle"
-                                size="xs"
-                                class="text-[10px] capitalize"
-                              >
-                                {{ formatRequirementStatusLabel(item.groom?.status ?? 'required') }}
-                              </UBadge>
-                            </div>
-                            <div v-if="item.groom?.attachedFile" class="text-[10px] text-blue-600 truncate font-medium">
-                              <UIcon name="i-lucide-paperclip" class="size-3 inline" />
-                              {{ item.groom.attachedFile.fileName }}
-                            </div>
-                          </div>
-
-                          <div class="bg-bread-50/70 rounded-lg p-2.5 border border-bread-100/70 space-y-1">
-                            <div class="flex items-center justify-between">
-                              <span class="text-[10px] font-bold uppercase tracking-wider text-toast-600">Bride</span>
-                              <UBadge
-                                :color="getStatusBadgeColor(item.bride?.status ?? 'required')"
-                                variant="subtle"
-                                size="xs"
-                                class="text-[10px] capitalize"
-                              >
-                                {{ formatRequirementStatusLabel(item.bride?.status ?? 'required') }}
-                              </UBadge>
-                            </div>
-                            <div v-if="item.bride?.attachedFile" class="text-[10px] text-blue-600 truncate font-medium">
-                              <UIcon name="i-lucide-paperclip" class="size-3 inline" />
-                              {{ item.bride.attachedFile.fileName }}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="pt-2 border-t border-bread-100 flex items-center justify-end">
-                        <UButton
-                          size="xs"
-                          color="yellow"
-                          variant="ghost"
-                          icon="i-lucide-sliders-horizontal"
-                          @click="openRequirementModal(item)"
-                        >
-                          Manage Tracking
-                        </UButton>
-                      </div>
-                    </div>
-                  </template>
-                </template>
-              </div>
-            </section>
           </div>
         </div>
       </div>
     </main>
 
     <!-- Unified Requirement Details & Edit Modal (Matching Suppliers Modal) -->
-    <UModal
-      v-model:open="isRequirementModalOpen"
-      :title="`Manage ${selectedRequirementForModal?.displayName || 'Requirement'}`"
-      :ui="churchRequirementModalUi"
-      :close="{ variant: 'link', class: 'rounded-full text-white' }"
-      :dismissible="!isSavingModal"
-    >
+    <UModal v-model:open="isRequirementModalOpen" :ui="churchRequirementDetailsModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }" :dismissible="!isSavingModal">
+      <template #header>
+        <div class="flex items-center justify-between w-full pr-1">
+          <div class="min-w-0 flex-1">
+            <h3 class="text-white font-serif text-lg sm:text-xl font-semibold capitalize">
+              Requirement Information
+            </h3>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <UButton icon="i-lucide-x" variant="ghost" color="neutral" size="xs"
+              class="text-white hover:bg-white/10 rounded-full cursor-pointer" :disabled="isSavingModal"
+              @click="isRequirementModalOpen = false" />
+          </div>
+        </div>
+      </template>
+
       <template #body>
-        <div v-if="selectedRequirementForModal" class="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+        <div v-if="selectedRequirementForModal" class="p-2 space-y-5">
           <!-- Section 1: Requirement Information -->
-          <div class="space-y-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-toast-800 pb-1 border-b border-toast-200">
-              General Document Info
-            </h4>
-
-            <UFormField label="Requirement Name" required>
-              <UInput
-                v-model="requirementModalForm.displayName"
-                class="w-full"
-                placeholder="e.g. Birth Certificate (PSA)"
-                :disabled="mutationsDisabled || isSavingModal"
-              />
-            </UFormField>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <UFormField label="Category">
-                <UInput
-                  v-model="requirementModalForm.category"
-                  class="w-full"
-                  placeholder="e.g. Church Requirements"
-                  :disabled="mutationsDisabled || isSavingModal"
-                />
-              </UFormField>
-
-              <UFormField label="Timeline">
-                <USelect
-                  v-model="requirementModalForm.timeline"
-                  :items="TIMELINE_OPTIONS"
-                  class="w-full"
-                  :disabled="mutationsDisabled || isSavingModal"
-                />
-              </UFormField>
+          <div class="space-y-3 pb-2 border-b border-bread-200">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-toast-800 flex items-center gap-1.5">
+                <UIcon name="i-lucide-info" class="size-3.5 text-yellow-600" />
+                General Document Info
+              </h4>
+              <!-- Inline edit toggle button for convenience -->
+              <UButton :icon="isEditingGeneralInfo ? 'i-lucide-check' : 'i-lucide-pencil'"
+                :label="isEditingGeneralInfo ? 'Done' : 'Edit General Info'" size="xs" color="yellow" variant="subtle"
+                class="cursor-pointer" @click="isEditingGeneralInfo = !isEditingGeneralInfo" />
             </div>
 
-            <UFormField label="Source URL / Helpful Link">
-              <UInput
-                v-model="requirementModalForm.sourceUrl"
-                class="w-full"
-                placeholder="https://psahelpline.ph"
-                :disabled="mutationsDisabled || isSavingModal"
-              />
-            </UFormField>
+            <!-- Static view of General Info (when isEditingGeneralInfo === false) -->
+            <div v-if="!isEditingGeneralInfo"
+              class="space-y-2.5 bg-yellow-50/50 border border-yellow-200/70 rounded-xl p-3.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-base sm:text-lg font-bold font-serif text-highlighted">
+                  {{ requirementModalForm.displayName || 'Untitled Requirement' }}
+                </h3>
+                <div class="flex items-center gap-1.5">
+                  <UBadge color="yellow" variant="subtle" size="xs">
+                    {{ requirementModalForm.category }}
+                  </UBadge>
+                  <UBadge v-if="requirementModalForm.timeline" color="neutral" variant="subtle" size="xs">
+                    {{ requirementModalForm.timeline }}
+                  </UBadge>
+                </div>
+              </div>
 
-            <UFormField label="Description / Guidelines">
-              <UTextarea
-                v-model="requirementModalForm.description"
-                :rows="2"
-                class="w-full"
-                placeholder="Details, parish guidelines, or requirements notes..."
-                :disabled="mutationsDisabled || isSavingModal"
-              />
-            </UFormField>
+              <p v-if="requirementModalForm.description" class="text-xs text-toast-700 leading-relaxed">
+                {{ requirementModalForm.description }}
+              </p>
+              <p v-else class="text-xs text-muted italic">
+                No description or guidelines provided.
+              </p>
+
+              <div v-if="requirementModalForm.sourceUrl" class="pt-0.5">
+                <a :href="requirementModalForm.sourceUrl" target="_blank" rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline font-medium">
+                  <UIcon name="i-lucide-external-link" class="size-3.5" />
+                  <span class="truncate max-w-sm">{{ requirementModalForm.sourceUrl }}</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Editable view of General Info (when isEditingGeneralInfo === true) -->
+            <div v-else class="space-y-3 bg-white border border-yellow-300/80 rounded-xl p-3.5 shadow-xs">
+              <UFormField label="Requirement Name" required>
+                <UInput v-model="requirementModalForm.displayName" class="w-full"
+                  placeholder="e.g. Birth Certificate (PSA)" :disabled="mutationsDisabled || isSavingModal" />
+              </UFormField>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <UFormField label="Category">
+                  <UInput v-model="requirementModalForm.category" class="w-full" placeholder="e.g. Church Requirements"
+                    :disabled="mutationsDisabled || isSavingModal" />
+                </UFormField>
+
+                <UFormField label="Timeline">
+                  <USelect v-model="requirementModalForm.timeline" :items="TIMELINE_OPTIONS" class="w-full"
+                    :disabled="mutationsDisabled || isSavingModal" />
+                </UFormField>
+              </div>
+
+              <UFormField label="Source URL / Helpful Link">
+                <UInput v-model="requirementModalForm.sourceUrl" class="w-full" placeholder="https://psahelpline.ph"
+                  :disabled="mutationsDisabled || isSavingModal" />
+              </UFormField>
+
+              <UFormField label="Description / Guidelines">
+                <UTextarea v-model="requirementModalForm.description" :rows="2" class="w-full"
+                  placeholder="Details, parish guidelines, or requirements notes..."
+                  :disabled="mutationsDisabled || isSavingModal" />
+              </UFormField>
+            </div>
           </div>
 
           <!-- Section 2: Groom's Tracking -->
-          <div class="space-y-3 p-3.5 rounded-xl border border-bread-200/80 bg-bread-50/50">
+          <div class="space-y-3 p-3.5 rounded-xl border border-bread-300 bg-bread-100">
             <div class="flex items-center justify-between pb-1 border-b border-bread-200">
               <span class="text-xs font-bold text-toast-900 flex items-center gap-1.5">
                 <UIcon name="i-lucide-user" class="size-3.5 text-yellow-600" />
@@ -1356,76 +1544,101 @@ watch(eventId, async () => {
               </UBadge>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <UFormField label="Status">
-                <USelect
-                  v-model="requirementModalForm.groom.status"
-                  :items="statusSelectItems"
-                  class="w-full"
-                  :disabled="mutationsDisabled || isSavingModal"
-                />
-              </UFormField>
+            <!-- Static document presentation when finished -->
+            <div v-if="isRequirementFinished(selectedRequirementForModal)" class="space-y-2 text-xs">
+              <div class="grid grid-cols-2 gap-2 text-muted">
+                <div>
+                  <span class="text-[10px] uppercase font-bold text-toast-500 block">Status</span>
+                  <span class="font-medium text-highlighted capitalize">{{ requirementModalForm.groom.status }}</span>
+                </div>
+                <div v-if="requirementModalForm.groom.dateAcquired">
+                  <span class="text-[10px] uppercase font-bold text-toast-500 block">Date Acquired</span>
+                  <span class="font-medium text-highlighted">{{ requirementModalForm.groom.dateAcquired }}</span>
+                </div>
+              </div>
 
-              <UFormField label="Date Acquired">
-                <UInput
-                  v-model="requirementModalForm.groom.dateAcquired"
-                  type="date"
-                  class="w-full"
-                  :disabled="mutationsDisabled || isSavingModal"
-                />
-              </UFormField>
+              <div v-if="requirementModalForm.groom.notes">
+                <span class="text-[10px] uppercase font-bold text-toast-500 block">Notes</span>
+                <p class="text-toast-700 italic">{{ requirementModalForm.groom.notes }}</p>
+              </div>
+
+              <!-- Static document download button if file attached -->
+              <div v-if="requirementModalForm.groom.existingFile" class="pt-1">
+                <span class="text-[10px] uppercase font-bold text-toast-500 block mb-1">Attached Document</span>
+                <button type="button"
+                  class="w-full p-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100/90 border border-emerald-200 flex items-center justify-between gap-2 text-left cursor-pointer transition-colors group"
+                  title="Click to download document" @click="downloadDocument(requirementModalForm.groom.existingFile)">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UIcon name="i-lucide-file-text" class="size-4 text-emerald-700 shrink-0" />
+                    <span class="text-xs font-semibold text-emerald-950 truncate">{{
+                      requirementModalForm.groom.existingFile.fileName }}</span>
+                  </div>
+                  <div
+                    class="flex items-center gap-1 text-xs font-medium text-emerald-700 shrink-0 group-hover:underline">
+                    <UIcon name="i-lucide-download" class="size-4" />
+                    <span>Download</span>
+                  </div>
+                </button>
+              </div>
+              <div v-else class="text-muted italic pt-1">
+                No attached file
+              </div>
             </div>
 
-            <UFormField label="Groom Notes">
-              <UInput
-                v-model="requirementModalForm.groom.notes"
-                placeholder="e.g. Requested online, reference #12345"
-                class="w-full"
-                :disabled="mutationsDisabled || isSavingModal"
-              />
-            </UFormField>
+            <!-- Editable fields when not finished -->
+            <div v-else class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <UFormField label="Status">
+                  <USelect v-model="requirementModalForm.groom.status" :items="statusSelectItems" class="w-full"
+                    :disabled="mutationsDisabled || isSavingModal" />
+                </UFormField>
 
-            <!-- Groom File Upload / View -->
-            <UFormField label="Document Attachment">
-              <div class="space-y-2 text-xs">
-                <div v-if="requirementModalForm.groom.existingFile && !requirementModalForm.groom.pendingFile" class="flex items-center justify-between p-2 rounded-lg bg-white border border-bread-200">
-                  <a
-                    :href="requirementModalForm.groom.existingFile.fileURL"
-                    target="_blank"
-                    class="inline-flex items-center gap-1.5 text-blue-600 hover:underline font-medium truncate max-w-64"
-                  >
-                    <UIcon name="i-lucide-file-text" class="size-4 shrink-0" />
-                    <span class="truncate">{{ requirementModalForm.groom.existingFile.fileName }}</span>
-                  </a>
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    title="Remove file"
-                    :disabled="isSavingModal"
-                    @click="handleRemoveModalFile('groom')"
-                  />
-                </div>
-
-                <div v-if="requirementModalForm.groom.pendingFile" class="text-xs text-yellow-700 font-medium flex items-center gap-1">
-                  <UIcon name="i-lucide-upload" class="size-3.5" />
-                  <span>Ready to upload: {{ requirementModalForm.groom.pendingFile.name }}</span>
-                </div>
-
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                  class="block w-full file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-yellow-900 cursor-pointer"
-                  :disabled="mutationsDisabled || isSavingModal"
-                  @change="onModalFileSelected('groom', $event)"
-                />
+                <UFormField label="Date Acquired">
+                  <UInput v-model="requirementModalForm.groom.dateAcquired" type="date" class="w-full"
+                    :disabled="mutationsDisabled || isSavingModal" />
+                </UFormField>
               </div>
-            </UFormField>
+
+              <UFormField label="Groom Notes">
+                <UInput v-model="requirementModalForm.groom.notes" placeholder="e.g. Requested online, reference #12345"
+                  class="w-full" :disabled="mutationsDisabled || isSavingModal" />
+              </UFormField>
+
+              <!-- Groom File Upload / View -->
+              <UFormField label="Document Attachment">
+                <div class="space-y-2 text-xs">
+                  <div v-if="requirementModalForm.groom.existingFile && !requirementModalForm.groom.pendingFile"
+                    class="flex items-center justify-between p-2 rounded-lg bg-white border border-bread-200">
+                    <button type="button"
+                      class="inline-flex items-center gap-1.5 text-blue-600 hover:underline font-medium truncate max-w-64 cursor-pointer text-left"
+                      title="Click to download file" @click="downloadDocument(requirementModalForm.groom.existingFile)">
+                      <UIcon name="i-lucide-file-text" class="size-4 shrink-0" />
+                      <span class="truncate">{{ requirementModalForm.groom.existingFile.fileName }}</span>
+                    </button>
+                    <div class="flex items-center gap-1">
+                      <UButton size="xs" color="primary" variant="ghost" icon="i-lucide-download" title="Download file"
+                        @click="downloadDocument(requirementModalForm.groom.existingFile)" />
+                      <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-trash-2" title="Remove file"
+                        :disabled="isSavingModal" @click="handleRemoveModalFile('groom')" />
+                    </div>
+                  </div>
+
+                  <div v-if="requirementModalForm.groom.pendingFile"
+                    class="text-xs text-yellow-700 font-medium flex items-center gap-1">
+                    <UIcon name="i-lucide-upload" class="size-3.5" />
+                    <span>Ready to upload: {{ requirementModalForm.groom.pendingFile.name }}</span>
+                  </div>
+
+                  <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                    class="block w-full file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-yellow-900 cursor-pointer"
+                    :disabled="mutationsDisabled || isSavingModal" @change="onModalFileSelected('groom', $event)" />
+                </div>
+              </UFormField>
+            </div>
           </div>
 
           <!-- Section 3: Bride's Tracking -->
-          <div class="space-y-3 p-3.5 rounded-xl border border-bread-200/80 bg-bread-50/50">
+          <div class="space-y-3 p-3.5 rounded-xl border border-bread-300 bg-bread-100">
             <div class="flex items-center justify-between pb-1 border-b border-bread-200">
               <span class="text-xs font-bold text-toast-900 flex items-center gap-1.5">
                 <UIcon name="i-lucide-user-check" class="size-3.5 text-yellow-600" />
@@ -1436,192 +1649,175 @@ watch(eventId, async () => {
               </UBadge>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <UFormField label="Status">
-                <USelect
-                  v-model="requirementModalForm.bride.status"
-                  :items="statusSelectItems"
-                  class="w-full"
-                  :disabled="mutationsDisabled || isSavingModal"
-                />
-              </UFormField>
-
-              <UFormField label="Date Acquired">
-                <UInput
-                  v-model="requirementModalForm.bride.dateAcquired"
-                  type="date"
-                  class="w-full"
-                  :disabled="mutationsDisabled || isSavingModal"
-                />
-              </UFormField>
-            </div>
-
-            <UFormField label="Bride Notes">
-              <UInput
-                v-model="requirementModalForm.bride.notes"
-                placeholder="e.g. Certified true copy picked up from parish office"
-                class="w-full"
-                :disabled="mutationsDisabled || isSavingModal"
-              />
-            </UFormField>
-
-            <!-- Bride File Upload / View -->
-            <UFormField label="Document Attachment">
-              <div class="space-y-2 text-xs">
-                <div v-if="requirementModalForm.bride.existingFile && !requirementModalForm.bride.pendingFile" class="flex items-center justify-between p-2 rounded-lg bg-white border border-bread-200">
-                  <a
-                    :href="requirementModalForm.bride.existingFile.fileURL"
-                    target="_blank"
-                    class="inline-flex items-center gap-1.5 text-blue-600 hover:underline font-medium truncate max-w-64"
-                  >
-                    <UIcon name="i-lucide-file-text" class="size-4 shrink-0" />
-                    <span class="truncate">{{ requirementModalForm.bride.existingFile.fileName }}</span>
-                  </a>
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    title="Remove file"
-                    :disabled="isSavingModal"
-                    @click="handleRemoveModalFile('bride')"
-                  />
+            <!-- Static document presentation when finished -->
+            <div v-if="isRequirementFinished(selectedRequirementForModal)" class="space-y-2 text-xs">
+              <div class="grid grid-cols-2 gap-2 text-muted">
+                <div>
+                  <span class="text-[10px] uppercase font-bold text-toast-500 block">Status</span>
+                  <span class="font-medium text-highlighted capitalize">{{ requirementModalForm.bride.status }}</span>
                 </div>
-
-                <div v-if="requirementModalForm.bride.pendingFile" class="text-xs text-yellow-700 font-medium flex items-center gap-1">
-                  <UIcon name="i-lucide-upload" class="size-3.5" />
-                  <span>Ready to upload: {{ requirementModalForm.bride.pendingFile.name }}</span>
+                <div v-if="requirementModalForm.bride.dateAcquired">
+                  <span class="text-[10px] uppercase font-bold text-toast-500 block">Date Acquired</span>
+                  <span class="font-medium text-highlighted">{{ requirementModalForm.bride.dateAcquired }}</span>
                 </div>
-
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                  class="block w-full file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-yellow-900 cursor-pointer"
-                  :disabled="mutationsDisabled || isSavingModal"
-                  @change="onModalFileSelected('bride', $event)"
-                />
               </div>
-            </UFormField>
-          </div>
 
-          <!-- Modal Footer Actions (Matching Suppliers Modal) -->
-          <div class="mt-6 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-bread-100">
-            <div>
-              <UButton
-                label="Delete Requirement"
-                color="error"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-trash-2"
-                :disabled="mutationsDisabled || isSavingModal"
-                @click="() => { const r = selectedRequirementForModal; isRequirementModalOpen = false; if (r) openDeleteModal(r); }"
-              />
+              <div v-if="requirementModalForm.bride.notes">
+                <span class="text-[10px] uppercase font-bold text-toast-500 block">Notes</span>
+                <p class="text-toast-700 italic">{{ requirementModalForm.bride.notes }}</p>
+              </div>
+
+              <!-- Static document download button if file attached -->
+              <div v-if="requirementModalForm.bride.existingFile" class="pt-1">
+                <span class="text-[10px] uppercase font-bold text-toast-500 block mb-1">Attached Document</span>
+                <button type="button"
+                  class="w-full p-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100/90 border border-emerald-200 flex items-center justify-between gap-2 text-left cursor-pointer transition-colors group"
+                  title="Click to download document" @click="downloadDocument(requirementModalForm.bride.existingFile)">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UIcon name="i-lucide-file-text" class="size-4 text-emerald-700 shrink-0" />
+                    <span class="text-xs font-semibold text-emerald-950 truncate">{{
+                      requirementModalForm.bride.existingFile.fileName }}</span>
+                  </div>
+                  <div
+                    class="flex items-center gap-1 text-xs font-medium text-emerald-700 shrink-0 group-hover:underline">
+                    <UIcon name="i-lucide-download" class="size-4" />
+                    <span>Download</span>
+                  </div>
+                </button>
+              </div>
+              <div v-else class="text-muted italic pt-1">
+                No attached file
+              </div>
             </div>
-            <div class="flex items-center gap-2 ml-auto">
-              <UButton
-                label="Cancel"
-                color="neutral"
-                variant="outline"
-                :disabled="isSavingModal"
-                @click="isRequirementModalOpen = false"
-              />
-              <UButton
-                label="Save Changes"
-                color="yellow"
-                :loading="isSavingModal"
-                :disabled="mutationsDisabled || isSavingModal"
-                @click="handleSaveRequirementModal"
-              />
+
+            <!-- Editable fields when not finished -->
+            <div v-else class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <UFormField label="Status">
+                  <USelect v-model="requirementModalForm.bride.status" :items="statusSelectItems" class="w-full"
+                    :disabled="mutationsDisabled || isSavingModal" />
+                </UFormField>
+
+                <UFormField label="Date Acquired">
+                  <UInput v-model="requirementModalForm.bride.dateAcquired" type="date" class="w-full"
+                    :disabled="mutationsDisabled || isSavingModal" />
+                </UFormField>
+              </div>
+
+              <UFormField label="Bride Notes">
+                <UInput v-model="requirementModalForm.bride.notes"
+                  placeholder="e.g. Certified true copy picked up from parish office" class="w-full"
+                  :disabled="mutationsDisabled || isSavingModal" />
+              </UFormField>
+
+              <!-- Bride File Upload / View -->
+              <UFormField label="Document Attachment">
+                <div class="space-y-2 text-xs">
+                  <div v-if="requirementModalForm.bride.existingFile && !requirementModalForm.bride.pendingFile"
+                    class="flex items-center justify-between p-2 rounded-lg bg-white border border-bread-200">
+                    <button type="button"
+                      class="inline-flex items-center gap-1.5 text-blue-600 hover:underline font-medium truncate max-w-64 cursor-pointer text-left"
+                      title="Click to download file" @click="downloadDocument(requirementModalForm.bride.existingFile)">
+                      <UIcon name="i-lucide-file-text" class="size-4 shrink-0" />
+                      <span class="truncate">{{ requirementModalForm.bride.existingFile.fileName }}</span>
+                    </button>
+                    <div class="flex items-center gap-1">
+                      <UButton size="xs" color="primary" variant="ghost" icon="i-lucide-download" title="Download file"
+                        @click="downloadDocument(requirementModalForm.bride.existingFile)" />
+                      <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-trash-2" title="Remove file"
+                        :disabled="isSavingModal" @click="handleRemoveModalFile('bride')" />
+                    </div>
+                  </div>
+
+                  <div v-if="requirementModalForm.bride.pendingFile"
+                    class="text-xs text-yellow-700 font-medium flex items-center gap-1">
+                    <UIcon name="i-lucide-upload" class="size-3.5" />
+                    <span>Ready to upload: {{ requirementModalForm.bride.pendingFile.name }}</span>
+                  </div>
+
+                  <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                    class="block w-full file:mr-3 file:rounded-md file:border-0 file:bg-yellow-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-yellow-900 cursor-pointer"
+                    :disabled="mutationsDisabled || isSavingModal" @change="onModalFileSelected('bride', $event)" />
+                </div>
+              </UFormField>
             </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Modal Footer Actions (Matching Suppliers Modal) -->
+      <template #footer>
+        <div class="flex flex-wrap items-center justify-between gap-2 w-full">
+          <div>
+            <UButton label="Delete Requirement" color="error" variant="ghost" size="sm" icon="i-lucide-trash-2"
+              :disabled="mutationsDisabled || isSavingModal"
+              @click="() => { const r = selectedRequirementForModal; isRequirementModalOpen = false; if (r) openDeleteModal(r); }" />
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Reopen button if currently finished -->
+            <UButton v-if="isRequirementFinished(selectedRequirementForModal)" label="Reopen to Ongoing" color="neutral"
+              variant="outline" size="sm" icon="i-lucide-undo-2" :disabled="mutationsDisabled || isSavingModal"
+              @click="() => { if (selectedRequirementForModal) markRequirementOngoing(selectedRequirementForModal); isRequirementModalOpen = false; }" />
+
+            <UButton label="Cancel" color="neutral" variant="outline" size="sm" :disabled="isSavingModal"
+              @click="isRequirementModalOpen = false" />
+
+            <!-- Save Changes expanding dropdown -->
+            <UDropdownMenu :items="saveDropdownItems" :modal="false" :content="{ align: 'end' }"
+              :disabled="mutationsDisabled || isSavingModal">
+              <UButton label="Save Changes" color="yellow" size="sm" trailing-icon="i-lucide-chevron-down"
+                :loading="isSavingModal" :disabled="mutationsDisabled || isSavingModal"
+                class="cursor-pointer font-medium" />
+            </UDropdownMenu>
           </div>
         </div>
       </template>
     </UModal>
 
     <!-- Add Custom Requirement Modal (Matching Add Supplier Modal) -->
-    <UModal
-      v-model:open="isAddRequirementModalOpen"
-      title="Add Custom Church Requirement"
-      :ui="churchRequirementModalUi"
-      :close="{ variant: 'link', class: 'rounded-full text-white' }"
-      :dismissible="!isSubmitting"
-    >
+    <UModal v-model:open="isAddRequirementModalOpen" title="Add Custom Church Requirement"
+      :ui="churchRequirementModalUi" :close="{ variant: 'link', class: 'rounded-full text-white' }"
+      :dismissible="!isSubmitting">
       <template #body>
         <div class="space-y-4">
           <UFormField label="Category" required>
-            <USelect
-              v-model="addRequirementForm.category"
-              :items="categoryList"
-              class="w-full"
-              :disabled="isSubmitting"
-            />
+            <USelect v-model="addRequirementForm.category" :items="categoryList" class="w-full"
+              :disabled="isSubmitting" />
           </UFormField>
 
           <UFormField label="Requirement Name" required>
-            <UInput
-              v-model="addRequirementForm.displayName"
-              placeholder="e.g. Parish Confirmation Clearance"
-              class="w-full"
-              :disabled="isSubmitting"
-            />
+            <UInput v-model="addRequirementForm.displayName" placeholder="e.g. Parish Confirmation Clearance"
+              class="w-full" :disabled="isSubmitting" />
           </UFormField>
 
           <UFormField label="Timeline">
-            <USelect
-              v-model="addRequirementForm.timeline"
-              :items="TIMELINE_OPTIONS"
-              class="w-full"
-              :disabled="isSubmitting"
-            />
+            <USelect v-model="addRequirementForm.timeline" :items="TIMELINE_OPTIONS" class="w-full"
+              :disabled="isSubmitting" />
           </UFormField>
 
           <UFormField label="Source URL / Reference Link">
-            <UInput
-              v-model="addRequirementForm.sourceUrl"
-              placeholder="https://..."
-              class="w-full"
-              :disabled="isSubmitting"
-            />
+            <UInput v-model="addRequirementForm.sourceUrl" placeholder="https://..." class="w-full"
+              :disabled="isSubmitting" />
           </UFormField>
 
           <UFormField label="Description">
-            <UTextarea
-              v-model="addRequirementForm.description"
-              :rows="3"
-              placeholder="Guidelines or requirements notes..."
-              class="w-full"
-              :disabled="isSubmitting"
-            />
+            <UTextarea v-model="addRequirementForm.description" :rows="3"
+              placeholder="Guidelines or requirements notes..." class="w-full" :disabled="isSubmitting" />
           </UFormField>
 
           <div class="mt-6 flex items-center justify-end gap-2 pt-2 border-t border-bread-100">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              :disabled="isSubmitting"
-              @click="isAddRequirementModalOpen = false"
-            />
-            <UButton
-              label="Create Requirement"
-              color="yellow"
-              :loading="isSubmitting"
-              :disabled="!addRequirementForm.displayName.trim() || isSubmitting"
-              @click="handleCreateRequirement"
-            />
+            <UButton label="Cancel" color="neutral" variant="outline" :disabled="isSubmitting"
+              @click="isAddRequirementModalOpen = false" />
+            <UButton label="Create Requirement" color="yellow" :loading="isSubmitting"
+              :disabled="!addRequirementForm.displayName.trim() || isSubmitting" @click="handleCreateRequirement" />
           </div>
         </div>
       </template>
     </UModal>
 
     <!-- Delete Confirmation Modal (Matching Suppliers Delete Modal) -->
-    <UModal
-      v-model:open="isDeleteModalOpen"
-      title="Delete Requirement"
-      :ui="churchRequirementModalUi"
-      :close="{ variant: 'link', class: 'rounded-full text-white' }"
-      :dismissible="!isSubmitting"
-    >
+    <UModal v-model:open="isDeleteModalOpen" title="Delete Requirement" :ui="churchRequirementModalUi"
+      :close="{ variant: 'link', class: 'rounded-full text-white' }" :dismissible="!isSubmitting">
       <template #body>
         <p class="mb-4 text-sm text-muted">
           Are you sure you want to delete
@@ -1629,19 +1825,9 @@ watch(eventId, async () => {
           This cannot be undone.
         </p>
         <div class="flex justify-end gap-2 pt-2 border-t border-bread-100">
-          <UButton
-            label="Cancel"
-            color="neutral"
-            variant="outline"
-            :disabled="isSubmitting"
-            @click="isDeleteModalOpen = false"
-          />
-          <UButton
-            label="Delete"
-            color="error"
-            :loading="isSubmitting"
-            @click="confirmDeleteRequirement"
-          />
+          <UButton label="Cancel" color="neutral" variant="outline" :disabled="isSubmitting"
+            @click="isDeleteModalOpen = false" />
+          <UButton label="Delete" color="error" :loading="isSubmitting" @click="confirmDeleteRequirement" />
         </div>
       </template>
     </UModal>

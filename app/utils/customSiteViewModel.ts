@@ -85,7 +85,7 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
   const motifConfig = parseMotifConfig(site.motif)
   const parsedPalette = paletteRecordFromSite(site) || {}
   const rawInvert = site.invertColors ?? parsedPalette.invertColors ?? motifConfig?.invertColors
-  const invertColors = Boolean(rawInvert)
+  const invertColors = rawInvert !== undefined ? Boolean(rawInvert) : true
 
   const rawSimplified = site.simplifiedColors ?? parsedPalette.simplifiedColors ?? motifConfig?.simplifiedColors
   const simplifiedColors = Boolean(rawSimplified)

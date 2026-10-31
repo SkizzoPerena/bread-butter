@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { PAYMENT_QR_OPTIONS, PAYMENT_QR_TABS } from '~/utils/paymentQrOptions'
-import MockPaymentQrGraphic from '~/components/MockPaymentQrGraphic.vue'
 
 const props = defineProps<{
   amountDue: number
@@ -20,7 +19,7 @@ const selectedQrId = ref<string>('gcash')
 const transactionId = ref('')
 const proofFile = ref<any>(null)
 
-const gcashAccountName = 'Bread + Butter'
+const gcashAccountName = 'BE*****N Y.'
 const gcashAccountNumber = '+639209328080'
 const isCopied = ref(false)
 
@@ -153,26 +152,31 @@ defineExpose({
       </div>
 
     </div>
-    <!-- QR CODES
+    <!-- QR Code Display Card -->
     <div
-      v-if="activeQr"
-      class="bg-white/85 p-3.5 sm:p-4 rounded-xl border border-toast-600/20 flex flex-col items-center text-center space-y-2.5"
+      class="bg-white/90 p-3.5 sm:p-4 rounded-xl border border-toast-600/20 flex flex-col items-center text-center space-y-3"
     >
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-1.5 text-toast-900 font-bold text-xs sm:text-sm">
-          <UIcon :name="activeQr.icon" class="w-4 h-4 text-toast-600" />
-          <span>Scan GCash QR</span>
+          <UIcon name="i-lucide-qr-code" class="w-4 h-4 text-toast-600" />
+          <span>Scan QR to Pay</span>
         </div>
         <UBadge color="toast" variant="subtle" size="xs" class="text-[10px] font-semibold">
-          Instant
+          InstaPay / GCash
         </UBadge>
       </div>
 
-      <MockPaymentQrGraphic :logo-text="activeQr.logoText" />
+      <div class="bg-white p-2 sm:p-3 rounded-xl border border-toast-200 shadow-xs max-w-64 w-full flex items-center justify-center overflow-hidden">
+        <img
+          src="/images/payment-qr.jpg"
+          alt="Payment QR Code - BE*****N Y."
+          class="w-full h-auto object-contain rounded-lg"
+        />
+      </div>
 
-      <p class="text-[11px] text-toast-700">Open your GCash app and scan this QR code or send directly to the number above</p>
+      <p class="text-[11px] text-toast-700">Open GCash, Maya, or any banking app to scan this InstaPay QR</p>
 
-      <div class="space-y-0.5 text-center text-xs w-full">
+      <div class="space-y-0.5 text-center text-xs w-full pt-1 border-t border-toast-600/10">
         <p class="font-bold text-toast-900">{{ gcashAccountName }}</p>
         <p class="text-[11px] font-mono text-toast-800">{{ gcashAccountNumber }}</p>
         <p class="text-[11px] text-toast-700 pt-0.5">
@@ -181,7 +185,6 @@ defineExpose({
         </p>
       </div>
     </div>
--->
     <UFormField label="Transaction / Reference ID" required>
       <UInput v-model="transactionId" placeholder="e.g. GCASH reference number" size="md"
         class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" :disabled="disabled" />

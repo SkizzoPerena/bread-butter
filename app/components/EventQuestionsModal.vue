@@ -20,8 +20,8 @@ const QUESTION_TYPES = [
 const EMOJI_RE = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/u
 
 const props = defineProps<{
-  eventId: string
   initialQuestions: EventQuestion[]
+  save: (questions: EventQuestion[]) => Promise<unknown>
 }>()
 
 const emit = defineEmits<{
@@ -30,7 +30,6 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { required: true })
 const toast = useToast()
-const { updateEventQuestions } = useEventQuestions()
 
 const mode = ref<'edit' | 'preview'>('edit')
 const isSubmitting = ref(false)
@@ -64,9 +63,7 @@ function addQuestion() {
 }
 
 function removeQuestion(id: number) {
-  if (questions.value.length > 1) {
-    questions.value = questions.value.filter((q) => q.id !== id)
-  }
+  questions.value = questions.value.filter((q) => q.id !== id)
 }
 
 function addOption(q: DraftQuestion) {
@@ -80,7 +77,6 @@ function removeOption(q: DraftQuestion, index: number) {
 }
 
 function validate(): string | null {
-  if (!questions.value.length) return 'Add at least one question.'
   for (const [i, q] of questions.value.entries()) {
     const n = i + 1
     if (!q.question.trim()) return `Question ${n}: question text is required.`
@@ -133,7 +129,7 @@ async function handleSave() {
   if (isSubmitting.value) return
   isSubmitting.value = true
   try {
-    await updateEventQuestions(props.eventId, buildPayload())
+    await props.save(buildPayload())
     toast.add({ title: 'Questions saved', description: 'RSVP questions have been updated.', color: 'success' })
     open.value = false
     emit('saved')
@@ -206,7 +202,7 @@ const previewQuestions = computed(() =>
                 <li>No emojis are allowed in any field.</li>
               </ul>
               <p class="text-xs text-muted mt-4">
-                Saving will replace all existing questions for this event.
+                Saving will replace all existing questions. Removing every question clears them.
               </p>
             </UPageCard>
           </div>
@@ -224,7 +220,7 @@ const previewQuestions = computed(() =>
                   size="xs"
                   variant="ghost"
                   color="error"
-                  :disabled="questions.length <= 1"
+                  :aria-label="`Remove question ${index + 1}`"
                   @click="removeQuestion(q.id)"
                 />
               </div>
