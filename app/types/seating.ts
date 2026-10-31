@@ -155,6 +155,10 @@ export interface JamInviteDetails {
 
 export interface JamInviteUnlocked {
   gatheringName: string
+  venue?: string
+  eventDate?: string
+  invitationMessage?: string
+  design?: JamInvitationDesign
   questions?: EventQuestion[]
   answers?: RsvpAnswer[]
   rsvpStatus?: RsvpStatus
@@ -207,7 +211,6 @@ export interface JamImportableGuest {
 }
 
 export interface JamReplyBody {
-  passcode: string
   rsvpStatus: 'GOING' | 'NOT_GOING'
   answers?: RsvpAnswer[]
   firstName?: string

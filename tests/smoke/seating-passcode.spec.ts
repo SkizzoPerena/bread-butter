@@ -44,11 +44,11 @@ test('an invitation with a passcode still asks for it', async ({ page }) => {
   await expect(page.getByText('Come hungry.')).toBeVisible()
 })
 
-test('a guest replies with no passcode step when the plan has none', async ({ page }) => {
+test('a guest reads the invitation and replies on one page, with no passcode step', async ({ page }) => {
   const calls = await stubApi(page, {
     routes: {
-      [`GET /guest/seating/rsvp/${PASS_TOKEN}`]: route => route.fulfill({
-        json: { success: true, status: 200, gatheringName: 'Damson supper', passcodeRequired: false, needsName: false },
+      [`POST /guest/seating/rsvp/${PASS_TOKEN}/unlock`]: route => route.fulfill({
+        json: { ...invitation, questions: [], answers: [], rsvpStatus: 'PENDING', needsName: false },
       }),
       [`POST /guest/seating/rsvp/${PASS_TOKEN}`]: route => route.fulfill({
         json: { success: true, status: 200, message: 'You are marked as not coming.', rsvpStatus: 'NOT_GOING' },
@@ -57,12 +57,14 @@ test('a guest replies with no passcode step when the plan has none', async ({ pa
   })
   await page.goto(`/jam/rsvp/${PASS_TOKEN}`)
 
+  await expect(page.getByText('Come hungry.')).toBeVisible()
+  await expect(page.getByText('The Hall')).toBeVisible()
   await expect(page.getByLabel('Passcode')).toHaveCount(0)
   await page.getByLabel('No, I cannot attend').check()
   await page.getByRole('button', { name: 'Send reply' }).click()
   await expect(page.getByText('You are marked as not coming.')).toBeVisible()
   const reply = calls.find(call => call.method === 'POST' && call.url.endsWith(`/rsvp/${PASS_TOKEN}`))
-  expect(reply?.body).toEqual({ passcode: '', rsvpStatus: 'NOT_GOING', answers: [] })
+  expect(reply?.body).toEqual({ rsvpStatus: 'NOT_GOING', answers: [] })
 })
 
 test('a host can save an invitation with the passcode left empty', async ({ page }) => {
