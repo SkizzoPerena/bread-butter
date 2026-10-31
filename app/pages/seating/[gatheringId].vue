@@ -171,7 +171,7 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
   },
   {
     id: 'export_csv',
-    label: 'Export CSV',
+    label: 'Export Seat Plan',
     icon: 'i-lucide-download',
     bgClass: 'bg-toast-600',
   },
@@ -275,12 +275,12 @@ async function downloadGuests() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'jam-guests.csv'
+    link.download = 'jam-seat-plan.csv'
     link.click()
     URL.revokeObjectURL(url)
-    toast.add({ title: 'Seated list downloaded', color: 'success' })
+    toast.add({ title: 'Seat plan downloaded', color: 'success' })
   } catch (error) {
-    toast.add({ title: 'Could not download seated list', description: getApiErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Could not download seat plan', description: getApiErrorMessage(error), color: 'error' })
   }
 }
 
@@ -832,7 +832,7 @@ async function copyLookupUrl() {
               class="font-semibold cursor-pointer"
               @click="downloadGuests"
             >
-              Export CSV
+              Export Seat Plan
             </UButton>
           </div>
         </div>

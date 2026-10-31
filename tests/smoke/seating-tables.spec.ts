@@ -99,6 +99,22 @@ test('a host marks an empty seat unavailable, and a guest taking it first is rep
   expect(attempts).toBe(1)
 })
 
+test('exporting saves the seat plan file', async ({ page }) => {
+  await openWorkspace(page, {
+    routes: {
+      [`GET /gatherings/${GATHERING_ID}/export`]: route => route.fulfill({
+        body: 'table,seat,last name,first name,email,party,response,checked in\n',
+        contentType: 'text/csv',
+      }),
+    },
+  })
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /^Export Seat Plan$/ }).last().click(),
+  ])
+  expect(download.suggestedFilename()).toBe('jam-seat-plan.csv')
+})
+
 test('removing a seated guest asks first, and only then sends the confirmation', async ({ page }) => {
   let attempts = 0
   const calls = await openWorkspace(page, {

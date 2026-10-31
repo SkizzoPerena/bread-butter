@@ -157,7 +157,7 @@ async function downloadGuests() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'jam-guests.csv'
+    link.download = 'jam-seat-plan.csv'
     link.click()
     URL.revokeObjectURL(url)
     toast.add({ title: 'Attendance list downloaded', color: 'success' })

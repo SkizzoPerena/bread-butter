@@ -15,7 +15,7 @@ flowchart TD
   replies[See pending, going, and not going]
   tables[Set tables and auto-assign]
   door[Show the gathering QR and scan check-in]
-  csv[Download the seated list]
+  csv[Download the seat plan]
   start --> pay --> workspace --> guests --> invite --> send --> replies --> tables --> door
   tables --> csv
 ```
@@ -29,7 +29,7 @@ The workspace uses the same buttons and containers for four sections:
 - **Tables and seats.** Give each table its own seat count and an optional label, which shows as "Table 2" by position when empty. Then auto-assign attending guests, and move someone after. A party sits together when the table has room. Saving a layout keeps guests in their seats, and only asks first when it would remove someone. There can be more seats than guests, up to 500. Each empty seat can be marked unavailable, so nobody can be placed there. Guests who are coming can choose their own seats until the host locks seat selection, and auto-assign only fills guests with no seat.
 - **QR and check-in.** Shows the gathering QR, lists attending guests, and checks in a personal pass by camera scan or by uploading an image of the QR. Upload also works when the camera is broken or blocked.
 
-**Download seated list** on the guests section saves `jam-guests.csv`.
+**Export Seat Plan** saves `jam-seat-plan.csv`: table by table, with guests alphabetized by last name then first name, and anyone with no seat at the end.
 
 ## Guest path
 
