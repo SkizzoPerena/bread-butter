@@ -16,7 +16,8 @@ test('with the camera unavailable, upload checks the guest in and rejects anythi
   expect(checkInCalls(calls)).toEqual([])
 
   await upload.setInputFiles(png(await passQr()))
-  await expect(page.getByText('Maria Santos checked in')).toBeVisible()
+  // Exact, because a toast briefly has a hidden screen-reader copy of its text.
+  await expect(page.getByText('Maria Santos checked in', { exact: true })).toBeVisible()
   expect(checkInCalls(calls).map(call => call.body)).toEqual([{ token: PASS_TOKEN }])
   await expect(page.getByText('No QR code was found in that image.')).toHaveCount(0)
 })
