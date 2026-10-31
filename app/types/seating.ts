@@ -148,6 +148,15 @@ export interface JamOpenRegistration {
   attendPath?: string
 }
 
+export interface JamImportableGuest {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  partyName: string
+  alreadyOnList: boolean
+}
+
 export interface JamReplyBody {
   passcode: string
   rsvpStatus: 'GOING' | 'NOT_GOING'

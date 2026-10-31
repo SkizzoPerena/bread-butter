@@ -7,6 +7,7 @@ import SeatingQrImage from '~/components/SeatingQrImage.vue'
 import SeatingCheckInScanner from '~/components/SeatingCheckInScanner.vue'
 import EventQuestionsModal from '~/components/EventQuestionsModal.vue'
 import JamInvitationMaker from '~/components/JamInvitationMaker.vue'
+import JamGuestImport from '~/components/JamGuestImport.vue'
 import type { EventQuestion } from '~/types/event'
 import { formatRsvpAnswerNotes, formatRsvpAnswerValue } from '~/utils/rsvpDisplay'
 
@@ -886,6 +887,12 @@ async function copyLookupUrl() {
 
         <!-- ================= WORKSPACE MODULE: GUESTS ================= -->
         <div v-if="active && section === 'guests'" class="space-y-4">
+          <JamGuestImport
+            :gathering-id="gatheringId"
+            :guest-count="guests.length"
+            @imported="load()"
+          />
+
           <!-- Add Guest Card -->
           <div class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
             <div class="flex items-center justify-between border-b border-bread-200/60 pb-2">

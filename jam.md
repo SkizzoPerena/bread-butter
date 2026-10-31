@@ -25,6 +25,7 @@ flowchart TD
 The workspace uses the same buttons and containers for its sections:
 
 - **Guests.** Add one person at a time. A new guest always starts as pending. Each row has a response of pending, going, or not going, which changes when the guest replies or the host records a reply. Going is what marks someone attending.
+- **Reusing guests.** A host with another Jam can copy guests from it in the guests section, which opens by itself while the list is empty. They come in as pending, and nothing is sent until the host sends invitations.
 - **Invitation.** Edit the subject, message, and passcode, add custom RSVP questions, then send to guests who are still pending. Counts show pending, going, and not going. Guest rows show each guest's answers, and the seat plan has a column per question.
 - **Invitation design.** In the invitation section, the host sets a request line, headline, time, RSVP deadline, colors, fonts, and an optional banner, with a live preview. These are saved on the plan, so guests and the email see them. Instead, the host can upload their own JPEG or PNG as the invitation, and switch between the two.
 - **Open invite.** In the invitation section, the host can turn on a shareable link, copy it, replace it, or turn it off. Anyone with it can add themselves, up to the plan's limit.

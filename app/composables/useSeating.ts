@@ -6,6 +6,7 @@ import type {
   JamInvitation,
   JamInvitationDesign,
   JamInviteDetails,
+  JamImportableGuest,
   JamInviteUnlocked,
   JamOpenInvitation,
   JamOpenRegistration,
@@ -783,6 +784,59 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
+  async function listImportableGuests(
+    gatheringId: string,
+    sourceId: string,
+  ): Promise<{ guests: JamImportableGuest[], creditsRemaining: number }> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const current = mockGuests(gatheringId)
+      return {
+        creditsRemaining: Math.max(gathering.maxGuests - current.length, 0),
+        guests: mockGuests(sourceId).map((guest) => ({
+          _id: guest._id,
+          firstName: guest.firstName,
+          lastName: guest.lastName,
+          email: guest.email,
+          partyName: guest.partyName,
+          alreadyOnList: current.some((item) => item.email === guest.email),
+        })),
+      }
+    }
+    return apiRequest(`/user/seating/gatherings/${gatheringId}/guest-import/${sourceId}`)
+  }
+
+  async function importGuests(
+    gatheringId: string,
+    sourceId: string,
+    guestIds: string[],
+  ): Promise<{ message: string, created: number }> {
+    if (isUiOnlyMode.value) {
+      const current = mockGuests(gatheringId)
+      const toCopy = mockGuests(sourceId).filter((guest) => guestIds.includes(guest._id))
+      for (const guest of toCopy) {
+        current.push({
+          ...guest,
+          _id: `mock-guest-${Date.now()}-${guest._id}`,
+          rsvpStatus: 'PENDING',
+          answers: [],
+          isAttending: false,
+          tableId: null,
+          seatNumber: null,
+          attendanceToken: mockToken(),
+          attendanceQrSentAt: null,
+          checkedInAt: null,
+        })
+      }
+      recount(await getGathering(gatheringId), current)
+      return { message: `Added ${toCopy.length} guests.`, created: toCopy.length }
+    }
+    return apiRequest(`/user/seating/gatherings/${gatheringId}/guest-import/${sourceId}`, {
+      method: 'POST',
+      body: { guestIds },
+    })
+  }
+
   async function uploadInvitationImage(
     gatheringId: string,
     kind: 'banner' | 'invitation',
@@ -998,6 +1052,8 @@ export function useSeating() {
     fetchJamSite,
     fetchJamInvite,
     unlockJamInvite,
+    listImportableGuests,
+    importGuests,
     uploadInvitationImage,
     removeInvitationImage,
     setOpenInvite,
