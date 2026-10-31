@@ -244,7 +244,7 @@ export function resolveCustomSiteTheme(site?: any | null): ResolvedWebsiteTheme 
     return {
       palette: resolvePalette('Gilded Flora'),
       typography: resolveTypography('Romantic Script'),
-      invertColors: false,
+      invertColors: true,
       simplifiedColors: false,
     }
   }
@@ -306,7 +306,7 @@ export function resolveCustomSiteTheme(site?: any | null): ResolvedWebsiteTheme 
     : resolveTypography(typographyName)
 
   const rawInvert = site.invertColors ?? paletteRecord.invertColors ?? motifConfig?.invertColors
-  const invertColors = Boolean(rawInvert)
+  const invertColors = rawInvert !== undefined ? Boolean(rawInvert) : true
 
   const rawSimplified = site.simplifiedColors ?? paletteRecord.simplifiedColors ?? motifConfig?.simplifiedColors
   const simplifiedColors = Boolean(rawSimplified)

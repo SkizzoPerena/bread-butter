@@ -22,6 +22,7 @@ function buildMockRequirements(eventId: string): ChurchRequirementRecord[] {
       templateKey: item.templateKey ?? (item as { taskKey?: string }).taskKey ?? null,
       groom: { ...item.groom, attachedFile: item.groom?.attachedFile ?? null },
       bride: { ...item.bride, attachedFile: item.bride?.attachedFile ?? null },
+      completed: (item as { completed?: boolean }).completed ?? false,
     })
   )
 }
@@ -79,6 +80,7 @@ export function useEventChurchRequirements() {
           description: payload.description ?? '',
           groom: { status: 'required', dateAcquired: null, notes: '', attachedFile: null },
           bride: { status: 'required', dateAcquired: null, notes: '', attachedFile: null },
+          completed: false,
         }
         mockRequirements = [...getMockRequirements(payload.eventId), requirement]
         return {

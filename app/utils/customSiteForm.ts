@@ -383,7 +383,7 @@ export function applyCustomSiteToEditor(
   }
   websiteData.motif = motifConfig?.motif ?? (site.motif && !site.motif.startsWith('{') ? site.motif : '')
   const rawInvert = site.invertColors ?? paletteRecord.invertColors ?? motifConfig?.invertColors
-  websiteData.invertColors = Boolean(rawInvert)
+  websiteData.invertColors = rawInvert !== undefined ? Boolean(rawInvert) : true
 
   const rawSimplified = site.simplifiedColors ?? paletteRecord.simplifiedColors ?? motifConfig?.simplifiedColors
   websiteData.simplifiedColors = Boolean(rawSimplified)
