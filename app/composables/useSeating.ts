@@ -4,6 +4,7 @@ import type {
   CheckInResult,
   GatheringRecord,
   JamInvitation,
+  JamInvitationDesign,
   JamInviteDetails,
   JamInviteUnlocked,
   JamOpenInvitation,
@@ -621,10 +622,13 @@ export function useSeating() {
     invitationMessage?: string
     seatSelectionLocked?: boolean
     questions?: EventQuestion[]
+    invitationDesign?: JamInvitationDesign
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      Object.assign(gathering, body)
+      const { invitationDesign, ...fields } = body
+      Object.assign(gathering, fields)
+      if (invitationDesign) gathering.invitationDesign = { ...gathering.invitationDesign, ...invitationDesign }
       return gathering
     }
     const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}`, {
@@ -706,6 +710,7 @@ export function useSeating() {
         venue: gathering.venue,
         eventDate: gathering.eventDate,
         invitationMessage: gathering.invitationMessage || '',
+        design: gathering.invitationDesign,
       }
     }
     return apiRequest<JamInvitation>(`/guest/seating/site/${publicToken}/unlock`, {
@@ -778,6 +783,35 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
+  async function uploadInvitationImage(gatheringId: string, kind: 'banner', file: File): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      gathering.invitationDesign = { ...gathering.invitationDesign, bannerImageUrl: URL.createObjectURL(file) }
+      return gathering
+    }
+    const form = new FormData()
+    form.append('image', file)
+    const response = await apiUpload<GatheringResponse>(
+      `/user/seating/gatherings/${gatheringId}/invitation/images/${kind}`,
+      form,
+      { method: 'PATCH' },
+    )
+    return response.gathering
+  }
+
+  async function removeInvitationImage(gatheringId: string, kind: 'banner'): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      gathering.invitationDesign = { ...gathering.invitationDesign, bannerImageUrl: '' }
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(
+      `/user/seating/gatherings/${gatheringId}/invitation/images/${kind}`,
+      { method: 'DELETE' },
+    )
+    return response.gathering
+  }
+
   async function setOpenInvite(
     gatheringId: string,
     body: { enabled?: boolean, regenerate?: boolean },
@@ -821,6 +855,7 @@ export function useSeating() {
         venue: gathering.venue,
         eventDate: gathering.eventDate,
         invitationMessage: gathering.invitationMessage || '',
+        design: gathering.invitationDesign,
         questions: gathering.questions ?? [],
       }
     }
@@ -954,6 +989,8 @@ export function useSeating() {
     fetchJamSite,
     fetchJamInvite,
     unlockJamInvite,
+    uploadInvitationImage,
+    removeInvitationImage,
     setOpenInvite,
     fetchOpenInvite,
     unlockOpenInvite,

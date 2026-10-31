@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { JamInvitation } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
+import JamInvitationCard from '~/components/JamInvitationCard.vue'
 
 definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
@@ -83,17 +84,14 @@ async function unlock() {
           Open invitation
         </button>
       </form>
-      <template v-else-if="invitation">
-        <p class="whitespace-pre-line">
-          {{ invitation.invitationMessage || 'You are invited.' }}
-        </p>
-        <p class="text-sm">
-          {{ new Date(invitation.eventDate).toLocaleDateString() }}
-        </p>
-        <p class="text-sm">
-          {{ invitation.venue }}
-        </p>
-      </template>
+      <JamInvitationCard
+        v-else-if="invitation"
+        :gathering-name="invitation.gatheringName"
+        :venue="invitation.venue"
+        :event-date="invitation.eventDate"
+        :message="invitation.invitationMessage || 'You are invited.'"
+        :design="invitation.design"
+      />
     </div>
   </div>
 </template>

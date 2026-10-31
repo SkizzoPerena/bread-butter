@@ -6,6 +6,7 @@ import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
 import SeatingQrImage from '~/components/SeatingQrImage.vue'
 import SeatingCheckInScanner from '~/components/SeatingCheckInScanner.vue'
 import EventQuestionsModal from '~/components/EventQuestionsModal.vue'
+import JamInvitationMaker from '~/components/JamInvitationMaker.vue'
 import type { EventQuestion } from '~/types/event'
 import { formatRsvpAnswerNotes, formatRsvpAnswerValue } from '~/utils/rsvpDisplay'
 
@@ -1202,6 +1203,19 @@ async function copyLookupUrl() {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ================= WORKSPACE MODULE: INVITATION DESIGN ================= -->
+        <div v-if="active && section === 'invite'" class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
+          <div class="flex items-center gap-1.5 border-b border-bread-200/60 pb-2">
+            <UIcon name="i-lucide-palette" class="size-4 text-toast-600" />
+            <h3 class="font-serif font-bold text-base text-toast-900">Invitation Design</h3>
+          </div>
+          <JamInvitationMaker
+            :gathering="gathering"
+            :message="inviteForm.invitationMessage"
+            @updated="gathering = $event"
+          />
         </div>
 
         <!-- ================= WORKSPACE MODULE: OPEN INVITE ================= -->

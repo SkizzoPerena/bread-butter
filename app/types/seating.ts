@@ -30,6 +30,16 @@ export interface SeatingTable {
   seats?: SeatingSeat[]
 }
 
+export interface JamInvitationDesign {
+  requestLine?: string
+  headline?: string
+  eventTime?: string
+  deadlineText?: string
+  paletteName?: string
+  typographyName?: string
+  bannerImageUrl?: string
+}
+
 export interface SeatingPaymentRecord {
   _id: string
   amount: number
@@ -58,6 +68,7 @@ export interface GatheringRecord {
   passcode?: string
   invitationSubject?: string
   invitationMessage?: string
+  invitationDesign?: JamInvitationDesign
   tables: SeatingTable[]
   openInvite?: { enabled: boolean, token: string | null }
   questions?: EventQuestion[]
@@ -124,6 +135,7 @@ export interface JamOpenInvitation {
   venue: string
   eventDate: string
   invitationMessage: string
+  design?: JamInvitationDesign
   questions?: EventQuestion[]
 }
 
@@ -147,6 +159,7 @@ export interface JamInvitation {
   venue: string
   eventDate: string
   invitationMessage: string
+  design?: JamInvitationDesign
 }
 
 export interface JamRsvpResult {

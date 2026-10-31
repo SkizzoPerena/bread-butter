@@ -7,6 +7,7 @@ import {
   type GuestNotesMap,
 } from '~/utils/guestRsvpValidation'
 import GuestRsvpQuestionForm from '~/components/GuestRsvpQuestionForm.vue'
+import JamInvitationCard from '~/components/JamInvitationCard.vue'
 
 definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
@@ -156,15 +157,13 @@ async function register() {
         class="space-y-4"
         @submit.prevent="register"
       >
-        <p
-          v-if="invitation.invitationMessage"
-          class="whitespace-pre-line"
-        >
-          {{ invitation.invitationMessage }}
-        </p>
-        <p class="text-sm">
-          {{ new Date(invitation.eventDate).toLocaleDateString() }} · {{ invitation.venue }}
-        </p>
+        <JamInvitationCard
+          :gathering-name="invitation.gatheringName"
+          :venue="invitation.venue"
+          :event-date="invitation.eventDate"
+          :message="invitation.invitationMessage"
+          :design="invitation.design"
+        />
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="block text-sm font-semibold">
             First name
