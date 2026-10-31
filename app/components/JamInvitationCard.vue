@@ -14,6 +14,7 @@ useWeddingFonts()
 
 const palette = computed(() => resolvePalette(props.design?.paletteName).colors)
 const typography = computed(() => resolveTypography(props.design?.typographyName))
+const usesOwnImage = computed(() => props.design?.mode === 'IMAGE' && Boolean(props.design.imageUrl))
 const dateText = computed(() => {
   const date = new Date(props.eventDate)
   if (Number.isNaN(date.getTime())) return ''
@@ -23,6 +24,24 @@ const dateText = computed(() => {
 
 <template>
   <article
+    v-if="usesOwnImage"
+    class="overflow-hidden rounded-2xl bg-white text-center text-toast-900 shadow-sm"
+    data-testid="jam-invitation-card"
+  >
+    <img
+      :src="design?.imageUrl"
+      :alt="`Invitation to ${gatheringName}`"
+      class="h-auto w-full"
+    >
+    <div class="space-y-1 p-4 text-sm">
+      <p class="font-semibold">
+        {{ dateText }}<span v-if="design?.eventTime"> · {{ design.eventTime }}</span>
+      </p>
+      <p>{{ venue }}</p>
+    </div>
+  </article>
+  <article
+    v-else
     class="overflow-hidden rounded-2xl text-center shadow-sm"
     :style="{ backgroundColor: palette.primary, color: palette.secondary_text_color, fontFamily: typography.bodyFont }"
     data-testid="jam-invitation-card"

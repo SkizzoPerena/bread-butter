@@ -24,8 +24,13 @@ const form = reactive({
   typographyName: typographySets[0]!.name,
 })
 
+const mode = computed(() => props.gathering.invitationDesign?.mode || 'MAKER')
+const ownImageUrl = computed(() => props.gathering.invitationDesign?.imageUrl || '')
+
 const previewDesign = computed<JamInvitationDesign>(() => ({
   ...form,
+  mode: mode.value,
+  imageUrl: ownImageUrl.value,
   bannerImageUrl: props.gathering.invitationDesign?.bannerImageUrl || '',
 }))
 
@@ -54,14 +59,14 @@ async function saveDesign() {
   }
 }
 
-async function uploadBanner(event: Event) {
+async function uploadImage(kind: 'banner' | 'invitation', event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
   if (!file) return
   saving.value = true
   try {
-    emit('updated', await seating.uploadInvitationImage(props.gathering._id, 'banner', file))
+    emit('updated', await seating.uploadInvitationImage(props.gathering._id, kind, file))
   } catch (error) {
     toast.add({ title: 'Could not upload the image', description: getApiErrorMessage(error), color: 'error' })
   } finally {
@@ -69,12 +74,24 @@ async function uploadBanner(event: Event) {
   }
 }
 
-async function removeBanner() {
+async function removeImage(kind: 'banner' | 'invitation') {
   saving.value = true
   try {
-    emit('updated', await seating.removeInvitationImage(props.gathering._id, 'banner'))
+    emit('updated', await seating.removeInvitationImage(props.gathering._id, kind))
   } catch (error) {
     toast.add({ title: 'Could not remove the image', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function chooseMode(next: 'MAKER' | 'IMAGE') {
+  if (next === mode.value) return
+  saving.value = true
+  try {
+    emit('updated', await seating.saveInvitation(props.gathering._id, { invitationDesign: { mode: next } }))
+  } catch (error) {
+    toast.add({ title: 'Could not change the invitation', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     saving.value = false
   }
@@ -83,7 +100,59 @@ async function removeBanner() {
 
 <template>
   <div class="grid gap-4 lg:grid-cols-2">
+    <div class="space-y-3">
+      <div class="flex flex-wrap gap-2">
+        <UButton
+          type="button"
+          size="xs"
+          :variant="mode === 'MAKER' ? 'solid' : 'outline'"
+          class="cursor-pointer"
+          :disabled="saving"
+          @click="chooseMode('MAKER')"
+        >
+          Use the invitation maker
+        </UButton>
+        <UButton
+          type="button"
+          size="xs"
+          :variant="mode === 'IMAGE' ? 'solid' : 'outline'"
+          class="cursor-pointer"
+          :disabled="saving || !ownImageUrl"
+          @click="chooseMode('IMAGE')"
+        >
+          Use my own image
+        </UButton>
+      </div>
+      <UFormField
+        label="Your own invitation image"
+        hint="JPEG or PNG. Uploading it switches your invitation to this image."
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <input
+            type="file"
+            accept="image/jpeg,image/png"
+            aria-label="Upload your own invitation image"
+            class="min-w-0 flex-1 text-xs"
+            :disabled="saving"
+            @change="uploadImage('invitation', $event)"
+          >
+          <UButton
+            v-if="ownImageUrl"
+            type="button"
+            size="xs"
+            color="error"
+            variant="ghost"
+            class="cursor-pointer"
+            :disabled="saving"
+            @click="removeImage('invitation')"
+          >
+            Remove my image
+          </UButton>
+        </div>
+      </UFormField>
+
     <form
+      v-if="mode === 'MAKER'"
       class="space-y-3"
       @submit.prevent="saveDesign"
     >
@@ -151,7 +220,7 @@ async function removeBanner() {
             aria-label="Upload a banner image"
             class="min-w-0 flex-1 text-xs"
             :disabled="saving"
-            @change="uploadBanner"
+            @change="uploadImage('banner', $event)"
           >
           <UButton
             v-if="gathering.invitationDesign?.bannerImageUrl"
@@ -161,7 +230,7 @@ async function removeBanner() {
             variant="ghost"
             class="cursor-pointer"
             :disabled="saving"
-            @click="removeBanner"
+            @click="removeImage('banner')"
           >
             Remove banner
           </UButton>
@@ -177,6 +246,7 @@ async function removeBanner() {
         Save Design
       </UButton>
     </form>
+    </div>
 
     <div class="space-y-2">
       <p class="text-xs font-semibold text-toast-800">

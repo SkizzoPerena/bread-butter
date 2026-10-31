@@ -783,10 +783,17 @@ export function useSeating() {
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
   }
 
-  async function uploadInvitationImage(gatheringId: string, kind: 'banner', file: File): Promise<GatheringRecord> {
+  async function uploadInvitationImage(
+    gatheringId: string,
+    kind: 'banner' | 'invitation',
+    file: File,
+  ): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      gathering.invitationDesign = { ...gathering.invitationDesign, bannerImageUrl: URL.createObjectURL(file) }
+      const url = URL.createObjectURL(file)
+      gathering.invitationDesign = kind === 'banner'
+        ? { ...gathering.invitationDesign, bannerImageUrl: url }
+        : { ...gathering.invitationDesign, imageUrl: url, mode: 'IMAGE' }
       return gathering
     }
     const form = new FormData()
@@ -799,10 +806,12 @@ export function useSeating() {
     return response.gathering
   }
 
-  async function removeInvitationImage(gatheringId: string, kind: 'banner'): Promise<GatheringRecord> {
+  async function removeInvitationImage(gatheringId: string, kind: 'banner' | 'invitation'): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      gathering.invitationDesign = { ...gathering.invitationDesign, bannerImageUrl: '' }
+      gathering.invitationDesign = kind === 'banner'
+        ? { ...gathering.invitationDesign, bannerImageUrl: '' }
+        : { ...gathering.invitationDesign, imageUrl: '', mode: 'MAKER' }
       return gathering
     }
     const response = await apiRequest<GatheringResponse>(

@@ -31,6 +31,8 @@ export interface SeatingTable {
 }
 
 export interface JamInvitationDesign {
+  mode?: 'MAKER' | 'IMAGE'
+  imageUrl?: string
   requestLine?: string
   headline?: string
   eventTime?: string
