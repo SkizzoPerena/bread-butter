@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GatheringRecord, RsvpStatus, SeatingGuestRecord } from '~/types/seating'
+import type { GatheringRecord, RsvpStatus, SeatingGuestRecord, SeatingSeat, SeatingTable } from '~/types/seating'
 import { guestDisplayName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
@@ -442,6 +442,27 @@ async function onScan(value: string) {
     setTimeout(() => {
       if (lastScan.value === token) lastScan.value = ''
     }, 2000)
+  }
+}
+
+function seatsOf(table: SeatingTable): SeatingSeat[] {
+  return table.seats ?? Array.from({ length: table.capacity }, (_, index) => ({
+    number: index + 1,
+    unavailable: false,
+    guest: null,
+  }))
+}
+
+function guestInSeat(table: SeatingTable, seatNumber: number) {
+  return guests.value.find((guest) => guest.tableId === table._id && guest.seatNumber === seatNumber)
+}
+
+async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
+  try {
+    gathering.value = await seating.setSeatUnavailable(gatheringId.value, table._id, seat.number, !seat.unavailable)
+  } catch (error) {
+    toast.add({ title: 'Could not change seat', description: getApiErrorMessage(error), color: 'error' })
+    await load()
   }
 }
 
@@ -1225,11 +1246,12 @@ async function copyLookupUrl() {
                     :label="table.label"
                   >
                     <option
-                      v-for="seat in table.capacity"
-                      :key="`${table._id}-${seat}`"
-                      :value="`${table._id}:${seat}`"
+                      v-for="seat in seatsOf(table)"
+                      :key="`${table._id}-${seat.number}`"
+                      :value="`${table._id}:${seat.number}`"
+                      :disabled="seat.unavailable"
                     >
-                      {{ table.label }} · Seat {{ seat }}
+                      {{ table.label }} · Seat {{ seat.number }}{{ seat.unavailable ? ' (unavailable)' : '' }}
                     </option>
                   </optgroup>
                 </select>
@@ -1252,21 +1274,33 @@ async function copyLookupUrl() {
               <!-- Seat List -->
               <div class="space-y-1 text-xs">
                 <div
-                  v-for="seat in table.capacity"
-                  :key="seat"
-                  class="flex items-center justify-between p-1 rounded-md bg-toast-50/50 text-[11px]"
+                  v-for="seat in seatsOf(table)"
+                  :key="seat.number"
+                  class="flex items-center justify-between gap-2 p-1 rounded-md bg-toast-50/50 text-[11px]"
+                  data-testid="host-seat"
                 >
-                  <span class="font-mono text-muted">Seat {{ seat }}</span>
+                  <span class="font-mono text-muted shrink-0">Seat {{ seat.number }}</span>
                   <span
-                    class="font-medium truncate max-w-36"
-                    :class="guests.find((g) => g.tableId === table._id && g.seatNumber === seat) ? 'text-toast-900 font-semibold' : 'text-gray-400 italic'"
+                    class="flex-1 font-medium truncate"
+                    :class="guestInSeat(table, seat.number) ? 'text-toast-900 font-semibold' : 'text-gray-400 italic'"
                   >
                     {{
-                      guests.find((g) => g.tableId === table._id && g.seatNumber === seat)
-                        ? guestDisplayName(guests.find((g) => g.tableId === table._id && g.seatNumber === seat)!)
-                        : 'Empty'
+                      guestInSeat(table, seat.number)
+                        ? guestDisplayName(guestInSeat(table, seat.number)!)
+                        : seat.unavailable ? 'Unavailable' : 'Empty'
                     }}
                   </span>
+                  <UButton
+                    v-if="!guestInSeat(table, seat.number)"
+                    size="2xs"
+                    color="neutral"
+                    variant="ghost"
+                    class="cursor-pointer shrink-0"
+                    :aria-label="`${seat.unavailable ? 'Make available' : 'Make unavailable'}: ${table.label}, seat ${seat.number}`"
+                    @click="toggleSeat(table, seat)"
+                  >
+                    {{ seat.unavailable ? 'Make available' : 'Make unavailable' }}
+                  </UButton>
                 </div>
               </div>
             </div>

@@ -67,6 +67,38 @@ test('reloading the data after another action keeps a layout still being edited'
   await expect(page.getByTestId('layout-row').getByRole('spinbutton')).toHaveValue('5')
 })
 
+test('a host marks an empty seat unavailable, and a guest taking it first is reported', async ({ page }) => {
+  const seat = (number: number, unavailable = false) => ({ number, unavailable, guest: null })
+  const table = { ...seatingTable('t1', 'Table 1', 2), seats: [seat(1), seat(2)] }
+  let attempts = 0
+  const calls = await openWorkspace(page, {
+    tables: [table],
+    routes: {
+      [`PATCH ${TABLES_URL}/t1/seats/1`]: route => route.fulfill({
+        json: {
+          success: true,
+          status: 200,
+          gathering: { _id: GATHERING_ID, status: 'ACTIVE', tables: [{ ...table, seats: [seat(1, true), seat(2)] }] },
+        },
+      }),
+      [`PATCH ${TABLES_URL}/t1/seats/2`]: (route) => {
+        attempts += 1
+        return route.fulfill({ status: 409, json: { success: false, message: 'A guest has this seat. Move them first.' } })
+      },
+    },
+  })
+  await page.getByRole('button', { name: /^Tables & Seats \(/ }).click()
+
+  await page.getByRole('button', { name: 'Make unavailable: Table 1, seat 1' }).click()
+  await expect(page.getByTestId('host-seat').first()).toContainText('Unavailable')
+  await expect(page.getByRole('button', { name: 'Make available: Table 1, seat 1' })).toBeVisible()
+  expect(calls.find(call => call.method === 'PATCH')?.body).toEqual({ unavailable: true })
+
+  await page.getByRole('button', { name: 'Make unavailable: Table 1, seat 2' }).click()
+  await expect(page.getByText('A guest has this seat. Move them first.', { exact: true })).toBeVisible()
+  expect(attempts).toBe(1)
+})
+
 test('removing a seated guest asks first, and only then sends the confirmation', async ({ page }) => {
   let attempts = 0
   const calls = await openWorkspace(page, {

@@ -348,13 +348,22 @@ export function useSeating() {
       const gathering = await getGathering(gatheringId)
       const sum = tables.reduce((total, table) => total + table.capacity, 0)
       if (sum > 500) throw new Error('A seating plan can have at most 500 seats.')
-      gathering.tables = tables.map((table, index) => ({
-        _id: table._id || `mock-table-${gatheringId}-${Date.now()}-${index}`,
-        label: table.label?.trim() || `Table ${index + 1}`,
-        customLabel: table.label?.trim() || '',
-        capacity: table.capacity,
-        sortOrder: index,
-      }))
+      const previous = gathering.tables
+      gathering.tables = tables.map((table, index) => {
+        const seats = previous.find((item) => item._id === table._id)?.seats ?? []
+        return {
+          _id: table._id || `mock-table-${gatheringId}-${Date.now()}-${index}`,
+          label: table.label?.trim() || `Table ${index + 1}`,
+          customLabel: table.label?.trim() || '',
+          capacity: table.capacity,
+          sortOrder: index,
+          seats: Array.from({ length: table.capacity }, (_, seatIndex) => ({
+            number: seatIndex + 1,
+            unavailable: seats[seatIndex]?.unavailable ?? false,
+            guest: null,
+          })),
+        }
+      })
       for (const guest of mockGuests(gatheringId)) {
         const table = gathering.tables.find((item) => item._id === guest.tableId)
         if (!table || (guest.seatNumber || 0) > table.capacity) {
@@ -371,14 +380,34 @@ export function useSeating() {
     return response.gathering
   }
 
+  async function setSeatUnavailable(
+    gatheringId: string,
+    tableId: string,
+    seatNumber: number,
+    unavailable: boolean,
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const seat = gathering.tables.find((item) => item._id === tableId)?.seats?.find((item) => item.number === seatNumber)
+      if (!seat) throw new Error('Seat number is not on this table.')
+      seat.unavailable = unavailable
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(
+      `/user/seating/gatherings/${gatheringId}/tables/${tableId}/seats/${seatNumber}`,
+      { method: 'PATCH', body: { unavailable } },
+    )
+    return response.gathering
+  }
+
   async function autoAssign(gatheringId: string): Promise<AssignResponse> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const guests = mockGuests(gatheringId)
       const seats: { tableId: string, seatNumber: number }[] = []
       for (const table of gathering.tables) {
-        for (let seatNumber = 1; seatNumber <= table.capacity; seatNumber += 1) {
-          seats.push({ tableId: table._id, seatNumber })
+        for (const seat of table.seats ?? []) {
+          if (!seat.unavailable) seats.push({ tableId: table._id, seatNumber: seat.number })
         }
       }
       for (const guest of guests) {
@@ -702,6 +731,7 @@ export function useSeating() {
     replaceTables,
     autoAssign,
     moveSeat,
+    setSeatUnavailable,
     resendPass,
     checkInGuest,
     undoCheckIn,
