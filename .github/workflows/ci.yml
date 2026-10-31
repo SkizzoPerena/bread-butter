@@ -52,7 +52,6 @@ jobs:
   # Non-blocking until the existing errors are cleared.
   typecheck:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -71,12 +70,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
+        continue-on-error: true
         run: pnpm run typecheck
 
   # Lint is advice. It never blocks a change.
   lint:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -95,4 +94,5 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
+        continue-on-error: true
         run: pnpm run lint
