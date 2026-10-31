@@ -51,6 +51,7 @@ export interface GuestRsvpSnapshot {
   invitedAt?: string | null
   inviteEmailSentAt?: string | null
   inviteEmailCreditRefundedAt?: string | null
+  rsvpReminderSentAt?: string | null
 }
 
 export interface GuestRecord {
@@ -72,6 +73,7 @@ export interface RsvpSummary {
   going: number
   notGoing: number
   pending: number
+  noResponse?: number
   preview?: {
     page: number
     limit: number
@@ -89,6 +91,7 @@ export function rsvpSummaryToChartData(summary: RsvpSummary): ChartSlice[] {
     { label: 'Attending', value: summary.going },
     { label: 'Not Attending', value: summary.notGoing },
     { label: 'Pending', value: summary.pending },
+    { label: 'No Response', value: summary.noResponse ?? 0 },
   ].filter((slice) => slice.value > 0)
 }
 

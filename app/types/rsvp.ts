@@ -11,8 +11,9 @@ export interface RsvpRecord {
   _id: string
   name: string
   email: string
-  status: 'PENDING' | 'GOING' | 'NOT_GOING'
+  status: 'PENDING' | 'GOING' | 'NOT_GOING' | 'NO_RESPONSE'
   invitedAt?: string | null
+  rsvpReminderSentAt?: string | null
   respondedAt?: string | null
   answers: RsvpAnswer[]
 }
@@ -26,7 +27,7 @@ export interface EventRsvpsListResponse {
   rsvps: RsvpRecord[]
 }
 
-export type RsvpStatusFilter = 'ALL' | 'PENDING' | 'GOING' | 'NOT_GOING'
+export type RsvpStatusFilter = 'ALL' | 'PENDING' | 'GOING' | 'NOT_GOING' | 'NO_RESPONSE'
 
 export interface FetchEventRsvpsOptions {
   page?: number
@@ -38,7 +39,7 @@ export interface GuestRsvpSummary {
   _id: string
   name: string
   email: string
-  status: 'PENDING' | 'GOING' | 'NOT_GOING'
+  status: 'PENDING' | 'GOING' | 'NOT_GOING' | 'NO_RESPONSE'
   respondedAt?: string | null
   answers: RsvpAnswer[]
   subEventId?: string | null

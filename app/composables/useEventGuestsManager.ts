@@ -15,7 +15,7 @@ import {
 import { formatTableLabel } from '~/utils/tableCode'
 import { formatGuestDisplayName } from '~/utils/guestName'
 
-const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
+const rsvpOptions = ['Attending', 'Pending', 'Not Attending', 'No Response'] as const
 
 export type GuestTableRow = {
   guestId: string
@@ -183,12 +183,15 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
 
   function mapRsvpStatusToLabel(
     status?: string | null
-  ): 'Attending' | 'Pending' | 'Not Attending' {
+  ): 'Attending' | 'Pending' | 'Not Attending' | 'No Response' {
     if (status === 'GOING') {
       return 'Attending'
     }
     if (status === 'NOT_GOING') {
       return 'Not Attending'
+    }
+    if (status === 'NO_RESPONSE') {
+      return 'No Response'
     }
     return 'Pending'
   }

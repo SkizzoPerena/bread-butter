@@ -57,7 +57,9 @@ function mapGuestRecordToTableRow(guest: GuestRecord): GuestTableRow {
         ? 'Attending'
         : guest.rsvp?.status === 'NOT_GOING'
           ? 'Not Attending'
-          : 'Pending',
+          : guest.rsvp?.status === 'NO_RESPONSE'
+            ? 'No Response'
+            : 'Pending',
     invitationSent: Boolean(guest.rsvp?.invitedAt),
     inviteDelivery: inviteDeliveryLabel(guest.rsvp),
     roleNames,
