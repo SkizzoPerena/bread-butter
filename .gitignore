@@ -24,3 +24,7 @@ logs
 .env
 
 package-lock.json
+
+# Playwright smoke tests
+test-results
+playwright-report
