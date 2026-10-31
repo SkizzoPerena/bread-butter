@@ -712,7 +712,7 @@ function scrollToFaq(id: string) {
           </span>
           <span class="text-toast-600 font-normal text-[11px]">Swipe to select</span>
         </div>
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-1 px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-1 px-1 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button
             v-for="cat in categories"
             :key="'mobile-' + cat.id"

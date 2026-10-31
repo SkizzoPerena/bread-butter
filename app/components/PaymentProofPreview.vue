@@ -29,13 +29,13 @@ function openPreview() {
     </p>
     <button
       type="button"
-      class="group block w-full max-w-[12rem] overflow-hidden rounded-lg border border-default bg-muted/20 text-left transition hover:ring-2 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="group block w-full max-w-48 overflow-hidden rounded-lg border border-default bg-muted/20 text-left transition hover:ring-2 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       @click="openPreview"
     >
       <img
         :src="proofUrl"
         alt="Payment proof preview"
-        class="aspect-[4/3] w-full object-cover transition group-hover:opacity-90"
+        class="aspect-4/3 w-full object-cover transition group-hover:opacity-90"
       >
       <span class="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted">
         <UIcon name="i-lucide-maximize-2" class="size-3.5" />

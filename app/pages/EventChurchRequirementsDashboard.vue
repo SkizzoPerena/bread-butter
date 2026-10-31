@@ -1059,7 +1059,7 @@ watch(eventId, async () => {
                         class="group p-4 rounded-xl border border-bread-200/90 bg-white hover:border-yellow-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-left">
                         <div class="space-y-1">
                           <h3
-                            class="text-sm sm:text-base font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors break-words whitespace-normal leading-snug"
+                            class="text-sm sm:text-base font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors wrap-break-word whitespace-normal leading-snug"
                             :title="item.displayName">
                             {{ item.displayName }}
                           </h3>
@@ -1137,7 +1137,7 @@ watch(eventId, async () => {
                           <!-- Top: Title -->
                           <div>
                             <h3
-                              class="text-base sm:text-lg font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors break-words whitespace-normal leading-snug"
+                              class="text-base sm:text-lg font-bold font-serif text-highlighted group-hover:text-yellow-700 transition-colors wrap-break-word whitespace-normal leading-snug"
                               :title="item.displayName">
                               {{ item.displayName }}
                             </h3>
@@ -1289,7 +1289,7 @@ watch(eventId, async () => {
                           <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0 flex-1">
                               <h3
-                                class="text-base sm:text-lg font-bold font-serif text-highlighted break-words whitespace-normal leading-snug"
+                                class="text-base sm:text-lg font-bold font-serif text-highlighted wrap-break-word whitespace-normal leading-snug"
                                 :title="item.displayName">
                                 {{ item.displayName }}
                               </h3>

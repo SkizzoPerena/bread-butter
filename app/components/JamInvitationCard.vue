@@ -61,7 +61,7 @@ const dateText = computed(() => {
         {{ design.requestLine }}
       </p>
       <h2
-        class="break-words text-4xl leading-tight"
+        class="wrap-break-word text-4xl leading-tight"
         :style="{ color: palette.text_color, fontFamily: typography.headerFont }"
       >
         {{ design?.headline || gatheringName }}

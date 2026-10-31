@@ -220,7 +220,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             </div>
 
             <div class="sm:col-span-2 space-y-2 pt-1">
-              <UButton type="submit" block size="sm" :loading="isSubmitting" class="!bg-toast-500 hover:!bg-toast-600 !text-white font-semibold cursor-pointer text-xs sm:text-sm py-1.5 sm:py-2">Sign up</UButton>
+              <UButton type="submit" block size="sm" :loading="isSubmitting" class="bg-toast-500! hover:bg-toast-600! text-white! font-semibold cursor-pointer text-xs sm:text-sm py-1.5 sm:py-2">Sign up</UButton>
               <div class="text-xs sm:text-sm text-center">
                 Already a baker? <ULink to="/bakers/login" class="text-bread-400 font-medium">Sign in</ULink> instead.
               </div>

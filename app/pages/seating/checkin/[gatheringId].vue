@@ -264,7 +264,7 @@ async function downloadGuests() {
             </div>
 
             <!-- Camera Scanner Component -->
-            <div class="w-full max-w-[240px] flex flex-col justify-center items-center">
+            <div class="w-full max-w-60 flex flex-col justify-center items-center">
               <ClientOnly>
                 <SeatingCheckInScanner @scan="onScan" />
               </ClientOnly>

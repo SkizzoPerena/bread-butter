@@ -405,7 +405,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
 
       <!-- Quick Controls: Filter toggle button + Quick Tier Pills -->
       <div
-        class="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button type="button" @click="isMobileFilterOpen = !isMobileFilterOpen" :class="[
           'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-all cursor-pointer shadow-xs',
           isMobileFilterOpen || activeFiltersCount > 0
@@ -508,7 +508,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
     <div class="hidden lg:block lg:col-span-1 w-full py-2">
       <UDashboardPanel id="suppliers-categories" :resizable="false"
         class="bread-container w-full bg-bread-400 text-toast-900 lg:sticky lg:top-20 max-h-[calc(100vh-6rem)] overflow-y-auto p-6 sm:p-8 space-y-6 z-30 shadow-md border-none"
-        :ui="{ root: '!sticky top-20 min-h-0 h-auto rounded-xl border-none shadow-md' }">
+        :ui="{ root: 'sticky! top-20 min-h-0 h-auto rounded-xl border-none shadow-md' }">
         <!-- 1. Search Bar on Top -->
         <div>
           <div class="relative">
@@ -731,7 +731,7 @@ function getCategoryTheme(catId: string): CategoryTheme {
           v-if="(selectedTier === 'all' || selectedTier === 'bread-basket') && !searchQuery && breadBasketShowcase.length > 0"
           class="rounded-2xl overflow-hidden bg-bread-400 border-none shadow-md">
           <div
-            class="bg-amber-600 bg-gradient-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
+            class="bg-amber-600 bg-linear-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
             <div class="space-y-0.5">
               <div class="inline-flex items-center gap-1.5 text-amber-100 text-[11px] font-bold uppercase tracking-wider">
                 <span>🥖</span>

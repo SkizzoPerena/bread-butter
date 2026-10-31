@@ -834,7 +834,7 @@ onMounted(async () => {
         :toggle="false"
         class="col-span-1 lg:col-span-1 w-full rounded-none overflow-hidden flex flex-row lg:sticky lg:top-16 h-145 sm:h-160 lg:h-[calc(100vh-64px)] z-20"
         :ui="{
-          root: '!flex !flex-row !w-full h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
+          root: 'flex! flex-row! w-full! h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
           header: 'hidden',
           body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white',
           footer: 'hidden',
@@ -1719,7 +1719,7 @@ onMounted(async () => {
                 }">
                 <div v-for="img in dressCode.images" :key="img.id"
                   class="group relative rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
-                  :class="dressCode.images.length === 1 ? 'aspect-16/9 sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
+                  :class="dressCode.images.length === 1 ? 'aspect-video sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
                   @click="openImageLightbox(img)">
                   <img :src="img.dataUrl" :alt="img.name"
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />

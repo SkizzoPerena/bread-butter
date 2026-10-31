@@ -934,7 +934,7 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
         style="border-radius: 0;">
         <div class="flex flex-1 items-center justify-center min-h-0 py-2 sm:py-4 px-3 sm:px-4 w-full">
           <div
-            class="grid grid-cols-3 gap-x-5 sm:gap-x-7 md:gap-x-9 gap-y-5 sm:gap-y-6 md:gap-y-7 max-w-[280px] sm:max-w-sm md:max-w-md mx-auto w-full items-center justify-items-center">
+            class="grid grid-cols-3 gap-x-5 sm:gap-x-7 md:gap-x-9 gap-y-5 sm:gap-y-6 md:gap-y-7 max-w-70 sm:max-w-sm md:max-w-md mx-auto w-full items-center justify-items-center">
             <div v-for="item in dashboardItems" :key="item.label" role="button" :tabindex="0"
               class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 sm:p-1 md:p-1.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
               @click="handleDashboardItemClick(item)" @keydown.enter="handleDashboardItemKeydown($event, item)"
@@ -1115,7 +1115,7 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
     <!-- Layout when package is Bread (No container card, clean background, exact position retained) -->
     <div v-else class="flex flex-1 items-center justify-center h-full overflow-hidden py-2 sm:py-4 px-3 sm:px-4 w-full">
       <div
-        class="grid grid-cols-3 gap-x-5 sm:gap-x-7 md:gap-x-9 gap-y-5 sm:gap-y-6 md:gap-y-7 max-w-[280px] sm:max-w-sm md:max-w-md mx-auto w-full items-center justify-items-center">
+        class="grid grid-cols-3 gap-x-5 sm:gap-x-7 md:gap-x-9 gap-y-5 sm:gap-y-6 md:gap-y-7 max-w-70 sm:max-w-sm md:max-w-md mx-auto w-full items-center justify-items-center">
         <div v-for="item in dashboardItems" :key="item.label" role="button" :tabindex="0"
           class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 sm:p-1 md:p-1.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
           @click="handleDashboardItemClick(item)" @keydown.enter="handleDashboardItemKeydown($event, item)"

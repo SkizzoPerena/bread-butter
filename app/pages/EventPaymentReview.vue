@@ -438,7 +438,7 @@ watch(eventId, () => {
 
           <div
             v-else
-            class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center h-full min-h-[200px]"
+            class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center h-full min-h-50"
           >
             <UIcon name="i-lucide-receipt" class="size-10 text-muted" />
             <p class="mt-4 text-sm font-medium">No payments submitted</p>

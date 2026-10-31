@@ -150,7 +150,7 @@ const giftItems = computed(() => props.registry?.wishedItems ?? [])
                 :href="item.url"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="font-medium text-sm sm:text-base hover:underline inline-flex items-center gap-1.5 break-words"
+                class="font-medium text-sm sm:text-base hover:underline inline-flex items-center gap-1.5 wrap-break-word"
                 :class="{ 'line-through': item.isFulfilled }"
                 :style="{ color: colors.heading }"
               >
@@ -159,7 +159,7 @@ const giftItems = computed(() => props.registry?.wishedItems ?? [])
               </a>
               <span
                 v-else
-                class="font-medium text-sm sm:text-base break-words"
+                class="font-medium text-sm sm:text-base wrap-break-word"
                 :class="{ 'line-through': item.isFulfilled }"
                 :style="{ color: colors.heading }"
               >

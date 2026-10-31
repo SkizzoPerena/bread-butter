@@ -60,7 +60,7 @@ function onDrop(event: DragEvent, status: TaskStatus) {
     <div
       v-for="column in columns"
       :key="column.status"
-      class="min-h-[12rem] rounded-lg border border-default bg-muted/20 p-3 transition"
+      class="min-h-48 rounded-lg border border-default bg-muted/20 p-3 transition"
       :class="dragOverColumn === column.status ? 'border-primary bg-primary/5' : ''"
       @dragover="onDragOver($event, column.status)"
       @dragleave="onDragLeave"

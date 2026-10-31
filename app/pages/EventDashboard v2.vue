@@ -1741,7 +1741,7 @@ watch(eventId, () => {
       style="border-radius: 1.25rem;">
       <div class="flex flex-1 items-center justify-center min-h-0 py-4 px-3 w-full">
         <div
-          class="grid grid-cols-3 gap-x-5 sm:gap-x-6 gap-y-6 sm:gap-y-7 max-w-[260px] sm:max-w-[290px] mx-auto w-full items-center justify-items-center">
+          class="grid grid-cols-3 gap-x-5 sm:gap-x-6 gap-y-6 sm:gap-y-7 max-w-65 sm:max-w-72.5 mx-auto w-full items-center justify-items-center">
           <div v-for="item in QUICK_NAV_ITEMS" :key="item.label" role="button" :tabindex="0"
             class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
             @click="onQuickNavItemClick(item)">
@@ -2264,7 +2264,7 @@ watch(eventId, () => {
           </div>
 
           <!-- 3-Column App Launcher Grid -->
-          <div class="grid grid-cols-3 gap-3 sm:gap-3.5 xl:gap-4 w-full max-w-[240px] sm:max-w-[260px] lg:max-w-[250px] xl:max-w-[280px] mx-auto">
+          <div class="grid grid-cols-3 gap-3 sm:gap-3.5 xl:gap-4 w-full max-w-60 sm:max-w-65 lg:max-w-62.5 xl:max-w-70 mx-auto">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
               class="group relative flex flex-col items-center justify-center w-full aspect-square p-1 sm:p-1.5 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"

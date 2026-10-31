@@ -859,7 +859,7 @@ watch(eventId, () => {
           <!-- Priority Filter Dropdown -->
           <div class="flex items-center gap-1.5">
             <USelect v-model="priorityFilter" :items="PRIORITY_FILTER_OPTIONS" value-key="value" label-key="label"
-              icon="i-lucide-flag" class="w-[132px] text-xs font-sans shrink-0" size="sm" />
+              icon="i-lucide-flag" class="w-33 text-xs font-sans shrink-0" size="sm" />
           </div>
         </div>
 
@@ -968,14 +968,14 @@ watch(eventId, () => {
                           points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                       <span
-                        class="font-sans font-medium text-sm text-highlighted group-hover:text-primary-700 transition-colors break-words min-w-0"
+                        class="font-sans font-medium text-sm text-highlighted group-hover:text-primary-700 transition-colors wrap-break-word min-w-0"
                         :class="row.original.status === 'COMPLETED' ? 'line-through text-muted' : ''"
                         :title="row.original.title">
                         {{ row.original.title }}
                       </span>
                     </div>
 
-                    <p v-if="row.original.details" class="font-sans text-xs text-muted break-words max-w-full">
+                    <p v-if="row.original.details" class="font-sans text-xs text-muted wrap-break-word max-w-full">
                       {{ row.original.details }}
                     </p>
 

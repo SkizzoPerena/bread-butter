@@ -85,7 +85,7 @@ function onDeleteClick(event: MouseEvent) {
       </div>
     </div>
 
-    <p class="mt-1 break-words text-sm text-muted">
+    <p class="mt-1 wrap-break-word text-sm text-muted">
       {{ task.details }}
     </p>
 

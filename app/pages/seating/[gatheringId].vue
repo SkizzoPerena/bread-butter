@@ -661,7 +661,7 @@ async function copyLookupUrl() {
       style="border-radius: 1.25rem;"
     >
       <div class="flex flex-1 items-center justify-center min-h-0 py-4 px-3 w-full">
-        <div class="grid grid-cols-3 gap-x-5 gap-y-6 max-w-[280px] mx-auto w-full items-center justify-items-center">
+        <div class="grid grid-cols-3 gap-x-5 gap-y-6 max-w-70 mx-auto w-full items-center justify-items-center">
           <div
             v-for="item in QUICK_NAV_ITEMS"
             :key="item.id"
