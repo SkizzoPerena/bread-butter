@@ -6,6 +6,7 @@ const route = useRoute()
 const { isUiOnlyMode } = useApiMode()
 const { displayName: eventDisplayName } = useActiveEvent()
 const { startPageTransition } = usePageTransition()
+const isJam = computed(() => route.path.startsWith('/seating') || route.path.startsWith('/jam'))
 
 const headerEventTitle = computed(() => {
   if (eventDisplayName.value) {
@@ -15,7 +16,7 @@ const headerEventTitle = computed(() => {
   if (typeof id === 'string' && id && isUiOnlyMode.value) {
     return "Jane & John's Wedding"
   }
-  return 'Your event'
+  return isJam.value ? 'Seating Plan' : 'Your event'
 })
 
 const { user, logout } = useAuth()
@@ -89,8 +90,17 @@ const dropitems: DropdownMenuItem[][] = [
 
     <template #leading>
       <div class="flex items-center gap-2 sm:gap-2.5 mr-2 sm:mr-3 shrink-0">
-        <button type="button" class="flex items-center cursor-pointer" @click="startPageTransition('/')">
+        <button type="button" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer" @click="startPageTransition('/')">
           <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
+          <UBadge
+            v-if="isJam"
+            color="warning"
+            variant="solid"
+            size="xs"
+            class="font-serif font-black tracking-widest text-[10px] sm:text-xs text-toast-950 px-2 py-0.5 rounded-full shadow-xs uppercase"
+          >
+            JAM
+          </UBadge>
         </button>
         <UBadge
           color="bread"
