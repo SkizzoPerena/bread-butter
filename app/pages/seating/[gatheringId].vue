@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { GatheringRecord, RsvpStatus, SeatingGuestRecord } from '~/types/seating'
-import { guestDisplayName } from '~/types/seating'
+import type { GatheringRecord, RsvpStatus, SeatingGuestRecord, SeatingSeat, SeatingTable } from '~/types/seating'
+import { guestDisplayName, guestNeedsName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import { attendanceTokenFromScan, currentOriginPath } from '~/utils/seatingQr'
 import SeatingQrImage from '~/components/SeatingQrImage.vue'
 import SeatingCheckInScanner from '~/components/SeatingCheckInScanner.vue'
+import EventQuestionsModal from '~/components/EventQuestionsModal.vue'
+import JamInvitationMaker from '~/components/JamInvitationMaker.vue'
+import JamGuestImport from '~/components/JamGuestImport.vue'
+import JamBulkInvite from '~/components/JamBulkInvite.vue'
+import type { EventQuestion } from '~/types/event'
+import { formatRsvpAnswerNotes, formatRsvpAnswerValue } from '~/utils/rsvpDisplay'
 
 definePageMeta({ layout: 'event-navbar', middleware: 'seating-enabled' })
 
@@ -21,14 +27,17 @@ const loading = ref(true)
 const saving = ref(false)
 const section = ref<'guests' | 'tables' | 'checkin' | 'invite'>('guests')
 const activeMobileTab = ref<'launcher' | 'overview'>('overview')
-const tableCount = ref(1)
-const seatsPerTable = ref(8)
+const layoutRows = ref<LayoutRow[]>([])
+const quickTableCount = ref(1)
+const quickSeatCount = ref(8)
 const lastScan = ref('')
 const searchQuery = ref('')
 const statusFilter = ref<'ALL' | 'GOING' | 'PENDING' | 'NOT_GOING'>('ALL')
 
+const isQuestionsOpen = ref(false)
 const isCopiedPasscode = ref(false)
 const isCopiedLookupUrl = ref(false)
+const isCopiedOpenInvite = ref(false)
 
 const guestForm = reactive({
   firstName: '',
@@ -44,6 +53,10 @@ const inviteForm = reactive({
 
 const active = computed(() => gathering.value?.status === 'ACTIVE')
 const lookupUrl = computed(() => (gathering.value ? currentOriginPath(`/seat/${gathering.value.publicToken}`) : ''))
+const openInviteUrl = computed(() => {
+  const openInvite = gathering.value?.openInvite
+  return openInvite?.enabled && openInvite.token ? currentOriginPath(`/jam/open/${openInvite.token}`) : ''
+})
 
 const daysRemaining = computed(() => {
   if (gathering.value?.eventDate) {
@@ -64,6 +77,9 @@ const gatheringDateFormatted = computed(() => {
   return ''
 })
 
+const upgradePath = computed(() => `/user/seating-upgrade/${gatheringId.value}`)
+const guestListFull = computed(() => Boolean(gathering.value) && guests.value.length >= (gathering.value?.maxGuests ?? 0))
+
 const goingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus === 'GOING').length)
 const notGoingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus === 'NOT_GOING').length)
 const pendingCount = computed(() => guests.value.filter((guest) => guest.rsvpStatus !== 'GOING' && guest.rsvpStatus !== 'NOT_GOING').length)
@@ -81,6 +97,8 @@ const seatedPercent = computed(() => {
   return Math.round((seatedCount.value / attendingGuests.value.length) * 100)
 })
 
+const layoutSeatTotal = computed(() => layoutRows.value.reduce((total, row) => total + (Number(row.capacity) || 0), 0))
+
 const totalSeatsCapacity = computed(() => {
   return (gathering.value?.tables || []).reduce((acc, t) => acc + (t.capacity || 0), 0)
 })
@@ -93,7 +111,7 @@ const checkInPercent = computed(() => {
 
 const filteredGuests = computed(() => {
   return guests.value.filter((guest) => {
-    const fullName = `${guest.firstName} ${guest.lastName}`.toLowerCase()
+    const fullName = guestDisplayName(guest).toLowerCase()
     const email = (guest.email || '').toLowerCase()
     const party = (guest.partyName || '').toLowerCase()
     const q = searchQuery.value.trim().toLowerCase()
@@ -108,6 +126,20 @@ const filteredGuests = computed(() => {
     return true
   })
 })
+
+interface LayoutRow {
+  key: string
+  _id?: string
+  label: string
+  capacity: number
+}
+
+let nextRowKey = 0
+
+function layoutRow(fields: Omit<LayoutRow, 'key'>): LayoutRow {
+  nextRowKey += 1
+  return { key: `row-${nextRowKey}`, ...fields }
+}
 
 interface QuickNavItem {
   id: 'guests' | 'invite' | 'tables' | 'checkin' | 'view_pass' | 'export_csv'
@@ -154,7 +186,7 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
   },
   {
     id: 'export_csv',
-    label: 'Export CSV',
+    label: 'Export Seat Plan',
     icon: 'i-lucide-download',
     bgClass: 'bg-toast-600',
   },
@@ -181,10 +213,23 @@ function onQuickNavItemClick(item: QuickNavItem) {
 
 useHead({ title: computed(() => (gathering.value ? `${gathering.value.name} Seating | Jam` : 'Jam Seating Dashboard')) })
 
-onMounted(load)
+onMounted(() => load())
 
-async function load() {
-  loading.value = true
+function layoutHasUnsavedEdits() {
+  const saved = gathering.value?.tables ?? []
+  return layoutRows.value.length !== saved.length || layoutRows.value.some((row, index) => {
+    const table = saved[index]
+    return row._id !== table?._id
+      || row.label !== (table?.customLabel || '')
+      || Number(row.capacity) !== table?.capacity
+  })
+}
+
+async function load({ keepLayoutEdits = true } = {}) {
+  // Only the first load replaces the page. A reload must not unmount what the host is working in.
+  loading.value = !gathering.value
+  // Other actions reload the page data, and must not throw away a layout still being edited.
+  const syncLayout = !keepLayoutEdits || !layoutHasUnsavedEdits()
   try {
     gathering.value = await seating.getGathering(gatheringId.value)
     if (gathering.value) {
@@ -195,9 +240,12 @@ async function load() {
       inviteForm.passcode = gathering.value.passcode || ''
       inviteForm.invitationSubject = gathering.value.invitationSubject || ''
       inviteForm.invitationMessage = gathering.value.invitationMessage || ''
-      if (gathering.value.tables?.length) {
-        tableCount.value = gathering.value.tables.length
-        seatsPerTable.value = gathering.value.tables[0]?.capacity || 8
+      if (syncLayout) {
+        layoutRows.value = gathering.value.tables.map((table) => layoutRow({
+          _id: table._id,
+          label: table.customLabel || '',
+          capacity: table.capacity,
+        }))
       }
       if (gathering.value.status === 'ACTIVE') {
         const listed = await seating.listGuests(gatheringId.value)
@@ -228,7 +276,49 @@ async function addGuest() {
   }
 }
 
+const namePrompt = reactive({
+  guest: null as SeatingGuestRecord | null,
+  firstName: '',
+  lastName: '',
+  saving: false,
+})
+const isNamePromptOpen = computed({
+  get: () => Boolean(namePrompt.guest),
+  set: (open) => {
+    if (!open) closeNamePrompt()
+  },
+})
+
+function closeNamePrompt() {
+  namePrompt.guest = null
+  // The dropdown already shows "Attending", so put it back to what is saved.
+  load()
+}
+
+async function saveNameAndAttend() {
+  if (!namePrompt.guest) return
+  namePrompt.saving = true
+  try {
+    await seating.updateGuest(gatheringId.value, namePrompt.guest._id, {
+      rsvpStatus: 'GOING',
+      firstName: namePrompt.firstName.trim(),
+      lastName: namePrompt.lastName.trim(),
+    })
+    closeNamePrompt()
+  } catch (error) {
+    toast.add({ title: 'Could not update guest', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    namePrompt.saving = false
+  }
+}
+
 async function setResponse(guest: SeatingGuestRecord, rsvpStatus: RsvpStatus) {
+  if (rsvpStatus === 'GOING' && guestNeedsName(guest)) {
+    namePrompt.guest = guest
+    namePrompt.firstName = guest.firstName || ''
+    namePrompt.lastName = guest.lastName || ''
+    return
+  }
   try {
     await seating.updateGuest(gatheringId.value, guest._id, { rsvpStatus })
     await load()
@@ -243,12 +333,12 @@ async function downloadGuests() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'jam-guests.csv'
+    link.download = 'jam-seat-plan.csv'
     link.click()
     URL.revokeObjectURL(url)
-    toast.add({ title: 'Seated list downloaded', color: 'success' })
+    toast.add({ title: 'Seat plan downloaded', color: 'success' })
   } catch (error) {
-    toast.add({ title: 'Could not download seated list', description: getApiErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Could not download seat plan', description: getApiErrorMessage(error), color: 'error' })
   }
 }
 
@@ -262,6 +352,16 @@ async function saveInvitation() {
   } finally {
     saving.value = false
   }
+}
+
+async function saveQuestions(questions: EventQuestion[]) {
+  gathering.value = await seating.saveInvitation(gatheringId.value, { questions })
+}
+
+function answerSummary(answer: NonNullable<SeatingGuestRecord['answers']>[number]) {
+  const notes = formatRsvpAnswerNotes(answer.notes)
+  const value = formatRsvpAnswerValue(answer.answer)
+  return `${answer.question}: ${value}${notes ? ` (${notes})` : ''}`
 }
 
 async function sendInvitation() {
@@ -288,15 +388,35 @@ async function removeGuest(guest: SeatingGuestRecord) {
   }
 }
 
+function addLayoutRows() {
+  const count = Math.max(Math.floor(Number(quickTableCount.value)) || 0, 0)
+  const capacity = Math.max(Math.floor(Number(quickSeatCount.value)) || 0, 1)
+  for (let index = 0; index < count; index += 1) {
+    layoutRows.value.push(layoutRow({ label: '', capacity }))
+  }
+}
+
+function removeLayoutRow(key: string) {
+  layoutRows.value = layoutRows.value.filter((row) => row.key !== key)
+}
+
+async function saveLayout(confirmClear = false): Promise<void> {
+  const tables = layoutRows.value.map(({ _id, label, capacity }) => ({ _id, label, capacity: Number(capacity) }))
+  gathering.value = await seating.replaceTables(gatheringId.value, tables, confirmClear)
+}
+
 async function applyTables() {
   if (!gathering.value) return
-  const seated = guests.value.some((guest) => guest.seatNumber != null)
-  if (seated && !window.confirm('Replacing the table layout clears current seats. Continue?')) return
   saving.value = true
   try {
-    const tables = Array.from({ length: tableCount.value }, () => ({ capacity: seatsPerTable.value }))
-    gathering.value = await seating.replaceTables(gatheringId.value, tables, seated)
-    await load()
+    try {
+      await saveLayout()
+    } catch (error) {
+      const message = getApiErrorMessage(error)
+      if (!message.includes('Confirm to continue') || !window.confirm(message)) throw error
+      await saveLayout(true)
+    }
+    await load({ keepLayoutEdits: false })
     toast.add({ title: 'Table layout updated', color: 'success' })
   } catch (error) {
     toast.add({ title: 'Could not update tables', description: getApiErrorMessage(error), color: 'error' })
@@ -338,25 +458,6 @@ async function onSeatChange(guest: SeatingGuestRecord, value: string) {
     await load()
   } catch (error) {
     toast.add({ title: 'Could not move seat', description: getApiErrorMessage(error), color: 'error' })
-  }
-}
-
-async function saveTableCapacity(tableId: string, capacity: number) {
-  try {
-    gathering.value = await seating.updateTableCapacity(gatheringId.value, tableId, capacity, false)
-    await load()
-  } catch (error) {
-    const message = getApiErrorMessage(error)
-    if (message.includes('Confirm to continue') && window.confirm(message)) {
-      try {
-        gathering.value = await seating.updateTableCapacity(gatheringId.value, tableId, capacity, true)
-        await load()
-      } catch (retryError) {
-        toast.add({ title: 'Could not update table', description: getApiErrorMessage(retryError), color: 'error' })
-      }
-      return
-    }
-    toast.add({ title: 'Could not update table', description: message, color: 'error' })
   }
 }
 
@@ -412,6 +513,38 @@ async function onScan(value: string) {
   }
 }
 
+function seatsOf(table: SeatingTable): SeatingSeat[] {
+  return table.seats ?? Array.from({ length: table.capacity }, (_, index) => ({
+    number: index + 1,
+    unavailable: false,
+    guest: null,
+  }))
+}
+
+function guestInSeat(table: SeatingTable, seatNumber: number) {
+  return guests.value.find((guest) => guest.tableId === table._id && guest.seatNumber === seatNumber)
+}
+
+async function toggleSeatSelectionLock() {
+  if (!gathering.value) return
+  try {
+    gathering.value = await seating.saveInvitation(gatheringId.value, {
+      seatSelectionLocked: !gathering.value.seatSelectionLocked,
+    })
+  } catch (error) {
+    toast.add({ title: 'Could not change seat selection', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
+async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
+  try {
+    gathering.value = await seating.setSeatUnavailable(gatheringId.value, table._id, seat.number, !seat.unavailable)
+  } catch (error) {
+    toast.add({ title: 'Could not change seat', description: getApiErrorMessage(error), color: 'error' })
+    await load()
+  }
+}
+
 function tableFor(guest: SeatingGuestRecord) {
   return gathering.value?.tables.find((table) => table._id === guest.tableId)
 }
@@ -427,6 +560,33 @@ async function copyPasscode() {
     }, 2000)
   } catch {
     toast.add({ title: 'Could not copy passcode', color: 'warning' })
+  }
+}
+
+async function updateOpenInvite(body: { enabled?: boolean, regenerate?: boolean }) {
+  try {
+    gathering.value = await seating.setOpenInvite(gatheringId.value, body)
+  } catch (error) {
+    toast.add({ title: 'Could not update the open invite', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
+function replaceOpenInvite() {
+  if (window.confirm('Replace this link? The old link will stop working for anyone who has it.')) {
+    updateOpenInvite({ regenerate: true })
+  }
+}
+
+async function copyOpenInvite() {
+  try {
+    await navigator.clipboard.writeText(openInviteUrl.value)
+    isCopiedOpenInvite.value = true
+    toast.add({ title: 'Open invite link copied', color: 'success' })
+    setTimeout(() => {
+      isCopiedOpenInvite.value = false
+    }, 2000)
+  } catch {
+    toast.add({ title: 'Could not copy link', color: 'warning' })
   }
 }
 
@@ -606,6 +766,18 @@ async function copyLookupUrl() {
               <span>Max Guests</span>
               <span class="font-bold text-toast-900">{{ gathering.maxGuests }}</span>
             </div>
+            <UButton
+              v-if="active"
+              :to="upgradePath"
+              size="xs"
+              color="toast"
+              variant="soft"
+              icon="i-lucide-arrow-up-circle"
+              block
+              class="mt-1"
+            >
+              Upgrade Plan
+            </UButton>
           </div>
 
           <!-- Passcode Copy Pill -->
@@ -767,13 +939,24 @@ async function copyLookupUrl() {
               class="font-semibold cursor-pointer"
               @click="downloadGuests"
             >
-              Export CSV
+              Export Seat Plan
             </UButton>
           </div>
         </div>
 
         <!-- ================= WORKSPACE MODULE: GUESTS ================= -->
         <div v-if="active && section === 'guests'" class="space-y-4">
+          <JamGuestImport
+            :gathering-id="gatheringId"
+            :guest-count="guests.length"
+            @imported="load()"
+          />
+
+          <JamBulkInvite
+            :gathering-id="gatheringId"
+            @sent="load()"
+          />
+
           <!-- Add Guest Card -->
           <div class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
             <div class="flex items-center justify-between border-b border-bread-200/60 pb-2">
@@ -786,6 +969,14 @@ async function copyLookupUrl() {
               </span>
             </div>
 
+            <p
+              v-if="guestListFull"
+              class="rounded-lg bg-amber-50 p-2.5 text-xs text-toast-900"
+            >
+              Your guest list is full.
+              <NuxtLink :to="upgradePath" class="font-semibold underline">Upgrade your plan</NuxtLink>
+              to invite more people.
+            </p>
             <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end" @submit.prevent="addGuest">
               <div>
                 <label class="block text-[11px] font-semibold text-toast-800 mb-1">First Name</label>
@@ -895,6 +1086,15 @@ async function copyLookupUrl() {
                     <div class="flex items-center gap-2">
                       <span class="font-semibold text-sm text-toast-900 truncate">{{ guestDisplayName(guest) }}</span>
                       <UBadge
+                        v-if="guestNeedsName(guest)"
+                        color="warning"
+                        variant="subtle"
+                        size="xs"
+                        class="text-[10px] shrink-0"
+                      >
+                        Waiting for name
+                      </UBadge>
+                      <UBadge
                         v-if="guest.partyName"
                         color="neutral"
                         variant="subtle"
@@ -907,6 +1107,21 @@ async function copyLookupUrl() {
                     <div class="text-xs text-muted truncate">
                       {{ guest.email }}
                     </div>
+                    <details
+                      v-if="guest.answers?.length"
+                      class="mt-1 text-xs text-toast-800"
+                    >
+                      <summary class="cursor-pointer font-medium">
+                        Answers ({{ guest.answers.length }})
+                      </summary>
+                      <p
+                        v-for="answer in guest.answers"
+                        :key="answer.question"
+                        class="mt-0.5 whitespace-pre-line"
+                      >
+                        {{ answerSummary(answer) }}
+                      </p>
+                    </details>
                   </div>
                 </div>
 
@@ -978,9 +1193,9 @@ async function copyLookupUrl() {
                   />
                 </UFormField>
 
-                <UFormField label="Passcode" required description="Guests must enter this code to unlock the gathering details">
+                <UFormField label="Passcode (optional)" description="If you set one, guests must enter it to open the invitation and reply. Without one, anyone with a link can open the invitation, and anyone with a guest's personal link can reply as them.">
                   <div class="flex items-center gap-2">
-                    <UInput v-model="inviteForm.passcode" placeholder="Enter gathering passcode" required size="sm" class="flex-1 font-mono font-bold" />
+                    <UInput v-model="inviteForm.passcode" placeholder="No passcode" size="sm" class="flex-1 font-mono font-bold" />
                     <UButton
                       type="button"
                       size="sm"
@@ -1009,6 +1224,17 @@ async function copyLookupUrl() {
                   <UButton
                     type="button"
                     color="toast"
+                    variant="soft"
+                    size="sm"
+                    icon="i-lucide-list-checks"
+                    class="font-semibold cursor-pointer"
+                    @click="isQuestionsOpen = true"
+                  >
+                    RSVP Questions ({{ gathering.questions?.length || 0 }})
+                  </UButton>
+                  <UButton
+                    type="button"
+                    color="toast"
                     variant="outline"
                     size="sm"
                     icon="i-lucide-send"
@@ -1030,7 +1256,7 @@ async function copyLookupUrl() {
                   <h3 class="font-serif font-bold text-base text-toast-900">Guest Invitation Link</h3>
                 </div>
                 <p class="text-xs text-muted">
-                  Guests use this link along with your passcode to read your invitation and RSVP:
+                  Guests use this link, along with your passcode if you set one, to read your invitation and RSVP:
                 </p>
                 <div class="bg-toast-50 p-2.5 rounded-lg border border-bread-200 text-xs font-mono break-all text-toast-900">
                   {{ lookupUrl || 'Generating link...' }}
@@ -1067,6 +1293,81 @@ async function copyLookupUrl() {
           </div>
         </div>
 
+        <!-- ================= WORKSPACE MODULE: INVITATION DESIGN ================= -->
+        <div v-if="active && section === 'invite'" class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
+          <div class="flex items-center gap-1.5 border-b border-bread-200/60 pb-2">
+            <UIcon name="i-lucide-palette" class="size-4 text-toast-600" />
+            <h3 class="font-serif font-bold text-base text-toast-900">Invitation Design</h3>
+          </div>
+          <JamInvitationMaker
+            :gathering="gathering"
+            :message="inviteForm.invitationMessage"
+            @updated="gathering = $event"
+          />
+        </div>
+
+        <!-- ================= WORKSPACE MODULE: OPEN INVITE ================= -->
+        <div v-if="active && section === 'invite'" class="white-bread-container p-4 sm:p-5 space-y-3 shadow-xs">
+          <div class="flex items-center gap-1.5 border-b border-bread-200/60 pb-2">
+            <UIcon name="i-lucide-share-2" class="size-4 text-toast-600" />
+            <h3 class="font-serif font-bold text-base text-toast-900">Open Invite Link</h3>
+          </div>
+          <p class="text-xs text-muted">
+            Anyone with this link can add themselves as a guest who is coming, up to your plan's limit of {{ gathering.maxGuests }}. Their email isn't checked, so turn it off if it spreads further than you want.
+          </p>
+          <div
+            v-if="openInviteUrl"
+            class="bg-toast-50 p-2.5 rounded-lg border border-bread-200 text-xs font-mono break-all text-toast-900"
+            data-testid="open-invite-link"
+          >
+            {{ openInviteUrl }}
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <template v-if="openInviteUrl">
+              <UButton
+                size="sm"
+                color="primary"
+                variant="solid"
+                icon="i-lucide-copy"
+                class="cursor-pointer"
+                @click="copyOpenInvite"
+              >
+                {{ isCopiedOpenInvite ? 'Link Copied' : 'Copy Link' }}
+              </UButton>
+              <UButton
+                size="sm"
+                color="toast"
+                variant="outline"
+                icon="i-lucide-refresh-cw"
+                class="cursor-pointer"
+                @click="replaceOpenInvite"
+              >
+                Replace Link
+              </UButton>
+              <UButton
+                size="sm"
+                color="error"
+                variant="ghost"
+                class="cursor-pointer"
+                @click="updateOpenInvite({ enabled: false })"
+              >
+                Turn Off Open Invite
+              </UButton>
+            </template>
+            <UButton
+              v-else
+              size="sm"
+              color="primary"
+              variant="solid"
+              icon="i-lucide-link"
+              class="cursor-pointer"
+              @click="updateOpenInvite({ enabled: true })"
+            >
+              Turn On Open Invite
+            </UButton>
+          </div>
+        </div>
+
         <!-- ================= WORKSPACE MODULE: TABLES & SEATS ================= -->
         <div v-if="active && section === 'tables'" class="space-y-4">
           <!-- Table Layout Controls -->
@@ -1077,23 +1378,62 @@ async function copyLookupUrl() {
                 <h3 class="font-serif font-bold text-base text-toast-900">Table & Seating Layout</h3>
               </div>
               <div class="flex items-center gap-2 text-xs">
-                <span class="text-muted">Total Table Capacity:</span>
-                <span class="font-bold text-toast-900 font-mono">{{ totalSeatsCapacity }} / {{ gathering.maxGuests }} max</span>
+                <span class="text-muted">Total Seats:</span>
+                <span class="font-bold text-toast-900 font-mono">{{ layoutSeatTotal }}</span>
               </div>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-3 items-end">
-              <UFormField label="Number of Tables">
-                <UInput v-model.number="tableCount" type="number" min="1" size="sm" class="w-full" />
+            <div v-if="layoutRows.length" class="space-y-2">
+              <div
+                v-for="(row, index) in layoutRows"
+                :key="row.key"
+                class="grid grid-cols-[1fr_5rem_auto] items-end gap-2"
+                data-testid="layout-row"
+              >
+                <UFormField :label="`Table ${index + 1} label (optional)`">
+                  <UInput v-model="row.label" maxlength="40" :placeholder="`Table ${index + 1}`" size="sm" class="w-full" />
+                </UFormField>
+                <UFormField label="Seats">
+                  <UInput v-model.number="row.capacity" type="number" min="1" size="sm" class="w-full" />
+                </UFormField>
+                <UButton
+                  size="sm"
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  class="cursor-pointer"
+                  :aria-label="`Remove table ${index + 1}`"
+                  @click="removeLayoutRow(row.key)"
+                />
+              </div>
+            </div>
+            <p v-else class="py-2 text-xs text-muted">
+              No tables yet. Add as many as your venue has.
+            </p>
+
+            <div class="flex flex-wrap items-end gap-2 border-t border-bread-200/60 pt-3">
+              <UFormField label="Tables to add">
+                <UInput v-model.number="quickTableCount" type="number" min="1" size="sm" class="w-24" />
               </UFormField>
-              <UFormField label="Seats per Table">
-                <UInput v-model.number="seatsPerTable" type="number" min="1" size="sm" class="w-full" />
+              <UFormField label="Seats each">
+                <UInput v-model.number="quickSeatCount" type="number" min="1" size="sm" class="w-24" />
               </UFormField>
-              <div class="flex items-center gap-2">
+              <UButton
+                color="toast"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-plus"
+                class="cursor-pointer"
+                @click="addLayoutRows"
+              >
+                Add Tables
+              </UButton>
+              <div class="ml-auto flex items-center gap-2">
                 <UButton
                   color="primary"
                   size="sm"
                   :loading="saving"
+                  :disabled="layoutRows.length === 0"
                   variant="solid"
                   @click="applyTables"
                 >
@@ -1113,8 +1453,24 @@ async function copyLookupUrl() {
               </div>
             </div>
             <p class="text-[11px] text-muted italic">
-              Auto-assign seats groups guests who share the same Party/Group at the same table whenever space allows.
+              You can have more seats than guests, up to 500, so guests have a choice. Auto-assign only fills guests with no seat, and groups guests who share the same Party/Group at the same table whenever space allows.
             </p>
+            <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-toast-50/70 p-2.5 text-xs">
+              <span>
+                {{ gathering.seatSelectionLocked
+                  ? 'Seat selection is locked. Guests can see their seats, but only you can change them.'
+                  : 'Guests who are coming can choose and change their own seats.' }}
+              </span>
+              <UButton
+                size="xs"
+                color="toast"
+                variant="outline"
+                class="cursor-pointer"
+                @click="toggleSeatSelectionLock"
+              >
+                {{ gathering.seatSelectionLocked ? 'Unlock seat selection' : 'Lock seat selection' }}
+              </UButton>
+            </div>
           </div>
 
           <!-- Per-Guest Seat Allocation Card -->
@@ -1153,11 +1509,12 @@ async function copyLookupUrl() {
                     :label="table.label"
                   >
                     <option
-                      v-for="seat in table.capacity"
-                      :key="`${table._id}-${seat}`"
-                      :value="`${table._id}:${seat}`"
+                      v-for="seat in seatsOf(table)"
+                      :key="`${table._id}-${seat.number}`"
+                      :value="`${table._id}:${seat.number}`"
+                      :disabled="seat.unavailable"
                     >
-                      {{ table.label }} · Seat {{ seat }}
+                      {{ table.label }} · Seat {{ seat.number }}{{ seat.unavailable ? ' (unavailable)' : '' }}
                     </option>
                   </optgroup>
                 </select>
@@ -1174,36 +1531,39 @@ async function copyLookupUrl() {
             >
               <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
                 <span class="font-serif font-bold text-sm text-toast-900">{{ table.label }}</span>
-                <label class="flex items-center gap-1.5 text-xs text-toast-700">
-                  <span>Seats:</span>
-                  <input
-                    :value="table.capacity"
-                    type="number"
-                    min="1"
-                    class="w-14 rounded-md border border-toast-300 bg-white px-1.5 py-0.5 text-center text-xs font-bold"
-                    @change="saveTableCapacity(table._id, Number(($event.target as HTMLInputElement).value))"
-                  />
-                </label>
+                <span class="text-xs text-toast-700">{{ table.capacity }} seats</span>
               </div>
 
               <!-- Seat List -->
               <div class="space-y-1 text-xs">
                 <div
-                  v-for="seat in table.capacity"
-                  :key="seat"
-                  class="flex items-center justify-between p-1 rounded-md bg-toast-50/50 text-[11px]"
+                  v-for="seat in seatsOf(table)"
+                  :key="seat.number"
+                  class="flex items-center justify-between gap-2 p-1 rounded-md bg-toast-50/50 text-[11px]"
+                  data-testid="host-seat"
                 >
-                  <span class="font-mono text-muted">Seat {{ seat }}</span>
+                  <span class="font-mono text-muted shrink-0">Seat {{ seat.number }}</span>
                   <span
-                    class="font-medium truncate max-w-36"
-                    :class="guests.find((g) => g.tableId === table._id && g.seatNumber === seat) ? 'text-toast-900 font-semibold' : 'text-gray-400 italic'"
+                    class="flex-1 font-medium truncate"
+                    :class="guestInSeat(table, seat.number) ? 'text-toast-900 font-semibold' : 'text-gray-400 italic'"
                   >
                     {{
-                      guests.find((g) => g.tableId === table._id && g.seatNumber === seat)
-                        ? guestDisplayName(guests.find((g) => g.tableId === table._id && g.seatNumber === seat)!)
-                        : 'Empty'
+                      guestInSeat(table, seat.number)
+                        ? guestDisplayName(guestInSeat(table, seat.number)!)
+                        : seat.unavailable ? 'Unavailable' : 'Empty'
                     }}
                   </span>
+                  <UButton
+                    v-if="!guestInSeat(table, seat.number)"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    class="cursor-pointer shrink-0"
+                    :aria-label="`${seat.unavailable ? 'Make available' : 'Make unavailable'}: ${table.label}, seat ${seat.number}`"
+                    @click="toggleSeat(table, seat)"
+                  >
+                    {{ seat.unavailable ? 'Make available' : 'Make unavailable' }}
+                  </UButton>
                 </div>
               </div>
             </div>
@@ -1235,6 +1595,58 @@ async function copyLookupUrl() {
         </div>
       </section>
     </UPageGrid>
+
+    <UModal
+      v-model:open="isNamePromptOpen"
+      title="Add this guest's name"
+      :description="`${namePrompt.guest?.email} hasn't given a name yet. Add it to mark them as attending.`"
+    >
+      <template #body>
+        <form
+          class="space-y-3"
+          @submit.prevent="saveNameAndAttend"
+        >
+          <UFormField label="First name">
+            <UInput
+              v-model="namePrompt.firstName"
+              required
+              maxlength="50"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Last name">
+            <UInput
+              v-model="namePrompt.lastName"
+              required
+              maxlength="50"
+              class="w-full"
+            />
+          </UFormField>
+          <div class="flex justify-end gap-2">
+            <UButton
+              type="button"
+              variant="ghost"
+              @click="closeNamePrompt"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              type="submit"
+              :loading="namePrompt.saving"
+            >
+              Mark as Attending
+            </UButton>
+          </div>
+        </form>
+      </template>
+    </UModal>
+
+    <EventQuestionsModal
+      v-if="gathering"
+      v-model:open="isQuestionsOpen"
+      :initial-questions="gathering.questions ?? []"
+      :save="saveQuestions"
+    />
   </div>
 </template>
 

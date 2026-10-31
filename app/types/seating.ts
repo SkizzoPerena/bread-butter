@@ -1,3 +1,6 @@
+import type { EventQuestion } from '~/types/event'
+import type { RsvpAnswer } from '~/types/rsvp'
+
 export type GatheringStatus = 'PENDING_PAYMENT' | 'ACTIVE'
 export type SeatingPaymentStatus = 'PENDING' | 'APPROVED' | 'DENIED'
 export type RsvpStatus = 'PENDING' | 'GOING' | 'NOT_GOING'
@@ -10,15 +13,48 @@ export interface JamPackageRecord {
   isEnabled: boolean
 }
 
+export interface SeatingSeat {
+  number: number
+  unavailable: boolean
+  guest: string | null
+}
+
 export interface SeatingTable {
   _id: string
+  /** What to show: the host's label, or "Table 2" by position. */
   label: string
+  /** What the host typed, which may be empty. */
+  customLabel?: string
   capacity: number
   sortOrder: number
+  seats?: SeatingSeat[]
+}
+
+export interface JamInvitationDesign {
+  mode?: 'MAKER' | 'IMAGE'
+  imageUrl?: string
+  requestLine?: string
+  headline?: string
+  eventTime?: string
+  deadlineText?: string
+  paletteName?: string
+  typographyName?: string
+  bannerImageUrl?: string
+}
+
+export interface SeatingUpgradeSnapshot {
+  packageName: string
+  pricePhp?: number
+  maxGuests: number
+  fromPackageName: string
+  fromPricePhp?: number
+  fromMaxGuests: number
 }
 
 export interface SeatingPaymentRecord {
   _id: string
+  type?: 'SEATING_PACKAGE' | 'SEATING_UPGRADE'
+  upgrade?: SeatingUpgradeSnapshot | null
   amount: number
   amountReceived?: number | null
   status: SeatingPaymentStatus
@@ -45,20 +81,43 @@ export interface GatheringRecord {
   passcode?: string
   invitationSubject?: string
   invitationMessage?: string
+  invitationDesign?: JamInvitationDesign
   tables: SeatingTable[]
+  openInvite?: { enabled: boolean, token: string | null }
+  questions?: EventQuestion[]
+  seatSelectionLocked?: boolean
   guestCount: number
   attendingCount: number
   checkedInCount: number
   payment: SeatingPaymentRecord | null
+  pendingUpgrade?: SeatingPaymentRecord | null
+}
+
+export interface JamUpgradeOption {
+  _id: string
+  name: string
+  pricePhp: number
+  maxGuests: number
+  priceDifferencePhp: number
+  additionalGuests: number
+}
+
+export interface JamUpgradeOptions {
+  current: { packageId: string, packageName: string, pricePhp: number, maxGuests: number }
+  options: JamUpgradeOption[]
+  pendingUpgrade: SeatingPaymentRecord | null
 }
 
 export interface SeatingGuestRecord {
   _id: string
-  firstName: string
-  lastName: string
+  /** Missing until a guest invited by email alone gives their name. */
+  firstName?: string
+  lastName?: string
+  isBulkInvite?: boolean
   email: string
   partyName: string
   rsvpStatus: RsvpStatus
+  answers?: RsvpAnswer[]
   respondedAt?: string | null
   inviteSentAt?: string | null
   isAttending: boolean
@@ -85,6 +144,74 @@ export interface PublicSeatList {
 
 export interface JamSitePreview {
   gatheringName: string
+  passcodeRequired?: boolean
+}
+
+export interface JamInviteDetails {
+  gatheringName: string
+  passcodeRequired?: boolean
+  needsName?: boolean
+}
+
+export interface JamInviteUnlocked {
+  gatheringName: string
+  questions?: EventQuestion[]
+  answers?: RsvpAnswer[]
+  rsvpStatus?: RsvpStatus
+  needsName?: boolean
+}
+
+export interface JamOpenInvitation {
+  gatheringName: string
+  venue: string
+  eventDate: string
+  invitationMessage: string
+  design?: JamInvitationDesign
+  questions?: EventQuestion[]
+}
+
+export interface JamOpenRegistration {
+  message: string
+  alreadyRegistered?: boolean
+  attendanceToken?: string
+  attendPath?: string
+}
+
+export interface JamBulkPreview {
+  requested: number
+  toInvite: number
+  invalidEmails: string[]
+  duplicateCount: number
+  alreadyOnList: number
+  creditsRemaining: number
+  shortBy: number
+  canSend: boolean
+}
+
+export interface JamBulkResult {
+  message: string
+  created: number
+  alreadyOnList: number
+  sent: number
+  skipped: number
+  creditsRemaining: number
+}
+
+export interface JamImportableGuest {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  partyName: string
+  alreadyOnList: boolean
+}
+
+export interface JamReplyBody {
+  passcode: string
+  rsvpStatus: 'GOING' | 'NOT_GOING'
+  answers?: RsvpAnswer[]
+  firstName?: string
+  lastName?: string
 }
 
 export interface JamInvitation {
@@ -92,11 +219,23 @@ export interface JamInvitation {
   venue: string
   eventDate: string
   invitationMessage: string
+  design?: JamInvitationDesign
 }
 
 export interface JamRsvpResult {
   message: string
   rsvpStatus: RsvpStatus
+  attendPath?: string
+}
+
+export type JamSeatStatus = 'OPEN' | 'TAKEN' | 'UNAVAILABLE' | 'YOURS'
+
+export interface JamSeatMap {
+  gatheringName: string
+  locked: boolean
+  message?: string
+  seat: { tableId: string, tableLabel: string, seatNumber: number } | null
+  tables: { _id: string, label: string, seats: { number: number, status: JamSeatStatus }[] }[]
 }
 
 export interface PublicSeatDetail {
@@ -121,6 +260,10 @@ export interface CheckInResult {
   attendanceToken: string
 }
 
-export function guestDisplayName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName'>): string {
-  return `${guest.firstName} ${guest.lastName}`.trim()
+export function guestNeedsName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName'>): boolean {
+  return !guest.firstName || !guest.lastName
+}
+
+export function guestDisplayName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName' | 'email'>): string {
+  return `${guest.firstName ?? ''} ${guest.lastName ?? ''}`.trim() || guest.email
 }

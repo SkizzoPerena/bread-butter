@@ -134,7 +134,7 @@ async function onScan(value: string) {
     lastScannedGuest.value = guest
     toast.add({
       title: `${guest.name} checked in!`,
-      description: guest.tableLabel ? `${guest.tableLabel}, Seat ${guest.seatNumber}` : 'Seat assigned',
+      description: guest.tableLabel ? `${guest.tableLabel}, Seat ${guest.seatNumber}` : 'No seat yet',
       color: 'success',
     })
     await load()
@@ -157,7 +157,7 @@ async function downloadGuests() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'jam-guests.csv'
+    link.download = 'jam-seat-plan.csv'
     link.click()
     URL.revokeObjectURL(url)
     toast.add({ title: 'Attendance list downloaded', color: 'success' })
@@ -282,7 +282,7 @@ async function downloadGuests() {
                 <div class="min-w-0 flex-1 text-[11px]">
                   <p class="font-bold truncate">Welcome, {{ lastScannedGuest.name }}!</p>
                   <p class="text-emerald-800 truncate">
-                    {{ lastScannedGuest.tableLabel ? `${lastScannedGuest.tableLabel}, Seat ${lastScannedGuest.seatNumber}` : 'Seat assigned' }}
+                    {{ lastScannedGuest.tableLabel ? `${lastScannedGuest.tableLabel}, Seat ${lastScannedGuest.seatNumber}` : 'No seat yet' }}
                   </p>
                 </div>
               </div>

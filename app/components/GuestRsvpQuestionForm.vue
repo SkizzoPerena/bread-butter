@@ -6,6 +6,7 @@ import { questionAnswerKey, questionNotesKey } from '~/utils/guestRsvpValidation
 defineProps<{
   questions: EventQuestion[]
   disabled?: boolean
+  hideAttendance?: boolean
 }>()
 
 const attendanceStatus = defineModel<'GOING' | 'NOT_GOING' | null>('attendanceStatus', {
@@ -71,7 +72,10 @@ function notesPlaceholder(question: EventQuestion): string {
 
 <template>
   <div class="space-y-6">
-    <UPageCard class="space-y-4">
+    <UPageCard
+      v-if="!hideAttendance"
+      class="space-y-4"
+    >
       <p class="text-lg font-semibold text-highlighted">Will you attend?</p>
       <URadioGroup
         :model-value="attendanceStatus ?? undefined"
