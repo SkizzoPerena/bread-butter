@@ -14,7 +14,6 @@ import {
 import type { PriorityFilterValue } from '~/utils/taskPriority'
 import { matchesPriorityFilter } from '~/utils/taskPriority'
 import {
-  applyDeadlineOverrides,
   removeTaskDeadlineOverride,
 } from '~/utils/taskDeadlineStorage'
 
@@ -167,8 +166,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     const targetEventId = options.eventId.value || 'mock-event-id'
     isLoading.value = true
     try {
-      const loaded = await fetchTasksByEvent(targetEventId)
-      tasks.value = applyDeadlineOverrides(loaded, targetEventId)
+      tasks.value = await fetchTasksByEvent(targetEventId)
       syncSummary()
     } catch (error) {
       reportApiError(toast, { title: 'Could not load tasks', error })
@@ -396,7 +394,9 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     isRemoveSubmitting.value = true
     try {
       const response = await hardDeleteTask(taskId)
-      removeTaskDeadlineOverride(options.eventId.value, taskId)
+      if (isUiOnlyMode.value) {
+        removeTaskDeadlineOverride(options.eventId.value, taskId)
+      }
       tasks.value = removeTaskFromList(tasks.value, taskId)
       syncSummary()
       const promotedNote =
