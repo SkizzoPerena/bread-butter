@@ -14,6 +14,7 @@ import { useDressCode } from '~/composables/useDressCode'
 import { defaultGalleryRecord, useEventGallery } from '~/composables/useEventGallery'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
 import type { GalleryPhoto, GalleryRecord } from '~/types/gallery'
+import { GuestRsvpError } from '~/types/rsvp'
 
 const props = defineProps<{
   site: CustomSiteViewModel
@@ -22,10 +23,16 @@ const props = defineProps<{
 useWeddingFonts()
 
 const router = useRouter()
-const { getRsvpId } = useGuestRsvpSession()
+const route = useRoute()
+const { getRsvpId, setRsvpId } = useGuestRsvpSession()
+const { lookupRsvpForSite } = useGuestRsvp()
+const { getSiteAccessToken } = useSiteAccessCookie()
 const { getLocalDressCode } = useDressCode()
 const { getLocalGallery } = useEventGallery()
 const isMissingRsvpModalOpen = ref(false)
+const rsvpLookupEmail = ref('')
+const rsvpLookupError = ref('')
+const isLookingUpRsvp = ref(false)
 const selectedDressCodeLightboxImage = ref<UploadedDressCodeImage | null>(null)
 const isDressCodeLightboxOpen = ref(false)
 const selectedGalleryLightboxPhoto = ref<GalleryPhoto | null>(null)
@@ -66,7 +73,30 @@ function handleRsvpButtonClick() {
   if (rsvpId) {
     router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
   } else {
+    rsvpLookupError.value = ''
     isMissingRsvpModalOpen.value = true
+  }
+}
+
+async function findRsvpByEmail() {
+  const siteName = typeof route.params.siteName === 'string' ? route.params.siteName : ''
+  rsvpLookupError.value = ''
+  isLookingUpRsvp.value = true
+  try {
+    const rsvpId = await lookupRsvpForSite(
+      siteName,
+      rsvpLookupEmail.value,
+      getSiteAccessToken(siteName),
+    )
+    setRsvpId(rsvpId)
+    isMissingRsvpModalOpen.value = false
+    await router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
+  } catch (error) {
+    rsvpLookupError.value = error instanceof GuestRsvpError && error.notFound
+      ? "We couldn't find an invitation for that email. Use the address your invitation was sent to, or ask your host."
+      : 'Something went wrong. Please wait a moment and try again.'
+  } finally {
+    isLookingUpRsvp.value = false
   }
 }
 
@@ -1270,35 +1300,45 @@ function getVenueGoogleMapsUrl(
       </div>
     </UScrollArea>
 
-    <!-- Modal: Personal Invitation Required Fallback -->
+    <!-- Modal: find a guest's RSVP by email when they did not arrive from their invitation -->
     <UModal
       v-model:open="isMissingRsvpModalOpen"
-      title="Personal Invitation Required"
+      title="Find your RSVP"
     >
       <template #body>
-        <div class="py-2 text-center space-y-4">
-          <div class="mx-auto w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-950/60 flex items-center justify-center text-violet-600 dark:text-violet-400">
-            <UIcon name="i-lucide-mail" class="w-6 h-6" />
-          </div>
-          <div class="space-y-1">
-            <h4 class="text-base font-semibold text-stone-900 dark:text-stone-100">
-              Personalized RSVP Access
-            </h4>
-            <p class="text-xs sm:text-sm text-stone-600 dark:text-stone-400 max-w-sm mx-auto leading-relaxed">
-              Your RSVP form is uniquely tied to your personal invitation. Please click the invitation image in the email sent to you to access your personal RSVP form.
-            </p>
-          </div>
-          <div class="pt-2 flex justify-center">
+        <form class="py-2 space-y-4" @submit.prevent="findRsvpByEmail">
+          <p class="text-sm text-stone-600 dark:text-stone-400 text-center">
+            Enter the email address your invitation was sent to.
+          </p>
+          <UFormField label="Email" name="rsvpLookupEmail" :error="rsvpLookupError || undefined">
+            <UInput
+              v-model="rsvpLookupEmail"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+              class="w-full"
+            />
+          </UFormField>
+          <div class="flex justify-end gap-2">
             <UButton
+              type="button"
               color="neutral"
               variant="outline"
               size="sm"
               @click="isMissingRsvpModalOpen = false"
             >
-              Understood
+              Cancel
+            </UButton>
+            <UButton
+              type="submit"
+              size="sm"
+              :loading="isLookingUpRsvp"
+            >
+              Find my RSVP
             </UButton>
           </div>
-        </div>
+        </form>
       </template>
     </UModal>
 

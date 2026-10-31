@@ -222,8 +222,37 @@ export function useGuestRsvp() {
     }
   }
 
+  async function lookupRsvpForSite(
+    siteName: string,
+    email: string,
+    accessToken?: string | null,
+  ): Promise<string> {
+    if (isUiOnlyMode.value) {
+      if (email.trim().toLowerCase() === MOCK_FORM.rsvp.email) {
+        return MOCK_RSVP_PENDING_ID
+      }
+      throw new GuestRsvpError('RSVP not found', 404, { notFound: true })
+    }
+
+    try {
+      const response = await apiRequest<{ rsvpId: string }>('/guest/rsvps/lookup', {
+        method: 'POST',
+        authenticated: false,
+        body: {
+          siteName,
+          email: email.trim(),
+          ...(accessToken ? { accessToken } : {}),
+        },
+      })
+      return response.rsvpId
+    } catch (error) {
+      throw parseGuestRsvpError(error)
+    }
+  }
+
   return {
     fetchGuestRsvpForm,
     submitGuestRsvpResponse,
+    lookupRsvpForSite,
   }
 }
