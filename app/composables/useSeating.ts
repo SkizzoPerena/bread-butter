@@ -689,22 +689,6 @@ export function useSeating() {
     return apiRequest<JamSitePreview>(`/guest/seating/site/${publicToken}`, { authenticated: false })
   }
 
-  async function fetchJamInvite(token: string): Promise<JamInviteDetails> {
-    if (isUiOnlyMode.value) {
-      for (const gathering of gatherings.value) {
-        const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
-        if (!guest) continue
-        return {
-          gatheringName: gathering.name,
-          passcodeRequired: Boolean(gathering.passcode),
-          needsName: !guest.firstName || !guest.lastName,
-        }
-      }
-      throw new Error('Invitation not found.')
-    }
-    return apiRequest<JamInviteDetails>(`/guest/seating/rsvp/${token}`, { authenticated: false })
-  }
-
   async function unlockJamSite(publicToken: string, passcode: string): Promise<JamInvitation> {
     if (isUiOnlyMode.value) {
       const gathering = gatherings.value.find((item) => item.publicToken === publicToken)
@@ -1112,14 +1096,17 @@ export function useSeating() {
     })
   }
 
-  async function unlockJamInvite(token: string, passcode: string): Promise<JamInviteUnlocked> {
+  async function unlockJamInvite(token: string): Promise<JamInviteUnlocked> {
     if (isUiOnlyMode.value) {
       for (const gathering of gatherings.value) {
         const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
         if (!guest) continue
-        if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
         return {
           gatheringName: gathering.name,
+          venue: gathering.venue,
+          eventDate: gathering.eventDate,
+          invitationMessage: gathering.invitationMessage,
+          design: gathering.invitationDesign,
           questions: gathering.questions ?? [],
           answers: guest.answers ?? [],
           rsvpStatus: guest.rsvpStatus,
@@ -1130,18 +1117,16 @@ export function useSeating() {
     }
     return apiRequest<JamInviteUnlocked>(`/guest/seating/rsvp/${token}/unlock`, {
       method: 'POST',
-      body: { passcode },
       authenticated: false,
     })
   }
 
   async function respondToJamInvite(token: string, body: JamReplyBody): Promise<JamRsvpResult> {
     if (isUiOnlyMode.value) {
-      const { passcode, rsvpStatus } = body
+      const { rsvpStatus } = body
       for (const gathering of gatherings.value) {
         const guest = mockGuests(gathering._id).find((item) => item.attendanceToken === token)
         if (!guest) continue
-        if (gathering.passcode && gathering.passcode !== passcode) throw new Error('Incorrect passcode.')
         guest.answers = body.answers ?? []
         guest.rsvpStatus = rsvpStatus
         guest.isAttending = rsvpStatus === 'GOING'
@@ -1193,7 +1178,6 @@ export function useSeating() {
     sendInvites,
     exportGuests,
     fetchJamSite,
-    fetchJamInvite,
     unlockJamInvite,
     previewBulkInvites,
     sendBulkInvites,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EventQuestion } from '~/types/event'
+import type { JamInviteUnlocked } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import {
   guestAnswerMapFromRsvp,
@@ -9,16 +10,17 @@ import {
   type GuestNotesMap,
 } from '~/utils/guestRsvpValidation'
 import GuestRsvpQuestionForm from '~/components/GuestRsvpQuestionForm.vue'
+import JamInvitationCard from '~/components/JamInvitationCard.vue'
 
 definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
-const { fetchJamInvite, unlockJamInvite, respondToJamInvite } = useSeating()
+const { unlockJamInvite, respondToJamInvite } = useSeating()
 
 const token = computed(() => String(route.params.token || ''))
-const step = ref<'loading' | 'passcode' | 'reply' | 'unavailable'>('loading')
-const passcode = ref('')
+const step = ref<'loading' | 'reply' | 'unavailable'>('loading')
 const gatheringName = ref('')
+const invitation = ref<JamInviteUnlocked | null>(null)
 const questions = ref<EventQuestion[]>([])
 const needsName = ref(false)
 const firstName = ref('')
@@ -39,24 +41,9 @@ useHead({ title: 'Reply' })
 
 onMounted(async () => {
   try {
-    const invite = await fetchJamInvite(token.value)
-    gatheringName.value = invite.gatheringName || ''
-    if (invite.passcodeRequired === false) {
-      await unlock()
-    } else {
-      step.value = 'passcode'
-    }
-  } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, 'This invitation is not available.')
-    step.value = 'unavailable'
-  }
-})
-
-async function unlock() {
-  errorMessage.value = ''
-  saving.value = true
-  try {
-    const unlocked = await unlockJamInvite(token.value, passcode.value)
+    const unlocked = await unlockJamInvite(token.value)
+    invitation.value = unlocked
+    gatheringName.value = unlocked.gatheringName || ''
     questions.value = unlocked.questions ?? []
     needsName.value = Boolean(unlocked.needsName)
     answerMap.value = guestAnswerMapFromRsvp(unlocked.answers ?? [])
@@ -66,12 +53,10 @@ async function unlock() {
     }
     step.value = 'reply'
   } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, 'Incorrect passcode.')
-    step.value = 'passcode'
-  } finally {
-    saving.value = false
+    errorMessage.value = getApiErrorMessage(error, 'This invitation is not available.')
+    step.value = 'unavailable'
   }
-}
+})
 
 async function sendReply() {
   errorMessage.value = ''
@@ -92,7 +77,6 @@ async function sendReply() {
   saving.value = true
   try {
     const result = await respondToJamInvite(token.value, {
-      passcode: passcode.value,
       rsvpStatus: payload.status,
       answers: payload.answers,
       ...(askForName.value ? { firstName: firstName.value.trim(), lastName: lastName.value.trim() } : {}),
@@ -137,30 +121,16 @@ async function sendReply() {
           See my seat pass
         </NuxtLink>
       </template>
+      <JamInvitationCard
+        v-if="invitation && !resultMessage"
+        :gathering-name="invitation.gatheringName"
+        :venue="invitation.venue ?? ''"
+        :event-date="invitation.eventDate ?? ''"
+        :message="invitation.invitationMessage"
+        :design="invitation.design"
+      />
       <form
-        v-if="step === 'passcode' && !resultMessage"
-        class="space-y-3 text-left"
-        @submit.prevent="unlock"
-      >
-        <label class="block text-sm font-semibold">
-          Passcode
-          <input
-            v-model="passcode"
-            type="password"
-            required
-            class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
-          >
-        </label>
-        <button
-          type="submit"
-          class="rounded-md bg-toast-800 px-4 py-2 text-bread-100"
-          :disabled="saving"
-        >
-          Continue
-        </button>
-      </form>
-      <form
-        v-else-if="step === 'reply' && !resultMessage"
+        v-if="step === 'reply' && !resultMessage"
         class="space-y-4 text-left"
         @submit.prevent="sendReply"
       >

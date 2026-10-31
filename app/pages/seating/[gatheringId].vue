@@ -1193,7 +1193,7 @@ async function copyLookupUrl() {
                   />
                 </UFormField>
 
-                <UFormField label="Passcode (optional)" description="If you set one, guests must enter it to open the invitation and reply. Without one, anyone with a link can open the invitation, and anyone with a guest's personal link can reply as them.">
+                <UFormField label="Passcode (optional)" description="Protects your open invite link. Guests you invite by email go straight in with their personal link, and anyone with that link can reply as them.">
                   <div class="flex items-center gap-2">
                     <UInput v-model="inviteForm.passcode" placeholder="No passcode" size="sm" class="flex-1 font-mono font-bold" />
                     <UButton
@@ -1253,10 +1253,10 @@ async function copyLookupUrl() {
               <div class="space-y-2">
                 <div class="flex items-center gap-1.5 border-b border-bread-200/60 pb-2">
                   <UIcon name="i-lucide-link" class="size-4 text-toast-600" />
-                  <h3 class="font-serif font-bold text-base text-toast-900">Guest Invitation Link</h3>
+                  <h3 class="font-serif font-bold text-base text-toast-900">Seat Lookup Link</h3>
                 </div>
                 <p class="text-xs text-muted">
-                  Guests use this link, along with your passcode if you set one, to read your invitation and RSVP:
+                  Guests who are going can use this link to find their table and seat. Guests you email get their own link to read your invitation and reply.
                 </p>
                 <div class="bg-toast-50 p-2.5 rounded-lg border border-bread-200 text-xs font-mono break-all text-toast-900">
                   {{ lookupUrl || 'Generating link...' }}
