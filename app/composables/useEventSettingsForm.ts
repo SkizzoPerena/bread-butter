@@ -153,7 +153,8 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
         }
       }
 
-      if (diffMs !== 0) {
+      // The backend moves deadlines with the event. These stored dates only exist in UI-only mode.
+      if (diffMs !== 0 && isUiOnlyMode.value) {
         try {
           const tasks = await fetchTasksByEvent(targetEventId)
           shiftAllEventTaskDeadlines(targetEventId, diffMs, tasks)

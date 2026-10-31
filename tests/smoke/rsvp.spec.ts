@@ -15,23 +15,27 @@ const NO_RESPONSE_ROW = {
 
 test('the host sees No Response, its filter, and the reminder date', async ({ page }) => {
   await signIn(page)
+  const event = {
+    _id: EVENT_ID,
+    eventName: 'RSVP wedding',
+    eventType: 'WEDDING',
+    eventDate: '2030-06-01T00:00:00.000Z',
+    priceTier: { code: 'BREAD_BUTTER', name: 'Bread + Butter' },
+    paymentSummary: { isFullyPaid: true },
+    latestPayment: { status: 'APPROVED' },
+    questions: [],
+  }
   const calls = await stubApi(page, {
     routes: {
       [`GET /rsvps/event/${EVENT_ID}`]: route => route.fulfill({
         json: { success: true, status: 200, page: 1, limit: 25, total: 1, totalPages: 1, rsvps: [NO_RESPONSE_ROW] },
       }),
+      'GET /user/events': route => route.fulfill({ json: { success: true, status: 200, events: [event] } }),
       [`GET /events/${EVENT_ID}`]: route => route.fulfill({
         json: {
           success: true,
           status: 200,
-          event: {
-            _id: EVENT_ID,
-            eventName: 'RSVP wedding',
-            eventType: 'WEDDING',
-            eventDate: '2030-06-01T00:00:00.000Z',
-            priceTier: { code: 'BREAD_BUTTER', name: 'Bread + Butter' },
-            questions: [],
-          },
+          event,
           guestList: [],
           rsvpSummary: { totalSent: 1, going: 0, notGoing: 0, pending: 0, noResponse: 1 },
           tasks: null,

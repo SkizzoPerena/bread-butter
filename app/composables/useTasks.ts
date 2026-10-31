@@ -88,8 +88,7 @@ export function useTasks() {
     }
 
     const response = await apiRequest<TasksByEventResponse>(`/user/tasks/event/${eventId}`)
-    const list = normalizeTaskList(response.tasks ?? [])
-    return applyDeadlineOverrides(list, eventId)
+    return normalizeTaskList(response.tasks ?? [])
   }
 
   async function fetchTask(taskId: string): Promise<TaskRecord> {
@@ -103,9 +102,7 @@ export function useTasks() {
     }
 
     const response = await apiRequest<TaskResponse>(`/user/tasks/${taskId}`)
-    const task = normalizeTask(response.task)
-    const eventId = task.event || activeEventId.value || 'mock-event-id'
-    return applyDeadlineOverrides([task], eventId)[0]
+    return normalizeTask(response.task)
   }
 
   async function createTask(
@@ -296,29 +293,11 @@ export function useTasks() {
         method: 'PATCH',
       })
     } catch (error: any) {
-      if (payload.deadline !== undefined && isAlreadyHasDeadlineError(error)) {
-        const retryFormData = new FormData()
-        if (payload.title !== undefined) retryFormData.append('title', payload.title)
-        if (payload.details !== undefined) retryFormData.append('details', payload.details)
-        if (payload.keepImageURLs !== undefined) retryFormData.append('keepImageURLs', JSON.stringify(payload.keepImageURLs))
-        for (const file of newFiles ?? []) {
-          retryFormData.append('images', file)
-        }
-        response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, retryFormData, {
-          method: 'PATCH',
-        })
-        const targetEventId = activeEventId.value || 'mock-event-id'
-        setTaskDeadlineOverride(targetEventId, taskId, payload.deadline)
-        if (response.task) {
-          response.task.deadline = payload.deadline
-        }
-      } else {
-        if (role) {
-          const reason = matchReason(error, EVENT_CANCELLED_REASONS)
-          if (reason) capture('task_rejected', { role, reason })
-        }
-        throw error
+      if (role) {
+        const reason = matchReason(error, EVENT_CANCELLED_REASONS)
+        if (reason) capture('task_rejected', { role, reason })
       }
+      throw error
     }
     return response.task
       ? { ...response, task: normalizeTask(response.task) }
@@ -352,64 +331,8 @@ export function useTasks() {
         method: 'PATCH',
         body: { deadline },
       })
-      setTaskDeadlineOverride(targetEventId, taskId, deadline)
       return response.task ? { ...response, task: normalizeTask(response.task) } : response
     } catch (error: any) {
-      if (isAlreadyHasDeadlineError(error)) {
-        setTaskDeadlineOverride(targetEventId, taskId, deadline)
-        return {
-          success: true,
-          status: 200,
-          message: 'Task due date updated successfully.',
-          task: { _id: taskId, deadline } as TaskRecord,
-        }
-      }
-
-      const is404 = error?.status === 404 || error?.statusCode === 404 || error?.response?.status === 404
-      if (is404) {
-        try {
-          const formData = new FormData()
-          formData.append('deadline', deadline)
-          const response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
-            method: 'PATCH',
-          })
-          setTaskDeadlineOverride(targetEventId, taskId, deadline)
-          return response.task ? { ...response, task: normalizeTask(response.task) } : response
-        } catch (innerError: any) {
-          if (isAlreadyHasDeadlineError(innerError)) {
-            setTaskDeadlineOverride(targetEventId, taskId, deadline)
-            return {
-              success: true,
-              status: 200,
-              message: 'Task due date updated successfully.',
-              task: { _id: taskId, deadline } as TaskRecord,
-            }
-          }
-          const inner404 = innerError?.status === 404 || innerError?.statusCode === 404 || innerError?.response?.status === 404
-          if (inner404) {
-            try {
-              const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}`, {
-                method: 'PATCH',
-                body: { deadline },
-              })
-              setTaskDeadlineOverride(targetEventId, taskId, deadline)
-              return response.task ? { ...response, task: normalizeTask(response.task) } : response
-            } catch (fallbackError: any) {
-              if (isAlreadyHasDeadlineError(fallbackError)) {
-                setTaskDeadlineOverride(targetEventId, taskId, deadline)
-                return {
-                  success: true,
-                  status: 200,
-                  message: 'Task due date updated successfully.',
-                  task: { _id: taskId, deadline } as TaskRecord,
-                }
-              }
-              throw fallbackError
-            }
-          }
-          throw innerError
-        }
-      }
       if (role) {
         const reason = matchReason(error, EVENT_CANCELLED_REASONS)
         if (reason) capture('task_rejected', { role, reason })
@@ -480,16 +403,4 @@ function normalizeTask(task: TaskRecord): TaskRecord {
     return { ...task, status: 'TODO' }
   }
   return task
-}
-
-function isAlreadyHasDeadlineError(err: any): boolean {
-  if (!err) return false
-  const msg = (
-    err?.data?.message ||
-    err?.response?._data?.message ||
-    err?.message ||
-    (typeof err?.data === 'string' ? err.data : '') ||
-    ''
-  ).toLowerCase()
-  return msg.includes('already has a deadline') || msg.includes('has a deadline')
 }
