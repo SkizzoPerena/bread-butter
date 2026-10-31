@@ -10,6 +10,7 @@ import type {
 } from '~/types/auth'
 import { RestrictedAccountError } from '~/utils/restrictedAccount'
 import { normalizeReferralCode } from '~/utils/referralCode'
+import { isPublicPath } from '~/utils/authGuard'
 import {
   AUTH_LOGIN_REASONS,
   AUTH_OTP_REASONS,
@@ -63,6 +64,7 @@ export function isTokenExpiredOrExpiring(token: string, thresholdSeconds = 120):
 export type RefreshSessionResult = 'success' | 'expired' | 'transient'
 
 const TRANSIENT_REFRESH_RETRY_MS = 30_000
+const REFRESH_REQUEST_TIMEOUT_MS = 8_000
 const refreshPromises: Partial<Record<AuthRole, Promise<RefreshSessionResult>>> = {}
 
 export function getErrorStatus(error: unknown): number | undefined {
@@ -120,6 +122,14 @@ export function scheduleSilentRefresh(role: AuthRole = 'user', tokenOverride?: s
       return
     }
     if (import.meta.client) {
+      try {
+        const route = useRoute()
+        if (isPublicPath(route.path)) {
+          return
+        }
+      } catch {
+        // Fallback
+      }
       const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
       await navigateTo(loginPath)
     }
@@ -143,6 +153,14 @@ function initVisibilityListener() {
             if (result === 'success' || result === 'transient') {
               scheduleSilentRefresh(role)
               return
+            }
+            try {
+              const route = useRoute()
+              if (isPublicPath(route.path)) {
+                return
+              }
+            } catch {
+              // Fallback
             }
             const loginPath = role === 'partner' ? '/partners/login' : `/${role}/login`
             navigateTo(loginPath)
@@ -520,7 +538,8 @@ export function useAuth(role: AuthRole = 'user') {
       try {
         const response = await apiRequest<AuthRefreshResponse>(`/${role}/auth/refresh`, {
           method: 'POST',
-          authenticated: false
+          authenticated: false,
+          timeout: REFRESH_REQUEST_TIMEOUT_MS,
         })
 
         if (response?.accessToken) {
@@ -551,7 +570,7 @@ export function useAuth(role: AuthRole = 'user') {
     }
 
     const stored = getStoredAccessToken(role)
-    if (stored && !isTokenExpiredOrExpiring(stored, 60)) {
+    if (stored && !isTokenExpired(stored)) {
       if (syncSessionFromStorage()) {
         scheduleSilentRefresh(role, stored)
         if (role === 'user' || role === 'partner') {
@@ -580,15 +599,17 @@ export function useAuth(role: AuthRole = 'user') {
       return true
     }
 
-    if (result === 'transient' && stored && !isTokenExpired(stored)) {
-      if (syncSessionFromStorage()) {
+    // A timeout or network failure is not a 401. Keep the stored access token
+    // so the page can paint, and let a later 401 send the user to login.
+    if (result === 'transient' && stored && syncSessionFromStorage()) {
+      if (!isTokenExpired(stored)) {
         scheduleSilentRefresh(role, stored)
         if (role === 'user' || role === 'partner') {
           const userId = userIdFromAccessToken(stored)
           if (userId) identifyUser(userId, role)
         }
-        return true
       }
+      return true
     }
 
     return false

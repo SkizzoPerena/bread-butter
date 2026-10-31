@@ -5,11 +5,12 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { getApiErrorMessage, type AccountMessageResponse, type AuthVerifyEmailResponse } from '~/types/auth'
 
 definePageMeta({
-  layout: false
+  layout: false,
+  alias: ['/partners/otp', '/bakers/otp', '/baker/otp', '/dough-makers/otp', '/doughmakers/otp']
 })
 
 useHead({
-  title: 'Verify Partner OTP - Bread + Butter'
+  title: 'Verify Dough Maker OTP - Bread + Butter'
 })
 
 const toast = useToast()
@@ -97,10 +98,14 @@ function onPaste(event: ClipboardEvent) {
   digitInputs.value[Math.max(0, nextFocusIndex)]?.focus()
 }
 
+function setDigitInputRef(el: unknown, index: number) {
+  digitInputs.value[index] = el as HTMLInputElement | null
+}
+
 async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
   isSubmitting.value = true
   try {
-    await executeAction({
+    await executeAction<AuthVerifyEmailResponse | null>({
       uiOnly: async () => {
         toast.add({
           title: 'OTP verified',
@@ -110,7 +115,7 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
         await navigateTo('/partners')
       },
       api: () => verifyEmail(otpId.value, event.data.pinCode),
-      onApiSuccess: async (res: AuthVerifyEmailResponse) => {
+      onApiSuccess: async (res) => {
         toast.add({
           title: 'OTP verified',
           description: res?.message ?? 'Verification successful.',
@@ -130,7 +135,7 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
 async function resendOtp() {
   isSubmitting.value = true
   try {
-    await executeAction({
+    await executeAction<AccountMessageResponse>({
       uiOnly: async () => {
         toast.add({
           title: 'OTP resent',
@@ -138,7 +143,7 @@ async function resendOtp() {
           color: 'info'
         })
       },
-      api: () => apiRequest(`/partner/otp/resend-email/${otpId.value}`, {
+      api: () => apiRequest<AccountMessageResponse>(`/partner/otp/resend-email/${otpId.value}`, {
         method: 'PATCH',
         authenticated: false
       }),
@@ -168,7 +173,7 @@ async function resendOtp() {
         </div>
 
         <div class="space-y-1">
-          <h1 class="text-2xl font-serif font-bold text-toast-700">Verify Partner Email</h1>
+          <h1 class="text-2xl font-serif font-bold text-toast-700">Verify Dough Maker Email</h1>
           <div class="text-sm text-toast-800">
             Enter the 4-digit code sent to
           </div>
@@ -181,12 +186,12 @@ async function resendOtp() {
               <input
                 v-for="(_, index) in 4"
                 :key="index"
-                :ref="(el) => { digitInputs[index] = el as HTMLInputElement }"
+                :ref="(el) => setDigitInputRef(el, index)"
                 v-model="digits[index]"
                 type="text"
                 inputmode="numeric"
                 maxlength="1"
-                class="w-14 h-16 sm:w-16 sm:h-20 text-center font-serif text-2xl sm:text-3xl font-bold text-toast-900 bg-white border-2 border-toast-300 rounded-xl shadow-sm focus:border-toast-600 focus:ring-4 focus:ring-toast-600/20 focus:outline-none transition-all"
+                class="w-14 h-16 sm:w-16 sm:h-20 text-center font-serif text-2xl sm:text-3xl font-bold text-toast-900 bg-white border-2 border-toast-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-toast-600/20 focus:border-toast-600 transition-all"
                 @input="onInput(index, $event)"
                 @keydown="onKeyDown(index, $event)"
                 @focus="($event.target as HTMLInputElement).select()"

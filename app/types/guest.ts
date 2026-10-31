@@ -57,8 +57,12 @@ export interface SendInviteResponse {
   skippedAlreadyInvited: number
   notFound: number
   remainingEmails?: number
-  /** Number of invitation emails successfully sent via EmailJS (0 when email is not configured). */
+  /** Handed to the background queue, which sends them and retries. */
+  emailsQueued?: number
+  /** Sent during the request because no queue was available. */
   emailsSent?: number
+  /** Could not be sent during the request. */
+  emailsFailed?: number
 }
 
 export interface DeleteGuestResponse {

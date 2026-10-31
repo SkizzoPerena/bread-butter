@@ -85,11 +85,12 @@ const tasksSummary = ref<TasksSummary>({
   totalTasks: 21,
   overdueCount: 1,
   byStatus: {
-    'not-started': 4,
-    waiting: 2,
-    'in-progress': 6,
-    'on-hold': 1,
-    completed: 8,
+    'not-started': 5,
+    'in-progress': 7,
+    completed: 9,
+    TODO: 5,
+    ONGOING: 7,
+    COMPLETED: 9,
   },
   preview: {
     page: 1,
@@ -153,6 +154,7 @@ const isButterTier = computed(() => {
 
 onMounted(() => {
   setActiveEvent(eventRecord.value)
+  finishPageTransition()
   nextTick(() => {
     updateVisibleTaskCount()
     if (priorityTasksListRef.value && typeof ResizeObserver !== 'undefined') {
@@ -205,21 +207,17 @@ const balanceDue = computed(() => {
   return toNonNegativeNumber(eventRecord.value?.paymentSummary?.balanceDue)
 })
 
-// 2. Tasks & 5-Status Breakdown
+// 2. Tasks & 3-Status Breakdown (Not Started, In Progress, Completed)
 const taskStatusBreakdown = computed(() => {
   const byStatus = tasksSummary.value?.byStatus
   const notStarted = toNonNegativeNumber(byStatus?.['not-started'] ?? byStatus?.TODO)
-  const waiting = toNonNegativeNumber(byStatus?.waiting)
   const inProgress = toNonNegativeNumber(byStatus?.['in-progress'] ?? byStatus?.ONGOING)
-  const onHold = toNonNegativeNumber(byStatus?.['on-hold'])
   const completed = toNonNegativeNumber(byStatus?.completed ?? byStatus?.COMPLETED)
 
   return [
     { key: 'not-started', label: 'Not Started', count: notStarted, colorClass: 'bg-slate-500', color: 'bg-slate-500', hex: '#64748b' },
-    { key: 'waiting', label: 'Waiting', count: waiting, colorClass: 'bg-orange-500', color: 'bg-orange-500', hex: '#f97316' },
-    { key: 'in-progress', label: 'In Progress', count: inProgress, colorClass: 'bg-blue-500', color: 'bg-blue-500', hex: '#3b82f6' },
-    { key: 'on-hold', label: 'On Hold', count: onHold, colorClass: 'bg-yellow-500', color: 'bg-yellow-500', hex: '#eab308' },
-    { key: 'completed', label: 'Completed', count: completed, colorClass: 'bg-green-500', color: 'bg-green-500', hex: '#00C16A' },
+    { key: 'in-progress', label: 'In Progress', count: inProgress, colorClass: 'bg-purple-500', color: 'bg-purple-500', hex: '#a855f7' },
+    { key: 'completed', label: 'Completed', count: completed, colorClass: 'bg-emerald-500', color: 'bg-emerald-500', hex: '#00C16A' },
   ]
 })
 
@@ -358,6 +356,7 @@ type QuickNavItem = {
 }
 
 const QUICK_NAV_ITEMS: QuickNavItem[] = [
+  // Row 1: website - invitation - rsvp
   {
     label: 'Website',
     icon: 'i-lucide-globe',
@@ -388,6 +387,8 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     ringClass: 'ring-1 ring-inset ring-teal-500/25 group-focus-visible:ring-2 group-focus-visible:ring-teal-500',
     textClass: 'text-teal-600',
   },
+
+  // Row 2: guest list - tasks - requirements
   {
     label: 'Guest List',
     icon: 'i-lucide-users',
@@ -397,26 +398,6 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     hoverClass: 'group-hover:bg-orange-500/20',
     ringClass: 'ring-1 ring-inset ring-orange-500/25 group-focus-visible:ring-2 group-focus-visible:ring-orange-500',
     textClass: 'text-orange-600',
-  },
-  {
-    label: 'Gifts',
-    icon: 'i-lucide-gift',
-    action: 'wishlist',
-    description: 'Organize wishlists, gift registry links, and monetary gifts.',
-    bgClass: 'bg-pink-500/10',
-    hoverClass: 'group-hover:bg-pink-500/20',
-    ringClass: 'ring-1 ring-inset ring-pink-500/25 group-focus-visible:ring-2 group-focus-visible:ring-pink-500',
-    textClass: 'text-pink-600',
-  },
-  {
-    label: 'Playlist',
-    icon: 'i-lucide-music',
-    action: 'playlist',
-    description: 'Curate reception tunes, entry songs, and dance tracks.',
-    bgClass: 'bg-lime-500/15',
-    hoverClass: 'group-hover:bg-lime-500/25',
-    ringClass: 'ring-1 ring-inset ring-lime-600/30 group-focus-visible:ring-2 group-focus-visible:ring-lime-600',
-    textClass: 'text-lime-700',
   },
   {
     label: 'Tasks',
@@ -429,14 +410,69 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     textClass: 'text-red-600',
   },
   {
-    label: 'Schedules',
-    icon: 'i-lucide-calendar',
-    action: 'schedules',
-    description: 'Coordinate day-of itineraries and ceremony schedules.',
-    bgClass: 'bg-cyan-500/10',
-    hoverClass: 'group-hover:bg-cyan-500/20',
-    ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
-    textClass: 'text-cyan-700',
+    label: 'Requirements',
+    icon: 'i-lucide-church',
+    action: 'churchRequirements',
+    weddingOnly: true,
+    description: 'Track canonical and legal document submissions.',
+    bgClass: 'bg-yellow-500/15',
+    hoverClass: 'group-hover:bg-yellow-500/25',
+    ringClass: 'ring-1 ring-inset ring-yellow-600/30 group-focus-visible:ring-2 group-focus-visible:ring-yellow-600',
+    textClass: 'text-yellow-700',
+  },
+
+  // Row 3: gallery - colors / dress code - playlist
+  {
+    label: 'Gallery',
+    icon: 'i-lucide-images',
+    action: 'gallery',
+    description: 'Collect, showcase, and share photo albums and event memories.',
+    bgClass: 'bg-indigo-500/10',
+    hoverClass: 'group-hover:bg-indigo-500/20',
+    ringClass: 'ring-1 ring-inset ring-indigo-500/25 group-focus-visible:ring-2 group-focus-visible:ring-indigo-500',
+    textClass: 'text-indigo-600',
+  },
+  {
+    label: 'Colors / Dress Code',
+    icon: 'i-lucide-palette',
+    action: 'colorsDressCode',
+    description: 'Curate event color palettes, attire guides, and guest dress codes.',
+    bgClass: 'bg-rose-500/10',
+    hoverClass: 'group-hover:bg-rose-500/20',
+    ringClass: 'ring-1 ring-inset ring-rose-500/25 group-focus-visible:ring-2 group-focus-visible:ring-rose-500',
+    textClass: 'text-rose-600',
+  },
+  {
+    label: 'Playlist',
+    icon: 'i-lucide-music',
+    action: 'playlist',
+    description: 'Curate reception tunes, entry songs, and dance tracks.',
+    bgClass: 'bg-lime-500/15',
+    hoverClass: 'group-hover:bg-lime-500/25',
+    ringClass: 'ring-1 ring-inset ring-lime-600/30 group-focus-visible:ring-2 group-focus-visible:ring-lime-600',
+    textClass: 'text-lime-700',
+  },
+
+  // Row 4: gifts - baker database - suppliers
+  {
+    label: 'Gifts',
+    icon: 'i-lucide-gift',
+    action: 'wishlist',
+    description: 'Organize wishlists, gift registry links, and monetary gifts.',
+    bgClass: 'bg-pink-500/10',
+    hoverClass: 'group-hover:bg-pink-500/20',
+    ringClass: 'ring-1 ring-inset ring-pink-500/25 group-focus-visible:ring-2 group-focus-visible:ring-pink-500',
+    textClass: 'text-pink-600',
+  },
+  {
+    label: 'Baker Database',
+    icon: 'i-lucide-cake-slice',
+    action: 'bakerDatabase',
+    description: 'Browse artisan bakers, custom wedding cakes, and dessert partners.',
+    bgClass: 'bg-amber-500/15',
+    hoverClass: 'group-hover:bg-amber-500/25',
+    ringClass: 'ring-1 ring-inset ring-amber-600/30 group-focus-visible:ring-2 group-focus-visible:ring-amber-600',
+    textClass: 'text-amber-700',
   },
   {
     label: 'Suppliers',
@@ -448,16 +484,17 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     ringClass: 'ring-1 ring-inset ring-fuchsia-500/25 group-focus-visible:ring-2 group-focus-visible:ring-fuchsia-500',
     textClass: 'text-fuchsia-600',
   },
+
+  // Row 5: schedules - payments - settings
   {
-    label: 'Requirements',
-    icon: 'i-lucide-church',
-    action: 'churchRequirements',
-    weddingOnly: true,
-    description: 'Track canonical and legal document submissions.',
-    bgClass: 'bg-yellow-500/15',
-    hoverClass: 'group-hover:bg-yellow-500/25',
-    ringClass: 'ring-1 ring-inset ring-yellow-600/30 group-focus-visible:ring-2 group-focus-visible:ring-yellow-600',
-    textClass: 'text-yellow-700',
+    label: 'Schedules',
+    icon: 'i-lucide-calendar',
+    action: 'schedules',
+    description: 'Coordinate day-of itineraries and ceremony schedules.',
+    bgClass: 'bg-cyan-500/10',
+    hoverClass: 'group-hover:bg-cyan-500/20',
+    ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
+    textClass: 'text-cyan-700',
   },
   {
     label: 'Payments',
@@ -490,52 +527,76 @@ function getActiveEventQueryId(): string {
   return eventId.value || 'testing-event-id'
 }
 
+const { startPageTransition, finishPageTransition } = usePageTransition()
+
+function openColorsDressCode() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/dress-code', query: { eventId: id } })
+}
+
+function openGallery() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  navigateTo({ path: '/event/gallery', query: { eventId: id } })
+}
+
+function openBakerDatabase() {
+  startPageTransition({ path: '/event/bakers', query: { eventId: getActiveEventQueryId() } })
+}
+
 function openWebsiteMaker() {
-  navigateTo({ path: '/website-maker', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/website-maker', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openInvitationMaker() {
-  navigateTo({ path: '/invitation-maker', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/invitation-maker', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openGuestList() {
-  navigateTo({ path: '/event/guests', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/guests', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openTasksDashboard() {
-  navigateTo({ path: '/event/tasks', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/tasks', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openRsvpDashboard() {
-  navigateTo({ path: '/event/rsvp', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/rsvp', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openEventSettings() {
-  navigateTo({ path: '/event/settings', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/settings', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openPayments() {
-  navigateTo({ path: '/event/payment-review', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/payment-review', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openSchedulesDashboard() {
-  navigateTo({ path: '/event/schedules', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/schedules', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openWishlistDashboard() {
-  navigateTo({ path: '/event/wishlist', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/wishlist', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openEventPlaylist() {
-  navigateTo({ path: '/event/playlist', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/playlist', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openChurchRequirementsDashboard() {
-  navigateTo({ path: '/event/requirements', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/requirements', query: { eventId: getActiveEventQueryId() } })
 }
 
 function openSuppliersDashboard() {
-  navigateTo({ path: '/event/suppliers', query: { eventId: getActiveEventQueryId() } })
+  startPageTransition({ path: '/event/suppliers', query: { eventId: getActiveEventQueryId() } })
 }
 
 const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
@@ -580,6 +641,15 @@ function onQuickNavItemClick(item: QuickNavItem) {
   }
 
   switch (item.action) {
+    case 'colorsDressCode':
+      openColorsDressCode()
+      break
+    case 'gallery':
+      openGallery()
+      break
+    case 'bakerDatabase':
+      openBakerDatabase()
+      break
     case 'website':
       openWebsiteMaker()
       break
@@ -621,6 +691,9 @@ function onQuickNavItemClick(item: QuickNavItem) {
 
 function getQuickNavSolidBgClass(item: QuickNavItem): string {
   const map: Record<string, string> = {
+    'Colors / Dress Code': 'bg-rose-500',
+    Gallery: 'bg-indigo-500',
+    'Baker Database': 'bg-amber-500',
     Website: 'bg-blue-500',
     Invitation: 'bg-violet-500',
     RSVP: 'bg-teal-500',
@@ -975,8 +1048,8 @@ const urgentTasks = ref<PriorityDashboardTask[]>([
     id: 'urgent-1',
     title: 'Settle caterer balance payment',
     priority: 'urgent',
-    category: 'Payments',
-    action: 'payments',
+    category: 'Suppliers',
+    action: 'suppliers',
     dueText: 'Due in 3 days',
   },
   {
@@ -1084,7 +1157,7 @@ function updateVisibleTaskCount() {
   if (availableHeight <= 0) return
 
   const firstBtn = container.querySelector('button')
-  const itemHeight = firstBtn ? firstBtn.getBoundingClientRect().height : 52
+  const itemHeight = firstBtn ? firstBtn.getBoundingClientRect().height : 38
   const gap = 6
   const count = Math.max(1, Math.floor((availableHeight + gap) / (itemHeight + gap)))
   maxVisibleTasks.value = count
@@ -1107,8 +1180,6 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
   switch (task.action) {
     case 'payments':
-      openPayments()
-      break
     case 'suppliers':
       openSuppliersDashboard()
       break
@@ -1145,7 +1216,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 </script>
 
 <template>
-  <div class="h-[calc(100vh-64px)] flex flex-col w-full bg-bread-400 overflow-y-auto lg:overflow-hidden">
+  <div class="event-dashboard-root h-[calc(100vh-64px)] flex flex-col w-full bg-bread-400 overflow-y-auto lg:overflow-hidden">
     <!-- Navbar Actions Teleport -->
     <ClientOnly>
       <Teleport to="#event-navbar-actions">
@@ -1191,29 +1262,29 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
       class="md:hidden white-bread-container h-full flex flex-col flex-1 overflow-hidden m-3 mt-1.5 shadow-sm"
       style="border-radius: 1.25rem;">
       <div class="flex flex-1 items-center justify-center min-h-0 py-4 px-3 w-full">
-        <div class="grid grid-cols-3 gap-x-4 gap-y-5 max-w-xs sm:max-w-sm mx-auto w-full items-center justify-items-center">
+        <div class="grid grid-cols-3 gap-x-5 sm:gap-x-6 gap-y-6 sm:gap-y-7 max-w-[260px] sm:max-w-[290px] mx-auto w-full items-center justify-items-center">
           <div v-for="item in QUICK_NAV_ITEMS" :key="item.label" role="button" :tabindex="0"
-            class="group flex flex-col items-center justify-center mx-auto w-full p-1 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+            class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
             @click="onQuickNavItemClick(item)">
             <div class="relative flex items-center justify-center w-fit mx-auto">
               <div
-                class="size-14 sm:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+                class="size-11 sm:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
                 :class="[
                   getQuickNavSolidBgClass(item),
                   isDashboardItemBlocked(item)
                     ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                     : ['group-hover:scale-105 group-active:scale-95'],
                 ]">
-                <UIcon :name="item.icon" class="size-7 sm:size-8 text-white shrink-0" />
+                <UIcon :name="item.icon" class="size-5 sm:size-6 text-white shrink-0" />
               </div>
               <div v-if="isDashboardItemBlocked(item)"
-                class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
+                class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
                 title="Upgrade to unlock">
-                <UIcon name="i-lucide-lock" class="size-2.5 block" />
+                <UIcon name="i-lucide-lock" class="size-2 block" />
               </div>
             </div>
             <div
-              class="font-medium mt-1.5 text-center text-xs leading-tight max-w-20 truncate">
+              class="font-medium mt-1 text-center text-[11px] sm:text-xs leading-tight max-w-20 truncate">
               {{ item.label }}
             </div>
           </div>
@@ -1227,53 +1298,53 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
       :class="activeMobileTab === 'launcher' ? 'hidden md:grid' : 'grid'">
       <!-- ================= LEFT DIVISION: col-span-3 (Workspace) ================= -->
       <section
-        class="lg:col-span-3 p-3 sm:p-3.5 lg:p-4 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-full overflow-y-auto lg:overflow-hidden justify-between">
+        class="lg:col-span-3 p-3 sm:p-3.5 lg:p-4 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-full overflow-y-auto lg:overflow-hidden justify-between min-h-0">
         <!-- 1. Topmost Container: 3 Metric Groups (Days, Confirmed Guests, Task Completion col-span-2) -->
-        <div class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm shrink-0">
+        <div class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-top-metrics shadow-sm shrink-0">
           <div
-            class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 divide-y sm:divide-y-0 sm:divide-x divide-bread-200/60">
+            class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 divide-y sm:divide-y-0 sm:divide-x divide-bread-200/60 items-stretch">
             <!-- Column 1: Days to Event -->
-            <div class="space-y-1 pt-1 sm:pt-0 sm:pr-3">
-              <div class="flex items-center gap-1 text-muted text-xs md:text-xs lg:text-xs xl:text-sm font-medium">
-                <span>Days to Event</span>
+            <div class="space-y-1 pt-1 sm:pt-0 sm:pr-3 min-w-0 flex flex-col justify-between">
+              <div class="flex items-center gap-1 text-muted top-metric-label font-sans font-medium min-w-0">
+                <span class="truncate">Days to Event</span>
                 <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-red-500 shrink-0" />
               </div>
-              <div class="text-lg sm:text-xl md:text-xl lg:text-xl xl:text-2xl font-bold font-serif text-highlighted tracking-tight">
+              <div class="top-metric-value font-bold font-serif text-highlighted tracking-tight truncate">
                 {{ daysRemaining }} Days
               </div>
-              <div class="text-[10px] sm:text-[11px] xl:text-xs text-muted truncate">
+              <div class="top-metric-subtext text-muted truncate">
                 {{ eventDateFormatted }}
               </div>
             </div>
 
             <!-- Column 2: Confirmed Guests -->
-            <div class="space-y-1 pt-1 sm:pt-0 sm:px-3">
-              <div class="flex items-center gap-1 text-muted text-xs md:text-xs lg:text-xs xl:text-sm font-medium">
-                <span>Confirmed Guests</span>
+            <div class="space-y-1 pt-1 sm:pt-0 sm:px-3 min-w-0 flex flex-col justify-between">
+              <div class="flex items-center gap-1 text-muted top-metric-label font-sans font-medium min-w-0">
+                <span class="truncate">Confirmed Guests</span>
                 <UIcon name="i-lucide-users" class="size-3.5 text-teal-500 shrink-0" />
               </div>
-              <div class="text-lg sm:text-xl md:text-xl lg:text-xl xl:text-2xl font-bold font-serif text-highlighted tracking-tight">
+              <div class="top-metric-value font-bold font-serif text-highlighted tracking-tight truncate">
                 {{ confirmedGuestsCount }}
               </div>
-              <div class="text-[10px] sm:text-[11px] xl:text-xs text-muted truncate">
+              <div class="top-metric-subtext text-muted truncate" :title="`${totalInvitedCount} Invited · ${rsvpResponseRate}% RSVP`">
                 {{ totalInvitedCount }} Invited · {{ rsvpResponseRate }}% RSVP
               </div>
             </div>
 
             <!-- Column 3: Task Completion (col-span-2, enlarged UProgress, numbers below) -->
-            <div class="space-y-1.5 pt-1 sm:pt-0 sm:pl-3 col-span-2 flex flex-col justify-between">
-              <div class="flex items-center gap-1 text-muted text-xs md:text-xs lg:text-xs xl:text-sm font-medium">
-                <span>Task Completion</span>
+            <div class="space-y-1 pt-1 sm:pt-0 sm:pl-3 col-span-2 flex flex-col justify-between min-w-0">
+              <div class="flex items-center gap-1 text-muted top-metric-label font-sans font-medium min-w-0">
+                <span class="truncate">Task Completion</span>
                 <UIcon name="i-lucide-check-circle-2" class="size-3.5 text-green-500 shrink-0" />
               </div>
               <div class="w-full py-0.5">
-                <UProgress :model-value="taskCompletionPercent" color="success" size="sm" class="w-full" />
+                <UProgress :model-value="taskCompletionPercent" color="success" size="2xs" class="w-full" />
               </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-base sm:text-lg md:text-lg lg:text-lg xl:text-xl font-bold font-serif text-highlighted tracking-tight">
+              <div class="flex items-center justify-between text-xs min-w-0 gap-2">
+                <span class="top-metric-value font-bold font-serif text-highlighted tracking-tight shrink-0">
                   {{ taskCompletionPercent }}%
                 </span>
-                <span class="text-[10px] sm:text-[11px] xl:text-xs text-muted font-medium">
+                <span class="top-metric-subtext text-muted font-medium truncate text-right">
                   {{ completedTasksCount }}/{{ totalTasks }} Tasks Completed
                 </span>
               </div>
@@ -1287,12 +1358,12 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
           <div class="flex flex-col gap-3.5 sm:gap-4 h-full w-full min-h-0">
             <!-- Top Container: Priority Tasks (Urgent & Important) -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col justify-between flex-2 w-full min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
-                <div class="flex items-center gap-1.5">
-                  <h3 class="text-base sm:text-lg md:text-lg lg:text-xl xl:text-2xl font-bold font-serif text-highlighted leading-tight">Priority Tasks</h3>
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-priority-tasks shadow-sm flex flex-col justify-between flex-2 w-full min-h-0">
+              <div class="dash-card-header flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Priority Tasks</h3>
                   <button type="button"
-                    class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none"
+                    class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none shrink-0"
                     aria-label="Priority Tasks information"
                     @mouseenter="onContainerHelpMouseEnter($event, 'priority-tasks')"
                     @mousemove="onContainerHelpMouseMove($event)"
@@ -1301,7 +1372,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                   </button>
                 </div>
                 <UButton variant="ghost" color="neutral" size="xs"
-                  class="text-xs xl:text-sm font-semibold text-toast-700 hover:text-toast-900 cursor-pointer"
+                  class="dash-header-action font-semibold text-toast-700 hover:text-toast-900 cursor-pointer shrink-0"
                   trailing-icon="i-lucide-arrow-right" @click="openTasksDashboard">
                   View all
                 </UButton>
@@ -1310,84 +1381,84 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
               <!-- 2 Columns: Urgent vs Important Tasks -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 py-1.5 flex-1 items-stretch w-full min-h-0">
                 <!-- Column 1: Urgent Tasks -->
-                <div class="flex flex-col gap-1.5 min-h-0 flex-1">
+                <div class="flex flex-col gap-1 sm:gap-1.5 min-h-0 flex-1">
                   <div class="flex items-center justify-between px-0.5 shrink-0">
-                    <div class="flex items-center gap-1.5 text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm font-bold text-red-600 tracking-wide uppercase">
-                      <span class="size-1.5 rounded-full bg-red-500 animate-pulse" />
+                    <div class="task-column-header-title font-sans flex items-center gap-1.5 font-bold text-red-600 tracking-wide uppercase">
+                      <span class="size-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
                       <span>URGENT</span>
                     </div>
-                    <span class="text-[10px] sm:text-[10px] xl:text-xs text-muted font-medium">{{ urgentTasks.length }} tasks</span>
+                    <span class="task-column-header-count text-muted font-medium">{{ urgentTasks.length }} tasks</span>
                   </div>
-                  <div ref="priorityTasksListRef" class="flex flex-col gap-1.5 flex-1 min-h-0 overflow-hidden">
+                  <div ref="priorityTasksListRef" class="flex flex-col gap-1 sm:gap-1.5 flex-1 min-h-0 overflow-hidden">
                     <button v-for="task in displayedUrgentTasks" :key="task.id" type="button"
-                      class="w-full text-left p-1.5 sm:p-2 rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
+                      class="task-card-btn w-full text-left rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
                       :class="[
                         getTaskDashboardTheme(task.category).cardBg,
                         getTaskDashboardTheme(task.category).cardHoverBg,
                         getTaskDashboardTheme(task.category).cardBorder,
                         getTaskDashboardTheme(task.category).cardHoverBorder,
                       ]" @click="onPriorityTaskClick(task)">
-                      <div class="flex items-center gap-2 min-w-0 flex-1">
+                      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                         <span class="size-2 rounded-full shrink-0"
                           :class="getTaskDashboardTheme(task.category).dot" />
                         <div class="min-w-0 flex-1">
-                          <p class="text-xs xl:text-sm font-semibold text-highlighted truncate transition-colors"
-                            :class="getTaskDashboardTheme(task.category).hoverText">
+                          <p class="task-card-title font-sans font-semibold text-highlighted truncate transition-colors"
+                            :class="getTaskDashboardTheme(task.category).hoverText" :title="task.title">
                             {{ task.title }}
                           </p>
-                          <div class="flex items-center gap-1.5 text-[10px] sm:text-[11px] xl:text-xs text-muted">
-                            <span class="font-medium" :class="getTaskDashboardTheme(task.category).text">
+                          <div class="task-card-meta flex items-center gap-1.5 text-muted">
+                            <span class="font-medium shrink-0" :class="getTaskDashboardTheme(task.category).text">
                               {{ task.category }}
                             </span>
-                            <span v-if="task.dueText">·</span>
+                            <span v-if="task.dueText" class="shrink-0">·</span>
                             <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
                           </div>
                         </div>
                       </div>
                       <UIcon name="i-lucide-chevron-right"
-                        class="size-3 sm:size-3.5 transition-all shrink-0 group-hover:translate-x-0.5"
+                        class="task-card-icon transition-all shrink-0 group-hover:translate-x-0.5"
                         :class="getTaskDashboardTheme(task.category).text" />
                     </button>
                   </div>
                 </div>
 
                 <!-- Column 2: Important Tasks -->
-                <div class="flex flex-col gap-1.5 min-h-0 flex-1">
+                <div class="flex flex-col gap-1 sm:gap-1.5 min-h-0 flex-1">
                   <div class="flex items-center justify-between px-0.5 shrink-0">
-                    <div class="flex items-center gap-1.5 text-xs sm:text-xs md:text-xs lg:text-xs xl:text-sm font-bold text-amber-600 tracking-wide uppercase">
-                      <span class="size-1.5 rounded-full bg-amber-500" />
+                    <div class="task-column-header-title font-sans flex items-center gap-1.5 font-bold text-amber-600 tracking-wide uppercase">
+                      <span class="size-1.5 rounded-full bg-amber-500 shrink-0" />
                       <span>IMPORTANT</span>
                     </div>
-                    <span class="text-[10px] sm:text-[10px] xl:text-xs text-muted font-medium">{{ importantTasks.length }} tasks</span>
+                    <span class="task-column-header-count text-muted font-medium">{{ importantTasks.length }} tasks</span>
                   </div>
-                  <div class="flex flex-col gap-1.5 flex-1 min-h-0 overflow-hidden">
+                  <div class="flex flex-col gap-1 sm:gap-1.5 flex-1 min-h-0 overflow-hidden">
                     <button v-for="task in displayedImportantTasks" :key="task.id" type="button"
-                      class="w-full text-left p-1.5 sm:p-2 rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
+                      class="task-card-btn w-full text-left rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
                       :class="[
                         getTaskDashboardTheme(task.category).cardBg,
                         getTaskDashboardTheme(task.category).cardHoverBg,
                         getTaskDashboardTheme(task.category).cardBorder,
                         getTaskDashboardTheme(task.category).cardHoverBorder,
                       ]" @click="onPriorityTaskClick(task)">
-                      <div class="flex items-center gap-2 min-w-0 flex-1">
+                      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                         <span class="size-2 rounded-full shrink-0"
                           :class="getTaskDashboardTheme(task.category).dot" />
                         <div class="min-w-0 flex-1">
-                          <p class="text-xs xl:text-sm font-semibold text-highlighted truncate transition-colors"
-                            :class="getTaskDashboardTheme(task.category).hoverText">
+                          <p class="task-card-title font-sans font-semibold text-highlighted truncate transition-colors"
+                            :class="getTaskDashboardTheme(task.category).hoverText" :title="task.title">
                             {{ task.title }}
                           </p>
-                          <div class="flex items-center gap-1.5 text-[10px] sm:text-[11px] xl:text-xs text-muted">
-                            <span class="font-medium" :class="getTaskDashboardTheme(task.category).text">
+                          <div class="task-card-meta flex items-center gap-1.5 text-muted">
+                            <span class="font-medium shrink-0" :class="getTaskDashboardTheme(task.category).text">
                               {{ task.category }}
                             </span>
-                            <span v-if="task.dueText">·</span>
+                            <span v-if="task.dueText" class="shrink-0">·</span>
                             <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
                           </div>
                         </div>
                       </div>
                       <UIcon name="i-lucide-chevron-right"
-                        class="size-3 sm:size-3.5 transition-all shrink-0 group-hover:translate-x-0.5"
+                        class="task-card-icon transition-all shrink-0 group-hover:translate-x-0.5"
                         :class="getTaskDashboardTheme(task.category).text" />
                     </button>
                   </div>
@@ -1397,14 +1468,14 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
             <!-- Bottom Container: Tasks by Status (Legend on Left, Pie Chart on Right spanning container height) -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-between flex-1 w-full min-h-0">
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-tasks-status shadow-sm flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-between flex-1 w-full min-h-0">
               <!-- Left: Header & 2-Col Legend -->
               <div class="flex flex-col justify-between h-full flex-1 min-h-0 w-full">
-                <div class="flex items-center justify-between gap-2 border-b border-bread-200/60 pb-2 shrink-0">
-                  <div class="flex items-center gap-1.5">
-                    <h3 class="text-base sm:text-lg md:text-lg lg:text-xl xl:text-2xl font-bold font-serif text-highlighted leading-tight">Tasks by Status</h3>
+                <div class="dash-card-header flex items-center justify-between gap-2 border-b border-bread-200/60 pb-2 shrink-0">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Tasks by Status</h3>
                     <button type="button"
-                      class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none"
+                      class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none shrink-0"
                       aria-label="Tasks by Status information"
                       @mouseenter="onContainerHelpMouseEnter($event, 'tasks-by-status')"
                       @mousemove="onContainerHelpMouseMove($event)"
@@ -1412,20 +1483,20 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                       <UIcon name="i-lucide-help-circle" class="size-3.5 sm:size-4" />
                     </button>
                   </div>
-                  <UBadge variant="subtle" size="sm" color="neutral" class="font-medium shrink-0 text-[10px] sm:text-xs xl:text-xs">
+                  <UBadge variant="subtle" size="sm" color="neutral" class="dash-header-badge font-medium shrink-0">
                     {{ totalTasks }} Total Tasks
                   </UBadge>
                 </div>
 
-                <!-- 2-Column Legend -->
-                <div class="grid grid-cols-2 gap-1.5 w-full pt-2 min-h-0">
+                <!-- 3-Status Legend -->
+                <div class="grid grid-cols-1 gap-1.5 w-full pt-1.5 min-h-0">
                   <div v-for="status in taskStatusBreakdown" :key="status.key"
-                    class="flex items-center justify-between px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/50 transition-colors last:col-span-2">
-                    <div class="flex items-center gap-1.5 min-w-0">
+                    class="status-legend-item flex items-center justify-between px-2 py-1 rounded-md bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/50 transition-colors">
+                    <div class="flex items-center gap-2 min-w-0">
                       <span class="size-2 rounded-full shrink-0" :class="status.colorClass" />
-                      <span class="text-[10px] sm:text-[11px] xl:text-xs font-medium text-highlighted truncate">{{ status.label }}</span>
+                      <span class="status-legend-label font-sans font-medium text-highlighted truncate">{{ status.label }}</span>
                     </div>
-                    <span class="text-[10px] sm:text-[11px] xl:text-xs font-bold text-highlighted ml-1 shrink-0">{{ status.count }}</span>
+                    <span class="status-legend-count font-bold text-highlighted ml-1 shrink-0">{{ status.count }}</span>
                   </div>
                 </div>
               </div>
@@ -1443,12 +1514,12 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
           <div class="flex flex-col gap-3.5 sm:gap-4 h-full w-full min-h-0">
             <!-- Top Container: Financial Snapshot -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
-                <div class="flex items-center gap-1.5">
-                  <h3 class="text-base sm:text-lg md:text-lg lg:text-xl xl:text-2xl font-bold font-serif text-highlighted leading-tight">Financial Snapshot</h3>
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-financial shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
+              <div class="dash-card-header flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Financial Snapshot</h3>
                   <button type="button"
-                    class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none"
+                    class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none shrink-0"
                     aria-label="Financial Snapshot information"
                     @mouseenter="onContainerHelpMouseEnter($event, 'financial-snapshot')"
                     @mousemove="onContainerHelpMouseMove($event)"
@@ -1457,96 +1528,96 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                   </button>
                 </div>
                 <!-- Budget Status (Badge) -->
-                <UBadge :color="budgetStatus.color" variant="subtle" size="sm" class="font-semibold text-xs xl:text-xs">
+                <UBadge :color="budgetStatus.color" variant="subtle" size="sm" class="dash-header-badge font-semibold shrink-0">
                   {{ budgetStatus.label }}
                 </UBadge>
               </div>
 
               <!-- Financial Metrics Grid -->
-              <div class="grid grid-cols-3 gap-2 sm:gap-2.5 py-1.5 flex-1 items-stretch w-full min-h-0">
+              <div class="dash-financial-grid grid grid-cols-3 py-1 sm:py-1.5 flex-1 items-stretch w-full min-h-0">
                 <!-- 1. Target Budget -->
                 <div
-                  class="h-full flex flex-col justify-between p-2 sm:p-2.5 lg:p-2 xl:p-3 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[11px] sm:text-xs md:text-xs lg:text-[11px] xl:text-sm font-semibold text-toast-700 truncate">Target Budget</span>
-                    <UIcon name="i-lucide-target" class="size-3 sm:size-3.5 text-red-500 shrink-0" />
+                  class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="financial-card-title font-sans font-semibold text-toast-700 truncate" title="Target Budget">Target Budget</span>
+                    <UIcon name="i-lucide-target" class="financial-card-icon text-red-500 shrink-0" />
                   </div>
-                  <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="financial-card-value text-black tracking-tight truncate" :title="`₱${placeholderTargetBudget.toLocaleString()}`">
                     ₱{{ placeholderTargetBudget.toLocaleString() }}
                   </div>
-                  <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
+                  <div class="financial-card-subtitle text-muted truncate" title="Allocated budget limit">
                     Allocated budget limit
                   </div>
                 </div>
 
                 <!-- 2. Forecast -->
                 <div
-                  class="h-full flex flex-col justify-between p-2 sm:p-2.5 lg:p-2 xl:p-3 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[11px] sm:text-xs md:text-xs lg:text-[11px] xl:text-sm font-semibold text-toast-700 truncate">Forecast</span>
-                    <UIcon name="i-lucide-trending-up" class="size-3 sm:size-3.5 text-blue-500 shrink-0" />
+                  class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="financial-card-title font-sans font-semibold text-toast-700 truncate" title="Forecast">Forecast</span>
+                    <UIcon name="i-lucide-trending-up" class="financial-card-icon text-blue-500 shrink-0" />
                   </div>
-                  <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="financial-card-value text-black tracking-tight truncate" :title="`₱${placeholderForecast.toLocaleString()}`">
                     ₱{{ placeholderForecast.toLocaleString() }}
                   </div>
-                  <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
+                  <div class="financial-card-subtitle text-muted truncate" title="Projected total spend">
                     Projected total spend
                   </div>
                 </div>
 
                 <!-- 3. Amount Paid -->
                 <div
-                  class="h-full flex flex-col justify-between p-2 sm:p-2.5 lg:p-2 xl:p-3 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[11px] sm:text-xs md:text-xs lg:text-[11px] xl:text-sm font-semibold text-toast-700 truncate">Amount Paid</span>
-                    <UIcon name="i-lucide-check-circle" class="size-3 sm:size-3.5 text-green-500 shrink-0" />
+                  class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="financial-card-title font-sans font-semibold text-toast-700 truncate" title="Amount Paid">Amount Paid</span>
+                    <UIcon name="i-lucide-check-circle" class="financial-card-icon text-green-500 shrink-0" />
                   </div>
-                  <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="financial-card-value text-black tracking-tight truncate" :title="`₱${supplierAmountPaid.toLocaleString()}`">
                     ₱{{ supplierAmountPaid.toLocaleString() }}
                   </div>
-                  <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
+                  <div class="financial-card-subtitle text-muted truncate" title="Disbursed to suppliers">
                     Disbursed to suppliers
                   </div>
                 </div>
 
                 <!-- 4. Remaining Payable -->
                 <div
-                  class="h-full flex flex-col justify-between p-2 sm:p-2.5 lg:p-2 xl:p-3 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[11px] sm:text-xs md:text-xs lg:text-[11px] xl:text-sm font-semibold text-toast-700 truncate">Remaining Payable</span>
-                    <UIcon name="i-lucide-clock" class="size-3 sm:size-3.5 text-amber-500 shrink-0" />
+                  class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="financial-card-title font-sans font-semibold text-toast-700 truncate" title="Remaining Payable">Remaining Payable</span>
+                    <UIcon name="i-lucide-clock" class="financial-card-icon text-amber-500 shrink-0" />
                   </div>
-                  <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="financial-card-value text-black tracking-tight truncate" :title="`₱${remainingPayable.toLocaleString()}`">
                     ₱{{ remainingPayable.toLocaleString() }}
                   </div>
-                  <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
+                  <div class="financial-card-subtitle text-muted truncate" title="Pending payment due">
                     Pending payment due
                   </div>
                 </div>
 
                 <!-- 5. Budget Remaining -->
                 <div
-                  class="h-full flex flex-col justify-between p-2 sm:p-2.5 lg:p-2 xl:p-3 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[11px] sm:text-xs md:text-xs lg:text-[11px] xl:text-sm font-semibold text-toast-700 truncate">Budget Remaining</span>
-                    <UIcon name="i-lucide-wallet" class="size-3 sm:size-3.5 text-emerald-500 shrink-0" />
+                  class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="financial-card-title font-sans font-semibold text-toast-700 truncate" title="Budget Remaining">Budget Remaining</span>
+                    <UIcon name="i-lucide-wallet" class="financial-card-icon text-emerald-500 shrink-0" />
                   </div>
-                  <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="financial-card-value text-black tracking-tight truncate" :title="`₱${placeholderBudgetRemaining.toLocaleString()}`">
                     ₱{{ placeholderBudgetRemaining.toLocaleString() }}
                   </div>
-                  <div class="text-[9px] sm:text-[10px] md:text-[10px] lg:text-[10px] xl:text-xs text-muted truncate">
+                  <div class="financial-card-subtitle text-muted truncate" title="Available target balance">
                     Available target balance
                   </div>
                 </div>
 
                 <!-- 6. Budget Used % -->
                 <div
-                  class="h-full flex flex-col justify-between p-2 sm:p-2.5 lg:p-2 xl:p-3 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[11px] sm:text-xs md:text-xs lg:text-[11px] xl:text-sm font-semibold text-toast-700 truncate">Budget Used %</span>
-                    <UIcon name="i-lucide-pie-chart" class="size-3.5 text-indigo-500 shrink-0" />
+                  class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="financial-card-title font-sans font-semibold text-toast-700 truncate" title="Budget Used %">Budget Used %</span>
+                    <UIcon name="i-lucide-pie-chart" class="financial-card-icon text-indigo-500 shrink-0" />
                   </div>
-                  <div class="text-sm sm:text-base md:text-base lg:text-sm xl:text-xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="financial-card-value text-black tracking-tight truncate">
                     {{ placeholderBudgetUsedPercent }}%
                   </div>
                   <div class="w-full">
@@ -1558,12 +1629,12 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
             <!-- Bottom Container: Planning Health -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
-                <div class="flex items-center gap-1.5">
-                  <h3 class="text-base sm:text-lg md:text-lg lg:text-xl xl:text-2xl font-bold font-serif text-highlighted leading-tight">Planning Health</h3>
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-health shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
+              <div class="dash-card-header flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Planning Health</h3>
                   <button type="button"
-                    class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none"
+                    class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none shrink-0"
                     aria-label="Planning Health information"
                     @mouseenter="onContainerHelpMouseEnter($event, 'planning-health')"
                     @mousemove="onContainerHelpMouseMove($event)"
@@ -1571,69 +1642,69 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                     <UIcon name="i-lucide-help-circle" class="size-3.5 sm:size-4" />
                   </button>
                 </div>
-                <UBadge :color="planningHealthStatus.color" variant="subtle" size="sm" class="font-semibold text-xs xl:text-xs">
+                <UBadge :color="planningHealthStatus.color" variant="subtle" size="sm" class="dash-header-badge font-semibold shrink-0">
                   {{ planningHealthStatus.label }}
                 </UBadge>
               </div>
 
               <!-- 3 Required Planning Health Indicators -->
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 py-1.5 flex-1 items-stretch w-full min-h-0">
+              <div class="dash-health-grid grid grid-cols-1 sm:grid-cols-3 py-1 sm:py-1.5 flex-1 items-stretch w-full min-h-0">
                 <!-- 1. Overdue tasks -->
                 <div
-                  class="h-full flex flex-col justify-between p-2.5 sm:p-3 lg:p-2.5 xl:p-3.5 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-xs sm:text-sm md:text-xs lg:text-xs xl:text-sm font-semibold text-toast-700 truncate">Overdue tasks</span>
+                  class="dash-health-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="health-card-title font-sans font-semibold text-toast-700 truncate" title="Overdue tasks">Overdue tasks</span>
                     <UIcon :name="overdueTasksCount === 0 ? 'i-lucide-check-circle-2' : 'i-lucide-alert-triangle'"
-                      :class="overdueTasksCount === 0 ? 'text-green-500' : 'text-red-500'" class="size-3.5 sm:size-4 shrink-0" />
+                      :class="overdueTasksCount === 0 ? 'text-green-500' : 'text-red-500'" class="health-card-icon shrink-0" />
                   </div>
-                  <div class="text-lg sm:text-xl md:text-xl lg:text-xl xl:text-3xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="health-card-value text-black tracking-tight truncate">
                     {{ overdueTasksCount }}
                   </div>
-                  <div class="space-y-1 w-full">
+                  <div class="space-y-0.5 sm:space-y-1 w-full">
                     <UProgress :model-value="onTrackTasksPercent" :color="overdueTasksCount === 0 ? 'success' : 'error'"
                       size="2xs" />
-                    <div class="text-[10px] sm:text-[11px] xl:text-xs text-muted flex justify-between">
-                      <span>{{ onTrackTasksCount }}/{{ totalTasks }} on schedule</span>
-                      <span>{{ onTrackTasksPercent }}%</span>
+                    <div class="health-card-subtext text-muted flex justify-between min-w-0">
+                      <span class="truncate">{{ onTrackTasksCount }}/{{ totalTasks }} on schedule</span>
+                      <span class="shrink-0 ml-1">{{ onTrackTasksPercent }}%</span>
                     </div>
                   </div>
                 </div>
 
                 <!-- 2. Requirements completion -->
                 <div
-                  class="h-full flex flex-col justify-between p-2.5 sm:p-3 lg:p-2.5 xl:p-3.5 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-xs sm:text-sm md:text-xs lg:text-xs xl:text-sm font-semibold text-toast-700 truncate">Requirements</span>
-                    <UIcon name="i-lucide-file-check-2" class="size-3.5 sm:size-4 text-teal-600 shrink-0" />
+                  class="dash-health-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="health-card-title font-sans font-semibold text-toast-700 truncate" title="Requirements">Requirements</span>
+                    <UIcon name="i-lucide-file-check-2" class="health-card-icon text-teal-600 shrink-0" />
                   </div>
-                  <div class="text-lg sm:text-xl md:text-xl lg:text-xl xl:text-3xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="health-card-value text-black tracking-tight truncate">
                     {{ completedRequirements }}/{{ totalRequirements }}
                   </div>
-                  <div class="space-y-1 w-full">
+                  <div class="space-y-0.5 sm:space-y-1 w-full">
                     <UProgress :model-value="requirementsCompletionPercent" color="success" size="2xs" />
-                    <div class="text-[10px] sm:text-[11px] xl:text-xs text-muted flex justify-between">
-                      <span>{{ completedRequirements }} fulfilled</span>
-                      <span>{{ pendingRequirements }} pending</span>
+                    <div class="health-card-subtext text-muted flex justify-between min-w-0">
+                      <span class="truncate">{{ completedRequirements }} fulfilled</span>
+                      <span class="truncate ml-1">{{ pendingRequirements }} pending</span>
                     </div>
                   </div>
                 </div>
 
                 <!-- 3. Guests without tables -->
                 <div
-                  class="h-full flex flex-col justify-between p-2.5 sm:p-3 lg:p-2.5 xl:p-3.5 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-xs sm:text-sm md:text-xs lg:text-xs xl:text-sm font-semibold text-toast-700 truncate">Without tables</span>
-                    <UIcon name="i-lucide-users" class="size-3.5 sm:size-4 text-red-600 shrink-0" />
+                  class="dash-health-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
+                  <div class="flex items-center justify-between gap-1 min-w-0">
+                    <span class="health-card-title font-sans font-semibold text-toast-700 truncate" title="Without tables">Without tables</span>
+                    <UIcon name="i-lucide-users" class="health-card-icon text-red-600 shrink-0" />
                   </div>
-                  <div class="text-lg sm:text-xl md:text-xl lg:text-xl xl:text-3xl font-bold font-serif text-black tracking-tight truncate">
+                  <div class="health-card-value text-black tracking-tight truncate">
                     {{ guestsWithoutTables }}
-                    <span class="text-xs sm:text-sm font-normal text-muted font-sans ml-1">Guests</span>
+                    <span class="health-card-unit font-normal text-muted font-sans ml-1">Guests</span>
                   </div>
-                  <div class="space-y-1 w-full">
+                  <div class="space-y-0.5 sm:space-y-1 w-full">
                     <UProgress :model-value="guestsSeatedPercent" color="success" size="2xs" />
-                    <div class="text-[10px] sm:text-[11px] xl:text-xs text-muted flex justify-between">
-                      <span>{{ seatedGuestsCount }}/{{ totalConfirmedGuests }} Seated</span>
-                      <span>{{ guestsSeatedPercent }}%</span>
+                    <div class="health-card-subtext text-muted flex justify-between min-w-0">
+                      <span class="truncate">{{ seatedGuestsCount }}/{{ totalConfirmedGuests }} Seated</span>
+                      <span class="shrink-0 ml-1">{{ guestsSeatedPercent }}%</span>
                     </div>
                   </div>
                 </div>
@@ -1645,12 +1716,12 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
       <!-- ================= RIGHT DIVISION: col-span-1 Quick Navigation ================= -->
       <UDashboardPanel
-        class="hidden md:flex lg:col-span-1 lg:h-full min-h-0 bg-white border-t lg:border-t-0 lg:border-l border-bread-200/90 shadow-sm flex-col z-20 shrink-0 lg:overflow-hidden p-3 sm:p-3.5 lg:p-4"
+        class="dash-quicknav-panel hidden md:flex lg:col-span-1 lg:h-full min-h-0 bg-white border-t lg:border-t-0 lg:border-l border-bread-200/90 shadow-sm flex-col z-20 shrink-0 lg:overflow-hidden p-3 sm:p-3.5 lg:p-4"
         :ui="{ root: 'min-h-0 lg:h-full flex flex-col overflow-hidden p-3 sm:p-3.5 lg:p-4' }">
-        <div class="my-auto flex flex-col items-center justify-center w-full px-1 sm:px-2">
+        <div class="dash-quicknav-content my-auto flex flex-col items-center justify-center w-full">
           <!-- Panel Header -->
-          <div class="pb-3 sm:pb-4 flex items-center gap-1.5 shrink-0 text-center justify-center">
-            <h2 class="text-lg sm:text-xl md:text-xl lg:text-xl xl:text-2xl font-serif text-toast-500 font-bold">Quick Navigation</h2>
+          <div class="dash-quicknav-header flex items-center gap-1.5 shrink-0 text-center justify-center">
+            <h2 class="dash-quicknav-title font-serif text-toast-500 font-bold">Quick Navigation</h2>
             <button type="button"
               class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none"
               aria-label="Quick Navigation information"
@@ -1662,21 +1733,22 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
           </div>
 
           <!-- 3-Column App Launcher Grid -->
-          <div class="grid grid-cols-3 gap-2 sm:gap-2.5 w-full">
+          <div class="dash-quicknav-grid grid grid-cols-3 w-full max-w-[240px] sm:max-w-[260px] lg:max-w-[250px] xl:max-w-[280px] mx-auto">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
-              class="group relative flex flex-col items-center justify-center w-full aspect-square p-1.5 sm:p-2 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
+              class="dash-quicknav-btn group relative flex flex-col items-center justify-center w-full aspect-square rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
               @click="onQuickNavItemClick(item)" @mouseenter="onDashboardItemMouseEnter($event, item)"
               @mousemove="onDashboardItemMouseMove($event)" @mouseleave="onDashboardItemMouseLeave">
               <!-- Feature Lock Indicator if blocked -->
               <div v-if="isDashboardItemBlocked(item)"
-                class="absolute top-1.5 right-1.5 size-4 rounded-full bg-black/40 text-white flex items-center justify-center">
-                <UIcon name="i-lucide-lock" class="size-2.5 text-white" />
+                class="absolute top-1 right-1 size-3.5 sm:size-4 rounded-full bg-black/40 text-white flex items-center justify-center">
+                <UIcon name="i-lucide-lock" class="size-2 sm:size-2.5 text-white" />
               </div>
               <UIcon :name="item.icon"
-                class="size-6 sm:size-7 md:size-6 lg:size-6 xl:size-8 shrink-0 mb-0.5 sm:mb-1 transition-transform duration-200 group-hover:scale-110" />
+                class="dash-quicknav-icon shrink-0 mb-0.5 transition-transform duration-200 group-hover:scale-110" />
               <span
-                class="text-[10px] sm:text-xs md:text-[11px] lg:text-[11px] xl:text-xs font-semibold leading-tight text-center wrap-break-word line-clamp-2 px-0.5 tracking-tight">
+                class="dash-quicknav-label font-sans font-semibold leading-tight text-center tracking-tight px-0.5 truncate max-w-full"
+                :title="item.label">
                 {{ item.label }}
               </span>
             </button>
@@ -1809,4 +1881,347 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+/* ==========================================================================
+   EVENT DASHBOARD - FLUID RESPONSIVE DESIGN SYSTEM
+   ========================================================================== */
+
+.event-dashboard-root {
+  /* Fluid spacing and sizing for SUBCONTAINERS within the major containers */
+  --dash-gap-inner: clamp(0.35rem, 0.9vh, 0.75rem);
+  --dash-header-pb: clamp(0.25rem, 0.6vh, 0.5rem);
+  --dash-metric-card-p: clamp(0.35rem, 0.9vh, 0.65rem);
+  --dash-quicknav-gap: clamp(0.65rem, 1.4vh, 1rem);
+  --dash-quicknav-p: clamp(0.2rem, 0.6vh, 0.375rem);
+  --dash-task-item-py: clamp(0.25rem, 0.6vh, 0.5rem);
+  --dash-task-item-px: clamp(0.35rem, 0.8vh, 0.5rem);
+}
+
+/* Height-based media queries to tighten subcontainers on shorter displays */
+@media (max-height: 900px) {
+  .event-dashboard-root {
+    --dash-gap-inner: 0.55rem;
+    --dash-header-pb: 0.35rem;
+    --dash-metric-card-p: 0.45rem;
+    --dash-quicknav-gap: 0.75rem;
+    --dash-quicknav-p: 0.32rem;
+    --dash-task-item-py: 0.35rem;
+    --dash-task-item-px: 0.45rem;
+  }
+}
+
+@media (max-height: 800px) {
+  .event-dashboard-root {
+    --dash-gap-inner: 0.45rem;
+    --dash-header-pb: 0.25rem;
+    --dash-metric-card-p: 0.375rem;
+    --dash-quicknav-gap: 0.65rem;
+    --dash-quicknav-p: 0.28rem;
+    --dash-task-item-py: 0.25rem;
+    --dash-task-item-px: 0.375rem;
+  }
+}
+
+@media (max-height: 720px) {
+  .event-dashboard-root {
+    --dash-gap-inner: 0.35rem;
+    --dash-header-pb: 0.2rem;
+    --dash-metric-card-p: 0.28rem;
+    --dash-quicknav-gap: 0.55rem;
+    --dash-quicknav-p: 0.22rem;
+    --dash-task-item-py: 0.2rem;
+    --dash-task-item-px: 0.3rem;
+  }
+}
+
+@media (max-height: 640px) {
+  .event-dashboard-root {
+    --dash-gap-inner: 0.25rem;
+    --dash-header-pb: 0.15rem;
+    --dash-metric-card-p: 0.2rem;
+    --dash-quicknav-gap: 0.45rem;
+    --dash-quicknav-p: 0.18rem;
+    --dash-task-item-py: 0.15rem;
+    --dash-task-item-px: 0.25rem;
+  }
+}
+
+/* Subcontainer Component Spacing & Heading Rules */
+.dash-card-header {
+  padding-bottom: var(--dash-header-pb);
+}
+
+.dash-card-heading {
+  font-size: clamp(0.85rem, 1.4cqi + 0.45rem, 1.35rem);
+  line-height: 1.15;
+}
+
+.dash-header-action {
+  font-size: clamp(0.65rem, 1.2cqi, 0.8125rem);
+}
+
+.dash-header-badge {
+  font-size: clamp(0.58rem, 1.1cqi, 0.75rem);
+}
+
+/* ================= Topmost Metric Container ================= */
+.dash-container-top-metrics {
+  container-type: inline-size;
+  container-name: top-metrics;
+}
+
+.top-metric-label {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.65rem, 1.3cqi, 0.875rem);
+  white-space: nowrap;
+}
+
+.top-metric-value {
+  font-size: clamp(0.95rem, 2.5cqi, 1.45rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.top-metric-subtext {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.56rem, 1.15cqi, 0.75rem);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* ================= Priority Tasks ================= */
+.dash-container-priority-tasks {
+  container-type: inline-size;
+  container-name: priority-tasks;
+}
+
+.task-column-header-title {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.6rem, 1.4cqi, 0.8rem);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.task-column-header-count {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.56rem, 1.2cqi, 0.75rem);
+  white-space: nowrap;
+}
+
+.task-card-btn {
+  padding: var(--dash-task-item-py) var(--dash-task-item-px);
+  min-height: 0;
+}
+
+.task-card-title {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.68rem, 1.8cqi, 0.875rem);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-card-meta {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.55rem, 1.3cqi, 0.72rem);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.task-card-icon {
+  width: clamp(0.7rem, 1.4cqi, 0.875rem);
+  height: clamp(0.7rem, 1.4cqi, 0.875rem);
+}
+
+/* ================= Tasks by Status ================= */
+.dash-container-tasks-status {
+  container-type: inline-size;
+  container-name: tasks-status;
+}
+
+.status-legend-item {
+  padding: clamp(0.125rem, 0.35vh, 0.25rem) clamp(0.25rem, 0.6cqi, 0.5rem);
+  min-height: 0;
+}
+
+.status-legend-label {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.56rem, 1.3cqi, 0.75rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.status-legend-count {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.56rem, 1.3cqi, 0.75rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+/* ================= Financial Snapshot ================= */
+.dash-container-financial {
+  container-type: inline-size;
+  container-name: financial;
+}
+
+.dash-financial-grid {
+  gap: var(--dash-gap-inner);
+}
+
+.dash-financial-card {
+  container-type: inline-size;
+  container-name: fin-card;
+  padding: var(--dash-metric-card-p);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+  height: 100%;
+}
+
+.financial-card-title {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.56rem, 5.6cqi, 0.785rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.financial-card-icon {
+  width: clamp(0.68rem, 6.2cqi, 0.875rem);
+  height: clamp(0.68rem, 6.2cqi, 0.875rem);
+  flex-shrink: 0;
+}
+
+.financial-card-value {
+  font-size: clamp(0.75rem, 8.8cqi, 1.25rem);
+  line-height: 1.15;
+  font-weight: 700;
+  font-family: var(--font-serif, serif);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.financial-card-subtitle {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.5rem, 4.6cqi, 0.6875rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+/* ================= Planning Health ================= */
+.dash-container-health {
+  container-type: inline-size;
+  container-name: health;
+}
+
+.dash-health-grid {
+  gap: var(--dash-gap-inner);
+}
+
+.dash-health-card {
+  container-type: inline-size;
+  container-name: health-card;
+  padding: var(--dash-metric-card-p);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+  height: 100%;
+}
+
+.health-card-title {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.6rem, 5.8cqi, 0.825rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.health-card-icon {
+  width: clamp(0.75rem, 6.8cqi, 0.95rem);
+  height: clamp(0.75rem, 6.8cqi, 0.95rem);
+  flex-shrink: 0;
+}
+
+.health-card-value {
+  font-size: clamp(0.92rem, 10.5cqi, 1.7rem);
+  line-height: 1.1;
+  font-weight: 700;
+  font-family: var(--font-serif, serif);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.health-card-unit {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.55rem, 5cqi, 0.75rem);
+}
+
+.health-card-subtext {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.52rem, 4.6cqi, 0.72rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+/* ================= Quick Navigation ================= */
+.dash-quicknav-panel {
+  container-type: size;
+  container-name: quicknav-panel;
+}
+
+.dash-quicknav-content {
+  padding-left: clamp(0.125rem, 0.5vw, 0.5rem);
+  padding-right: clamp(0.125rem, 0.5vw, 0.5rem);
+  max-height: 100%;
+}
+
+.dash-quicknav-header {
+  padding-bottom: var(--dash-header-pb);
+}
+
+.dash-quicknav-title {
+  font-size: clamp(0.9rem, 2cqi + 0.4rem, 1.35rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.dash-quicknav-grid {
+  gap: var(--dash-quicknav-gap);
+}
+
+.dash-quicknav-btn {
+  padding: var(--dash-quicknav-p);
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  width: 100%;
+}
+
+@container quicknav-panel (max-height: 650px) {
+  .dash-quicknav-btn {
+    aspect-ratio: 1 / 1;
+    padding: clamp(0.2rem, 0.8cqh, 0.375rem);
+  }
+}
+
+@container quicknav-panel (max-height: 540px) {
+  .dash-quicknav-btn {
+    aspect-ratio: 1 / 1;
+    padding: clamp(0.15rem, 0.6cqh, 0.25rem);
+  }
+}
+
+.dash-quicknav-icon {
+  font-size: clamp(0.85rem, 3cqmin, 1.35rem);
+  width: clamp(0.85rem, 3cqmin, 1.35rem);
+  height: clamp(0.85rem, 3cqmin, 1.35rem);
+}
+
+.dash-quicknav-label {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: clamp(0.5rem, 1.5cqmin, 0.68rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+</style>

@@ -20,14 +20,16 @@ const {
 
 const genderOptions = [
   { label: 'Male', value: 'MALE' },
-  { label: 'Female', value: 'FEMALE' }
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Prefer not to say', value: 'PREFER_NOT_TO_SAY' }
 ]
 
-type SettingsTabId = 'profile' | 'password' | 'membership' | 'billing' | 'preferences'
+type SettingsTabId = 'profile' | 'password' | 'vouchers' | 'membership' | 'billing' | 'preferences'
 
 const settingsTabs: { id: SettingsTabId; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: 'i-lucide-user-cog' },
   { id: 'password', label: 'Password', icon: 'i-lucide-lock' },
+  { id: 'vouchers', label: 'Vouchers', icon: 'i-lucide-ticket' },
   { id: 'membership', label: 'Membership', icon: 'i-lucide-circle-star' },
   { id: 'billing', label: 'Payments and Billing', icon: 'i-lucide-credit-card' },
   { id: 'preferences', label: 'Preferences', icon: 'i-lucide-settings' },
@@ -39,7 +41,7 @@ const schema = z.object({
   firstName: z.string().min(1, 'Enter your first name'),
   lastName: z.string().min(1, 'Enter your last name'),
   email: z.string().email('Invalid email'),
-  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' })
+  gender: z.enum(['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY'], { message: 'Please select a gender' })
 })
 
 type Schema = z.output<typeof schema>
@@ -67,6 +69,43 @@ const isChangingPassword = ref(false)
 const emailNotifEnabled = ref(true)
 const isUpdatingEmailNotif = ref(false)
 
+const voucherCode = ref('')
+const isVoucherCopied = ref(false)
+
+async function copyVoucherCode() {
+  const code = voucherCode.value || 'BB501'
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(code)
+    } else {
+      const textArea = document.createElement('textarea')
+      textArea.value = code
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+    }
+    isVoucherCopied.value = true
+    setTimeout(() => {
+      isVoucherCopied.value = false
+    }, 2000)
+    toast.add({
+      title: 'Voucher copied!',
+      description: `Voucher code ${code} copied to clipboard.`,
+      color: 'success',
+      icon: 'i-lucide-check'
+    })
+  } catch {
+    toast.add({
+      title: 'Failed to copy',
+      description: `Please copy manually: ${code}`,
+      color: 'error'
+    })
+  }
+}
+
 const displayName = computed(() => `${state.firstName} ${state.lastName}`.trim())
 const profileImageSrc = computed(() => resolveProfileImageUrl(profileImageURL.value))
 
@@ -77,15 +116,17 @@ function applyAccountToForm(account: {
   gender: string
   profileImageURL?: string
   emailNotifEnabled?: boolean
+  referralCode?: string
 }) {
   state.firstName = account.firstName
   state.lastName = account.lastName
   state.email = account.email
-  state.gender = account.gender === 'MALE' || account.gender === 'FEMALE'
+  state.gender = account.gender === 'MALE' || account.gender === 'FEMALE' || account.gender === 'PREFER_NOT_TO_SAY'
     ? account.gender
     : 'FEMALE'
   profileImageURL.value = account.profileImageURL ?? ''
   emailNotifEnabled.value = account.emailNotifEnabled ?? true
+  voucherCode.value = account.referralCode || 'BB501'
 }
 
 async function loadProfile() {
@@ -213,29 +254,21 @@ onMounted(async () => {
 <template>
   <UContainer>
     <UPageGrid class="items-start">
-      <UPageCard class="white-bread-container">
+      <UPageCard class="white-bread-container mt-8 p-4">
         <div class="text-lg text-pretty font-semibold text-muted">Account Settings</div>
         <nav class="mt-3 flex flex-col gap-1" aria-label="Account settings sections">
-          <button
-            v-for="tab in settingsTabs"
-            :key="tab.id"
-            type="button"
-            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition"
-            :class="
-              activeTab === tab.id
-                ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/25'
-                : 'text-muted hover:bg-muted/50 hover:text-default'
-            "
-            :aria-current="activeTab === tab.id ? 'page' : undefined"
-            @click="activeTab = tab.id"
-          >
+          <button v-for="tab in settingsTabs" :key="tab.id" type="button"
+            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition" :class="activeTab === tab.id
+              ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/25'
+              : 'text-muted hover:bg-muted/50 hover:text-default'
+              " :aria-current="activeTab === tab.id ? 'page' : undefined" @click="activeTab = tab.id">
             <UIcon :name="tab.icon" class="size-4 shrink-0" />
             {{ tab.label }}
           </button>
         </nav>
       </UPageCard>
 
-      <UPageCard class="col-span-2 white-bread-container">
+      <UPageCard class="col-span-2 white-bread-container mt-8 p-4">
         <template v-if="activeTab === 'profile'">
           <div class="text-lg text-pretty font-semibold text-muted">Profile</div>
           <div v-if="isLoading" class="py-12 text-center text-muted">
@@ -244,29 +277,14 @@ onMounted(async () => {
           <div v-else class="mt-4 flex w-full gap-4">
             <div class="w-1/3">
               <div class="mb-6 flex w-full justify-center gap-4">
-                <img
-                  :src="profileImageSrc"
-                  class="size-37.5 rounded-full object-cover"
-                  :alt="displayName"
-                  width="150"
-                  height="150"
-                >
+                <img :src="profileImageSrc" class="size-37.5 rounded-full object-cover" :alt="displayName" width="150"
+                  height="150">
               </div>
               <div class="text-center">
-                <input
-                  ref="fileInputRef"
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg"
-                  class="hidden"
-                  @change="onProfileImageSelected"
-                >
-                <UButton
-                  icon="i-lucide-upload"
-                  label="Upload new picture"
-                  variant="outline"
-                  :loading="isUploading"
-                  @click="openFilePicker"
-                />
+                <input ref="fileInputRef" type="file" accept="image/png,image/jpeg,image/jpg" class="hidden"
+                  @change="onProfileImageSelected">
+                <UButton icon="i-lucide-upload" label="Upload new picture" variant="outline" :loading="isUploading"
+                  @click="openFilePicker" />
                 <div class="mt-1 text-sm text-muted">PNG or JPG (Max 2MB)</div>
               </div>
             </div>
@@ -298,33 +316,49 @@ onMounted(async () => {
           <div v-else class="mt-4 max-w-xl space-y-4">
             <UForm class="space-y-4" @submit.prevent="submitPasswordChange">
               <UFormField label="Current password" name="currentPassword" required>
-                <UInput
-                  v-model="passwordState.currentPassword"
-                  type="password"
-                  class="w-full"
-                  autocomplete="current-password"
-                />
+                <UInput v-model="passwordState.currentPassword" type="password" class="w-full"
+                  autocomplete="current-password" />
               </UFormField>
               <UFormField label="New password" name="newPassword" required>
-                <UInput
-                  v-model="passwordState.newPassword"
-                  type="password"
-                  class="w-full"
-                  autocomplete="new-password"
-                />
+                <UInput v-model="passwordState.newPassword" type="password" class="w-full"
+                  autocomplete="new-password" />
               </UFormField>
               <UFormField label="Confirm new password" name="confirmNewPassword" required>
-                <UInput
-                  v-model="passwordState.confirmNewPassword"
-                  type="password"
-                  class="w-full"
-                  autocomplete="new-password"
-                />
+                <UInput v-model="passwordState.confirmNewPassword" type="password" class="w-full"
+                  autocomplete="new-password" />
               </UFormField>
               <div class="flex justify-end pt-2">
                 <UButton type="submit" :loading="isChangingPassword">Update password</UButton>
               </div>
             </UForm>
+          </div>
+        </template>
+
+        <template v-else-if="activeTab === 'vouchers'">
+          <div class="text-lg text-pretty font-semibold text-muted">Vouchers</div>
+          <div v-if="isLoading" class="py-12 text-center text-muted">
+            Loading vouchers...
+          </div>
+          <div v-else class="mt-6 max-w-xl space-y-5">
+            <div class="rounded-xl border border-bread-300 bg-bread-50/70 p-6 space-y-4 shadow-2xs">
+              <div class="space-y-1">
+                <div class="text-sm font-medium text-muted">your voucher:</div>
+                <div class="flex items-center gap-3">
+                  <span class="font-mono text-2xl sm:text-3xl font-extrabold tracking-wider text-toast-900 select-all">
+                    {{ voucherCode || 'BB501' }}
+                  </span>
+                  <UButton :icon="isVoucherCopied ? 'i-lucide-check' : 'i-lucide-copy'"
+                    :color="isVoucherCopied ? 'success' : 'primary'" variant="soft" size="xs"
+                    class="font-semibold cursor-pointer" @click="copyVoucherCode">
+                    {{ isVoucherCopied ? 'Copied' : 'Copy' }}
+                  </UButton>
+                </div>
+              </div>
+
+              <div class="border-t border-bread-200/80 pt-3 text-xs sm:text-sm text-toast-800 leading-relaxed">
+                share this to a friend for them to avail a 5% discount on event checkout (once per user)
+              </div>
+            </div>
           </div>
         </template>
 
@@ -347,19 +381,15 @@ onMounted(async () => {
                   Receive email updates about your events, payments, and account activity.
                 </p>
               </div>
-              <USwitch
-                :model-value="emailNotifEnabled"
-                :loading="isUpdatingEmailNotif"
-                :disabled="isUpdatingEmailNotif"
-                @update:model-value="onEmailNotifToggle"
-              />
+              <USwitch :model-value="emailNotifEnabled" :loading="isUpdatingEmailNotif" :disabled="isUpdatingEmailNotif"
+                @update:model-value="onEmailNotifToggle" />
             </div>
           </div>
         </template>
 
         <template v-else>
           <div class="text-lg text-pretty font-semibold text-muted">
-            {{ settingsTabs.find((tab) => tab.id === activeTab)?.label }}
+            {{settingsTabs.find((tab) => tab.id === activeTab)?.label}}
           </div>
           <p class="mt-4 text-sm text-muted">This section is coming soon.</p>
         </template>

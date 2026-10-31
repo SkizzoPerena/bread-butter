@@ -7,12 +7,15 @@ import {
   applySendAllInvitesToGuestList,
   applySendInviteToGuestList,
   formatGuestValidationErrors,
+  inviteDeliveryLabel,
+  inviteResultToast,
   removeGuestFromList,
+  type InviteDelivery,
 } from '~/utils/guestListUpdates'
 import { formatTableLabel } from '~/utils/tableCode'
 import { formatGuestDisplayName } from '~/utils/guestName'
 
-const rsvpOptions = ['Attending', 'Pending', 'Not Attending'] as const
+const rsvpOptions = ['Attending', 'Pending', 'Not Attending', 'No Response'] as const
 
 export type GuestTableRow = {
   guestId: string
@@ -26,6 +29,7 @@ export type GuestTableRow = {
   guests: number
   rsvpStatus: typeof rsvpOptions[number]
   invitationSent: boolean
+  inviteDelivery: InviteDelivery
   rsvpId?: string | null
   groupId?: string | null
   groupName?: string | null
@@ -179,12 +183,15 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
 
   function mapRsvpStatusToLabel(
     status?: string | null
-  ): 'Attending' | 'Pending' | 'Not Attending' {
+  ): 'Attending' | 'Pending' | 'Not Attending' | 'No Response' {
     if (status === 'GOING') {
       return 'Attending'
     }
     if (status === 'NOT_GOING') {
       return 'Not Attending'
+    }
+    if (status === 'NO_RESPONSE') {
+      return 'No Response'
     }
     return 'Pending'
   }
@@ -203,6 +210,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
       guests: guest.rsvp?.status === 'GOING' ? 1 : 0,
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
       invitationSent: Boolean(guest.rsvp?.invitedAt),
+      inviteDelivery: inviteDeliveryLabel(guest.rsvp),
       roleNames,
       tableCode: guest.tableCode ?? null,
       tableLabel: formatTableLabel(guest.tableCode),
@@ -467,17 +475,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
         }
       }
 
-      const skipped = response.skippedAlreadyInvited ?? 0
-      let description = response.message
-      if (response.created > 0 || skipped > 0) {
-        description = `${response.created} invitation(s) sent`
-        if (skipped > 0) {
-          description += `, ${skipped} already invited`
-        }
-        description += '.'
-      }
-
-      toast.add({ title: 'Invitations sent', description })
+      toast.add(inviteResultToast(response))
     } catch (error) {
       reportApiError(toast, { title: 'Could not send invitations', error })
     } finally {
@@ -510,7 +508,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
         }
       }
 
-      toast.add({ title: 'Invitation sent', description: response.message })
+      toast.add(inviteResultToast(response))
     } catch (error) {
       reportApiError(toast, { title: 'Could not send invitation', error })
     } finally {

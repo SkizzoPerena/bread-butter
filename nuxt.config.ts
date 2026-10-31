@@ -100,6 +100,14 @@ export default defineNuxtConfig({
     '/event/dashboard': { redirect: { to: '/event/dashboard-butter', statusCode: 301 } },
     '/event/dashboard-v1': { redirect: { to: '/event/dashboard-bread', statusCode: 301 } },
     '/event/dashboard-bread+butter': { redirect: { to: '/event/dashboard-bread-butter', statusCode: 301 } },
+    '/dough-makers/login': { redirect: { to: '/partners/login', statusCode: 301 } },
+    '/dough-makers/signup': { redirect: { to: '/partners/signup', statusCode: 301 } },
+    '/doughmakers/login': { redirect: { to: '/partners/login', statusCode: 301 } },
+    '/doughmakers/signup': { redirect: { to: '/partners/signup', statusCode: 301 } },
+    '/our-bakery': { redirect: { to: '/our-suppliers', statusCode: 301 } },
+    '/bakery': { redirect: { to: '/our-suppliers', statusCode: 301 } },
+    '/ourbakery': { redirect: { to: '/our-suppliers', statusCode: 301 } },
+    '/suppliers': { redirect: { to: '/our-suppliers', statusCode: 301 } },
   },
 
   compatibilityDate: '2025-01-15',
@@ -168,10 +176,12 @@ export default defineNuxtConfig({
       setPath('EventSchedulesDashboard', '/event/schedules')
       setPath('EventSettingsDashboard', '/event/settings')
       setPath('EventSuppliersDashboard', '/event/suppliers')
+      setPath('EventBakerDatabase', '/event/bakers')
       setPath('EventTasksDashboard', '/event/tasks')
       setPath('EventWishlistDashboard', '/event/wishlist')
       setPath('SubEventDashboard', '/event/sub-event')
       setPath('AddGuestsBulk', '/event/add-guests-bulk')
+      setPath('EventDressCodeDashboard', '/event/dress-code')
 
       // Set paths for /user/* routes
       setPath('UserCreateEvent', '/user/create-event')

@@ -18,6 +18,7 @@ function mockAccount(storedUser: AuthUser | null): UserAccount {
     profileImageURL: storedUser?.profileImageURL ?? '',
     emailNotifEnabled: storedUser?.emailNotifEnabled ?? true,
     referralDiscountEligible: false,
+    referralCode: storedUser?.referralCode ?? 'BB501'
   }
 }
 
@@ -41,6 +42,7 @@ export function useAccount() {
       gender: account.gender,
       profileImageURL: account.profileImageURL,
       emailNotifEnabled: account.emailNotifEnabled ?? true,
+      referralCode: account.referralCode
     })
 
     return account

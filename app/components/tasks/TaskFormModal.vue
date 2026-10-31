@@ -30,7 +30,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
-const { createTask, updateTaskDetails, updateTaskPriority, updateTaskAssignee } = useTasks()
+const { createTask, updateTaskDetails, updateTaskPriority, updateTaskAssignee, updateTaskDeadline } = useTasks()
 
 const isEditMode = computed(() => Boolean(props.task))
 const isSubmitting = ref(false)
@@ -41,7 +41,8 @@ const minDeadline = today(getLocalTimeZone())
 const taskSchema = z.object({
   title: z.string().min(1, 'Task name is required'),
   details: z.string().min(1, 'Description is required'),
-  priority: z.coerce.number().int().min(1).max(5),
+  priority: z.coerce.number().int().min(1).max(3),
+  isImportant: z.boolean().default(false),
 })
 
 type TaskSchema = z.output<typeof taskSchema>
@@ -49,7 +50,8 @@ type TaskSchema = z.output<typeof taskSchema>
 const formState = reactive<TaskSchema>({
   title: '',
   details: '',
-  priority: 3,
+  priority: 2,
+  isImportant: false,
 })
 
 const deadlineDate = shallowRef<CalendarDate | null>(null)
@@ -62,7 +64,8 @@ const modalTitle = computed(() => (isEditMode.value ? 'Edit Task' : 'Add New Tas
 function resetForm() {
   formState.title = ''
   formState.details = ''
-  formState.priority = 3
+  formState.priority = 2
+  formState.isImportant = false
   deadlineDate.value = null
   imageFiles.value = []
   keptImageUrls.value = []
@@ -72,7 +75,8 @@ function resetForm() {
 function loadTask(task: TaskRecord) {
   formState.title = task.title
   formState.details = task.details
-  formState.priority = task.priority
+  formState.priority = Math.min(3, Math.max(1, Number(task.priority) || 2))
+  formState.isImportant = Boolean(task.isImportant)
   deadlineDate.value = parseIsoToCalendarDate(task.deadline)
   keptImageUrls.value = (task.attachedFileURLs ?? [])
     .map((file) => file.fileURL)
@@ -124,15 +128,12 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
     return
   }
 
-  let deadlineIso: string | undefined
-  if (!isEditMode.value) {
-    const deadlineError = validateDeadline()
-    if (deadlineError) {
-      toast.add({ title: 'Invalid deadline', description: deadlineError, color: 'error' })
-      return
-    }
-    deadlineIso = calendarDateToUtcIso(deadlineDate.value!)
+  const deadlineError = validateDeadline()
+  if (deadlineError) {
+    toast.add({ title: 'Invalid deadline', description: deadlineError, color: 'error' })
+    return
   }
+  const deadlineIso = deadlineDate.value ? calendarDateToUtcIso(deadlineDate.value) : undefined
 
   isSubmitting.value = true
 
@@ -151,9 +152,14 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
       if (props.task.priority !== event.data.priority) {
         await updateTaskPriority(props.task._id, event.data.priority)
       }
+      props.task.isImportant = event.data.isImportant
       const previousAssigneeId = props.task.assignee?._id ?? null
       if (previousAssigneeId !== assigneeId.value) {
         await updateTaskAssignee(props.task._id, assigneeId.value)
+      }
+      if (deadlineIso && props.task.deadline !== deadlineIso) {
+        await updateTaskDeadline(props.task._id, deadlineIso, props.eventId)
+        props.task.deadline = deadlineIso
       }
     } else {
       await createTask(
@@ -162,6 +168,7 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
           title: event.data.title,
           details: event.data.details,
           priority: event.data.priority,
+          isImportant: event.data.isImportant,
           deadline: deadlineIso!,
           assigneeId: assigneeId.value,
         },
@@ -234,13 +241,8 @@ function removeKeptImage(url: string) {
               :disabled="disabled"
             />
           </UFormField>
-          <UFormField label="Deadline" :required="!isEditMode">
-            <template v-if="isEditMode">
-              <p class="text-sm text-muted py-2">
-                {{ formatTaskDate(task?.deadline) ?? 'No deadline' }}
-              </p>
-            </template>
-            <UPopover v-else>
+          <UFormField label="Deadline" required>
+            <UPopover>
               <UButton
                 color="neutral"
                 variant="outline"
@@ -263,6 +265,25 @@ function removeKeptImage(url: string) {
               </template>
             </UPopover>
           </UFormField>
+        </div>
+
+        <!-- Important Star Checkbox (Separate Metric) -->
+        <div class="rounded-xl border border-bread-200/80 bg-toast-50/50 p-3 space-y-1">
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              v-model="formState.isImportant"
+              class="size-4 rounded border-bread-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+              :disabled="disabled"
+            />
+            <span class="text-xs font-semibold text-highlighted inline-flex items-center gap-1.5">
+              <UIcon name="i-lucide-star" class="size-3.5 fill-amber-400 text-amber-500" />
+              Mark as Important Task
+            </span>
+          </label>
+          <p class="text-[11px] text-muted ml-6">
+            Starred tasks are highlighted and filtered separately from priority (High, Medium, Low).
+          </p>
         </div>
 
         <UFormField label="Assigned to" name="assignee">

@@ -19,7 +19,9 @@ export interface TaskRecord {
   details: string
   status: TaskStatus
   priority: number
+  isImportant?: boolean
   deadline?: string | null
+  createdAt?: string | null
   parentTask?: string | null
   subtasks?: TaskRecord[]
   attachedFileURLs?: TaskAttachedFile[]
@@ -66,10 +68,12 @@ export interface CreateTaskPayload {
   priority: number
   deadline: string
   assigneeId?: string | null
+  isImportant?: boolean
 }
 
 export interface UpdateTaskDetailsPayload {
   title?: string
   details?: string
+  deadline?: string
   keepImageURLs?: string[]
 }

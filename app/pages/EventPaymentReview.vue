@@ -33,6 +33,7 @@ const { isUiOnlyMode, loadPageData } = useApiMode()
 const { createEventFeeCheckoutSession, getEventPayments, submitEventPaymentProof } = usePayments()
 const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const { finishPageTransition } = usePageTransition()
 const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 const eventId = computed(() => {
@@ -251,6 +252,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 

@@ -26,7 +26,7 @@ const modules = computed(() => {
   const allowed = event ? new Set(getAllowedFeaturesForEvent(event)) : new Set<string>()
 
   return [
-    { label: 'Guests', to: `/partners/events/${eventId.value}/guests`, icon: 'i-lucide-users-round', enabled: allowed.has(EVENT_FEATURE.GUESTS) },
+    { label: 'Guests', to: `/partners/events/${eventId.value}/guests`, icon: 'i-lucide-users-round', enabled: allowed.has(EVENT_FEATURE.GUEST_LIST) },
     { label: 'RSVP', to: `/partners/events/${eventId.value}/rsvp`, icon: 'i-lucide-mail-check', enabled: allowed.has(EVENT_FEATURE.RSVP) },
     { label: 'Tasks', to: `/partners/events/${eventId.value}/tasks`, icon: 'i-lucide-list-checks', enabled: allowed.has(EVENT_FEATURE.TASKS) },
     { label: 'Suppliers', to: `/partners/events/${eventId.value}/suppliers`, icon: 'i-lucide-briefcase-business', enabled: allowed.has(EVENT_FEATURE.SUPPLIERS) },
@@ -38,8 +38,8 @@ const modules = computed(() => {
     { label: 'Payments', to: `/partners/events/${eventId.value}/payments`, icon: 'i-lucide-credit-card', enabled: true },
     { label: 'Upgrade', to: `/partners/events/${eventId.value}/upgrade`, icon: 'i-lucide-circle-arrow-up', enabled: true },
     { label: 'Email Credits', to: `/partners/events/${eventId.value}/email-credits`, icon: 'i-lucide-mail-plus', enabled: true },
-    { label: 'Website', to: `/partners/events/${eventId.value}/website`, icon: 'i-lucide-globe', enabled: allowed.has(EVENT_FEATURE.CUSTOM_SITE) },
-    { label: 'Invitation', to: `/partners/events/${eventId.value}/invitation`, icon: 'i-lucide-mail', enabled: allowed.has(EVENT_FEATURE.INVITATIONS) }
+    { label: 'Website', to: `/partners/events/${eventId.value}/website`, icon: 'i-lucide-globe', enabled: allowed.has(EVENT_FEATURE.WEBSITE) },
+    { label: 'Invitation', to: `/partners/events/${eventId.value}/invitation`, icon: 'i-lucide-mail', enabled: allowed.has(EVENT_FEATURE.INVITATION) }
   ]
 })
 

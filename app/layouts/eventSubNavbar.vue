@@ -1,6 +1,12 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
+const { startPageTransition } = usePageTransition()
+
+async function handleBack() {
+  await startPageTransition()
+  router.back()
+}
 
 const titleThemeClass = computed(() => {
   const bgClass = route.meta.bgClass as string || ''
@@ -8,6 +14,7 @@ const titleThemeClass = computed(() => {
     'bg-blue-50': 'text-blue-500',
     'bg-emerald-50': 'text-emerald-500',
     'bg-purple-50': 'text-purple-500',
+    'bg-violet-50': 'text-violet-500',
     'bg-teal-50': 'text-teal-500',
     'bg-orange-50': 'text-orange-500',
     'bg-pink-50': 'text-pink-500',
@@ -31,15 +38,15 @@ const titleThemeClass = computed(() => {
             variant="ghost"
             class="rounded-lg"
             aria-label="Go back"
-            @click="router.back()"
+            @click="handleBack"
           />
 
           <!-- Image Slot Wrapper -->
           <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <NuxtLink to="/" class="flex items-center">
+            <button type="button" class="flex items-center cursor-pointer" @click="startPageTransition('/')">
               <img v-if="route.meta.useLogo" src="~/assets/bpb-icons/logomark-toast-700.svg" class="h-7" />
               <img v-else src="~/assets/bpb-icons/logo-toast-700.svg" class="h-7" />
-            </NuxtLink>
+            </button>
             <UBadge
               color="toast"
               variant="subtle"
@@ -66,5 +73,6 @@ const titleThemeClass = computed(() => {
     </UDashboardNavbar>
 
     <slot />
+    <BackToTopButton />
   </div>
 </template>

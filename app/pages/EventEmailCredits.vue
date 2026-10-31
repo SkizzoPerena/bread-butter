@@ -27,6 +27,7 @@ const { getEmailCreditPackages, createEmailCreditCheckoutSession, submitEmailCre
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { isPaymongoActivated } = usePaymongoActivation()
 const { getOrCreateIdempotencyKey, rememberCheckoutIds, redirectToCheckout } = usePayMongoCheckout()
+const { finishPageTransition } = usePageTransition()
 const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 type ViewStep = 'select' | 'pay'
@@ -103,6 +104,7 @@ async function loadPage() {
     await navigateTo({ path: resolveEventDashboardPath(cached), query: { eventId: id } })
   } finally {
     isLoading.value = false
+    finishPageTransition()
   }
 }
 

@@ -20,6 +20,7 @@ function mockInvitation(eventId: string, payload: InvitationSavePayload): Invita
     blocks: payload.blocks,
     deadlineText: payload.deadlineText,
     deadlineDate: payload.deadlineDate,
+    bannerImageUrl: payload.bannerImageUrl,
   }
 }
 

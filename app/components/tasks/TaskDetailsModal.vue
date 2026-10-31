@@ -30,6 +30,13 @@ const statusLabel = computed(() => {
   return props.task.status
 })
 
+const statusColor = computed(() => {
+  if (props.task?.status === 'TODO') return 'slate' as const
+  if (props.task?.status === 'ONGOING') return 'purple' as const
+  if (props.task?.status === 'COMPLETED') return 'success' as const
+  return 'neutral' as const
+})
+
 const assigneeLabel = computed(() => (props.task ? getAssigneeLabel(props.task) : '—'))
 
 const imageUrls = computed(() => {
@@ -48,7 +55,7 @@ const subtasks = computed(() => props.task?.subtasks ?? [])
     :title="task?.title ?? 'Task details'"
     :ui="{
       header: 'bg-toast-400 border-none',
-      title: 'text-white font-serif text-xl',
+      title: 'text-white font-sans font-semibold text-xl',
       content: 'border-none ring-transparent w-full max-w-lg',
       overlay: 'bg-toast-900/30',
     }"
@@ -64,13 +71,25 @@ const subtasks = computed(() => props.task?.subtasks ?? [])
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Status</p>
-            <p class="mt-1 text-sm">{{ statusLabel }}</p>
+            <div class="mt-1">
+              <UBadge :color="statusColor" variant="subtle">
+                {{ statusLabel }}
+              </UBadge>
+            </div>
           </div>
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Priority</p>
-            <UBadge :color="priorityMeta.color" variant="subtle" class="mt-1">
-              {{ priorityMeta.label }}
-            </UBadge>
+            <div class="mt-1 flex items-center gap-2">
+              <UBadge :color="priorityMeta.color" variant="subtle">
+                {{ priorityMeta.label }}
+              </UBadge>
+              <UBadge v-if="task.isImportant" color="warning" variant="subtle" size="xs" class="font-medium inline-flex items-center gap-1">
+                <svg class="size-2.5 fill-amber-500 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                Important
+              </UBadge>
+            </div>
           </div>
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">Assigned to</p>

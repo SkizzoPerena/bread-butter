@@ -1,6 +1,50 @@
 import type { GuestRecord, RsvpSummary } from '~/types/event'
 import type { SendInviteResponse } from '~/types/guest'
 
+export type InviteDelivery = 'Yes' | 'No' | 'Pending' | 'Not delivered'
+
+export function inviteDeliveryLabel(rsvp: GuestRecord['rsvp']): InviteDelivery {
+  if (!rsvp?.invitedAt) return 'No'
+  if (rsvp.inviteEmailCreditRefundedAt) return 'Not delivered'
+  return rsvp.inviteEmailSentAt ? 'Yes' : 'Pending'
+}
+
+/** Says what happened to the emails, because an invite can be recorded while its email fails. */
+export function inviteResultToast(response: SendInviteResponse): {
+  title: string
+  description: string
+  color?: 'warning'
+} {
+  const reported = response.emailsQueued !== undefined || response.emailsSent !== undefined
+  const queued = response.emailsQueued ?? 0
+  const failed = response.emailsFailed ?? 0
+  const attempted = reported ? queued + (response.emailsSent ?? 0) + failed : response.created
+  const resent = Math.max(0, attempted - response.created)
+  const alreadyInvited = Math.max(0, response.skippedAlreadyInvited - resent)
+  const alreadyInvitedNote = alreadyInvited > 0 ? `, ${alreadyInvited} already invited` : ''
+
+  if (failed > 0) {
+    return {
+      title: 'Some invitations were not sent',
+      description: `${failed} of ${attempted} could not be sent. Use Resend on those guests to try again.`,
+      color: 'warning',
+    }
+  }
+  if (attempted === 0 && response.created > 0) {
+    return {
+      title: 'Invitations saved, not sent yet',
+      description: `Email is unavailable right now, so ${response.created} invitation(s) will be retried tomorrow morning.`,
+      color: 'warning',
+    }
+  }
+  if (attempted === 0) {
+    return { title: 'No new invitations', description: `All ${alreadyInvited} guest(s) were already invited.` }
+  }
+  return queued > 0
+    ? { title: 'Invitations on their way', description: `${attempted} invitation(s) queued to send${alreadyInvitedNote}.` }
+    : { title: 'Invitations sent', description: `${attempted} invitation(s) sent${alreadyInvitedNote}.` }
+}
+
 function incrementRsvpSummaryForInvites(
   rsvpSummary: RsvpSummary,
   created: number
@@ -50,6 +94,8 @@ export function applySendInviteToGuestList(
         status: existingRsvp?.status ?? 'PENDING',
         invitedAt: existingRsvp?.invitedAt ?? invitedAt,
         respondedAt: existingRsvp?.respondedAt ?? null,
+        inviteEmailSentAt: response.emailsSent ? invitedAt : null,
+        inviteEmailCreditRefundedAt: null,
       },
     }
   })
@@ -123,6 +169,9 @@ export function clearSubEventInviteFromList(
       notGoing: status === 'NOT_GOING'
         ? Math.max(0, rsvpSummary.notGoing - 1)
         : rsvpSummary.notGoing,
+      noResponse: status === 'NO_RESPONSE'
+        ? Math.max(0, (rsvpSummary.noResponse ?? 0) - 1)
+        : rsvpSummary.noResponse,
     }
   }
 
@@ -199,6 +248,9 @@ export function removeGuestFromList(
       notGoing: status === 'NOT_GOING'
         ? Math.max(0, rsvpSummary.notGoing - 1)
         : rsvpSummary.notGoing,
+      noResponse: status === 'NO_RESPONSE'
+        ? Math.max(0, (rsvpSummary.noResponse ?? 0) - 1)
+        : rsvpSummary.noResponse,
     }
   }
 

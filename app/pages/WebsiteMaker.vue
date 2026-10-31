@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import aisleImage from '../assets/bpb-images/login-aisle.webp'
 import { getApiErrorMessage, reportApiError } from '~/types/auth'
 import type { EventRecord, GuestRecord } from '~/types/event'
+import { isWeddingEventType } from '~/types/event'
+import type { CustomSiteGiftRegistry } from '~/types/customSite'
 import type { GuestRoleRecord } from '~/types/guest_role'
 import { isEventFullyPaid } from '~/types/payment'
 import {
@@ -10,6 +12,11 @@ import {
     buildCustomSiteFormData,
     validateWebsiteEditorForSave,
 } from '~/utils/customSiteForm'
+import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
+import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
+import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
+import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
+import type { GalleryLayout, GalleryPhoto, GalleryRecord } from '~/types/gallery'
 import {
     colorPalettes,
     typographySets,
@@ -50,6 +57,68 @@ const {
 } = useCustomSite()
 const { fetchGuestRolesByEvent } = useGuestRoles()
 const { fetchGuestsByEvent } = useGuests()
+const { fetchDressCode, getLocalDressCode } = useDressCode()
+
+const publishedDressCode = ref<DressCodeRecord | null>(null)
+const isDressCodeLoading = ref(false)
+const selectedDressCodeLightboxImage = ref<UploadedDressCodeImage | null>(null)
+const isDressCodeLightboxOpen = ref(false)
+
+async function loadPublishedDressCode() {
+    const targetId = eventId.value || 'mock'
+    isDressCodeLoading.value = true
+    try {
+        const dc = await fetchDressCode(targetId)
+        if (dc) {
+            publishedDressCode.value = dc
+        }
+    } catch (err) {
+        console.warn('[WebsiteMaker] Failed to fetch published dress code', err)
+    } finally {
+        if (!publishedDressCode.value) {
+            publishedDressCode.value = getLocalDressCode(targetId)
+        }
+        isDressCodeLoading.value = false
+    }
+}
+
+function refreshPublishedDressCode() {
+    const targetId = eventId.value || 'mock'
+    const latest = getLocalDressCode(targetId)
+    if (latest) {
+        publishedDressCode.value = latest
+        toast.add({
+            title: 'Colors & Dress Code Synced',
+            description: 'Refreshed with the latest published palette and guidelines.',
+            color: 'rose',
+        })
+    }
+    loadPublishedDressCode()
+}
+
+function copyHexToClipboard(hex: string) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(hex)
+        toast.add({
+            title: `Copied ${hex}`,
+            description: 'Hex code copied to clipboard.',
+            color: 'rose',
+        })
+    }
+}
+
+function onWindowFocus() {
+    if (eventId.value) {
+        const latest = getLocalDressCode(eventId.value)
+        if (latest && JSON.stringify(latest) !== JSON.stringify(publishedDressCode.value)) {
+            publishedDressCode.value = latest
+        }
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('focus', onWindowFocus)
+}
 
 function displaySaveWebsiteEndpoint(customSiteIdForSave: string | null) {
     if (isUiOnlyMode.value) {
@@ -73,6 +142,22 @@ const isSaving = ref(false)
 const saveModalTitle = ref('Saving your website...')
 const saveModalDescription = ref('Please wait while we save your design and content.')
 const saveModalMode = ref<'save' | 'publish'>('save')
+
+watch(isSaving, (val) => {
+    if (typeof document !== 'undefined') {
+        document.body.style.overflow = val ? 'hidden' : ''
+    }
+})
+
+onUnmounted(() => {
+    finishPageTransition()
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onWindowFocus)
+    }
+    if (typeof document !== 'undefined') {
+        document.body.style.overflow = ''
+    }
+})
 
 const canPublishWebsite = computed(() => {
     if (isUiOnlyMode.value) {
@@ -152,6 +237,31 @@ const sections = ref<WebsiteSection[]>([
 
 const headingSection = computed(() => sections.value.find(s => s.type === 'heading'))
 const paragraphSection = computed(() => sections.value.find(s => s.type === 'paragraph'))
+
+const headingSectionContent = computed({
+    get: () => headingSection.value?.content ?? '',
+    set: (val: string) => {
+        const found = sections.value.find(s => s.type === 'heading')
+        if (found) {
+            found.content = val
+        } else {
+            sections.value.push({ id: Date.now(), type: 'heading', content: val })
+        }
+    }
+})
+
+watch(
+    () => websiteData.siteDescription,
+    (desc) => {
+        const found = sections.value.find(s => s.type === 'paragraph')
+        if (found) {
+            found.content = desc
+        } else {
+            sections.value.push({ id: Date.now() + 1, type: 'paragraph', content: desc })
+        }
+    },
+    { immediate: true }
+)
 
 const isLive = ref(false)
 const isPreviewing = ref(false)
@@ -525,7 +635,6 @@ const getBaseLabel = (id: string) => {
         'color-palette': 'Color Palette',
         'typography': 'Typography',
         'basic-info': 'Basic Information',
-        'content-sections': 'Content Sections',
         'components': 'Components',
         'color-remix': 'Color Remix & Navigation',
         'thank-you': 'Thank You Message',
@@ -537,14 +646,40 @@ const getBaseLabel = (id: string) => {
 // 5. Available Components (Step 7)
 const availableComponents = [
     { id: 'rsvp', name: 'RSVP', icon: 'i-lucide-mail', description: 'Allow guests to respond to your invitation.' },
-    { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your wedding day.' },
+    { id: 'dress-code', name: 'Color & Dress Code', icon: 'i-lucide-shirt', description: 'Display your color palette, attire guidelines, and moodboard.' },
+    { id: 'gallery', name: 'Photo Gallery', icon: 'i-lucide-images', description: 'Showcase your favorite photos.' },
+    { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your event.' },
     { id: 'where-to-stay', name: 'Where to Stay', icon: 'i-lucide-bed', description: 'Recommend accommodations for your guests.' },
     { id: 'wedding-party', name: 'Wedding Party', icon: 'i-lucide-users', description: 'Introduce your bridesmaids and groomsmen.' },
     { id: 'q-and-a', name: 'Q&A', icon: 'i-lucide-help-circle', description: 'Answer common questions from your guests.' },
+    { id: 'gifts', name: 'Gifts', icon: 'i-lucide-gift', description: 'Share your wishlist and payment QR codes. Your account name and number will be visible on your website.' },
     { id: 'diy', name: 'DIY Component', icon: 'i-lucide-plus-square', description: 'Create your own custom component.' }
 ]
 
+const offeredComponents = computed(() =>
+    !eventRecord.value || isWeddingEventType(eventRecord.value.eventType)
+        ? availableComponents
+        : availableComponents.filter(comp => comp.id !== 'wedding-party')
+)
+
 const selectedComponents = ref<string[]>([])
+
+const { fetchWishlistByEvent } = useWishlist()
+const giftRegistry = ref<CustomSiteGiftRegistry | null>(null)
+
+async function loadGiftRegistry() {
+    if (!eventId.value) return
+    try {
+        const wishlist = await fetchWishlistByEvent(eventId.value)
+        giftRegistry.value = { qrCodes: wishlist.qrCodes, wishedItems: wishlist.wishedItems }
+    } catch {
+        giftRegistry.value = null
+    }
+}
+
+watch(() => selectedComponents.value.includes('gifts'), (enabled) => {
+    if (enabled) loadGiftRegistry()
+}, { immediate: true })
 const displayComponents = computed(() => {
     return selectedComponents.value.filter(id => id !== 'diy')
 })
@@ -578,7 +713,6 @@ interface StepDef {
 }
 
 const getStepShortName = (step: StepDef) => {
-    if (step.name) return step.name;
     const shortNames: Record<string, string> = {
         'choose-format': 'Format',
         'choose-motif': 'Motif',
@@ -587,12 +721,21 @@ const getStepShortName = (step: StepDef) => {
         'color-remix': 'Remix',
         'typography': 'Fonts',
         'basic-info': 'Info',
-        'content-sections': 'Sections',
         'components': 'Blocks',
+        'dress-code': 'Dress Code',
+        'gallery': 'Gallery',
+        'schedule': 'Schedule',
+        'where-to-stay': 'Stay',
+        'wedding-party': 'Party',
+        'q-and-a': 'Q&A',
+        'gifts': 'Gifts',
+        'diy-config': 'DIY',
         'thank-you': 'Closing',
         'review-publish': 'Review'
     };
-    return shortNames[step.id] || step.id;
+    if (shortNames[step.id]) return shortNames[step.id];
+    if (step.name) return step.name;
+    return step.id;
 };
 
 const websiteSteps = computed(() => {
@@ -601,8 +744,7 @@ const websiteSteps = computed(() => {
         { id: 'header-image', icon: 'i-lucide-image', description: "1. Upload a captivating image for your website's header." },
         { id: 'color-palette', icon: 'i-lucide-swatch-book', description: "Choose a color scheme for your website." },
         { id: 'typography', icon: 'i-lucide-type', description: "Select a font pairing for your website\'s headings and text." },
-        { id: 'basic-info', icon: 'i-lucide-info', description: "Provide the essential details for your website." },
-        { id: 'content-sections', icon: 'i-lucide-layout-template', description: "Add and arrange content sections like headings and paragraphs to build your page." },
+        { id: 'basic-info', icon: 'i-lucide-info', description: "Provide the essential details and story for your website.", name: "Basic Information" },
         { id: 'components', icon: 'i-lucide-blocks', description: "Select the extra components you want to include on your website." }
     ];
 
@@ -633,6 +775,49 @@ const websiteSteps = computed(() => {
 
 const currentStepData = computed(() => websiteSteps.value[currentStep.value]);
 
+const optionalBlockStepIds = computed(() => {
+    const list: string[] = []
+    for (const compId of selectedComponents.value) {
+        if (compId !== 'rsvp' && compId !== 'diy') {
+            list.push(compId)
+        }
+    }
+    if (selectedComponents.value.includes('diy')) {
+        list.push('diy-config')
+    }
+    return list
+})
+
+const optionalBlockSteps = computed(() => {
+    return optionalBlockStepIds.value.map(id => {
+        const fullStep = websiteSteps.value.find(s => s.id === id)
+        const originalIndex = websiteSteps.value.findIndex(s => s.id === id)
+        return fullStep ? { ...fullStep, originalIndex } : null
+    }).filter(Boolean) as Array<StepDef & { label: string; originalIndex: number }>
+})
+
+const isBlocksAccordionOpen = computed(() => {
+    const currentId = currentStepData.value?.id || ''
+    return currentId === 'components' || optionalBlockStepIds.value.includes(currentId)
+})
+
+const railTopLevelSteps = computed(() => {
+    return websiteSteps.value
+        .map((step, idx) => ({ ...step, originalIndex: idx }))
+        .filter(step => !optionalBlockStepIds.value.includes(step.id))
+})
+
+function handleRailStepClick(step: StepDef & { originalIndex: number }) {
+    if (step.id === 'components') {
+        const blocksIdx = websiteSteps.value.findIndex(s => s.id === 'components')
+        if (blocksIdx !== -1) {
+            currentStep.value = blocksIdx
+        }
+    } else {
+        currentStep.value = step.originalIndex
+    }
+}
+
 watch(websiteSteps, (newSteps) => {
     // Ensure we don't go out of bounds if a component step is removed while on it
     if (currentStep.value >= newSteps.length) {
@@ -641,7 +826,7 @@ watch(websiteSteps, (newSteps) => {
 });
 
 const headerLinks = computed(() => {
-    const aboutUsLink = { id: 'about-us', name: 'About Us' };
+    const aboutUsLink = { id: 'about-us', name: 'Welcome' };
     const dynamicComponents = selectedComponents.value.filter(id => id !== 'diy')
         .map(id => availableComponents.find(c => c.id === id))
         .filter(Boolean) as { id: string, name: string }[];
@@ -651,29 +836,11 @@ const headerLinks = computed(() => {
         name: diy.name
     }));
 
-    const components = [aboutUsLink, ...dynamicComponents, ...diyLinks];
-
-    // Find the longest button name to use for the placeholder to ensure consistent width
-    const longestName = components.reduce((max, c) => c.name.length > max.length ? c.name : max, '').trim();
-
-    // If the total number of buttons is odd, add a placeholder to make it even.
-    if (components.length % 2 !== 0) {
-        // Use the longest name for the placeholder but it will be invisible.
-        // This ensures the placeholder takes up the same space.
-        components.push({ id: 'placeholder', name: longestName });
-    }
-
-    const total = components.length;
-    const mid = total / 2; // Now it's always an even number
-
-    const left = components.slice(0, mid);
-    const right = components.slice(mid);
-
-    return { left, right };
+    return [aboutUsLink, ...dynamicComponents, ...diyLinks];
 });
 
 const headerDropdownItems = computed(() => {
-    const aboutUsLink = { label: 'About Us', onSelect: () => handleHeaderLinkClick('about-us') }
+    const aboutUsLink = { label: 'Welcome', onSelect: () => handleHeaderLinkClick('about-us') }
     const dynamicItems = selectedComponents.value.filter(id => id !== 'diy')
         .map(id => availableComponents.find(c => c.id === id))
         .filter(Boolean)
@@ -705,34 +872,7 @@ function handleHeaderLinkClick(id: string) {
     }
 }
 
-const siteTitleEl = ref<HTMLElement | null>(null)
-const spacerWidth = ref('16rem') // Default width (w-64)
 
-watch(
-    [previewSiteTitle, () => selectedTypography.value.headerFont],
-    async () => {
-        // Wait for the DOM to update with the new title/font
-        await nextTick()
-        if (siteTitleEl.value) {
-            // Get the width of the title element and add padding
-            // 1.25rem on each side (2.5rem total) corresponds to Tailwind's padding `p-5`
-            spacerWidth.value = `${siteTitleEl.value.offsetWidth + 2.5 * 16}px`
-        }
-    },
-    { immediate: true }
-)
-const addContentSection = (type: 'heading' | 'paragraph') => {
-    const newId = Date.now() + sections.value.length; // Ensure unique ID
-    if (type === 'heading' && !headingSection.value) {
-        sections.value.push({ id: newId, type: 'heading', content: 'Love is composed of a single soul inhabiting two bodies' });
-    } else if (type === 'paragraph' && !paragraphSection.value) {
-        sections.value.push({ id: newId, type: 'paragraph', content: 'This is a section about your story together. Add more here!' });
-    }
-}
-
-const removeContentSection = (id: number) => {
-    sections.value = sections.value.filter(section => section.id !== id);
-}
 
 // 3. Tidbits Section
 interface Tidbit {
@@ -767,8 +907,8 @@ interface ScheduleItem {
 const scheduleItems = ref<ScheduleItem[]>([
     {
         id: Date.now(),
-        title: 'Wedding Ceremony',
-        description: 'The exchange of vows and rings.',
+        title: 'Main Program',
+        description: 'The celebration begins.',
         location: 'Main Garden',
         date: '',
         startTime: '15:00',
@@ -863,7 +1003,7 @@ function getAreaHotelsGoogleReviewsUrl(
     if (coords && coords.lat != null && coords.lng != null && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         return `https://www.google.com/maps/search/hotels+and+accommodations/@${coords.lat},${coords.lng},14z`
     }
-    const loc = (location || '').trim() || 'wedding venue'
+    const loc = (location || '').trim() || 'the venue'
     return `https://www.google.com/maps/search/hotels+and+accommodations+near+${encodeURIComponent(loc)}`
 }
 
@@ -874,7 +1014,7 @@ function getVenueGoogleMapsUrl(
     if (coords && coords.lat != null && coords.lng != null && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         return `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
     }
-    const loc = (location || '').trim() || 'wedding venue'
+    const loc = (location || '').trim() || 'the venue'
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`
 }
 
@@ -1299,6 +1439,175 @@ watch(selectedHeaderFile, (newFile) => {
     }
 });
 
+// Photo Gallery State & Composable
+const { fetchGallery: fetchEventGalleryData, swapPhotos: swapGalleryPhotos } = useEventGallery()
+const galleryData = reactive<GalleryRecord>({
+    title: defaultGalleryRecord.title,
+    subtitle: defaultGalleryRecord.subtitle,
+    layout: defaultGalleryRecord.layout,
+    columns: defaultGalleryRecord.columns,
+    photos: [...defaultGalleryRecord.photos],
+    enableLightbox: true,
+})
+const isGalleryLoading = ref(false)
+const draggedMakerGalleryIndex = ref<number | null>(null)
+const dragOverMakerGalleryIndex = ref<number | null>(null)
+const selectedMakerGalleryLightboxPhoto = ref<GalleryPhoto | null>(null)
+const isMakerGalleryLightboxOpen = ref(false)
+const makerGalleryFileInputRef = ref<HTMLInputElement | null>(null)
+const isDraggingMakerGalleryFile = ref(false)
+const isAddingMakerGalleryPhotos = ref(false)
+
+function selectMakerGalleryLayout(layoutId: GalleryLayout) {
+    galleryData.layout = layoutId
+    toast.add({
+        title: 'Layout Updated',
+        description: `Switched gallery layout to ${layoutId}.`,
+        color: 'neutral',
+    })
+}
+
+function onMakerDragStartPhoto(idx: number, e: DragEvent) {
+    draggedMakerGalleryIndex.value = idx
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', String(idx))
+    }
+}
+
+function onMakerDragOverPhoto(idx: number, e: DragEvent) {
+    e.preventDefault()
+    if (draggedMakerGalleryIndex.value !== null && draggedMakerGalleryIndex.value !== idx) {
+        dragOverMakerGalleryIndex.value = idx
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move'
+        }
+    }
+}
+
+function onMakerDragLeavePhoto(idx: number) {
+    if (dragOverMakerGalleryIndex.value === idx) {
+        dragOverMakerGalleryIndex.value = null
+    }
+}
+
+function onMakerDropPhoto(targetIdx: number, e: DragEvent) {
+    e.preventDefault()
+    if (draggedMakerGalleryIndex.value !== null && draggedMakerGalleryIndex.value !== targetIdx) {
+        galleryData.photos = swapGalleryPhotos(galleryData.photos, draggedMakerGalleryIndex.value, targetIdx)
+        toast.add({
+            title: 'Photos Swapped',
+            description: `Swapped photos in position #${draggedMakerGalleryIndex.value + 1} and #${targetIdx + 1}.`,
+            color: 'success',
+        })
+    }
+    draggedMakerGalleryIndex.value = null
+    dragOverMakerGalleryIndex.value = null
+}
+
+function onMakerDragEndPhoto() {
+    draggedMakerGalleryIndex.value = null
+    dragOverMakerGalleryIndex.value = null
+}
+
+function moveMakerGalleryPhoto(idx: number, direction: 'prev' | 'next') {
+    const targetIdx = direction === 'prev' ? idx - 1 : idx + 1
+    if (targetIdx >= 0 && targetIdx < galleryData.photos.length) {
+        galleryData.photos = swapGalleryPhotos(galleryData.photos, idx, targetIdx)
+    }
+}
+
+function removeMakerGalleryPhoto(id: string) {
+    galleryData.photos = galleryData.photos.filter(p => p.id !== id)
+}
+
+function resetMakerGalleryToSamples() {
+    galleryData.photos = [...sampleGalleryPhotos]
+    toast.add({
+        title: 'Samples Restored',
+        description: 'Loaded 6 sample photos.',
+        color: 'neutral',
+    })
+}
+
+function triggerMakerGalleryFileInput() {
+    makerGalleryFileInputRef.value?.click()
+}
+
+function handleMakerGalleryFileInputChange(e: Event) {
+    const input = e.target as HTMLInputElement
+    if (input.files && input.files.length > 0) {
+        processMakerGalleryFiles(Array.from(input.files))
+        input.value = ''
+    }
+}
+
+function handleMakerGalleryFileDrop(e: DragEvent) {
+    isDraggingMakerGalleryFile.value = false
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        processMakerGalleryFiles(Array.from(e.dataTransfer.files))
+    }
+}
+
+async function processMakerGalleryFiles(files: File[]) {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'))
+    if (imageFiles.length === 0) {
+        toast.add({ title: 'Invalid File', description: 'Please select valid image files.', color: 'error' })
+        return
+    }
+    isAddingMakerGalleryPhotos.value = true
+    try {
+        const { images, failedNames } = await compressImageFiles(imageFiles)
+        for (const { file, dataUrl } of images) {
+            galleryData.photos.push({
+                id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                url: dataUrl,
+                name: file.name.replace(/\.[^/.]+$/, ''),
+                caption: '',
+                alt: file.name,
+            })
+        }
+        if (images.length > 0) {
+            toast.add({
+                title: 'Photos Added',
+                description: `Added ${images.length} photo${images.length > 1 ? 's' : ''} to gallery.`,
+                color: 'success',
+            })
+        }
+        if (failedNames.length > 0) {
+            toast.add({ title: 'Some photos were not added', description: failedImagesMessage(failedNames), color: 'warning' })
+        }
+    } finally {
+        isAddingMakerGalleryPhotos.value = false
+    }
+}
+
+function openMakerGalleryLightbox(photo: GalleryPhoto) {
+    selectedMakerGalleryLightboxPhoto.value = photo
+    isMakerGalleryLightboxOpen.value = true
+}
+
+async function refreshGalleryData() {
+    const id = eventId.value || 'mock-event-id'
+    isGalleryLoading.value = true
+    try {
+        const loaded = await fetchEventGalleryData(id)
+        if (loaded) {
+            galleryData.title = loaded.title || defaultGalleryRecord.title
+            galleryData.subtitle = loaded.subtitle !== undefined ? loaded.subtitle : defaultGalleryRecord.subtitle
+            galleryData.layout = loaded.layout || defaultGalleryRecord.layout
+            galleryData.columns = loaded.columns || defaultGalleryRecord.columns
+            galleryData.photos = Array.isArray(loaded.photos) && loaded.photos.length > 0 ? [...loaded.photos] : [...sampleGalleryPhotos]
+            galleryData.enableLightbox = loaded.enableLightbox !== false
+        }
+        toast.add({ title: 'Gallery Synced', description: 'Photo gallery refreshed.', color: 'success' })
+    } catch (err) {
+        console.error(err)
+    } finally {
+        isGalleryLoading.value = false
+    }
+}
+
 
 async function loadEventContext() {
     if (!eventId.value && !isUiOnlyMode.value) {
@@ -1435,6 +1744,8 @@ async function loadCustomSite() {
                         customWeddingPartyMembers,
                         weddingPartyIntro,
                         whereToStayAccommodations,
+                        publishedDressCode,
+                        galleryData: { value: galleryData },
                     })
                     if (websiteData.colorPalette === 'Custom') {
                         colorTabSelected.value = 'custom'
@@ -1457,9 +1768,16 @@ async function loadCustomSite() {
     }
 }
 
+const { finishPageTransition } = usePageTransition()
+
 onMounted(async () => {
-    await Promise.all([loadEventContext(), loadCustomSite()])
-    seedWebsiteDefaultsFromEvent()
+    try {
+        await Promise.all([loadEventContext(), loadCustomSite(), loadPublishedDressCode()])
+        seedWebsiteDefaultsFromEvent()
+    } finally {
+        await nextTick()
+        finishPageTransition()
+    }
 })
 
 interface SaveCustomSiteOptions {
@@ -1469,6 +1787,11 @@ interface SaveCustomSiteOptions {
 }
 
 async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean> {
+    if (isAddingMakerGalleryPhotos.value) {
+        toast.add({ title: 'Still preparing your photos', description: 'Save again in a moment.', color: 'warning' })
+        return false
+    }
+
     const validationError = validateWebsiteEditorForSave(
         websiteData,
         selectedHeaderFile.value
@@ -1500,6 +1823,15 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
     isSaving.value = true
 
     try {
+        const dressCodeImages = publishedDressCode.value
+            ? [publishedDressCode.value.paletteImage, ...publishedDressCode.value.images.map(image => image.dataUrl)]
+            : []
+        const fittedUrls = await fitImagesToBudget(
+            galleryData.photos.map(photo => photo.url),
+            pendingImageBytes(dressCodeImages)
+        )
+        galleryData.photos = galleryData.photos.map((photo, index) => ({ ...photo, url: fittedUrls[index] ?? photo.url }))
+
         const formData = buildCustomSiteFormData({
             eventId: targetEventId,
             websiteData,
@@ -1514,6 +1846,8 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
             weddingPartyMembers: effectiveWeddingPartyMembers.value,
             weddingPartyIntro: weddingPartyIntro.value,
             whereToStayAccommodations: whereToStayAccommodations.value,
+            dressCode: publishedDressCode.value,
+            gallery: galleryData,
         })
 
         let savedSite
@@ -1700,9 +2034,9 @@ function togglePreview() {
                 :collapsible="false" :toggle="false"
                 class="col-span-1 lg:col-span-1 w-full rounded-none overflow-hidden flex flex-row lg:sticky lg:top-16 h-145 sm:h-160 lg:h-[calc(100vh-64px)] z-20"
                 :ui="{
-                    root: '!flex !flex-row !w-full h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white dark:bg-toast-900 border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
+                    root: '!flex !flex-row !w-full h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
                     header: 'hidden',
-                    body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white dark:bg-toast-900',
+                    body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white',
                     footer: 'hidden'
                 }">
 
@@ -1712,32 +2046,75 @@ function togglePreview() {
 
                     <!-- Steps Vertical List -->
                     <div
-                        class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-center gap-1 sm:gap-1.5 scrollbar-none font-sans">
-                        <button v-for="(step, idx) in websiteSteps" :key="step.id" type="button" :title="step.label"
-                            class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 cursor-pointer relative group text-center font-sans"
-                            :class="currentStep === idx
-                                ? 'bg-blue-500 text-white font-semibold shadow-xs hover:bg-blue-600'
-                                : 'text-toast-600 hover:text-blue-600 hover:bg-blue-50/70'" @click="currentStep = idx">
-                            <div class="relative flex items-center justify-center">
-                                <UIcon :name="step.icon"
-                                    class="size-4 shrink-0 transition-transform duration-150 group-hover:scale-110" />
-                                <span v-if="currentStep === idx"
-                                    class="absolute -top-1 -right-2 size-3.5 rounded-full bg-white text-blue-600 text-[8px] font-bold flex items-center justify-center shadow-xs">
-                                    {{ idx + 1 }}
+                        class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-start gap-1 sm:gap-1.5 scrollbar-none font-sans">
+                        <template v-for="step in railTopLevelSteps" :key="step.id">
+                            <!-- Main Step Button -->
+                            <button type="button" :title="step.label"
+                                class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 cursor-pointer relative group text-center font-sans shrink-0"
+                                :class="currentStep === step.originalIndex || (step.id === 'components' && isBlocksAccordionOpen)
+                                    ? 'bg-blue-500 text-white font-semibold shadow-xs hover:bg-blue-600'
+                                    : 'text-toast-600 hover:text-blue-600 hover:bg-blue-50/70'"
+                                @click="handleRailStepClick(step)">
+                                <div class="relative flex items-center justify-center">
+                                    <UIcon :name="step.icon"
+                                        class="size-4 shrink-0 transition-transform duration-150 group-hover:scale-110" />
+                                    <span v-if="currentStep === step.originalIndex || (step.id === 'components' && isBlocksAccordionOpen)"
+                                        class="absolute -top-1 -right-2 size-3.5 rounded-full bg-white text-blue-600 text-[8px] font-bold flex items-center justify-center shadow-xs">
+                                        {{ step.originalIndex + 1 }}
+                                    </span>
+                                </div>
+                                <span
+                                    class="text-[9px] sm:text-[10px] font-sans leading-tight mt-1 truncate max-w-12 sm:max-w-14">
+                                    {{ getStepShortName(step) }}
                                 </span>
+                                <UIcon v-if="step.id === 'components' && optionalBlockSteps.length > 0"
+                                    name="i-lucide-chevron-down"
+                                    class="size-2.5 opacity-80 -mt-0.5 transition-transform duration-300 ease-in-out"
+                                    :class="{ 'rotate-180': isBlocksAccordionOpen }" />
+                            </button>
+
+                            <!-- Accordion Sub-items (All custom/optional blocks added) with expand and contract animation -->
+                            <div v-if="step.id === 'components'"
+                                class="grid transition-all duration-300 ease-in-out w-full"
+                                :style="{
+                                    gridTemplateRows: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? '1fr' : '0fr',
+                                    opacity: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? 1 : 0,
+                                    marginTop: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? '2px' : '0px',
+                                    marginBottom: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? '2px' : '0px',
+                                    pointerEvents: isBlocksAccordionOpen && optionalBlockSteps.length > 0 ? 'auto' : 'none'
+                                }">
+                                <div class="overflow-hidden min-h-0 w-full flex flex-col items-center">
+                                    <div class="w-full flex flex-col items-center gap-1 py-1 px-0.5 bg-blue-50/70 rounded-xl border border-blue-200/80 shrink-0">
+                                        <button v-for="sub in optionalBlockSteps" :key="sub.id"
+                                            type="button"
+                                            :title="sub.label"
+                                            class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-lg transition-all duration-150 cursor-pointer relative group text-center font-sans"
+                                            :class="currentStep === sub.originalIndex
+                                                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                                                : 'text-toast-700 hover:text-blue-600 hover:bg-white/80'"
+                                            @click="currentStep = sub.originalIndex">
+                                            <div class="relative flex items-center justify-center">
+                                                <UIcon :name="sub.icon" class="size-3.5 shrink-0 transition-transform duration-150 group-hover:scale-110" />
+                                                <span v-if="currentStep === sub.originalIndex"
+                                                    class="absolute -top-1 -right-1.5 size-3 rounded-full bg-white text-blue-600 text-[7px] font-bold flex items-center justify-center shadow-xs">
+                                                    {{ sub.originalIndex + 1 }}
+                                                </span>
+                                            </div>
+                                            <span class="text-[8px] sm:text-[9px] font-sans leading-tight mt-0.5 truncate max-w-10 sm:max-w-12">
+                                                {{ getStepShortName(sub) }}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <span
-                                class="text-[9px] sm:text-[10px] font-sans leading-tight mt-1 truncate max-w-12 sm:max-w-14">
-                                {{ getStepShortName(step) }}
-                            </span>
-                        </button>
+                        </template>
                     </div>
                 </div>
 
                 <!-- 2. RIGHT PART OF CONTAINER: Step Header + Editor Controls + Footer -->
-                <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white dark:bg-toast-900 m-0 p-0">
+                <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white m-0 p-0">
                     <!-- Step Header -->
-                    <div class="px-6 pt-6 shrink-0 bg-white dark:bg-toast-900"
+                    <div class="px-6 pt-6 shrink-0 bg-white"
                         :class="['color-palette', 'typography', 'schedule', 'q-and-a'].includes(currentStepData?.id || '') ? 'pb-2' : 'pb-4 border-b border-toast-200/60'">
 
 
@@ -1753,21 +2130,21 @@ function togglePreview() {
 
                     <!-- Step 3: Color Palette Tabs (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'color-palette'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UTabs v-model="colorTabSelected" :items="colorTabs" value-key="slot" size="sm" color="blue"
                             class="w-full" :content="false" />
                     </div>
 
                     <!-- Step 4: Typography Tabs (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'typography'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UTabs v-model="typographyTabSelected" :items="typographyTabs" value-key="slot" size="sm"
                             color="blue" class="w-full" :content="false" />
                     </div>
 
                     <!-- Dynamic Step: Schedule (Events): Add Event button (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'schedule'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UButton icon="i-lucide-plus" color="blue" variant="solid" block
                             class="text-white cursor-pointer justify-center" @click="addScheduleItem()">
                             Add Event
@@ -1776,7 +2153,7 @@ function togglePreview() {
 
                     <!-- Dynamic Step: Q&A: Add Question button (Static above scroll area) -->
                     <div v-if="currentStepData?.id === 'q-and-a'"
-                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white dark:bg-toast-900">
+                        class="px-4 pt-1 pb-2 shrink-0 border-b border-toast-200/60 bg-white">
                         <UButton icon="i-lucide-plus" color="blue" variant="solid" block
                             class="text-white cursor-pointer justify-center" @click="addTidbit()">
                             Add Question
@@ -1936,7 +2313,7 @@ function togglePreview() {
                                                     customColorState.primary.h }}°</span>
                                             </div>
                                             <input type="range" min="0" max="360" :value="customColorState.primary.h"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
                                                 @input="(e) => onHueChange('primary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -1949,7 +2326,7 @@ function togglePreview() {
                                                     customColorState.primary.s }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.primary.s"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, hsl(${customColorState.primary.h}, 0%, 50%), hsl(${customColorState.primary.h}, 100%, 50%))` }"
                                                 @input="(e) => onSaturationChange('primary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -1962,7 +2339,7 @@ function togglePreview() {
                                                     customColorState.primary.l }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.primary.l"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, #000000 0%, hsl(${customColorState.primary.h}, ${customColorState.primary.s}%, 50%) 50%, #ffffff 100%)` }"
                                                 @input="(e) => onLightnessChange('primary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2006,7 +2383,7 @@ function togglePreview() {
                                                     customColorState.secondary.h }}°</span>
                                             </div>
                                             <input type="range" min="0" max="360" :value="customColorState.secondary.h"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
                                                 @input="(e) => onHueChange('secondary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2019,7 +2396,7 @@ function togglePreview() {
                                                     customColorState.secondary.s }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.secondary.s"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, hsl(${customColorState.secondary.h}, 0%, 50%), hsl(${customColorState.secondary.h}, 100%, 50%))` }"
                                                 @input="(e) => onSaturationChange('secondary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2032,7 +2409,7 @@ function togglePreview() {
                                                     customColorState.secondary.l }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.secondary.l"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, #000000 0%, hsl(${customColorState.secondary.h}, ${customColorState.secondary.s}%, 50%) 50%, #ffffff 100%)` }"
                                                 @input="(e) => onLightnessChange('secondary', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2074,7 +2451,7 @@ function togglePreview() {
                                                     customColorState.text_color.h }}°</span>
                                             </div>
                                             <input type="range" min="0" max="360" :value="customColorState.text_color.h"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
                                                 @input="(e) => onHueChange('text_color', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2087,7 +2464,7 @@ function togglePreview() {
                                                     customColorState.text_color.s }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.text_color.s"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, hsl(${customColorState.text_color.h}, 0%, 50%), hsl(${customColorState.text_color.h}, 100%, 50%))` }"
                                                 @input="(e) => onSaturationChange('text_color', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2100,7 +2477,7 @@ function togglePreview() {
                                                     customColorState.text_color.l }}%</span>
                                             </div>
                                             <input type="range" min="0" max="100" :value="customColorState.text_color.l"
-                                                class="w-full h-2.5 rounded-lg appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-toast-900 [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-toast-900 [&::-moz-range-thumb]:shadow"
+                                                class="custom-color-slider"
                                                 :style="{ background: `linear-gradient(to right, #000000 0%, hsl(${customColorState.text_color.h}, ${customColorState.text_color.s}%, 50%) 50%, #ffffff 100%)` }"
                                                 @input="(e) => onLightnessChange('text_color', Number((e.target as HTMLInputElement).value))" />
                                         </div>
@@ -2212,16 +2589,21 @@ function togglePreview() {
                             </div>
 
 
-                            <!-- Step 5: Basic Information -->
+                            <!-- Step 5: Basic Information (Merged with story heading & description) -->
                             <div v-if="currentStepData?.id === 'basic-info'" class="flex flex-col gap-4 ">
-                                <UFormField label="Site Title">
-                                    <UInput v-model="websiteData.siteTitle" placeholder="e.g., My Portfolio"
+                                <UFormField label="Site Title" description="The main title displayed on your header banner.">
+                                    <UInput v-model="websiteData.siteTitle" placeholder="e.g., Jane & John"
                                         class="w-full" />
                                 </UFormField>
 
-                                <UFormField label="Site Description">
+                                <UFormField label="Heading" description="The heading for your story section.">
+                                    <UInput v-model="headingSectionContent" placeholder="e.g., Our Story"
+                                        class="w-full" />
+                                </UFormField>
+
+                                <UFormField label="Description" description="Your story and message to guests.">
                                     <UTextarea v-model="websiteData.siteDescription"
-                                        placeholder="A short description of your website." class="w-full" />
+                                        placeholder="A short description or story of your special day." class="w-full" :rows="4" />
                                 </UFormField>
 
                                 <UFormField label="Domain Name">
@@ -2239,10 +2621,6 @@ function togglePreview() {
                                     </UInput>
                                 </UFormField>
 
-                                <UFormField label="Contact Email">
-                                    <UInput type="email" v-model="websiteData.contactEmail"
-                                        placeholder="juan@breadandbutter.com" icon="i-lucide-mail" class="w-full" />
-                                </UFormField>
 
                                 <div class="flex items-center justify-between">
                                     <div class="text-left">
@@ -2268,60 +2646,10 @@ function togglePreview() {
 
                             </div>
 
-                            <!-- Step 6: Content Sections -->
-                            <div v-if="currentStepData?.id === 'content-sections'" class="flex flex-col gap-6 ">
-                                <div class="items-center space-y-4">
-
-                                    <div v-if="!headingSection && !paragraphSection"
-                                        class="text-center text-toast-500 italic">No
-                                        sections
-                                        added
-                                        yet.
-                                    </div>
-
-                                    <UButton v-if="!headingSection" icon="i-lucide-plus" color="blue" variant="solid"
-                                        block @click="addContentSection('heading')">
-                                        Add Heading
-                                    </UButton>
-
-                                    <div v-if="headingSection"
-                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
-                                        <div class="flex justify-between items-center">
-                                            <span class="font-medium capitalize">Heading</span>
-                                            <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
-                                                @click="removeContentSection(headingSection.id)" />
-                                        </div>
-                                        <UFormField>
-                                            <UInput v-model="headingSection.content" placeholder="Enter heading text"
-                                                class="w-full" />
-                                        </UFormField>
-                                    </div>
-
-                                    <UButton v-if="!paragraphSection" icon="i-lucide-plus" color="blue" variant="solid"
-                                        block @click="addContentSection('paragraph')">
-                                        Add Paragraph
-                                    </UButton>
-
-
-                                    <div v-if="paragraphSection"
-                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
-                                        <div class="flex justify-between items-center">
-                                            <span class="font-medium capitalize">Paragraph</span>
-                                            <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
-                                                @click="removeContentSection(paragraphSection.id)" />
-                                        </div>
-                                        <UFormField>
-                                            <UTextarea v-model="paragraphSection.content"
-                                                placeholder="Enter paragraph content" class="w-full" />
-                                        </UFormField>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Step 7: Components -->
                             <div v-if="currentStepData?.id === 'components'" class="">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div v-for="comp in availableComponents" :key="comp.id"
+                                    <div v-for="comp in offeredComponents" :key="comp.id"
                                         class="relative rounded-lg p-5 cursor-pointer group transition-all duration-300 border flex flex-col items-center text-center gap-1"
                                         :class="{ 'ring-2 ring-blue-500 shadow-lg border-transparent': selectedComponents.includes(comp.id), 'border-toast-200 hover:border-blue-300': !selectedComponents.includes(comp.id) }"
                                         @click="toggleComponent(comp.id)">
@@ -2341,6 +2669,310 @@ function togglePreview() {
                                 </div>
                             </div>
 
+                            <!-- Dynamic Step: Color & Dress Code -->
+                            <div v-if="currentStepData?.id === 'dress-code'" class="flex flex-col gap-5">
+                                <!-- Live Sync Status Banner -->
+                                <div class="p-4 rounded-xl border border-rose-200/80 bg-rose-50/70 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="relative flex h-2.5 w-2.5">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                                            </span>
+                                            <span class="text-xs font-bold text-rose-950 uppercase tracking-wide">
+                                                Live Synced with Colors &amp; Dress Code
+                                            </span>
+                                        </div>
+                                        <UButton size="xs" color="rose" variant="subtle" icon="i-lucide-refresh-cw" :loading="isDressCodeLoading" @click="refreshPublishedDressCode">
+                                            Sync Now
+                                        </UButton>
+                                    </div>
+                                    <p class="text-xs text-rose-800 leading-relaxed">
+                                        Content, color palette, and moodboard photos automatically reflect whatever you publish in your event's Colors &amp; Dress Code dashboard.
+                                    </p>
+                                    <div class="pt-1 flex items-center gap-2">
+                                        <UButton :to="'/event/dress-code' + (eventId ? '?eventId=' + eventId : '')" target="_blank" icon="i-lucide-external-link" size="xs" color="rose" variant="solid">
+                                            Open Dress Code Dashboard
+                                        </UButton>
+                                    </div>
+                                </div>
+
+                                <!-- Overview Card -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
+                                    <div class="flex items-center justify-between pb-2 border-b border-toast-100">
+                                        <span class="text-xs font-bold uppercase tracking-wider text-toast-500">Published Overview</span>
+                                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-toast-100 text-toast-800">
+                                            {{ publishedDressCode?.formality || 'Formal Attire' }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Palette Display Overview (Image, Swatches, or Both) -->
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="font-medium text-toast-700">
+                                                Palette: {{ publishedDressCode?.presetPaletteName || 'Curated Colors' }}
+                                            </span>
+                                            <UBadge color="rose" variant="subtle" size="xs">
+                                                {{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.paletteType === 'both' ? 'Image & Swatches' : 'Interactive Swatches') }}
+                                            </UBadge>
+                                        </div>
+
+                                        <!-- If Pre-made Palette Image exists and image or both is enabled -->
+                                        <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
+                                            class="p-2 rounded-xl border border-rose-200 bg-rose-50/50 flex items-center gap-3">
+                                            <div class="size-14 rounded-lg overflow-hidden border border-black/10 bg-white shrink-0 cursor-pointer"
+                                                @click="selectedDressCodeLightboxImage = { id: 'palette-thumb', name: 'Color Palette Graphic', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                <img :src="publishedDressCode.paletteImage" alt="Palette Graphic" class="w-full h-full object-cover" />
+                                            </div>
+                                            <div class="flex-1 min-w-0 text-xs">
+                                                <span class="font-bold text-toast-900 block truncate">Pre-made Palette Graphic</span>
+                                                <span class="text-[11px] text-toast-500">Click to view full size</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Color Swatches Row (if editor or both, or fallback if no image) -->
+                                        <div v-if="publishedDressCode?.paletteType === 'editor' || publishedDressCode?.paletteType === 'both' || !publishedDressCode?.paletteImage"
+                                            class="grid grid-cols-4 gap-2 pt-1">
+                                            <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
+                                                :key="key"
+                                                class="p-2 rounded-lg border border-toast-200 text-center flex flex-col items-center justify-between h-14"
+                                                :style="{ backgroundColor: hex }">
+                                                <span class="text-[9px] font-bold uppercase px-1 py-0.2 bg-black/40 text-white rounded">
+                                                    {{ key }}
+                                                </span>
+                                                <span class="font-mono text-[10px] font-bold px-1 py-0.2 bg-white/80 text-black rounded">
+                                                    {{ hex }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Attire Notes summary -->
+                                    <div class="space-y-2 pt-2 border-t border-toast-100 text-xs">
+                                        <div v-if="publishedDressCode?.menAttire" class="p-2.5 rounded-lg bg-toast-50">
+                                            <span class="font-bold text-toast-900 block mb-0.5">Gentlemen:</span>
+                                            <span class="text-toast-700 leading-relaxed">{{ publishedDressCode.menAttire }}</span>
+                                        </div>
+                                        <div v-if="publishedDressCode?.womenAttire" class="p-2.5 rounded-lg bg-toast-50">
+                                            <span class="font-bold text-toast-900 block mb-0.5">Ladies:</span>
+                                            <span class="text-toast-700 leading-relaxed">{{ publishedDressCode.womenAttire }}</span>
+                                        </div>
+                                        <div v-if="publishedDressCode?.avoidColors" class="p-2.5 rounded-lg bg-red-50 text-red-900 border border-red-200">
+                                            <span class="font-bold block mb-0.5">Avoid:</span>
+                                            <span class="text-red-800 leading-relaxed">{{ publishedDressCode.avoidColors }}</span>
+                                        </div>
+                                        <div v-if="publishedDressCode?.images && publishedDressCode.images.length > 0" class="pt-1 flex items-center justify-between text-toast-600">
+                                            <span class="font-medium flex items-center gap-1.5">
+                                                <UIcon name="i-lucide-image" class="size-3.5 text-rose-500" />
+                                                Moodboard Lookbook
+                                            </span>
+                                            <span class="font-bold text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">
+                                                {{ publishedDressCode.images.length }} photo{{ publishedDressCode.images.length > 1 ? 's' : '' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Step: Photo Gallery -->
+                            <div v-if="currentStepData?.id === 'gallery'" class="flex flex-col gap-5">
+                                <!-- Studio Sync Status Banner -->
+                                <div class="p-4 rounded-xl border border-indigo-200/80 bg-indigo-50/70 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="relative flex h-2.5 w-2.5">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+                                            </span>
+                                            <span class="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                                                Photo Gallery Component
+                                            </span>
+                                        </div>
+                                        <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-refresh-cw" :loading="isGalleryLoading" @click="refreshGalleryData">
+                                            Sync Studio
+                                        </UButton>
+                                    </div>
+                                    <p class="text-xs text-indigo-800 leading-relaxed">
+                                        Pick your preferred layout suggestion below, drag photos to swap order, and customize narrative captions for your guests.
+                                    </p>
+                                    <div class="pt-1 flex items-center gap-2">
+                                        <UButton :to="'/event/gallery' + (eventId ? '?eventId=' + eventId : '')" target="_blank" icon="i-lucide-external-link" size="xs" color="neutral" variant="solid">
+                                            Open Full Gallery Studio
+                                        </UButton>
+                                    </div>
+                                </div>
+
+                                <!-- Gallery Header Configuration -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">Header &amp; Narrative</h4>
+                                    <div class="space-y-3">
+                                        <UFormField label="Gallery Title" description="Main heading shown on the website section">
+                                            <UInput v-model="galleryData.title" placeholder="e.g. Captured Moments" class="w-full" />
+                                        </UFormField>
+                                        <UFormField label="Subtitle Narrative" description="Optional romantic description or note">
+                                            <UInput v-model="galleryData.subtitle" placeholder="A glimpse into our favorite moments..." class="w-full" />
+                                        </UFormField>
+                                    </div>
+                                </div>
+
+                                <!-- Layout Suggestions Selector -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">Layout Suggestions</h4>
+                                        <span class="text-[11px] font-semibold text-rose-600">5 Styles</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-2">
+                                        <button
+                                            v-for="sugg in defaultGallerySuggestions"
+                                            :key="sugg.id"
+                                            type="button"
+                                            class="p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3"
+                                            :class="galleryData.layout === sugg.id
+                                                ? 'border-rose-400 bg-rose-50/60 ring-1 ring-rose-300 shadow-2xs'
+                                                : 'border-toast-200 hover:border-toast-300 hover:bg-toast-50/50'"
+                                            @click="selectMakerGalleryLayout(sugg.id)">
+                                            <div
+                                                class="size-8 rounded-lg flex items-center justify-center shrink-0"
+                                                :class="galleryData.layout === sugg.id ? 'bg-rose-500 text-white' : 'bg-toast-100 text-toast-600'">
+                                                <UIcon :name="sugg.icon" class="size-4" />
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-xs font-bold text-toast-900">{{ sugg.name }}</span>
+                                                    <span v-if="galleryData.layout === sugg.id" class="text-[9px] font-bold text-rose-600 bg-white px-1.5 py-0.2 rounded border border-rose-200">
+                                                        Active
+                                                    </span>
+                                                </div>
+                                                <span class="text-[10px] text-toast-500 truncate block">{{ sugg.description }}</span>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    <!-- Column selector if Grid/Masonry -->
+                                    <div v-if="galleryData.layout === 'grid' || galleryData.layout === 'masonry'" class="pt-2 border-t border-toast-100 space-y-1.5">
+                                        <label class="text-xs font-medium text-toast-700">Display Columns</label>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <button
+                                                v-for="cols in [2, 3, 4] as const"
+                                                :key="cols"
+                                                type="button"
+                                                class="py-1 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer"
+                                                :class="galleryData.columns === cols
+                                                    ? 'bg-toast-900 text-white border-toast-900'
+                                                    : 'border-toast-200 text-toast-700 hover:bg-toast-100'"
+                                                @click="galleryData.columns = cols">
+                                                {{ cols }} Columns
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Photo Uploader & Drag-to-Swap List -->
+                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">
+                                            Photos ({{ galleryData.photos.length }})
+                                        </h4>
+                                        <button
+                                            type="button"
+                                            class="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                                            @click="resetMakerGalleryToSamples">
+                                            Load Samples
+                                        </button>
+                                    </div>
+
+                                    <!-- Dropzone -->
+                                    <div
+                                        class="border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer bg-toast-50/40"
+                                        :class="isDraggingMakerGalleryFile
+                                            ? 'border-rose-500 bg-rose-50/80 ring-2 ring-rose-300'
+                                            : 'border-toast-300 hover:border-rose-400 hover:bg-rose-50/20'"
+                                        @dragover.prevent="isDraggingMakerGalleryFile = true"
+                                        @dragleave.prevent="isDraggingMakerGalleryFile = false"
+                                        @drop.prevent="handleMakerGalleryFileDrop"
+                                        @click="triggerMakerGalleryFileInput">
+                                        <input ref="makerGalleryFileInputRef" type="file" multiple accept="image/*" class="hidden" @change="handleMakerGalleryFileInputChange" />
+                                        <div class="flex flex-col items-center justify-center gap-1">
+                                            <UIcon name="i-lucide-upload-cloud" class="size-4 text-rose-500" />
+                                            <p class="text-xs font-bold text-toast-900">Upload Photos</p>
+                                            <p class="text-[10px] text-toast-500">{{ isAddingMakerGalleryPhotos ? 'Preparing your photos...' : 'Click or drop multiple images' }}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Drag hint -->
+                                    <div class="p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-[11px] text-blue-900">
+                                        <UIcon name="i-lucide-move" class="size-3.5 text-blue-600 shrink-0" />
+                                        <span>Drag cards to swap photos in order.</span>
+                                    </div>
+
+                                    <!-- Draggable cards -->
+                                    <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                        <div
+                                            v-for="(photo, pIdx) in galleryData.photos"
+                                            :key="photo.id"
+                                            draggable="true"
+                                            class="p-2 bg-white rounded-xl border flex items-center gap-2.5 transition-all cursor-grab active:cursor-grabbing group select-none"
+                                            :class="[
+                                                draggedMakerGalleryIndex === pIdx ? 'opacity-40 border-dashed border-rose-400' : 'border-toast-200/90 shadow-2xs hover:border-toast-300',
+                                                dragOverMakerGalleryIndex === pIdx ? 'ring-2 ring-rose-500 bg-rose-50/60 border-rose-500 -translate-y-0.5' : '',
+                                            ]"
+                                            @dragstart="onMakerDragStartPhoto(pIdx, $event)"
+                                            @dragover="onMakerDragOverPhoto(pIdx, $event)"
+                                            @dragleave="onMakerDragLeavePhoto(pIdx)"
+                                            @drop="onMakerDropPhoto(pIdx, $event)"
+                                            @dragend="onMakerDragEndPhoto">
+                                            <div class="flex flex-col items-center text-toast-400">
+                                                <UIcon name="i-lucide-grip-vertical" class="size-3.5" />
+                                                <span class="text-[8px] font-mono font-bold">#{{ pIdx + 1 }}</span>
+                                            </div>
+
+                                            <div
+                                                class="size-11 rounded-lg overflow-hidden bg-toast-100 shrink-0 border border-black/10 cursor-pointer relative"
+                                                @click="openMakerGalleryLightbox(photo)">
+                                                <img :src="photo.url" :alt="photo.caption || 'Thumbnail'" class="w-full h-full object-cover" />
+                                                <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                                    <UIcon name="i-lucide-zoom-in" class="size-3" />
+                                                </div>
+                                            </div>
+
+                                            <div class="flex-1 min-w-0">
+                                                <input
+                                                    v-model="photo.caption"
+                                                    type="text"
+                                                    placeholder="Add photo caption..."
+                                                    class="w-full text-xs py-0.5 px-1.5 rounded border border-toast-200 bg-toast-50 text-toast-800 placeholder-toast-400 focus:outline-none focus:ring-1 focus:ring-rose-500" />
+                                            </div>
+
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    v-if="pIdx > 0"
+                                                    type="button"
+                                                    class="p-0.5 text-toast-400 hover:text-toast-700 cursor-pointer"
+                                                    title="Move Up"
+                                                    @click="moveMakerGalleryPhoto(pIdx, 'prev')">
+                                                    <UIcon name="i-lucide-arrow-up" class="size-3" />
+                                                </button>
+                                                <button
+                                                    v-if="pIdx < galleryData.photos.length - 1"
+                                                    type="button"
+                                                    class="p-0.5 text-toast-400 hover:text-toast-700 cursor-pointer"
+                                                    title="Move Down"
+                                                    @click="moveMakerGalleryPhoto(pIdx, 'next')">
+                                                    <UIcon name="i-lucide-arrow-down" class="size-3" />
+                                                </button>
+                                                <UButton
+                                                    icon="i-lucide-trash-2"
+                                                    variant="ghost"
+                                                    color="neutral"
+                                                    size="xs"
+                                                    class="text-toast-400 hover:text-red-500 cursor-pointer"
+                                                    @click="removeMakerGalleryPhoto(photo.id)" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Dynamic Step: Q&A (formerly Tidbits) -->
                             <div v-if="currentStepData?.id === 'q-and-a'" class="flex flex-col gap-6 ">
                                 <div class="items-center space-y-4">
@@ -2349,7 +2981,7 @@ function togglePreview() {
                                         added yet.
                                     </div>
                                     <div v-for="tidbit in tidbits" :key="tidbit.id"
-                                        class="flex flex-col gap-2 border border-toast-100 dark:border-toast-700/80 p-3 rounded-lg bg-white dark:bg-toast-800">
+                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg bg-white">
                                         <div class="flex justify-between items-center">
                                             <span class="font-medium capitalize">Q&A Item</span>
                                             <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
@@ -2374,16 +3006,16 @@ function togglePreview() {
                                         class="text-center text-toast-500 italic py-4">No
                                         events added yet.</div>
                                     <div v-for="item in scheduleItems" :key="item.id"
-                                        class="flex flex-col gap-3 border border-toast-200/80 dark:border-toast-700/80 p-4 rounded-xl bg-white dark:bg-toast-800 shadow-sm">
+                                        class="flex flex-col gap-3 border border-toast-200/80 p-4 rounded-xl bg-white shadow-sm">
                                         <div
-                                            class="flex justify-between items-center pb-1 border-b border-toast-100 dark:border-toast-700">
+                                            class="flex justify-between items-center pb-1 border-b border-toast-100">
                                             <span
-                                                class="font-semibold text-sm capitalize text-toast-900 dark:text-toast-100">Event</span>
+                                                class="font-semibold text-sm capitalize text-toast-900">Event</span>
                                             <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
                                                 @click="removeScheduleItem(item.id)" />
                                         </div>
                                         <UFormField label="Title">
-                                            <UInput v-model="item.title" placeholder="e.g., Wedding Ceremony"
+                                            <UInput v-model="item.title" placeholder="e.g., Main Program"
                                                 class="w-full" />
                                         </UFormField>
 
@@ -2395,8 +3027,8 @@ function togglePreview() {
 
                                         <!-- Whole day event Checkmark -->
                                         <div
-                                            class="flex items-center justify-between p-2.5 bg-toast-50/70 dark:bg-toast-900/50 rounded-lg border border-toast-200/60 dark:border-toast-700/60">
-                                            <span class="text-xs font-medium text-toast-800 dark:text-toast-200">Whole
+                                            class="flex items-center justify-between p-2.5 bg-toast-50/70 rounded-lg border border-toast-200/60">
+                                            <span class="text-xs font-medium text-toast-800">Whole
                                                 day event</span>
                                             <UCheckbox v-model="item.isAllDay" color="blue" />
                                         </div>
@@ -2460,9 +3092,9 @@ function togglePreview() {
 
                                         <!-- Autocomplete Results Dropdown -->
                                         <div v-if="showVenueDropdown && venueSearchResults.length > 0"
-                                            class="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-white dark:bg-toast-900 border border-toast-200 dark:border-toast-700 shadow-xl overflow-hidden py-1 max-h-64 overflow-y-auto">
+                                            class="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-white border border-toast-200 shadow-xl overflow-hidden py-1 max-h-64 overflow-y-auto">
                                             <div
-                                                class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-toast-400 flex items-center justify-between border-b border-toast-100 dark:border-toast-800">
+                                                class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-toast-400 flex items-center justify-between border-b border-toast-100">
                                                 <span>Matching Places (Exact Coordinates)</span>
                                                 <button type="button" @click="showVenueDropdown = false"
                                                     class="hover:text-toast-600">
@@ -2471,21 +3103,21 @@ function togglePreview() {
                                             </div>
                                             <button v-for="(place, pIdx) in venueSearchResults" :key="pIdx"
                                                 type="button" @click="selectVenueLocation(place)"
-                                                class="w-full px-3 py-2 text-left hover:bg-toast-50 dark:hover:bg-toast-800 flex items-start gap-2.5 transition-colors border-b last:border-b-0 border-toast-100 dark:border-toast-800/50 cursor-pointer">
+                                                class="w-full px-3 py-2 text-left hover:bg-toast-50 flex items-start gap-2.5 transition-colors border-b last:border-b-transparent border-toast-100 cursor-pointer">
                                                 <div
-                                                    class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                                                    class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                                                     <UIcon name="i-lucide-map-pin" class="w-4 h-4" />
                                                 </div>
                                                 <div class="flex-1 min-w-0">
                                                     <div
-                                                        class="text-xs font-semibold text-toast-900 dark:text-toast-100 truncate">
+                                                        class="text-xs font-semibold text-toast-900 truncate">
                                                         {{ place.name }}
                                                     </div>
                                                     <div class="text-[11px] text-toast-500 line-clamp-1 mt-0.5">
                                                         {{ place.displayName }}
                                                     </div>
                                                     <div
-                                                        class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1.5">
+                                                        class="text-[10px] font-mono text-emerald-600 mt-1 flex items-center gap-1.5">
                                                         <span
                                                             class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                         <span>{{ place.lat.toFixed(5) }}°, {{ place.lng.toFixed(5)
@@ -2498,20 +3130,20 @@ function togglePreview() {
 
                                     <!-- Coordinate Status Badge -->
                                     <div v-if="websiteData.whereToStayLatitude && websiteData.whereToStayLongitude"
-                                        class="p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900/40 flex items-center justify-between gap-3 text-xs">
+                                        class="p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 flex items-center justify-between gap-3 text-xs">
                                         <div
-                                            class="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 min-w-0">
+                                            class="flex items-center gap-2 text-emerald-900 min-w-0">
                                             <div
-                                                class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                                class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
                                                 <UIcon name="i-lucide-check-circle-2" class="w-4 h-4" />
                                             </div>
                                             <div class="min-w-0">
                                                 <div
-                                                    class="font-semibold text-emerald-950 dark:text-emerald-100 text-xs">
+                                                    class="font-semibold text-emerald-950 text-xs">
                                                     Precise Coordinates Synced
                                                 </div>
                                                 <div
-                                                    class="text-[11px] font-mono text-emerald-700 dark:text-emerald-300 truncate">
+                                                    class="text-[11px] font-mono text-emerald-700 truncate">
                                                     {{ Number(websiteData.whereToStayLatitude).toFixed(5) }}°, {{
                                                         Number(websiteData.whereToStayLongitude).toFixed(5) }}°
                                                 </div>
@@ -2532,9 +3164,9 @@ function togglePreview() {
 
                                     <!-- Google Maps & Reviews Exploration Link -->
                                     <div
-                                        class="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 dark:bg-blue-950/30 dark:border-blue-900/40 flex items-center justify-between gap-3">
-                                        <div class="text-xs text-toast-700 dark:text-toast-300">
-                                            <span class="font-semibold block text-toast-900 dark:text-toast-100">Find
+                                        class="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 flex items-center justify-between gap-3">
+                                        <div class="text-xs text-toast-700">
+                                            <span class="font-semibold block text-toast-900">Find
                                                 Live Google Reviews</span>
                                             Search real, top-rated hotels in this area on Google Maps.
                                         </div>
@@ -2551,12 +3183,12 @@ function togglePreview() {
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <h4
-                                                    class="text-xs font-bold uppercase tracking-wider text-toast-700 dark:text-toast-300">
+                                                    class="text-xs font-bold uppercase tracking-wider text-toast-700">
                                                     Accommodation Slots (Max 4)
                                                 </h4>
                                                 <p class="text-[11px] text-toast-500 mt-0.5">
                                                     Click any slot to open top hotels near <span
-                                                        class="font-medium text-blue-600 dark:text-blue-400">{{
+                                                        class="font-medium text-blue-600">{{
                                                             websiteData.whereToStayLocation ||
                                                             'your venue' }}</span>
                                                 </p>
@@ -2568,20 +3200,20 @@ function togglePreview() {
                                             <div v-for="slotIdx in [0, 1, 2, 3]" :key="slotIdx">
                                                 <!-- Has Selected Hotel -->
                                                 <div v-if="whereToStayAccommodations[slotIdx] && whereToStayAccommodations[slotIdx].name && whereToStayAccommodations[slotIdx].name.trim()"
-                                                    class="p-3.5 rounded-xl border border-blue-200/90 dark:border-blue-900/60 bg-white dark:bg-toast-800 shadow-xs space-y-2.5 hover:border-blue-300 dark:hover:border-blue-800 transition-all">
+                                                    class="p-3.5 rounded-xl border border-blue-200/90 bg-white shadow-xs space-y-2.5 hover:border-blue-300 transition-all">
                                                     <div
-                                                        class="flex items-center justify-between pb-2 border-b border-toast-100 dark:border-toast-700">
+                                                        class="flex items-center justify-between pb-2 border-b border-toast-100">
                                                         <div class="flex items-center gap-2 min-w-0">
                                                             <span
                                                                 class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                                                                 {{ slotIdx + 1 }}
                                                             </span>
                                                             <span
-                                                                class="font-bold text-xs text-toast-900 dark:text-toast-100 truncate">
+                                                                class="font-bold text-xs text-toast-900 truncate">
                                                                 Slot {{ slotIdx + 1 }}
                                                             </span>
                                                             <span
-                                                                class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center gap-1 shrink-0">
+                                                                class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 flex items-center gap-1 shrink-0">
                                                                 <UIcon name="i-lucide-check-circle" class="w-3 h-3" />
                                                                 Selected
                                                             </span>
@@ -2597,20 +3229,20 @@ function togglePreview() {
                                                     <!-- Hotel details -->
                                                     <div class="flex items-start gap-3">
                                                         <div
-                                                            class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-toast-200 dark:border-toast-700 bg-toast-100 dark:bg-toast-800 shadow-xs">
+                                                            class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-toast-200 bg-toast-100 shadow-xs">
                                                             <img :src="getAccommodationImage(whereToStayAccommodations[slotIdx])"
                                                                 :alt="whereToStayAccommodations[slotIdx].name"
                                                                 class="w-full h-full object-cover" />
                                                         </div>
                                                         <div class="min-w-0 flex-1">
                                                             <div
-                                                                class="font-bold text-sm text-toast-900 dark:text-toast-100 truncate leading-snug">
+                                                                class="font-bold text-sm text-toast-900 truncate leading-snug">
                                                                 {{ whereToStayAccommodations[slotIdx].name }}
                                                             </div>
                                                             <div
-                                                                class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 dark:text-toast-400 mt-1">
+                                                                class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 mt-1">
                                                                 <span v-if="whereToStayAccommodations[slotIdx].rating"
-                                                                    class="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                                                                    class="font-semibold text-amber-600 flex items-center gap-0.5">
                                                                     <UIcon name="i-lucide-star"
                                                                         class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                                                     {{ whereToStayAccommodations[slotIdx].rating }}
@@ -2631,7 +3263,7 @@ function togglePreview() {
 
                                                     <!-- Slot Action Buttons -->
                                                     <div
-                                                        class="flex items-center gap-2 pt-1 border-t border-toast-100 dark:border-toast-700/60">
+                                                        class="flex items-center gap-2 pt-1 border-t border-toast-100">
                                                         <UButton size="xs" color="blue" variant="soft"
                                                             icon="i-lucide-map"
                                                             class="flex-1 justify-center cursor-pointer"
@@ -2650,37 +3282,37 @@ function togglePreview() {
 
                                                 <!-- Empty Slot Card (Click to open Google Maps popup) -->
                                                 <button v-else type="button" @click="openAccommodationPicker(slotIdx)"
-                                                    class="w-full p-4 rounded-xl border-2 border-dashed border-toast-300 hover:border-blue-500 dark:border-toast-700 dark:hover:border-blue-400 bg-white/70 hover:bg-blue-50/40 dark:bg-toast-800/40 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer space-y-2">
+                                                    class="w-full p-4 rounded-xl border-2 border-dashed border-toast-300 hover:border-blue-500 bg-white/70 hover:bg-blue-50/40 text-left transition-all group cursor-pointer space-y-2">
                                                     <div class="flex items-center justify-between">
                                                         <div class="flex items-center gap-2">
                                                             <span
-                                                                class="w-5 h-5 rounded-full bg-toast-200 dark:bg-toast-700 text-toast-700 dark:text-toast-300 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-[10px] font-bold transition-colors">
+                                                                class="w-5 h-5 rounded-full bg-toast-200 text-toast-700 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-[10px] font-bold transition-colors">
                                                                 {{ slotIdx + 1 }}
                                                             </span>
                                                             <span
-                                                                class="font-semibold text-xs text-toast-600 dark:text-toast-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                                class="font-semibold text-xs text-toast-600 group-hover:text-blue-600 transition-colors">
                                                                 Slot {{ slotIdx + 1 }}: Not Selected
                                                             </span>
                                                         </div>
                                                         <span
-                                                            class="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                                                            class="text-xs font-semibold text-blue-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                                                             Select on Map
                                                             <UIcon name="i-lucide-chevron-right" class="w-3.5 h-3.5" />
                                                         </span>
                                                     </div>
                                                     <div class="flex items-center gap-3 pt-0.5">
                                                         <div
-                                                            class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                                            class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                                                             <UIcon name="i-lucide-map-pin" class="w-4 h-4" />
                                                         </div>
                                                         <div class="min-w-0 flex-1">
                                                             <span
-                                                                class="font-semibold text-xs block text-toast-900 dark:text-toast-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                                                class="font-semibold text-xs block text-toast-900 group-hover:text-blue-600">
                                                                 Choose Hotel from Google Maps
                                                             </span>
                                                             <span class="text-[11px] text-toast-500 truncate block">
                                                                 Top hotels & stays near {{
-                                                                    websiteData.whereToStayLocation || 'wedding venue' }}
+                                                                    websiteData.whereToStayLocation || 'the venue' }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2699,6 +3331,31 @@ function togglePreview() {
                                 </div>
                             </div>
 
+                            <!-- Dynamic Step: Gifts -->
+                            <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-4">
+                                <p class="text-sm text-toast-500">
+                                    Guests will see your QR codes, account names, account numbers, and gift list on your website.
+                                </p>
+                                <p class="text-sm">
+                                    {{ giftRegistry?.qrCodes.length ?? 0 }} QR code(s) and {{ giftRegistry?.wishedItems.length ?? 0 }} gift(s) added.
+                                </p>
+                                <UButton
+                                    :to="{ path: '/event/wishlist', query: { eventId } }"
+                                    target="_blank"
+                                    icon="i-lucide-external-link"
+                                    variant="outline"
+                                    class="self-start"
+                                    label="Manage gifts and QR codes"
+                                />
+                                <UButton
+                                    icon="i-lucide-refresh-cw"
+                                    variant="ghost"
+                                    class="self-start"
+                                    label="Refresh"
+                                    @click="loadGiftRegistry"
+                                />
+                            </div>
+
                             <!-- Dynamic Step: Wedding Party -->
                             <div v-if="currentStepData?.id === 'wedding-party'" class="flex flex-col gap-5">
                                 <!-- Section Intro -->
@@ -2711,21 +3368,21 @@ function togglePreview() {
 
                                 <!-- Guest List Link Status Card -->
                                 <div
-                                    class="p-4 rounded-xl border border-blue-200/80 bg-blue-50/60 dark:bg-blue-950/30 dark:border-blue-900/40 flex flex-col gap-2.5">
+                                    class="p-4 rounded-xl border border-blue-200/80 bg-blue-50/60 flex flex-col gap-2.5">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-2">
                                             <UIcon name="i-lucide-link"
-                                                class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                class="w-4 h-4 text-blue-600" />
                                             <span
-                                                class="text-xs font-semibold text-toast-900 dark:text-toast-100">Linked
+                                                class="text-xs font-semibold text-toast-900">Linked
                                                 to Event Guest List</span>
                                         </div>
                                         <span
-                                            class="text-[11px] font-medium bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                                            class="text-[11px] font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                             {{ linkedGuestPartyMembers.length }} entourage tagged
                                         </span>
                                     </div>
-                                    <p class="text-xs text-toast-600 dark:text-toast-400 leading-relaxed">
+                                    <p class="text-xs text-toast-600 leading-relaxed">
                                         Guests assigned special entourage roles (e.g. Maid of Honor, Best Man,
                                         Bridesmaids, Groomsmen) in your guest
                                         list automatically appear here.
@@ -2743,7 +3400,7 @@ function togglePreview() {
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between">
                                         <h4
-                                            class="text-xs font-bold uppercase tracking-wider text-toast-600 dark:text-toast-400">
+                                            class="text-xs font-bold uppercase tracking-wider text-toast-600">
                                             Entourage Groups ({{ groupedWeddingParty.length }})
                                         </h4>
                                         <UButton icon="i-lucide-user-plus" size="xs" color="blue" variant="ghost"
@@ -2759,11 +3416,11 @@ function togglePreview() {
                                     </div>
 
                                     <div v-for="group in groupedWeddingParty" :key="group.roleName"
-                                        class="p-3.5 rounded-xl border border-toast-200/80 dark:border-toast-700/80 bg-white dark:bg-toast-800 space-y-2">
+                                        class="p-3.5 rounded-xl border border-toast-200/80 bg-white space-y-2">
                                         <div
-                                            class="flex items-center justify-between pb-1.5 border-b border-toast-100 dark:border-toast-700">
+                                            class="flex items-center justify-between pb-1.5 border-b border-toast-100">
                                             <span
-                                                class="font-semibold text-xs text-toast-900 dark:text-toast-100 uppercase tracking-wide">
+                                                class="font-semibold text-xs text-toast-900 uppercase tracking-wide">
                                                 {{ group.roleName }}
                                             </span>
                                             <span class="text-[10px] text-toast-500 font-medium">
@@ -2773,13 +3430,13 @@ function togglePreview() {
                                         </div>
                                         <div class="space-y-1.5">
                                             <div v-for="member in group.members" :key="member.id"
-                                                class="flex items-center justify-between py-1 px-2 rounded-lg bg-toast-50/70 dark:bg-toast-900/50 text-xs">
+                                                class="flex items-center justify-between py-1 px-2 rounded-lg bg-toast-50/70 text-xs">
                                                 <div class="flex items-center gap-2">
                                                     <span
                                                         class="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold">
                                                         {{ getInitials(member.name) }}
                                                     </span>
-                                                    <span class="font-medium text-toast-900 dark:text-toast-100">{{
+                                                    <span class="font-medium text-toast-900">{{
                                                         member.name }}</span>
                                                 </div>
                                                 <span class="text-[10px] text-toast-500">{{ member.role }}</span>
@@ -2791,11 +3448,11 @@ function togglePreview() {
                                 <!-- Custom / Overridden Party Members (if any) -->
                                 <div v-if="customWeddingPartyMembers.length > 0" class="space-y-3 pt-2">
                                     <h4
-                                        class="text-xs font-bold uppercase tracking-wider text-toast-600 dark:text-toast-400">
+                                        class="text-xs font-bold uppercase tracking-wider text-toast-600">
                                         Custom Additions ({{ customWeddingPartyMembers.length }})
                                     </h4>
                                     <div v-for="(customMember, idx) in customWeddingPartyMembers" :key="customMember.id"
-                                        class="p-3 rounded-xl border border-toast-200 dark:border-toast-700 bg-white dark:bg-toast-800 space-y-2">
+                                        class="p-3 rounded-xl border border-toast-200 bg-white space-y-2">
                                         <div class="flex justify-between items-center">
                                             <span class="text-xs font-semibold">Custom Member {{ idx + 1 }}</span>
                                             <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
@@ -2930,9 +3587,9 @@ function togglePreview() {
 
                     <!-- Step 3: Simplified Colors (Static below scroll area) -->
                     <div v-if="currentStepData?.id === 'color-palette'"
-                        class="px-4 py-2.5 bg-white dark:bg-toast-900 border-t border-toast-200/60 flex items-center justify-between shrink-0">
+                        class="px-4 py-2.5 bg-white border-t border-toast-200/60 flex items-center justify-between shrink-0">
                         <div class="text-left pr-2">
-                            <h4 class="font-medium text-xs sm:text-sm text-toast-900 dark:text-toast-100">Simplified
+                            <h4 class="font-medium text-xs sm:text-sm text-toast-900">Simplified
                                 Colors</h4>
                             <p class="text-[11px] text-toast-500">Minimal color scheme with only primary & text colors.
                             </p>
@@ -2942,12 +3599,12 @@ function togglePreview() {
 
                     <!-- Step 4: Live Typography Sample (Static below scroll area) -->
                     <div v-if="currentStepData?.id === 'typography'"
-                        class="px-5 py-3 bg-white dark:bg-toast-900 border-t border-toast-200/60 flex flex-col justify-center shrink-0">
+                        class="px-5 py-3 bg-white border-t border-toast-200/60 flex flex-col justify-center shrink-0">
                         <div class="flex items-center justify-between pb-1.5">
                             <span class="text-[11px] font-semibold uppercase tracking-wider text-toast-500">Live
                                 Typography Sample</span>
                             <span
-                                class="text-[10px] text-blue-600 font-medium bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full border border-blue-100 dark:border-blue-900 truncate max-w-52.5">
+                                class="text-[10px] text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 truncate max-w-52.5">
                                 {{ websiteData.headerFont }} &bull; {{ websiteData.subheaderFont }} &bull; {{
                                     websiteData.bodyFont }}
                             </span>
@@ -2956,8 +3613,8 @@ function togglePreview() {
                         <div class="grid grid-cols-3 gap-4 items-center py-0.5">
                             <!-- Left Column: Sample Header -->
                             <div
-                                class="flex flex-col items-center justify-center text-center p-2 border-r border-toast-200/70 dark:border-toast-700/70">
-                                <div class="text-2xl sm:text-3xl text-toast-900 dark:text-toast-100 leading-tight wrap-break-word"
+                                class="flex flex-col items-center justify-center text-center p-2 border-r border-toast-200/70">
+                                <div class="text-2xl sm:text-3xl text-toast-900 leading-tight wrap-break-word"
                                     :style="{ fontFamily: `'${websiteData.headerFont}', cursive, serif` }">
                                     sample header
                                 </div>
@@ -2965,11 +3622,11 @@ function togglePreview() {
 
                             <!-- Right Column: Sample Subheader & Numerous Lines of Body Text -->
                             <div class="col-span-2 flex flex-col justify-center space-y-1.5 text-left pl-1">
-                                <div class="text-md sm:text-lg font-semibold text-toast-800 dark:text-toast-200 leading-snug"
+                                <div class="text-md sm:text-lg font-semibold text-toast-800 leading-snug"
                                     :style="{ fontFamily: `'${websiteData.subheaderFont}', serif, sans-serif` }">
                                     Sample Subheader
                                 </div>
-                                <p class="text-[11px] sm:text-xs text-toast-600 dark:text-toast-400 max-h-18 overflow-hidden pr-1"
+                                <p class="text-[11px] sm:text-xs text-toast-600 max-h-18 overflow-hidden pr-1"
                                     :style="{ fontFamily: `'${websiteData.bodyFont}', sans-serif` }">
                                     We warmly invite you to celebrate our special day with us. Surrounded by family and
                                     lifelong friends, love is in the air.
@@ -3027,45 +3684,17 @@ function togglePreview() {
                             <template #left />
                             <template #right />
                             <template #default>
-                                <!-- Desktop Symmetrical Nav -->
-                                <div class="hidden md:flex w-full items-center justify-center">
-                                    <!-- Left Links -->
-                                    <div class="flex-1 flex items-center justify-end gap-x-8 w-full">
-                                        <UButton v-for="link in headerLinks.left" :key="link.id" variant="link"
-                                            class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
-                                                color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
-                                                visibility: link.id === 'placeholder' ? 'hidden' : 'visible',
-                                                cursor: link.id === 'placeholder' ? 'default' : 'pointer'
-                                            }" @click="handleHeaderLinkClick(link.id)">
-                                            {{ link.name }}
-                                        </UButton>
-                                    </div>
-                                    <!-- Spacer for the title -->
-                                    <div class="shrink-0" :style="{ width: spacerWidth }" />
-                                    <!-- Right Links -->
-                                    <div class="flex-1 flex items-center justify-start gap-x-8 w-full">
-                                        <UButton v-for="link in headerLinks.right" :key="link.id" variant="link"
-                                            class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
-                                                color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
-                                                visibility: link.id === 'placeholder' ? 'hidden' : 'visible',
-                                                cursor: link.id === 'placeholder' ? 'default' : 'pointer'
-                                            }" @click="handleHeaderLinkClick(link.id)">
-                                            {{ link.name }}
-                                        </UButton>
-                                    </div>
-                                </div>
-                                <!-- Center Title -->
-                                <div ref="siteTitleEl"
-                                    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-bold text-xl px-4 pointer-events-none select-none text-center"
-                                    :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                    {{ previewSiteTitle }}
+                                <!-- Desktop Nav -->
+                                <div class="hidden md:flex w-full items-center justify-center gap-x-8">
+                                    <UButton v-for="link in headerLinks" :key="link.id" variant="link"
+                                        class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
+                                            color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
+                                        }" @click="handleHeaderLinkClick(link.id)">
+                                        {{ link.name }}
+                                    </UButton>
                                 </div>
                                 <!-- Mobile Nav (< md) -->
-                                <div class="flex md:hidden items-center justify-between w-full px-4">
-                                    <span class="font-bold text-base truncate mr-2"
-                                        :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                        {{ previewSiteTitle }}
-                                    </span>
+                                <div class="flex md:hidden items-center justify-end w-full px-4">
                                     <UDropdownMenu :items="headerDropdownItems" :content="{ align: 'end' }">
                                         <UButton icon="i-lucide-menu" variant="ghost" size="sm"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }"
@@ -3091,8 +3720,8 @@ function togglePreview() {
                             <div class="relative z-10">
                                 <h1 class="font-medium transition-all duration-300 text-white"
                                     :style="{ fontFamily: `'${selectedTypography.headerFont}'` }"
-                                    :class="isLive || isPreviewing ? 'text-3xl md:text-5xl' : 'text-2xl md:text-3xl'">
-                                    {{ previewSiteDescription }}
+                                    :class="isLive || isPreviewing ? 'text-4xl md:text-6xl' : 'text-3xl md:text-4xl'">
+                                    {{ previewSiteTitle }}
                                 </h1>
                             </div>
                         </div>
@@ -3105,12 +3734,14 @@ function togglePreview() {
                                 <div v-if="(websiteData.format === 'format1' && (websiteData.singlePageSite || activeComponentId === 'about-us')) || (websiteData.format === 'format2' && (websiteData.singlePageSite || activeComponentId === 'about-us'))"
                                     class="flex flex-col gap-8 text-center pt-24 pb-10 px-6 relative justify-end w-full"
                                     :class="[
-                                        websiteData.format === 'format2' ? 'md:hidden h-[40vh]' : (isLive || isPreviewing ? 'h-[80vh]' : 'h-[50vh]')
+                                        websiteData.format === 'format2' ? 'md:hidden h-[40vh]' : 'h-screen min-h-screen'
                                     ]" :style="{
                                         backgroundImage: `url(${currentHeaderImage})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
                                         backgroundRepeat: 'no-repeat',
+                                        height: websiteData.format === 'format1' ? '100vh' : undefined,
+                                        minHeight: websiteData.format === 'format1' ? '100vh' : undefined,
                                     }">
                                     <!-- Overlay for readability -->
                                     <div class="absolute inset-0 z-0" :style="{
@@ -3122,8 +3753,8 @@ function togglePreview() {
                                         <div class="space-y-3">
                                             <h1 class="font-medium transition-all duration-300 text-white"
                                                 :style="{ fontFamily: `'${selectedTypography.headerFont}'` }"
-                                                :class="isLive || isPreviewing ? 'text-3xl md:text-5xl' : 'text-2xl md:text-3xl'">
-                                                {{ previewSiteDescription }}
+                                                :class="isLive || isPreviewing ? 'text-4xl md:text-6xl' : 'text-3xl md:text-4xl'">
+                                                {{ previewSiteTitle }}
                                             </h1>
 
 
@@ -3135,33 +3766,393 @@ function togglePreview() {
                                     <!-- Dynamic Content Sections Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
                                         id="preview-section-about-us"
-                                        class="flex flex-col justify-center mx-10 py-20 text-center scroll-mt-24"
+                                        class="flex flex-col justify-center mx-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }">
-                                        <UContainer v-if="headingSection"
-                                            class="font-bold italic transition-all duration-300"
+                                        <UContainer v-if="headingSectionContent"
+                                            class="font-bold italic transition-all duration-300 pt-2 sm:pt-4 mb-6"
                                             :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                            {{ headingSection.content }}
+                                            {{ headingSectionContent }}
                                         </UContainer>
-                                        <div v-if="paragraphSection"
+                                        <div v-if="websiteData.siteDescription"
                                             class="prose max-w-none mx-auto text-center transition-all duration-300"
                                             :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }">
-                                            {{ paragraphSection.content }}
+                                            {{ websiteData.siteDescription }}
                                         </div>
                                     </div>
 
 
 
                                     <template v-for="(compId, index) in displayComponents" :key="compId">
+                                        <!-- Color & Dress Code Preview -->
+                                        <div v-if="compId === 'dress-code' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            id="preview-section-dress-code"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
+
+                                            <!-- Header & Formality Pill -->
+                                            <div class="space-y-3 max-w-2xl mx-auto">
+                                                <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    Color &amp; Dress Code
+                                                </h2>
+                                                <div v-if="publishedDressCode?.formality" class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                                                    <span>{{ publishedDressCode.formality }}</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 1: Color Palette (Image, Editor, or Both) -->
+                                            <div class="max-w-2xl mx-auto w-full space-y-3.5">
+                                                <div class="flex items-center justify-between text-xs uppercase tracking-wider font-semibold opacity-80"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <span class="inline-flex items-center gap-1.5">
+                                                        <UIcon name="i-lucide-swatch-book" class="size-4" />
+                                                        Color Palette
+                                                    </span>
+                                                    <span>{{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.presetPaletteName || 'Curated Colors') }}</span>
+                                                </div>
+
+                                                <!-- Option 1: Pre-made Palette Image -->
+                                                <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
+                                                    class="w-full">
+                                                    <div class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2.5 backdrop-blur-xs"
+                                                        @click="selectedDressCodeLightboxImage = { id: 'palette-image-preview', name: 'Color Palette', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
+                                                        <img :src="publishedDressCode.paletteImage" alt="Color Palette Graphic"
+                                                            class="w-full max-h-72 object-contain rounded-xl" />
+                                                        <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                                                            <UIcon name="i-lucide-zoom-in" class="size-4" />
+                                                            <span>Click to view full palette graphic</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Option 2: 4 Color Swatches -->
+                                                <div v-if="publishedDressCode?.paletteType === 'editor' || publishedDressCode?.paletteType === 'both' || !publishedDressCode?.paletteImage"
+                                                    class="space-y-2">
+                                                    <div v-if="publishedDressCode?.paletteType === 'both' && publishedDressCode?.paletteImage"
+                                                        class="text-[11px] font-bold uppercase tracking-wider text-left opacity-75"
+                                                        :style="{ color: previewDynamicStyle(index).heading }">
+                                                        Color Swatch Breakdown
+                                                    </div>
+                                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                        <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
+                                                            :key="key"
+                                                            class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-22 sm:h-24 transition-transform hover:-translate-y-0.5 cursor-pointer"
+                                                            :style="{ backgroundColor: hex }"
+                                                            @click="copyHexToClipboard(hex)">
+                                                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
+                                                                {{ key }}
+                                                            </span>
+                                                            <div class="flex items-center justify-between">
+                                                                <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
+                                                                    {{ hex }}
+                                                                </span>
+                                                                <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) -->
+                                            <div class="max-w-2xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                                                <!-- Gentlemen -->
+                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
+                                                        <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
+                                                            <UIcon name="i-lucide-user" class="size-4" />
+                                                        </div>
+                                                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                            :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                            Gentlemen / Men's Attire
+                                                        </h3>
+                                                    </div>
+                                                    <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                        {{ publishedDressCode?.menAttire || 'Dark suit, tuxedo, or formal Barong Tagalog with dress trousers and polished shoes.' }}
+                                                    </p>
+                                                </div>
+
+                                                <!-- Ladies -->
+                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/15 backdrop-blur-md shadow-xs flex flex-col justify-between"
+                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
+                                                        <div class="size-8 rounded-lg bg-black/5 flex items-center justify-center">
+                                                            <UIcon name="i-lucide-heart" class="size-4 text-rose-500" />
+                                                        </div>
+                                                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                            :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                            Ladies / Women's Attire
+                                                        </h3>
+                                                    </div>
+                                                    <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                        {{ publishedDressCode?.womenAttire || 'Floor-length evening gown, midi cocktail dress, or chic formal attire complementing the palette.' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 3: Guest Notes & Colors to Avoid -->
+                                            <div class="max-w-2xl mx-auto w-full space-y-3 text-left">
+                                                <!-- Guest Notes -->
+                                                <div v-if="publishedDressCode?.guestNotes"
+                                                    class="p-4 rounded-xl border border-current/15 backdrop-blur-md shadow-xs"
+                                                    :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)', color: previewDynamicStyle(index).text }">
+                                                    <div class="flex items-start gap-2.5">
+                                                        <UIcon name="i-lucide-info" class="size-4 shrink-0 mt-0.5 opacity-80" />
+                                                        <div class="text-xs sm:text-sm leading-relaxed">
+                                                            <span class="font-bold block mb-0.5" :style="{ color: previewDynamicStyle(index).heading }">Guest Guidance:</span>
+                                                            <span class="opacity-90">{{ publishedDressCode.guestNotes }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Colors to Avoid -->
+                                                <div v-if="publishedDressCode?.avoidColors"
+                                                    class="p-3.5 rounded-xl border border-red-300 bg-red-50/80 text-red-950 flex items-start gap-2.5 shadow-xs">
+                                                    <UIcon name="i-lucide-alert-triangle" class="size-4 text-red-600 shrink-0 mt-0.5" />
+                                                    <div class="text-xs sm:text-sm leading-relaxed">
+                                                        <span class="font-bold text-red-900">Colors to Avoid: </span>
+                                                        <span class="text-red-800">{{ publishedDressCode.avoidColors }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 4: Moodboard Inspiration Gallery -->
+                                            <div v-if="publishedDressCode?.images && publishedDressCode.images.length > 0"
+                                                class="max-w-4xl mx-auto w-full space-y-4 pt-4">
+                                                <div class="flex items-center justify-between text-left">
+                                                    <div>
+                                                        <h3 class="text-base sm:text-lg font-bold"
+                                                            :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                            Attire Inspiration &amp; Moodboard
+                                                        </h3>
+                                                        <p class="text-xs opacity-75" :style="{ color: previewDynamicStyle(index).text }">
+                                                            Visual lookbook celebrating our event style.
+                                                        </p>
+                                                    </div>
+                                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full border border-current/20 opacity-80"
+                                                        :style="{ color: previewDynamicStyle(index).heading }">
+                                                        {{ publishedDressCode.images.length }} photo{{ publishedDressCode.images.length > 1 ? 's' : '' }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                                                    <div v-for="img in publishedDressCode.images" :key="img.id"
+                                                        class="group relative aspect-4/5 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                                                        @click="selectedDressCodeLightboxImage = img; isDressCodeLightboxOpen = true">
+                                                        <img :src="img.dataUrl" :alt="img.name"
+                                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                                        <div class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5 text-left">
+                                                            <span class="text-[10px] font-bold text-white uppercase tracking-wider">
+                                                                {{ img.tag }}
+                                                            </span>
+                                                            <span class="text-[10px] text-white/80 truncate">
+                                                                {{ img.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Photo Gallery Preview -->
+                                        <div v-if="compId === 'gallery' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            id="preview-section-gallery"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
+                                            <!-- Title & Subtitle Header -->
+                                            <div class="space-y-3 max-w-3xl mx-auto">
+                                                <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                                                    :style="{ color: previewDynamicStyle(index).heading }">
+                                                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                                                    <span>Moments</span>
+                                                </div>
+                                                <h2 class="font-bold transition-all duration-300 pt-1"
+                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    {{ galleryData.title || 'Captured Moments' }}
+                                                </h2>
+                                                <p v-if="galleryData.subtitle"
+                                                    class="text-xs sm:text-sm opacity-85 max-w-xl mx-auto leading-relaxed"
+                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                    {{ galleryData.subtitle }}
+                                                </p>
+                                            </div>
+
+                                            <!-- Layout 1: Modern Grid -->
+                                            <div v-if="galleryData.layout === 'grid'"
+                                                class="grid gap-4 sm:gap-6 max-w-6xl mx-auto w-full"
+                                                :class="{
+                                                    'grid-cols-1 sm:grid-cols-2': galleryData.columns === 2,
+                                                    'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3': galleryData.columns === 3,
+                                                    'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4': galleryData.columns === 4,
+                                                }">
+                                                <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="group relative aspect-4/3 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === gIdx ? 'opacity-30 scale-95 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 scale-102 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(gIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(gIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(gIdx)"
+                                                    @drop="onMakerDropPhoto(gIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <img :src="photo.url" :alt="photo.caption || 'Gallery photo'" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white text-left">
+                                                        <p v-if="photo.caption" class="text-xs sm:text-sm font-medium line-clamp-2">{{ photo.caption }}</p>
+                                                        <span class="text-[10px] text-white/70 inline-flex items-center gap-1 mt-0.5">
+                                                            <UIcon name="i-lucide-move" class="size-3" /> Drag to swap &bull; Click to zoom
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 2: Editorial Masonry -->
+                                            <div v-else-if="galleryData.layout === 'masonry'"
+                                                class="gap-4 sm:gap-6 max-w-6xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
+                                                :class="{
+                                                    'columns-1 sm:columns-2': galleryData.columns === 2,
+                                                    'columns-1 sm:columns-2 lg:columns-3': galleryData.columns === 3,
+                                                    'columns-2 sm:columns-3 lg:columns-4': galleryData.columns === 4,
+                                                }">
+                                                <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(gIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(gIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(gIdx)"
+                                                    @drop="onMakerDropPhoto(gIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <img :src="photo.url" :alt="photo.caption || 'Gallery photo'" class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
+                                                        <p v-if="photo.caption" class="text-xs sm:text-sm font-medium">{{ photo.caption }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 3: Hero Spotlight / Collage -->
+                                            <div v-else-if="galleryData.layout === 'collage'"
+                                                class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
+                                                <div v-if="galleryData.photos[0]"
+                                                    draggable="true"
+                                                    class="lg:col-span-2 group relative aspect-4/3 lg:aspect-auto lg:h-full min-h-80 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-md cursor-grab active:cursor-grabbing transition-all hover:shadow-2xl"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === 0 ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === 0 ? 'ring-4 ring-rose-500 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(0, $event)"
+                                                    @dragover="onMakerDragOverPhoto(0, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(0)"
+                                                    @drop="onMakerDropPhoto(0, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(galleryData.photos[0])">
+                                                    <img :src="galleryData.photos[0].url" :alt="galleryData.photos[0].caption || 'Hero photo'" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                                    <div class="absolute top-4 left-4 px-3 py-1 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-xs flex items-center gap-1.5">
+                                                        <UIcon name="i-lucide-star" class="size-3.5 fill-amber-400 text-amber-400" />
+                                                        <span>Featured Hero Moment</span>
+                                                    </div>
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                                                        <p v-if="galleryData.photos[0].caption" class="text-lg sm:text-xl font-bold font-serif">{{ galleryData.photos[0].caption }}</p>
+                                                        <span class="text-xs text-white/70">Drag another photo here to feature it</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+                                                    <div v-for="(photo, gIdx) in galleryData.photos.slice(1, 5)" :key="photo.id"
+                                                        draggable="true"
+                                                        class="group relative aspect-4/3 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
+                                                        :class="[
+                                                            draggedMakerGalleryIndex === (gIdx + 1) ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                            dragOverMakerGalleryIndex === (gIdx + 1) ? 'ring-4 ring-rose-500 z-10' : '',
+                                                        ]"
+                                                        @dragstart="onMakerDragStartPhoto(gIdx + 1, $event)"
+                                                        @dragover="onMakerDragOverPhoto(gIdx + 1, $event)"
+                                                        @dragleave="onMakerDragLeavePhoto(gIdx + 1)"
+                                                        @drop="onMakerDropPhoto(gIdx + 1, $event)"
+                                                        @dragend="onMakerDragEndPhoto"
+                                                        @click="openMakerGalleryLightbox(photo)">
+                                                        <img :src="photo.url" :alt="photo.caption || 'Thumbnail photo'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                                        <div class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3 text-white">
+                                                            <p v-if="photo.caption" class="text-xs font-medium truncate">{{ photo.caption }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 4: Filmstrip Carousel -->
+                                            <div v-else-if="galleryData.layout === 'filmstrip'"
+                                                class="max-w-6xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
+                                                <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="snap-start shrink-0 w-64 sm:w-72 aspect-3/4 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-xl hover:-translate-y-1 text-left"
+                                                    :class="[
+                                                        draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(gIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(gIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(gIdx)"
+                                                    @drop="onMakerDropPhoto(gIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <img :src="photo.url" :alt="photo.caption || 'Filmstrip photo'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                                    <div class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4 text-white">
+                                                        <p v-if="photo.caption" class="text-xs sm:text-sm font-medium leading-snug">{{ photo.caption }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Layout 5: Polaroid Keepsakes -->
+                                            <div v-else-if="galleryData.layout === 'polaroid'"
+                                                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto w-full pt-2">
+                                                <div v-for="(photo, pIdx) in galleryData.photos" :key="photo.id"
+                                                    draggable="true"
+                                                    class="bg-white p-3 sm:p-4 pb-6 rounded-sm shadow-md border border-black/10 transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 cursor-grab active:cursor-grabbing group select-none"
+                                                    :class="[
+                                                        pIdx % 3 === 0 ? '-rotate-1 hover:rotate-0' : (pIdx % 3 === 1 ? 'rotate-1 hover:rotate-0' : '-rotate-0.5 hover:rotate-0'),
+                                                        draggedMakerGalleryIndex === pIdx ? 'opacity-30 border-dashed border-rose-500' : '',
+                                                        dragOverMakerGalleryIndex === pIdx ? 'ring-4 ring-rose-500 scale-103 z-10' : '',
+                                                    ]"
+                                                    @dragstart="onMakerDragStartPhoto(pIdx, $event)"
+                                                    @dragover="onMakerDragOverPhoto(pIdx, $event)"
+                                                    @dragleave="onMakerDragLeavePhoto(pIdx)"
+                                                    @drop="onMakerDropPhoto(pIdx, $event)"
+                                                    @dragend="onMakerDragEndPhoto"
+                                                    @click="openMakerGalleryLightbox(photo)">
+                                                    <div class="aspect-square w-full overflow-hidden bg-stone-100 relative mb-3">
+                                                        <img :src="photo.url" :alt="photo.caption || 'Polaroid moment'" class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500" loading="lazy" />
+                                                    </div>
+                                                    <div class="text-center px-1">
+                                                        <p class="font-serif italic text-xs sm:text-sm text-stone-800 line-clamp-1">
+                                                            {{ photo.caption || photo.name || 'Cherished Memory' }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <!-- Q&A Preview -->
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-q-and-a"
-                                            class="flex flex-col justify-center gap-10 px-6 text-center py-20 scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(index).bg,
                                             }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Q&A</div>
@@ -3186,10 +4177,10 @@ function togglePreview() {
                                         <!-- Schedule Preview -->
                                         <div v-if="compId === 'schedule' && scheduleItems.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-schedule"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Schedule</div>
@@ -3244,10 +4235,10 @@ function togglePreview() {
                                         <!-- RSVP Preview Placeholder -->
                                         <div v-if="compId === 'rsvp' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-rsvp"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 RSVP</div>
@@ -3274,11 +4265,11 @@ function togglePreview() {
                                         <!-- Where to Stay Preview Placeholder -->
                                         <div v-if="compId === 'where-to-stay' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-where-to-stay"
-                                            class="flex flex-col justify-center gap-8 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-8 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-2">
-                                                <div class="font-bold transition-all duration-300"
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Where to Stay
@@ -3416,10 +4407,10 @@ function togglePreview() {
                                         <!-- Travel Preview Placeholder -->
                                         <div v-if="compId === 'travel' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-travel"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="font-bold transition-all duration-300"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 Travel</div>
@@ -3429,16 +4420,24 @@ function togglePreview() {
                                             </div>
                                         </div>
 
+                                        <!-- Gifts Preview -->
+                                        <CustomSiteGiftsSection
+                                            v-if="compId === 'gifts' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            :registry="giftRegistry"
+                                            :colors="previewDynamicStyle(index)"
+                                            :heading-font="selectedTypography.subheaderFont"
+                                        />
+
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-wedding-party"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
                                             <!-- Title & Subtitle -->
                                             <div class="space-y-3 max-w-2xl mx-auto">
-                                                <h2 class="font-bold transition-all duration-300"
+                                                <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Wedding Party
@@ -3544,11 +4543,11 @@ function togglePreview() {
                                     <template v-for="(diy, diyIndex) in diyComponents" :key="`diy-${diy.id}`">
                                         <div v-if="websiteData.singlePageSite || activeComponentId === `diy-${diy.id}`"
                                             :id="`preview-section-diy-${diy.id}`"
-                                            class="flex flex-col justify-center gap-10 px-6 py-20 text-center scroll-mt-24"
+                                            class="flex flex-col justify-center gap-10 px-6 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).bg,
                                             }">
-                                            <h2 class="font-bold transition-all duration-300"
+                                            <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                 :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 {{ diy.header }}
@@ -3563,10 +4562,10 @@ function togglePreview() {
 
                                     <!-- Thank You / Ending Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
-                                        class="flex flex-col justify-center gap-6 px-6 py-20 text-center"
+                                        class="flex flex-col justify-center gap-6 px-6 pt-28 sm:pt-36 pb-20 text-center"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg }">
-                                        <h2 class="font-bold transition-all duration-300"
+                                        <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                             :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                             :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                             {{ websiteData.endingTitle }}
@@ -3584,9 +4583,17 @@ function togglePreview() {
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }">
                                             This website was made
                                             with</p>
-                                        <div class="h-6 w-full opacity-80 mask-logo"
-                                            :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }"
-                                            role="img" aria-label="Bread + Butter"></div>
+                                        <a
+                                            href="https://bread-plus-butter.com"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="w-full flex justify-center cursor-pointer transition-opacity hover:opacity-100 focus:outline-none"
+                                            aria-label="Bread + Butter"
+                                        >
+                                            <div class="h-6 w-full opacity-80 hover:opacity-100 transition-opacity mask-logo"
+                                                :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }"
+                                                role="img" aria-label="Bread + Butter"></div>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -3598,15 +4605,61 @@ function togglePreview() {
         </div>
     </div>
 
+    <!-- Dress Code Moodboard Lightbox Modal -->
+    <UModal v-model:open="isDressCodeLightboxOpen">
+        <template #content>
+            <div v-if="selectedDressCodeLightboxImage" class="p-4 sm:p-6 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-toast-200">
+                    <div>
+                        <h3 class="text-sm font-bold text-toast-900 truncate max-w-sm">
+                            {{ selectedDressCodeLightboxImage.name }}
+                        </h3>
+                        <span class="text-[11px] font-medium text-rose-600">
+                            {{ selectedDressCodeLightboxImage.tag }}
+                        </span>
+                    </div>
+                    <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isDressCodeLightboxOpen = false" />
+                </div>
+                <div class="w-full max-h-[70vh] overflow-hidden rounded-xl bg-toast-100 flex items-center justify-center">
+                    <img :src="selectedDressCodeLightboxImage.dataUrl" :alt="selectedDressCodeLightboxImage.name"
+                        class="max-h-[65vh] w-auto object-contain rounded-lg" />
+                </div>
+            </div>
+        </template>
+    </UModal>
+
+    <!-- Gallery Lightbox Modal -->
+    <UModal v-model:open="isMakerGalleryLightboxOpen">
+        <template #content>
+            <div v-if="selectedMakerGalleryLightboxPhoto" class="p-4 sm:p-6 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-toast-200">
+                    <div>
+                        <h3 class="text-sm font-bold text-toast-900 truncate max-w-sm">
+                            {{ selectedMakerGalleryLightboxPhoto.caption || selectedMakerGalleryLightboxPhoto.name || 'Photo Showcase' }}
+                        </h3>
+                        <span class="text-[11px] font-medium text-rose-600">
+                            Photo Gallery Lightbox
+                        </span>
+                    </div>
+                    <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isMakerGalleryLightboxOpen = false" />
+                </div>
+                <div class="w-full max-h-[75vh] overflow-hidden rounded-xl bg-stone-900 flex items-center justify-center">
+                    <img :src="selectedMakerGalleryLightboxPhoto.url" :alt="selectedMakerGalleryLightboxPhoto.caption || 'Full photo'"
+                        class="max-h-[70vh] w-auto object-contain rounded-lg shadow-lg" />
+                </div>
+            </div>
+        </template>
+    </UModal>
+
     <!-- Google Maps Accommodation Picker Modal -->
     <UModal v-model:open="isAccommodationPickerOpen" :ui="{
-        content: 'w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] flex flex-col bg-white dark:bg-toast-900 text-toast-950 dark:text-toast-50 border border-toast-200 dark:border-toast-700 shadow-2xl rounded-2xl overflow-hidden'
+        content: 'w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] flex flex-col bg-white text-toast-950 border border-toast-200 shadow-2xl rounded-2xl overflow-hidden'
     }">
         <template #content>
             <div class="flex flex-col h-full max-h-[90vh]">
                 <!-- Modal Header -->
                 <div
-                    class="px-5 py-4 border-b border-toast-200 dark:border-toast-700 bg-linear-to-r from-blue-50/80 via-white to-blue-50/40 dark:from-blue-950/40 dark:via-toast-900 dark:to-toast-900 flex items-start justify-between gap-3 shrink-0">
+                    class="px-5 py-4 border-b border-toast-200 bg-linear-to-r from-blue-50/80 via-white to-blue-50/40 flex items-start justify-between gap-3 shrink-0">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
@@ -3614,24 +4667,24 @@ function togglePreview() {
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <h3 class="text-base sm:text-lg font-bold text-toast-900 dark:text-toast-100">
+                                <h3 class="text-base sm:text-lg font-bold text-toast-900">
                                     Select Accommodation for Slot {{ activeAccommodationSlotIndex + 1 }}
                                 </h3>
                                 <span
-                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
                                     Google Maps
                                 </span>
                             </div>
-                            <p class="text-xs text-toast-600 dark:text-toast-400 mt-0.5">
+                            <p class="text-xs text-toast-600 mt-0.5">
                                 Top-rated hotels & accommodations near
-                                <span class="font-semibold text-blue-600 dark:text-blue-400">
+                                <span class="font-semibold text-blue-600">
                                     {{ websiteData.whereToStayLocation || 'Venue Location' }}
                                 </span>
                             </p>
                         </div>
                     </div>
                     <button type="button"
-                        class="p-1.5 rounded-lg text-toast-400 hover:text-toast-700 dark:hover:text-toast-200 hover:bg-toast-100 dark:hover:bg-toast-800 transition-colors cursor-pointer"
+                        class="p-1.5 rounded-lg text-toast-400 hover:text-toast-700 hover:bg-toast-100 transition-colors cursor-pointer"
                         aria-label="Close modal" @click="isAccommodationPickerOpen = false">
                         <UIcon name="i-lucide-x" class="w-5 h-5" />
                     </button>
@@ -3641,7 +4694,7 @@ function togglePreview() {
                 <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                     <!-- Interactive Google Map View -->
                     <div
-                        class="relative w-full h-44 sm:h-52 rounded-xl overflow-hidden border border-toast-200 dark:border-toast-700 shadow-inner shrink-0">
+                        class="relative w-full h-44 sm:h-52 rounded-xl overflow-hidden border border-toast-200 shadow-inner shrink-0">
                         <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0"
                             marginwidth="0"
                             :src="getGoogleMapsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })">
@@ -3650,9 +4703,9 @@ function togglePreview() {
                         <div class="absolute bottom-2.5 right-2.5">
                             <a :href="getAreaHotelsGoogleReviewsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })"
                                 target="_blank" rel="noopener noreferrer"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/95 dark:bg-toast-900/95 text-toast-800 dark:text-toast-100 shadow-md border border-toast-200 dark:border-toast-700 hover:bg-blue-50 dark:hover:bg-toast-800 inline-flex items-center gap-1.5 backdrop-blur-xs transition-colors cursor-pointer">
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/95 text-toast-800 shadow-md border border-toast-200 hover:bg-blue-50 inline-flex items-center gap-1.5 backdrop-blur-xs transition-colors cursor-pointer">
                                 <UIcon name="i-lucide-external-link"
-                                    class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                    class="w-3.5 h-3.5 text-blue-600" />
                                 Open Live Map on Google
                             </a>
                         </div>
@@ -3682,7 +4735,7 @@ function togglePreview() {
                                 'px-2.5 py-1 rounded-full font-medium transition-colors shrink-0 cursor-pointer',
                                 selectedAccommodationCategory === cat.id
                                     ? 'bg-blue-600 text-white shadow-xs'
-                                    : 'bg-toast-100 dark:bg-toast-800 text-toast-700 dark:text-toast-300 hover:bg-toast-200 dark:hover:bg-toast-700'
+                                    : 'bg-toast-100 text-toast-700 hover:bg-toast-200'
                             ]">
                                 {{ cat.label }}
                             </button>
@@ -3691,12 +4744,12 @@ function togglePreview() {
 
                     <!-- Custom hotel option if user typed a search query -->
                     <div v-if="accommodationSearchQuery.trim()"
-                        class="p-3 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 flex items-center justify-between gap-3">
+                        class="p-3 rounded-xl border border-blue-200 bg-blue-50/60 flex items-center justify-between gap-3">
                         <div class="min-w-0 flex-1">
-                            <span class="text-xs font-semibold text-blue-800 dark:text-blue-300 block">
+                            <span class="text-xs font-semibold text-blue-800 block">
                                 Can't find your hotel?
                             </span>
-                            <span class="text-xs text-toast-700 dark:text-toast-300 truncate block">
+                            <span class="text-xs text-toast-700 truncate block">
                                 Select "<strong>{{ accommodationSearchQuery }}</strong>" as a custom hotel near {{
                                     websiteData.whereToStayLocation || 'venue' }}
                             </span>
@@ -3728,28 +4781,28 @@ function togglePreview() {
 
                         <div v-for="(hotel, hIdx) in displayAccommodationsList" :key="hIdx"
                             @click="selectAccommodationForSlot(hotel)"
-                            class="p-3.5 rounded-xl border border-toast-200/90 dark:border-toast-700/80 bg-white dark:bg-toast-800/80 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            class="p-3.5 rounded-xl border border-toast-200/90 bg-white hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div class="flex items-start gap-3 min-w-0 flex-1">
                                 <div
-                                    class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-toast-200 dark:border-toast-700 bg-toast-100 dark:bg-toast-800 shadow-xs group-hover:scale-105 transition-transform">
+                                    class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-toast-200 bg-toast-100 shadow-xs group-hover:scale-105 transition-transform">
                                     <img :src="getAccommodationImage(hotel)" :alt="hotel.name"
                                         class="w-full h-full object-cover" />
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h4
-                                            class="font-bold text-sm text-toast-900 dark:text-toast-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                            class="font-bold text-sm text-toast-900 group-hover:text-blue-600 transition-colors">
                                             {{ hotel.name }}
                                         </h4>
                                         <span v-if="hotel.badge"
-                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
                                             {{ hotel.badge }}
                                         </span>
                                     </div>
                                     <div
-                                        class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 dark:text-toast-400 mt-1">
+                                        class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 mt-1">
                                         <span
-                                            class="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                                            class="font-bold text-amber-600 flex items-center gap-0.5">
                                             <UIcon name="i-lucide-star"
                                                 class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                             {{ hotel.rating }}
@@ -3757,20 +4810,20 @@ function togglePreview() {
                                         <span v-if="hotel.reviewsCount" class="text-toast-500">
                                             ({{ hotel.reviewsCount }})
                                         </span>
-                                        <span class="text-toast-300 dark:text-toast-600">•</span>
+                                        <span class="text-toast-300">•</span>
                                         <span
-                                            class="flex items-center gap-0.5 text-toast-600 dark:text-toast-400 font-medium">
+                                            class="flex items-center gap-0.5 text-toast-600 font-medium">
                                             <UIcon name="i-lucide-map-pin"
                                                 class="w-3.5 h-3.5 text-toast-400 shrink-0" />
                                             {{ hotel.distance }}
                                         </span>
                                     </div>
-                                    <p class="text-xs text-toast-500 dark:text-toast-400 mt-1 line-clamp-2">
+                                    <p class="text-xs text-toast-500 mt-1 line-clamp-2">
                                         {{ hotel.description }}
                                     </p>
                                     <div v-if="hotel.tags && hotel.tags.length" class="flex flex-wrap gap-1.5 mt-2">
                                         <span v-for="tag in hotel.tags" :key="tag"
-                                            class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-toast-100 dark:bg-toast-700/60 text-toast-600 dark:text-toast-300">
+                                            class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-toast-100 text-toast-600">
                                             {{ tag }}
                                         </span>
                                     </div>
@@ -3779,14 +4832,14 @@ function togglePreview() {
 
                             <!-- Action / Select Button -->
                             <div
-                                class="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-toast-100 dark:border-toast-700">
+                                class="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-toast-100">
                                 <UButton size="xs" color="blue" variant="solid" icon="i-lucide-check"
                                     class="cursor-pointer">
                                     Select for Slot {{ activeAccommodationSlotIndex + 1 }}
                                 </UButton>
                                 <a :href="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
                                     target="_blank" rel="noopener noreferrer" @click.stop
-                                    class="text-[11px] text-toast-500 hover:text-blue-600 dark:hover:text-blue-400 underline inline-flex items-center gap-1 cursor-pointer">
+                                    class="text-[11px] text-toast-500 hover:text-blue-600 underline inline-flex items-center gap-1 cursor-pointer">
                                     Google Reviews
                                     <UIcon name="i-lucide-external-link" class="w-3 h-3" />
                                 </a>
@@ -3797,7 +4850,7 @@ function togglePreview() {
 
                 <!-- Modal Footer -->
                 <div
-                    class="px-5 py-3 border-t border-toast-200 dark:border-toast-700 bg-toast-50/70 dark:bg-toast-900 flex items-center justify-between gap-3 shrink-0">
+                    class="px-5 py-3 border-t border-toast-200 bg-toast-50/70 flex items-center justify-between gap-3 shrink-0">
                     <span class="text-xs text-toast-500">
                         Targeting Slot {{ activeAccommodationSlotIndex + 1 }}
                     </span>
@@ -3810,44 +4863,54 @@ function togglePreview() {
         </template>
     </UModal>
 
-    <!-- Automatic Save & Publish Loading Modal (Blocks interaction while saving/publishing) -->
-    <UModal v-model:open="isSaving" :dismissible="false" :ui="{
-        content: 'w-[90vw] sm:max-w-md bg-white dark:bg-toast-900 border border-toast-200/80 dark:border-toast-700/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-50',
-        overlay: 'bg-toast-950/50 backdrop-blur-xs',
-    }">
-        <template #content>
-            <div class="relative z-10 flex flex-col items-center justify-center text-center py-4 px-2 space-y-5">
-                <!-- Animated Spinner & Icon -->
-                <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-inner">
-                    <UIcon
-                        :name="saveModalMode === 'publish' ? 'i-lucide-rocket' : 'i-lucide-cloud-upload'"
-                        class="w-8 h-8 animate-pulse"
-                    />
-                    <div class="absolute -inset-1 rounded-2xl border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
-                </div>
-
-                <!-- Title & Status Text -->
-                <div class="space-y-1.5">
-                    <h3 class="text-xl font-bold font-serif text-toast-900 dark:text-toast-100">
-                        {{ saveModalTitle }}
-                    </h3>
-                    <p class="text-sm text-toast-600 dark:text-toast-400 max-w-xs mx-auto leading-relaxed">
-                        {{ saveModalDescription }}
-                    </p>
-                </div>
-
-                <!-- Reassuring subtle indicator -->
-                <div class="w-full max-w-xs space-y-2 pt-1">
-                    <div class="h-1.5 w-full bg-toast-100 dark:bg-toast-800 rounded-full overflow-hidden">
-                        <div class="h-full bg-linear-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
+    <!-- Automatic Save & Publish Loading Modal (Strictly 100vh x 100vw overlay) -->
+    <Teleport to="body">
+        <Transition
+            enter-active-class="transition-opacity duration-200 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity duration-150 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="isSaving"
+                class="fixed inset-0 z-99999 flex items-center justify-center p-4 bg-toast-950/50 backdrop-blur-xs select-none overflow-hidden"
+                style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; box-sizing: border-box;"
+            >
+                <div class="w-[90vw] sm:max-w-md bg-white border border-toast-200/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-10 flex flex-col items-center justify-center text-center space-y-5">
+                    <!-- Animated Spinner & Icon -->
+                    <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 shadow-inner">
+                        <UIcon
+                            :name="saveModalMode === 'publish' ? 'i-lucide-rocket' : 'i-lucide-cloud-upload'"
+                            class="w-8 h-8 animate-pulse"
+                        />
+                        <div class="absolute -inset-1 rounded-2xl border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
                     </div>
-                    <p class="text-[11px] text-toast-400 dark:text-toast-500 font-medium">
-                        Please do not close or refresh this window while saving.
-                    </p>
+
+                    <!-- Title & Status Text -->
+                    <div class="space-y-1.5">
+                        <h3 class="text-xl font-bold font-serif text-toast-900">
+                            {{ saveModalTitle }}
+                        </h3>
+                        <p class="text-sm text-toast-600 max-w-xs mx-auto leading-relaxed">
+                            {{ saveModalDescription }}
+                        </p>
+                    </div>
+
+                    <!-- Reassuring subtle indicator -->
+                    <div class="w-full max-w-xs space-y-2 pt-1">
+                        <div class="h-1.5 w-full bg-toast-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-linear-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
+                        </div>
+                        <p class="text-[11px] text-toast-400 font-medium">
+                            Please do not close or refresh this window while saving.
+                        </p>
+                    </div>
                 </div>
             </div>
-        </template>
-    </UModal>
+        </Transition>
+    </Teleport>
 </template>
 
 <style scoped>
@@ -3857,68 +4920,34 @@ function togglePreview() {
     mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
 }
 
-/* Force font preloading for dynamically bound fonts */
-.font-preload-parisienne {
-    font-family: 'Parisienne', cursive;
+/* Custom Color Spectrum Sliders */
+.custom-color-slider {
+    width: 100%;
+    height: 0.625rem;
+    border-radius: 0.5rem;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    outline: none;
 }
 
-.font-preload-engagement {
-    font-family: 'Engagement', cursive;
+.custom-color-slider::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background-color: #ffffff;
+    border: 2px solid #1f0a00;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
-.font-preload-greatvibes {
-    font-family: 'Great Vibes', cursive;
-}
-
-.font-preload-boska {
-    font-family: 'Boska', serif;
-}
-
-.font-preload-melodrama {
-    font-family: 'Melodrama', sans-serif;
-}
-
-.font-preload-clash {
-    font-family: 'Clash Display', sans-serif;
-}
-
-.font-preload-gambetta {
-    font-family: 'Gambetta', serif;
-}
-
-.font-preload-sentient {
-    font-family: 'Sentient', serif;
-}
-
-.font-preload-quicksand {
-    font-family: 'Quicksand', sans-serif;
-}
-
-.font-preload-rowan {
-    font-family: 'Rowan', serif;
-}
-
-.font-preload-satoshi {
-    font-family: 'Satoshi', sans-serif;
-}
-
-.font-preload-bespoke {
-    font-family: 'Bespoke Sans', sans-serif;
-}
-
-.font-preload-switzer {
-    font-family: 'Switzer', sans-serif;
-}
-
-.font-preload-outfit {
-    font-family: 'Outfit', sans-serif;
-}
-
-.font-preload-general {
-    font-family: 'General Sans', sans-serif;
-}
-
-.font-preload-amulya {
-    font-family: 'Amulya', sans-serif;
+.custom-color-slider::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background-color: #ffffff;
+    border: 2px solid #1f0a00;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 </style>

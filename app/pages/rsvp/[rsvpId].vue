@@ -206,6 +206,7 @@ watch(rsvpId, () => {
         />
 
         <GuestRsvpQuestionForm
+          id="rsvp-question-form"
           v-model:attendance-status="attendanceStatus"
           v-model:answer-map="answerMap"
           v-model:notes-map="notesMap"

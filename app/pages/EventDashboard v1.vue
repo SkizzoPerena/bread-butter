@@ -335,6 +335,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 
@@ -345,6 +346,8 @@ onMounted(() => {
 watch(eventId, () => {
   loadEventData()
 })
+
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 function openWebsiteMaker() {
   if (isEventCancelled.value) {
@@ -359,7 +362,7 @@ function openWebsiteMaker() {
     })
     return
   }
-  navigateTo({ path: '/website-maker', query: { eventId: id } })
+  startPageTransition({ path: '/website-maker', query: { eventId: id } })
 }
 
 function openUpgradePage() {
@@ -374,7 +377,7 @@ function openUpgradePage() {
   }
 
   if (!isUiOnlyMode.value && eventRecord.value && !isEventFullyPaid(eventRecord.value)) {
-    navigateTo({ path: '/event/payment-review', query: { eventId: id } })
+    startPageTransition({ path: '/event/payment-review', query: { eventId: id } })
     return
   }
 
@@ -386,11 +389,11 @@ function openUpgradePage() {
         : 'Your upgrade payment is being verified.',
       color: 'warning',
     })
-    navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+    startPageTransition({ path: '/event/upgrade', query: { eventId: id } })
     return
   }
 
-  navigateTo({ path: '/event/upgrade', query: { eventId: id } })
+  startPageTransition({ path: '/event/upgrade', query: { eventId: id } })
 }
 
 function openInvitationMaker() {
@@ -406,7 +409,7 @@ function openInvitationMaker() {
     })
     return
   }
-  navigateTo({ path: '/invitation-maker', query: { eventId: id } })
+  startPageTransition({ path: '/invitation-maker', query: { eventId: id } })
 }
 
 function openGuestList() {
@@ -419,7 +422,7 @@ function openGuestList() {
     })
     return
   }
-  navigateTo({ path: '/event/guests', query: { eventId: id } })
+  startPageTransition({ path: '/event/guests', query: { eventId: id } })
 }
 
 function openTasksDashboard() {
@@ -432,7 +435,7 @@ function openTasksDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/tasks', query: { eventId: id } })
+  startPageTransition({ path: '/event/tasks', query: { eventId: id } })
 }
 
 function openRsvpDashboard() {
@@ -445,7 +448,7 @@ function openRsvpDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/rsvp', query: { eventId: id } })
+  startPageTransition({ path: '/event/rsvp', query: { eventId: id } })
 }
 
 function openEventSettings() {
@@ -458,7 +461,7 @@ function openEventSettings() {
     })
     return
   }
-  navigateTo({ path: '/event/settings', query: { eventId: id } })
+  startPageTransition({ path: '/event/settings', query: { eventId: id } })
 }
 
 function openPayments() {
@@ -471,7 +474,7 @@ function openPayments() {
     })
     return
   }
-  navigateTo({ path: '/event/payment-review', query: { eventId: id } })
+  startPageTransition({ path: '/event/payment-review', query: { eventId: id } })
 }
 
 function openSchedulesDashboard() {
@@ -484,7 +487,7 @@ function openSchedulesDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/schedules', query: { eventId: id } })
+  startPageTransition({ path: '/event/schedules', query: { eventId: id } })
 }
 
 function openWishlistDashboard() {
@@ -497,7 +500,7 @@ function openWishlistDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/wishlist', query: { eventId: id } })
+  startPageTransition({ path: '/event/wishlist', query: { eventId: id } })
 }
 
 function openEventPlaylist() {
@@ -510,7 +513,7 @@ function openEventPlaylist() {
     })
     return
   }
-  navigateTo({ path: '/event/playlist', query: { eventId: id } })
+  startPageTransition({ path: '/event/playlist', query: { eventId: id } })
 }
 
 function openChurchRequirementsDashboard() {
@@ -523,7 +526,7 @@ function openChurchRequirementsDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/requirements', query: { eventId: id } })
+  startPageTransition({ path: '/event/requirements', query: { eventId: id } })
 }
 
 function openSuppliersDashboard() {
@@ -536,7 +539,38 @@ function openSuppliersDashboard() {
     })
     return
   }
-  navigateTo({ path: '/event/suppliers', query: { eventId: id } })
+  startPageTransition({ path: '/event/suppliers', query: { eventId: id } })
+}
+
+function openColorsDressCode() {
+  const id = getActiveEventQueryId()
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  startPageTransition({ path: '/event/dress-code', query: { eventId: id } })
+}
+
+function openGallery() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
+    return
+  }
+  startPageTransition({ path: '/event/gallery', query: { eventId: id } })
+}
+
+function openBakerDatabase() {
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
+  if (!id) {
+    toast.add({
+      title: 'Missing event',
+      description: 'Open an event from your dashboard first.',
+      color: 'error',
+    })
+    return
+  }
+  startPageTransition({ path: '/event/bakers', query: { eventId: id } })
 }
 
 type DashboardItem = {
@@ -551,7 +585,7 @@ type DashboardItem = {
 }
 
 const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
-  // Row 1: Public Presence & Communication (The Event Story)
+  // Row 1: website - invitation - rsvp
   {
     label: 'Website',
     icon: 'i-lucide-globe',
@@ -580,7 +614,7 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
     ringClass: 'group-focus-visible:ring-teal-500',
   },
 
-  // Row 2: Guest Management & Experience
+  // Row 2: guest list - tasks - requirements
   {
     label: 'Guest List',
     icon: 'i-lucide-users',
@@ -591,13 +625,43 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
     ringClass: 'group-focus-visible:ring-orange-500',
   },
   {
-    label: 'Gifts',
-    icon: 'i-lucide-gift',
-    action: 'wishlist',
-    description: 'Curate gift wishlists, registry items, and preferred contribution links.',
-    bgClass: 'bg-pink-500',
-    hoverClass: 'group-hover:bg-pink-600',
-    ringClass: 'group-focus-visible:ring-pink-500',
+    label: 'Tasks',
+    icon: 'i-lucide-list-todo',
+    action: 'tasks',
+    description: 'Track wedding planning milestones, to-do items, and team deadlines.',
+    bgClass: 'bg-red-500',
+    hoverClass: 'group-hover:bg-red-600',
+    ringClass: 'group-focus-visible:ring-red-500',
+  },
+  {
+    label: 'Requirements',
+    icon: 'i-lucide-church',
+    action: 'churchRequirements',
+    description: 'Track essential canonical, legal, and church document requirements.',
+    weddingOnly: true,
+    bgClass: 'bg-yellow-500',
+    hoverClass: 'group-hover:bg-yellow-600',
+    ringClass: 'group-focus-visible:ring-yellow-500',
+  },
+
+  // Row 3: gallery - colors / dress code - playlist
+  {
+    label: 'Gallery',
+    icon: 'i-lucide-images',
+    action: 'gallery',
+    description: 'Collect, showcase, and share photo albums and event memories.',
+    bgClass: 'bg-indigo-500',
+    hoverClass: 'group-hover:bg-indigo-600',
+    ringClass: 'group-focus-visible:ring-indigo-500',
+  },
+  {
+    label: 'Colors / Dress Code',
+    icon: 'i-lucide-palette',
+    action: 'colorsDressCode',
+    description: 'Curate event color palettes, attire guides, and guest dress codes.',
+    bgClass: 'bg-rose-500',
+    hoverClass: 'group-hover:bg-rose-600',
+    ringClass: 'group-focus-visible:ring-rose-500',
   },
   {
     label: 'Playlist',
@@ -609,24 +673,24 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
     ringClass: 'group-focus-visible:ring-lime-500',
   },
 
-  // Row 3: Planning, Logistics & Execution
+  // Row 4: gifts - baker database - suppliers
   {
-    label: 'Tasks',
-    icon: 'i-lucide-list-todo',
-    action: 'tasks',
-    description: 'Track wedding planning milestones, to-do items, and team deadlines.',
-    bgClass: 'bg-red-500',
-    hoverClass: 'group-hover:bg-red-600',
-    ringClass: 'group-focus-visible:ring-red-500',
+    label: 'Gifts',
+    icon: 'i-lucide-gift',
+    action: 'wishlist',
+    description: 'Curate gift wishlists, registry items, and preferred contribution links.',
+    bgClass: 'bg-pink-500',
+    hoverClass: 'group-hover:bg-pink-600',
+    ringClass: 'group-focus-visible:ring-pink-500',
   },
   {
-    label: 'Schedules',
-    icon: 'i-lucide-calendar',
-    action: 'schedules',
-    description: 'Coordinate day-of timelines, bridal prep rundowns, and ceremony itineraries.',
-    bgClass: 'bg-cyan-500',
-    hoverClass: 'group-hover:bg-cyan-600',
-    ringClass: 'group-focus-visible:ring-cyan-500',
+    label: 'Baker Database',
+    icon: 'i-lucide-cake-slice',
+    action: 'bakerDatabase',
+    description: 'Browse artisan bakers, custom wedding cakes, and dessert partners.',
+    bgClass: 'bg-amber-500',
+    hoverClass: 'group-hover:bg-amber-600',
+    ringClass: 'group-focus-visible:ring-amber-500',
   },
   {
     label: 'Suppliers',
@@ -638,16 +702,15 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
     ringClass: 'group-focus-visible:ring-fuchsia-500',
   },
 
-  // Row 4: Compliance, Financials & Administration
+  // Row 5: schedules - payments - settings
   {
-    label: 'Requirements',
-    icon: 'i-lucide-church',
-    action: 'churchRequirements',
-    description: 'Track essential canonical, legal, and church document requirements.',
-    weddingOnly: true,
-    bgClass: 'bg-yellow-500',
-    hoverClass: 'group-hover:bg-yellow-600',
-    ringClass: 'group-focus-visible:ring-yellow-500',
+    label: 'Schedules',
+    icon: 'i-lucide-calendar',
+    action: 'schedules',
+    description: 'Coordinate day-of timelines, bridal prep rundowns, and ceremony itineraries.',
+    bgClass: 'bg-cyan-500',
+    hoverClass: 'group-hover:bg-cyan-600',
+    ringClass: 'group-focus-visible:ring-cyan-500',
   },
   {
     label: 'Payments',
@@ -670,7 +733,12 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
 ]
 
 function isDashboardItemBlocked(item: DashboardItem): boolean {
-  if (item.action === 'settings') {
+  if (
+    item.action === 'settings' ||
+    item.action === 'colorsDressCode' ||
+    item.action === 'gallery' ||
+    item.action === 'bakerDatabase'
+  ) {
     return false
   }
   const event = eventRecord.value || (eventId.value ? getCachedEvent(eventId.value) : null) || { priceTier: 'BREAD' }
@@ -737,7 +805,13 @@ function handleDashboardItemClick(item: DashboardItem) {
     return
   }
 
-  if (item.action === 'website') {
+  if (item.action === 'colorsDressCode') {
+    openColorsDressCode()
+  } else if (item.action === 'gallery') {
+    openGallery()
+  } else if (item.action === 'bakerDatabase') {
+    openBakerDatabase()
+  } else if (item.action === 'website') {
     openWebsiteMaker()
   } else if (item.action === 'invitation') {
     openInvitationMaker()
@@ -860,15 +934,15 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
         style="border-radius: 0;">
         <div class="flex flex-1 items-center justify-center min-h-0 py-2 sm:py-4 px-3 sm:px-4 w-full">
           <div
-            class="grid grid-cols-3 gap-x-3 sm:gap-x-6 md:gap-x-8 gap-y-4 sm:gap-y-5 md:gap-y-6 max-w-sm sm:max-w-md md:max-w-lg mx-auto w-full items-center justify-items-center">
+            class="grid grid-cols-3 gap-x-5 sm:gap-x-7 md:gap-x-9 gap-y-5 sm:gap-y-6 md:gap-y-7 max-w-[280px] sm:max-w-sm md:max-w-md mx-auto w-full items-center justify-items-center">
             <div v-for="item in dashboardItems" :key="item.label" role="button" :tabindex="0"
-              class="group flex flex-col items-center justify-center mx-auto w-full p-1 sm:p-1.5 md:p-2 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+              class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 sm:p-1 md:p-1.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
               @click="handleDashboardItemClick(item)" @keydown.enter="handleDashboardItemKeydown($event, item)"
               @mouseenter="onDashboardItemMouseEnter($event, item)" @mousemove="onDashboardItemMouseMove($event)"
               @mouseleave="onDashboardItemMouseLeave">
               <div class="relative flex items-center justify-center w-fit mx-auto">
                 <div
-                  class="size-13 sm:size-15 md:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+                  class="size-11 sm:size-12 md:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
                   :class="[
                     item.bgClass,
                     item.ringClass,
@@ -876,16 +950,16 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                       ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                       : [item.hoverClass, 'group-hover:scale-105 group-active:scale-95'],
                   ]">
-                  <UIcon :name="item.icon" class="size-6 sm:size-7 md:size-8 text-white shrink-0" />
+                  <UIcon :name="item.icon" class="size-5 sm:size-6 md:size-6.5 text-white shrink-0" />
                 </div>
                 <div v-if="isDashboardItemBlocked(item)"
-                  class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 sm:p-1.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
+                  class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 sm:p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
                   title="Upgrade to unlock">
-                  <UIcon name="i-lucide-lock" class="size-2.5 sm:size-3.5 block" />
+                  <UIcon name="i-lucide-lock" class="size-2 sm:size-2.5 block" />
                 </div>
               </div>
               <div
-                class="font-medium mt-1 sm:mt-1.5 md:mt-2 text-center text-xs sm:text-sm md:text-base leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">
+                class="font-medium mt-1 sm:mt-1.5 text-center text-[11px] sm:text-xs md:text-sm leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">
                 {{ item.label }}</div>
             </div>
           </div>
@@ -1041,15 +1115,15 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
     <!-- Layout when package is Bread (No container card, clean background, exact position retained) -->
     <div v-else class="flex flex-1 items-center justify-center h-full overflow-hidden py-2 sm:py-4 px-3 sm:px-4 w-full">
       <div
-        class="grid grid-cols-3 gap-x-3 sm:gap-x-6 md:gap-x-8 gap-y-4 sm:gap-y-5 md:gap-y-6 max-w-sm sm:max-w-md md:max-w-lg mx-auto w-full items-center justify-items-center">
+        class="grid grid-cols-3 gap-x-5 sm:gap-x-7 md:gap-x-9 gap-y-5 sm:gap-y-6 md:gap-y-7 max-w-[280px] sm:max-w-sm md:max-w-md mx-auto w-full items-center justify-items-center">
         <div v-for="item in dashboardItems" :key="item.label" role="button" :tabindex="0"
-          class="group flex flex-col items-center justify-center mx-auto w-full p-1 sm:p-1.5 md:p-2 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+          class="group flex flex-col items-center justify-center mx-auto w-full p-0.5 sm:p-1 md:p-1.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
           @click="handleDashboardItemClick(item)" @keydown.enter="handleDashboardItemKeydown($event, item)"
           @mouseenter="onDashboardItemMouseEnter($event, item)" @mousemove="onDashboardItemMouseMove($event)"
           @mouseleave="onDashboardItemMouseLeave">
           <div class="relative flex items-center justify-center w-fit mx-auto">
             <div
-              class="size-13 sm:size-15 md:size-16 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
+              class="size-11 sm:size-12 md:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
               :class="[
                 item.bgClass,
                 item.ringClass,
@@ -1057,16 +1131,16 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                   ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                   : [item.hoverClass, 'group-hover:scale-105 group-active:scale-95'],
               ]">
-              <UIcon :name="item.icon" class="size-6 sm:size-7 md:size-8 text-white shrink-0" />
+              <UIcon :name="item.icon" class="size-5 sm:size-6 md:size-6.5 text-white shrink-0" />
             </div>
             <div v-if="isDashboardItemBlocked(item)"
-              class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-1 sm:p-1.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
+              class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 sm:p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
               title="Upgrade to unlock">
-              <UIcon name="i-lucide-lock" class="size-2.5 sm:size-3.5 block" />
+              <UIcon name="i-lucide-lock" class="size-2 sm:size-2.5 block" />
             </div>
           </div>
           <div
-            class="font-medium mt-1 sm:mt-1.5 md:mt-2 text-center text-xs sm:text-sm md:text-base leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">
+            class="font-medium mt-1 sm:mt-1.5 text-center text-[11px] sm:text-xs md:text-sm leading-tight max-w-20 sm:max-w-none truncate sm:whitespace-normal">
             {{ item.label }}</div>
         </div>
       </div>

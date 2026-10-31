@@ -11,6 +11,7 @@ export interface GiftItemEntry {
   name: string
   url?: string
   isFulfilled?: boolean
+  imageURL?: string | null
 }
 
 export interface WishlistRecord {

@@ -1,0 +1,1103 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import type { DropdownMenuItem } from '@nuxt/ui'
+import type {
+  SupplierTier,
+  DirectorySupplier,
+  SupplierSubCategory
+} from '~/data/suppliersDirectory'
+import { useSuppliersDirectory } from '~/composables/useSuppliersDirectory'
+import { useEventSuppliers } from '~/composables/useEventSuppliers'
+import type { SupplierType } from '~/types/supplier'
+
+definePageMeta({
+  layout: 'event-sub-navbar',
+  key: (route) => route.fullPath,
+  useLogo: true,
+  title: 'Baker Database',
+  bgClass: 'bg-toast-700',
+  alias: ['/event/bakers', '/event/baker-database']
+})
+
+useHead({
+  title: 'Baker Database - Bread + Butter',
+  meta: [
+    {
+      name: 'description',
+      content: 'A comprehensive curated directory of trusted wedding suppliers and bakers categorized in our signature 3-tier system: Bread Basket, Loaf, and Slice.'
+    }
+  ]
+})
+
+const toast = useToast()
+const route = useRoute()
+const { finishPageTransition } = usePageTransition()
+const { createSupplier } = useEventSuppliers()
+
+const eventId = computed(() => {
+  const value = route.query.eventId
+  return typeof value === 'string' ? value : ''
+})
+
+const targetActionUrl = computed(() => {
+  if (eventId.value) {
+    return `/contact-us?eventId=${encodeURIComponent(eventId.value)}`
+  }
+  return '/contact-us'
+})
+
+const suppliersDashboardUrl = computed(() => {
+  if (eventId.value) {
+    return `/event/suppliers?eventId=${encodeURIComponent(eventId.value)}`
+  }
+  return '/event/suppliers'
+})
+
+const {
+  suppliersData,
+  isLoading,
+  error,
+  isFetched,
+  totalDirectorySuppliersCount,
+  fetchSuppliersDirectory,
+  refresh
+} = useSuppliersDirectory()
+
+onMounted(() => {
+  fetchSuppliersDirectory()
+  finishPageTransition()
+})
+
+const searchQuery = ref('')
+const selectedCategoryId = ref<string>('all')
+const selectedTier = ref<string>('all') // 'all' | 'bread-basket' | 'loaf' | 'slice'
+const isMobileFilterOpen = ref(false)
+
+const supplierDropdownUi = {
+  content: 'bg-white text-toast-900 border border-toast-200/90 shadow-xl rounded-xl p-1 min-w-44 z-50',
+  item: 'text-xs font-semibold text-toast-800 hover:text-toast-950 hover:bg-toast-50 rounded-lg px-2.5 py-2 cursor-pointer',
+  itemLeadingIcon: 'size-4 text-toast-600'
+}
+
+async function handleAddSupplier(
+  vendor: DirectorySupplier,
+  subcategoryTitle?: string,
+  categoryTitle?: string
+) {
+  const targetEventId = eventId.value || 'mock-event-id'
+
+  // Map directory category/subcategory to a valid SupplierType
+  let supplierType: SupplierType = 'Reception'
+  const cat = categoryTitle?.toLowerCase() || ''
+  const sub = subcategoryTitle?.toLowerCase() || ''
+
+  if (cat.includes('photo') || cat.includes('video') || sub.includes('prenup')) {
+    supplierType = 'Prenuptial Shoot'
+  } else if (cat.includes('formal') || cat.includes('vanity') || sub.includes('hair') || sub.includes('gown')) {
+    supplierType = 'Preparation'
+  } else if (sub.includes('church') || sub.includes('ceremony') || sub.includes('officiant')) {
+    supplierType = 'Ceremony'
+  } else if (sub.includes('cocktail') || sub.includes('bar')) {
+    supplierType = 'Cocktail'
+  } else if (sub.includes('after party') || sub.includes('dj') || sub.includes('band')) {
+    supplierType = 'After Party'
+  }
+
+  try {
+    await createSupplier(targetEventId, {
+      supplierType,
+      supplierTitle: subcategoryTitle || vendor.name,
+      vendorName: vendor.name,
+      contract: 'N/A',
+      permit: 'N/A'
+    })
+
+    toast.add({
+      title: 'Added to suppliers!',
+      description: `${vendor.name} has been added to your event suppliers checklist.`,
+      color: 'success',
+      icon: 'i-lucide-check-circle'
+    })
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Could not add supplier',
+      description: err instanceof Error ? err.message : 'Please try again later.',
+      color: 'error'
+    })
+  }
+}
+
+function handleContactSupplier(vendorName: string) {
+  const query: Record<string, string> = {
+    supplier: vendorName
+  }
+  if (eventId.value) {
+    query.eventId = eventId.value
+  }
+
+  navigateTo({
+    path: '/contact-us',
+    query
+  })
+}
+
+function getSupplierDropdownItems(
+  vendor: DirectorySupplier,
+  subcategoryTitle?: string,
+  categoryTitle?: string
+): DropdownMenuItem[][] {
+  return [
+    [
+      {
+        label: 'Add to suppliers',
+        icon: 'i-lucide-plus-circle',
+        onSelect: () => handleAddSupplier(vendor, subcategoryTitle, categoryTitle)
+      },
+      {
+        label: 'Contact supplier',
+        icon: 'i-lucide-message-square',
+        onSelect: () => handleContactSupplier(vendor.name)
+      }
+    ]
+  ]
+}
+
+const activeFiltersCount = computed(() => {
+  let count = 0
+  if (selectedCategoryId.value !== 'all') count++
+  if (selectedTier.value !== 'all') count++
+  return count
+})
+
+const activeCategoryTitle = computed(() => {
+  if (selectedCategoryId.value === 'all') return 'All Suppliers'
+  const cat = suppliersData.value.find((c) => c.id === selectedCategoryId.value)
+  return cat ? cat.title : 'All Suppliers'
+})
+
+// Bread Basket suppliers for the spotlight showcase
+const breadBasketShowcase = computed(() => {
+  const showcase: (DirectorySupplier & { categoryTitle: string; icon: string; categoryId: string })[] = []
+  const seen = new Set<string>()
+
+  for (const cat of suppliersData.value) {
+    if (selectedCategoryId.value !== 'all' && cat.id !== selectedCategoryId.value) continue
+    for (const sub of cat.subcategories) {
+      for (const vendor of sub.vendors) {
+        if (vendor.tier === 'bread-basket' && !seen.has(vendor.name)) {
+          seen.add(vendor.name)
+          showcase.push({
+            ...vendor,
+            categoryTitle: cat.title,
+            icon: cat.icon,
+            categoryId: cat.id
+          })
+        }
+      }
+    }
+  }
+  return showcase
+})
+
+// Filtered categories based on search, category selection, and tier filter
+const filteredCategories = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  const categoryFilter = selectedCategoryId.value
+  const tierFilter = selectedTier.value
+
+  return suppliersData.value
+    .filter((cat) => {
+      if (categoryFilter !== 'all' && cat.id !== categoryFilter) {
+        return false
+      }
+      return true
+    })
+    .map((cat) => {
+      const matchingSubcategories = cat.subcategories
+        .map((sub) => {
+          let matchingVendors = sub.vendors
+
+          // Filter by tier
+          if (tierFilter !== 'all') {
+            matchingVendors = matchingVendors.filter((v) => v.tier === tierFilter)
+          }
+
+          // Filter by search query
+          if (query) {
+            matchingVendors = matchingVendors.filter((v) => {
+              const matchesName = v.name.toLowerCase().includes(query)
+              const matchesTagline = v.tagline?.toLowerCase().includes(query) ?? false
+              const matchesCategory = cat.title.toLowerCase().includes(query)
+              const matchesSubcategory = sub.title.toLowerCase().includes(query)
+              const matchesTier = v.tier.toLowerCase().includes(query)
+              return matchesName || matchesTagline || matchesCategory || matchesSubcategory || matchesTier
+            })
+          }
+
+          if (matchingVendors.length > 0) {
+            return {
+              ...sub,
+              vendors: matchingVendors
+            }
+          }
+          return null
+        })
+        .filter(Boolean) as SupplierSubCategory[]
+
+      return {
+        ...cat,
+        subcategories: matchingSubcategories
+      }
+    })
+    .filter((cat) => cat.subcategories.length > 0)
+})
+
+const totalVisibleSuppliersCount = computed(() => {
+  let count = 0
+  for (const cat of filteredCategories.value) {
+    for (const sub of cat.subcategories) {
+      count += sub.vendors.length
+    }
+  }
+  return count
+})
+
+function getVendorsByTier(sub: SupplierSubCategory, tier: SupplierTier) {
+  return sub.vendors.filter((v) => v.tier === tier)
+}
+
+function getFirstRowPlaceholderCount(count: number): number {
+  if (count <= 0) return 0
+  return count < 3 ? 3 - count : 0
+}
+
+function clearFilters() {
+  searchQuery.value = ''
+  selectedCategoryId.value = 'all'
+  selectedTier.value = 'all'
+}
+
+function isSpecialVendor(vendorName: string): boolean {
+  return vendorName.toLowerCase().includes('creative preppers')
+}
+
+function getTierLabel(tier: string): string {
+  if (tier === 'bread-basket') return 'Bread Basket'
+  if (tier === 'loaf') return 'Loaf'
+  if (tier === 'slice') return 'Slice'
+  return 'All Tiers'
+}
+
+interface CategoryTheme {
+  color: string
+  solidHeaderClass: string
+  borderClass: string
+  dotClass: string
+  iconColorClass: string
+}
+
+const CATEGORY_THEMES: Record<string, CategoryTheme> = {
+  'food-beverage': {
+    color: 'orange',
+    solidHeaderClass: 'bg-orange-600',
+    borderClass: 'border-orange-300/60',
+    dotClass: 'bg-orange-500',
+    iconColorClass: 'text-orange-600'
+  },
+  'photo-video': {
+    color: 'blue',
+    solidHeaderClass: 'bg-blue-600',
+    borderClass: 'border-blue-300/60',
+    dotClass: 'bg-blue-500',
+    iconColorClass: 'text-blue-600'
+  },
+  'entertainment': {
+    color: 'emerald',
+    solidHeaderClass: 'bg-emerald-600',
+    borderClass: 'border-emerald-300/60',
+    dotClass: 'bg-emerald-500',
+    iconColorClass: 'text-emerald-600'
+  },
+  'styling-production': {
+    color: 'fuchsia',
+    solidHeaderClass: 'bg-fuchsia-600',
+    borderClass: 'border-fuchsia-300/60',
+    dotClass: 'bg-fuchsia-500',
+    iconColorClass: 'text-fuchsia-600'
+  },
+  'formal-wear': {
+    color: 'violet',
+    solidHeaderClass: 'bg-violet-600',
+    borderClass: 'border-violet-300/60',
+    dotClass: 'bg-violet-500',
+    iconColorClass: 'text-violet-600'
+  },
+  'vanity-hmu': {
+    color: 'pink',
+    solidHeaderClass: 'bg-pink-600',
+    borderClass: 'border-pink-300/60',
+    dotClass: 'bg-pink-500',
+    iconColorClass: 'text-pink-600'
+  },
+  'prints-stationery': {
+    color: 'teal',
+    solidHeaderClass: 'bg-teal-600',
+    borderClass: 'border-teal-300/60',
+    dotClass: 'bg-teal-500',
+    iconColorClass: 'text-teal-600'
+  },
+  'favors-accessories-registry': {
+    color: 'amber',
+    solidHeaderClass: 'bg-amber-600',
+    borderClass: 'border-amber-300/60',
+    dotClass: 'bg-amber-500',
+    iconColorClass: 'text-amber-600'
+  }
+}
+
+function getCategoryTheme(catId: string): CategoryTheme {
+  return (
+    CATEGORY_THEMES[catId] ?? {
+      color: 'toast',
+      solidHeaderClass: 'bg-toast-600',
+      borderClass: 'border-toast-300/60',
+      dotClass: 'bg-toast-500',
+      iconColorClass: 'text-toast-600'
+    }
+  )
+}
+</script>
+
+<template>
+  <div
+    class="min-h-screen bg-toast-700 text-white py-6 sm:py-8 px-3.5 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-4 gap-5 lg:gap-8 w-full">
+    <!-- Navbar Teleport Actions -->
+    <ClientOnly>
+      <Teleport to="#navbar-actions">
+        <div class="flex items-center gap-2">
+          <UButton
+            :to="suppliersDashboardUrl"
+            icon="i-lucide-briefcase"
+            trailing-icon="i-lucide-arrow-right"
+            color="primary"
+            variant="solid"
+            class="font-semibold cursor-pointer shadow-xs text-xs sm:text-sm"
+          >
+            <span class="hidden sm:inline">Go to My Suppliers</span>
+            <span class="sm:hidden">My Suppliers</span>
+          </UButton>
+        </div>
+      </Teleport>
+    </ClientOnly>
+
+    <!-- Mobile Filter Header & Expandable Drawer (lg:hidden) -->
+    <div class="lg:hidden w-full space-y-3 pt-1">
+      <!-- Search input on mobile -->
+      <div class="relative">
+        <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="Search suppliers or specialty..."
+          class="w-full bg-white/90 text-toast-900 border-toast-300 focus:border-toast-600 rounded-lg shadow-xs text-xs" />
+        <button v-if="searchQuery" type="button" @click="searchQuery = ''"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-toast-500 hover:text-toast-900 cursor-pointer p-1 rounded"
+          title="Clear search">
+          <UIcon name="i-lucide-x" class="size-3.5" />
+        </button>
+      </div>
+
+      <!-- Quick Controls: Filter toggle button + Quick Tier Pills -->
+      <div
+        class="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <button type="button" @click="isMobileFilterOpen = !isMobileFilterOpen" :class="[
+          'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-all cursor-pointer shadow-xs',
+          isMobileFilterOpen || activeFiltersCount > 0
+            ? 'bg-toast-800 text-white ring-1 ring-toast-600'
+            : 'bg-bread-400 text-toast-900 hover:bg-bread-300 border border-toast-400/50'
+        ]">
+          <UIcon name="i-lucide-sliders-horizontal" class="size-3.5" />
+          <span>Filters</span>
+          <UBadge v-if="activeFiltersCount > 0" size="xs" color="warning" variant="solid"
+            class="rounded-full px-1.5 py-0 text-[10px] font-bold">
+            {{ activeFiltersCount }}
+          </UBadge>
+          <UIcon :name="isMobileFilterOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3 ml-0.5" />
+        </button>
+
+        <!-- Quick Tier Chips for 1-tap mobile filtering -->
+        <button v-for="tier in ['all', 'bread-basket', 'loaf', 'slice']" :key="'mobile-tier-' + tier" type="button"
+          @click="selectedTier = tier" :class="[
+            'px-2.5 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap shrink-0 transition-all cursor-pointer shadow-2xs',
+            selectedTier === tier
+              ? 'bg-toast-600 text-white font-semibold shadow-xs'
+              : 'bg-bread-400/90 text-toast-900 hover:bg-bread-400 border border-toast-400/40'
+          ]">
+          {{ getTierLabel(tier) }}
+        </button>
+      </div>
+
+      <!-- Collapsible Mobile Filters Drawer -->
+      <div v-if="isMobileFilterOpen"
+        class="bread-container w-full bg-bread-400 text-toast-900 p-4 rounded-xl shadow-lg border border-toast-400/30 space-y-4">
+        <div class="flex items-center justify-between border-b border-toast-600/20 pb-2.5">
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-filter" class="size-4 text-toast-700" />
+            <h3 class="font-bold text-sm font-serif text-toast-900">Filter Directory</h3>
+          </div>
+          <button v-if="activeFiltersCount > 0" type="button" @click="clearFilters"
+            class="text-xs font-semibold text-toast-700 hover:text-toast-950 underline cursor-pointer">
+            Reset all
+          </button>
+        </div>
+
+        <!-- 1. Tiers Selection in Drawer -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 mb-2">
+            Tier Level
+          </h4>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button v-for="tier in ['all', 'bread-basket', 'loaf', 'slice']" :key="'drawer-tier-' + tier" type="button"
+              @click="selectedTier = tier" :class="[
+                'w-full flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+                selectedTier === tier
+                  ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                  : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
+              ]">
+              {{ getTierLabel(tier) }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Categories Selection in Drawer -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700 mb-2">
+            Category
+          </h4>
+          <div class="max-h-60 overflow-y-auto space-y-1 pr-1">
+            <button type="button" @click="selectedCategoryId = 'all'" :class="[
+              'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
+              selectedCategoryId === 'all'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                : 'text-toast-800 hover:bg-toast-500/10'
+            ]">
+              <UIcon name="i-lucide-store" class="size-3.5 shrink-0" />
+              <span class="truncate">All Categories</span>
+            </button>
+            <button v-for="cat in suppliersData" :key="'drawer-cat-' + cat.id" type="button"
+              @click="selectedCategoryId = cat.id" :class="[
+                'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
+                selectedCategoryId === cat.id
+                  ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                  : 'text-toast-800 hover:bg-toast-500/10'
+              ]">
+              <span class="size-2 rounded-full shrink-0" :class="getCategoryTheme(cat.id).dotClass" />
+              <UIcon :name="cat.icon" class="size-3.5 shrink-0" />
+              <span class="truncate">{{ cat.title }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <UButton block color="primary"
+            class="bg-toast-600 hover:bg-toast-700 text-white font-semibold py-2 text-xs rounded-lg cursor-pointer"
+            @click="isMobileFilterOpen = false">
+            Apply Filters ({{ totalVisibleSuppliersCount }} found)
+          </UButton>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left Side: Inset Floating UDashboardPanel (1 column in 4-column layout) - Desktop Only -->
+    <div class="hidden lg:block lg:col-span-1 w-full py-2">
+      <UDashboardPanel id="suppliers-categories" :resizable="false"
+        class="bread-container w-full bg-bread-400 text-toast-900 lg:sticky lg:top-20 max-h-[calc(100vh-6rem)] overflow-y-auto p-6 sm:p-8 space-y-6 z-30 shadow-md border-none"
+        :ui="{ root: '!sticky top-20 min-h-0 h-auto rounded-xl border-none shadow-md' }">
+        <!-- 1. Search Bar on Top -->
+        <div>
+          <div class="relative">
+            <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="Search suppliers or specialty..."
+              class="w-full bg-white/90 text-toast-900 border-toast-300 focus:border-toast-600 rounded-md shadow-xs text-xs" />
+            <button v-if="searchQuery" type="button" @click="searchQuery = ''"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-toast-500 hover:text-toast-900 cursor-pointer p-0.5 rounded"
+              title="Clear search">
+              <UIcon name="i-lucide-x" class="size-3" />
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Tiers Button Group -->
+        <div>
+          <h3
+            class="text-xs font-bold uppercase tracking-wider text-toast-700 border-b border-toast-600/20 pb-1.5 mb-2 flex items-center gap-1.5">
+            <UIcon name="i-lucide-layers" class="size-3.5" />
+            Filter By Tier
+          </h3>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button type="button" @click="selectedTier = 'all'" :class="[
+              'w-full flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+              selectedTier === 'all'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold border border-toast-600'
+                : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
+            ]">
+              <span class="truncate">All Tiers</span>
+            </button>
+            <button type="button" @click="selectedTier = 'bread-basket'" :class="[
+              'w-full flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+              selectedTier === 'bread-basket'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold border border-toast-600'
+                : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
+            ]">
+              <span class="truncate">Bread Basket</span>
+            </button>
+            <button type="button" @click="selectedTier = 'loaf'" :class="[
+              'w-full flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+              selectedTier === 'loaf'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold border border-toast-600'
+                : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
+            ]">
+              <span class="truncate">Loaf</span>
+            </button>
+            <button type="button" @click="selectedTier = 'slice'" :class="[
+              'w-full flex items-center justify-center px-2 py-1.5 text-xs font-medium rounded-md transition-all text-center cursor-pointer',
+              selectedTier === 'slice'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold border border-toast-600'
+                : 'bg-white/80 text-toast-800 hover:bg-white border border-toast-300/40'
+            ]">
+              <span class="truncate">Slice</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Categories Button Group -->
+        <div>
+          <h3
+            class="text-xs font-bold uppercase tracking-wider text-toast-700 border-b border-toast-600/20 pb-1.5 mb-2 flex items-center gap-1.5">
+            <UIcon name="i-lucide-store" class="size-3.5" />
+            Categories
+          </h3>
+
+          <!-- Categories Filter Navigation -->
+          <div class="space-y-0.5">
+            <button type="button" @click="selectedCategoryId = 'all'" :class="[
+              'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
+              selectedCategoryId === 'all'
+                ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                : 'text-toast-800 hover:bg-toast-500/10'
+            ]">
+              <UIcon name="i-lucide-store" class="size-3.5 shrink-0" />
+              <span class="truncate">All Categories</span>
+            </button>
+
+            <button v-for="cat in suppliersData" :key="cat.id" type="button"
+              @click="selectedCategoryId = cat.id" :class="[
+                'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all text-left cursor-pointer',
+                selectedCategoryId === cat.id
+                  ? 'bg-toast-600 text-white shadow-xs font-semibold'
+                  : 'text-toast-800 hover:bg-toast-500/10'
+              ]">
+              <span class="size-2 rounded-full shrink-0" :class="getCategoryTheme(cat.id).dotClass" />
+              <UIcon :name="cat.icon" class="size-3.5 shrink-0" />
+              <span class="truncate">{{ cat.title }}</span>
+            </button>
+          </div>
+        </div>
+      </UDashboardPanel>
+    </div>
+
+    <!-- Right Side: Main Content Area spanning remaining 3 columns (Results Only) -->
+    <main class="lg:col-span-3 w-full min-w-0 py-2 space-y-5 sm:space-y-6">
+      <!-- Results Header: Active Category Title and counts -->
+      <div
+        class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-6 shadow-md rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl sm:text-2xl font-bold font-serif text-toast-800">
+              {{ activeCategoryTitle }}
+            </h2>
+            <UIcon v-if="isLoading" name="i-lucide-loader-2" class="size-4 text-toast-600 animate-spin" />
+          </div>
+          <p class="text-xs text-toast-700 mt-1 flex flex-wrap items-center gap-1.5">
+            <span>Showing {{ totalVisibleSuppliersCount }} supplier{{ totalVisibleSuppliersCount === 1 ? '' : 's'
+            }}</span>
+            <span v-if="selectedTier !== 'all'" class="font-semibold text-toast-900">
+              • {{ getTierLabel(selectedTier) }} Tier
+            </span>
+            <span v-if="searchQuery" class="font-semibold text-toast-900">
+              • Matching "{{ searchQuery }}"
+            </span>
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <UButton color="neutral" variant="soft" size="xs"
+            class="text-toast-700 hover:text-toast-900 cursor-pointer hidden sm:inline-flex"
+            :disabled="isLoading"
+            @click="refresh">
+            <UIcon name="i-lucide-refresh-cw" :class="['size-3.5 mr-1', isLoading && 'animate-spin']" />
+            <span>Sync</span>
+          </UButton>
+          <UButton :to="targetActionUrl" color="primary" variant="solid"
+            class="font-semibold bg-toast-600 hover:bg-toast-700 text-white shrink-0 self-stretch sm:self-auto justify-center text-center rounded-lg shadow-xs text-xs sm:text-sm">
+            Need help? Contact our inhouse assistant
+          </UButton>
+        </div>
+      </div>
+
+      <!-- Backend Transmission Error Notice Banner -->
+      <div v-if="error"
+        class="bg-red-50 border border-red-200 text-red-900 rounded-xl p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-xs">
+        <div class="flex items-center gap-2.5">
+          <UIcon name="i-lucide-alert-triangle" class="size-5 text-red-600 shrink-0" />
+          <div class="text-xs">
+            <p class="font-bold">Backend Sync Notice</p>
+            <p class="text-red-700">{{ error }}</p>
+          </div>
+        </div>
+        <UButton size="xs" color="error" variant="soft" class="shrink-0 cursor-pointer" @click="refresh">
+          Retry
+        </UButton>
+      </div>
+
+      <!-- Loading Skeleton State -->
+      <div v-if="isLoading && !isFetched" class="space-y-6 animate-pulse">
+        <!-- Spotlight Skeleton -->
+        <div class="rounded-2xl bg-bread-400 p-5 space-y-4">
+          <div class="h-6 w-48 bg-toast-300/60 rounded"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="i in 3" :key="'skel-spotlight-' + i" class="bg-white/80 rounded-xl p-4 space-y-3">
+              <div class="h-20 bg-toast-200/50 rounded-lg"></div>
+              <div class="h-4 w-3/4 bg-toast-200/60 rounded"></div>
+              <div class="h-3 w-1/2 bg-toast-200/40 rounded"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Category Section Skeleton -->
+        <div v-for="i in 2" :key="'skel-cat-' + i" class="rounded-xl overflow-hidden bg-bread-400">
+          <div class="h-11 bg-toast-500/40"></div>
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div v-for="j in 3" :key="'skel-card-' + i + '-' + j" class="h-28 bg-white/70 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State: Directory is Baking Fresh (Backend ready / 0 suppliers currently stored) -->
+      <div v-else-if="totalDirectorySuppliersCount === 0"
+        class="bread-container bg-bread-400 text-toast-900 rounded-xl p-8 sm:p-12 text-center shadow-md space-y-4">
+        <div class="size-16 rounded-2xl bg-amber-500/15 text-amber-800 flex items-center justify-center mx-auto text-3xl shadow-inner">
+          🥖
+        </div>
+        <div class="space-y-1.5 max-w-md mx-auto">
+          <h3 class="text-xl sm:text-2xl font-bold font-serif text-toast-900">
+            Our Supplier Directory is Baking Fresh!
+          </h3>
+          <p class="text-xs sm:text-sm text-toast-800/85 leading-relaxed">
+            We are curating and onboarding verified wedding artisans and vendors for our signature Bread Basket, Loaf, and Slice tiers.
+            Connected and ready for live transmission from the backend.
+          </p>
+        </div>
+        <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3">
+          <UButton to="/bakers/login" color="primary" size="md"
+            class="font-bold bg-toast-600 hover:bg-toast-700 text-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2">
+            Apply as a Supplier Partner
+          </UButton>
+          <UButton color="neutral" variant="outline" size="md"
+            class="font-semibold text-toast-800 border-toast-300 hover:bg-white w-full sm:w-auto justify-center text-xs sm:text-sm py-2"
+            @click="refresh">
+            <UIcon name="i-lucide-refresh-cw" class="size-3.5 mr-1" />
+            Check For Updates
+          </UButton>
+        </div>
+      </div>
+
+      <!-- Empty State: Filter / Search returned no suppliers -->
+      <div v-else-if="filteredCategories.length === 0"
+        class="bread-container bg-bread-400 text-toast-900 rounded-xl p-8 sm:p-12 text-center shadow-md space-y-3">
+        <div class="size-12 rounded-full bg-toast-600/10 text-toast-600 flex items-center justify-center mx-auto">
+          <UIcon name="i-lucide-search-x" class="size-6" />
+        </div>
+        <h3 class="text-xl font-bold font-serif text-toast-900">No Suppliers Found</h3>
+        <p class="text-sm text-toast-700/80 max-w-sm mx-auto">
+          We couldn't find any suppliers matching your criteria. Try adjusting your search keyword or clearing tier
+          filters.
+        </p>
+        <UButton color="primary" variant="soft" size="sm" class="font-medium mt-2 cursor-pointer" @click="clearFilters">
+          Reset Filters
+        </UButton>
+      </div>
+
+      <!-- Live Populated Suppliers View -->
+      <div v-else class="space-y-6">
+        <!-- Bread Basket Spotlight Showcase -->
+        <div
+          v-if="(selectedTier === 'all' || selectedTier === 'bread-basket') && !searchQuery && breadBasketShowcase.length > 0"
+          class="rounded-2xl overflow-hidden bg-bread-400 border-none shadow-md">
+          <div
+            class="bg-amber-600 bg-gradient-to-br from-amber-600/90 via-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
+            <div class="space-y-0.5">
+              <div class="inline-flex items-center gap-1.5 text-amber-100 text-[11px] font-bold uppercase tracking-wider">
+                <span>🥖</span>
+                <span>Spotlight Showcase</span>
+              </div>
+              <h3 class="text-lg sm:text-2xl font-bold font-serif text-white">
+                Bread Basket Suppliers
+              </h3>
+            </div>
+          </div>
+
+          <!-- Bread Basket Cards Grid (Largest Size - 3 Columns) -->
+          <div class="p-3.5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div v-for="bb in breadBasketShowcase" :key="bb.name"
+              class="bg-white rounded-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
+              <div class="space-y-3">
+                <!-- Logo Box with Image -->
+                <div
+                  class="w-full h-20 rounded-lg bg-toast-950/5 flex items-center justify-center p-2.5 overflow-hidden shadow-inner group-hover:scale-[1.02] transition-transform duration-200">
+                  <img v-if="bb.logo" :src="bb.logo" :alt="bb.name"
+                    class="max-h-full max-w-full object-contain filter drop-shadow-xs" loading="lazy" />
+                  <div v-else class="text-lg font-serif font-bold text-amber-900">
+                    {{ bb.name }}
+                  </div>
+                </div>
+
+                <!-- Card Content -->
+                <div class="space-y-1.5">
+                  <h4 class="text-lg font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                    {{ bb.name }}
+                  </h4>
+
+                  <!-- Location moved under brand name -->
+                  <div v-if="bb.location" class="flex items-center gap-1 text-[11px] text-toast-600 font-medium">
+                    <UIcon name="i-lucide-map-pin" class="size-3 text-amber-700/80 shrink-0" />
+                    <span>{{ bb.location }}</span>
+                  </div>
+
+                  <p v-if="bb.tagline" class="text-xs text-toast-800/90 leading-relaxed line-clamp-2">
+                    {{ bb.tagline }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Footer CTA with Dropdown -->
+              <div class="pt-3 mt-3 border-t border-bread-200/80 flex items-center justify-between">
+                <span class="text-xs font-semibold text-toast-600 flex items-center gap-1">
+                  <UIcon :name="bb.icon" class="size-3.5 text-toast-500" />
+                  {{ bb.categoryTitle }}
+                </span>
+
+                <UDropdownMenu
+                  :items="getSupplierDropdownItems(bb, bb.categoryTitle, bb.categoryTitle)"
+                  :content="{ align: 'end' }"
+                  :ui="supplierDropdownUi"
+                >
+                  <button
+                    type="button"
+                    class="text-xs font-bold text-amber-700 hover:text-amber-900 inline-flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-amber-100/70 transition-colors"
+                  >
+                    <span>More info</span>
+                    <UIcon name="i-lucide-chevron-down" class="size-3" />
+                  </button>
+                </UDropdownMenu>
+              </div>
+            </div>
+
+            <!-- Placeholder Cards to complete the first row -->
+            <NuxtLink v-for="idx in getFirstRowPlaceholderCount(breadBasketShowcase.length)"
+              :key="'spotlight-placeholder-' + idx" to="/bakers/login"
+              class="bg-white/90 hover:bg-white rounded-xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-2 border-dashed border-amber-300 hover:border-amber-500 text-toast-900 cursor-pointer">
+              <div class="space-y-3">
+                <!-- Icon Box matching the logo box height -->
+                <div
+                  class="w-full h-20 rounded-lg bg-amber-50/70 border border-amber-200/60 flex flex-col items-center justify-center p-2.5 overflow-hidden group-hover:bg-amber-100/70 transition-colors">
+                  <div class="size-9 rounded-full bg-amber-500/15 text-amber-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                    <UIcon name="i-lucide-crown" class="size-4.5 text-amber-600" />
+                  </div>
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Spotlight Available</span>
+                </div>
+
+                <!-- Content -->
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-base sm:text-lg font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                      Your Brand Here
+                    </h4>
+                    <UBadge size="xs" color="warning" variant="subtle" class="text-[10px] font-bold">
+                      Top Tier
+                    </UBadge>
+                  </div>
+                  <p class="text-xs text-toast-700/90 leading-relaxed line-clamp-2">
+                    Become a premier Bread Basket partner and get spotlighted to engaged couples planning their wedding.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Footer CTA -->
+              <div class="pt-3 mt-3 border-t border-amber-200/60 flex items-center justify-between">
+                <span class="text-xs font-semibold text-amber-800 flex items-center gap-1">
+                  <UIcon name="i-lucide-sparkles" class="size-3.5 text-amber-600" />
+                  Bread Basket Tier
+                </span>
+                <span class="text-xs font-bold text-amber-800 group-hover:text-amber-950 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  <span>Join Our Bakers</span>
+                  <UIcon name="i-lucide-arrow-right" class="size-3" />
+                </span>
+              </div>
+            </NuxtLink>
+          </div>
+        </div>
+
+        <!-- Supplier Category Sections -->
+        <section v-for="cat in filteredCategories" :key="cat.id" class="space-y-6 scroll-mt-28">
+          <!-- Subcategories Display -->
+          <div class="space-y-6">
+            <div v-for="sub in cat.subcategories" :key="sub.title"
+              class="rounded-xl overflow-hidden bg-bread-400 border-none shadow-md">
+              <!-- Solid Color Header on top of container -->
+              <div class="px-3.5 sm:px-5 py-2.5 sm:py-3 text-white flex items-center justify-between shadow-2xs"
+                :class="getCategoryTheme(cat.id).solidHeaderClass">
+                <div class="flex items-center gap-2 sm:gap-2.5">
+                  <div class="size-6 sm:size-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                    <UIcon :name="cat.icon" class="size-3.5 sm:size-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 class="text-xs sm:text-base font-bold font-serif text-white flex items-center gap-1.5 sm:gap-2">
+                      {{ sub.title }}
+                    </h3>
+                    <span v-if="selectedCategoryId === 'all'"
+                      class="text-[10px] sm:text-[11px] text-white/85 font-medium block">
+                      {{ cat.title }}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  class="text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-black/20 text-white shrink-0">
+                  {{ sub.vendors.length }} supplier{{ sub.vendors.length === 1 ? '' : 's' }}
+                </span>
+              </div>
+
+              <!-- Container Body -->
+              <div class="p-3.5 sm:p-5 space-y-4 sm:space-y-5">
+                <!-- TIER 1: BREAD BASKET (Largest Size with Attached Logos - 3 Columns) -->
+                <div v-if="getVendorsByTier(sub, 'bread-basket').length > 0" class="space-y-2.5">
+                  <div class="flex items-center gap-1.5 sm:gap-2">
+                    <span class="text-sm">🥖</span>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-800">
+                      Bread Basket
+                    </h4>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
+                    <div v-for="vendor in getVendorsByTier(sub, 'bread-basket')" :key="vendor.name"
+                      class="bg-white rounded-xl p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
+                      <div class="space-y-2.5 sm:space-y-3">
+                        <!-- Logo Image (Largest importance) -->
+                        <div
+                          class="w-full h-18 sm:h-20 rounded-lg bg-toast-950/5 flex items-center justify-center p-2 shrink-0 overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-200">
+                          <img v-if="vendor.logo" :src="vendor.logo" :alt="vendor.name"
+                            class="max-h-full max-w-full object-contain" loading="lazy" />
+                          <div v-else class="text-center">
+                            <span class="text-xl">🥖</span>
+                            <p class="text-xs font-serif font-bold text-amber-900 mt-0.5">{{ vendor.name }}</p>
+                          </div>
+                        </div>
+
+                        <!-- Vendor Info -->
+                        <div class="flex-1 space-y-1 sm:space-y-1.5 w-full">
+                          <h5
+                            class="text-sm sm:text-base font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                            {{ vendor.name }}
+                          </h5>
+
+                          <!-- Location moved under brand name -->
+                          <div v-if="vendor.location"
+                            class="flex items-center gap-1 text-[10px] text-toast-600 font-medium">
+                            <UIcon name="i-lucide-map-pin" class="size-3 text-amber-700/80 shrink-0" />
+                            <span>{{ vendor.location }}</span>
+                          </div>
+
+                          <p v-if="vendor.tagline" class="text-xs text-toast-800/90 leading-relaxed line-clamp-2">
+                            {{ vendor.tagline }}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="pt-2 mt-2 border-t border-bread-200/80 flex items-center justify-end">
+                        <UDropdownMenu
+                          :items="getSupplierDropdownItems(vendor, sub.title, cat.title)"
+                          :content="{ align: 'end' }"
+                          :ui="supplierDropdownUi"
+                        >
+                          <button
+                            type="button"
+                            class="text-xs font-bold text-amber-700 hover:text-amber-900 inline-flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-amber-100/70 transition-colors"
+                          >
+                            <span>More info</span>
+                            <UIcon name="i-lucide-chevron-down" class="size-3" />
+                          </button>
+                        </UDropdownMenu>
+                      </div>
+                    </div>
+
+                    <!-- Placeholder Cards to complete the first row -->
+                    <NuxtLink v-for="idx in getFirstRowPlaceholderCount(getVendorsByTier(sub, 'bread-basket').length)"
+                      :key="'sub-placeholder-' + sub.title + '-' + idx" to="/bakers/login"
+                      class="bg-white/90 hover:bg-white rounded-xl p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-2 border-dashed border-amber-300 hover:border-amber-500 text-toast-900 cursor-pointer">
+                      <div class="space-y-2.5 sm:space-y-3">
+                        <!-- Icon Box matching the logo box height -->
+                        <div
+                          class="w-full h-18 sm:h-20 rounded-lg bg-amber-50/70 border border-amber-200/60 flex flex-col items-center justify-center p-2 shrink-0 overflow-hidden group-hover:bg-amber-100/70 transition-colors">
+                          <div class="size-8 sm:size-9 rounded-full bg-amber-500/15 text-amber-700 flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform">
+                            <UIcon name="i-lucide-crown" class="size-4 text-amber-600" />
+                          </div>
+                          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Available Spot</span>
+                        </div>
+
+                        <!-- Vendor Info -->
+                        <div class="flex-1 space-y-1 sm:space-y-1.5 w-full">
+                          <div class="flex items-center justify-between">
+                            <h5 class="text-sm sm:text-base font-bold font-serif text-toast-900 group-hover:text-amber-800 transition-colors">
+                              Feature Your Business
+                            </h5>
+                            <UBadge size="xs" color="warning" variant="subtle" class="text-[10px] font-bold">
+                              Top Tier
+                            </UBadge>
+                          </div>
+
+                          <div class="flex items-center gap-1 text-[10px] text-amber-700/80 font-medium">
+                            <UIcon name="i-lucide-sparkles" class="size-3 shrink-0" />
+                            <span>{{ sub.title }}</span>
+                          </div>
+
+                          <p class="text-xs text-toast-700/90 leading-relaxed line-clamp-2">
+                            Join our verified bakers in this category and connect directly with couples and planners.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="pt-2 mt-2 border-t border-amber-200/60 flex items-center justify-between">
+                        <span class="text-[11px] font-semibold text-amber-800 flex items-center gap-1">
+                          <UIcon name="i-lucide-crown" class="size-3 text-amber-600" />
+                          Bread Basket
+                        </span>
+                        <span class="text-xs font-bold text-amber-800 group-hover:text-amber-950 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                          <span>Join Our Bakers</span>
+                          <UIcon name="i-lucide-arrow-right" class="size-3" />
+                        </span>
+                      </div>
+                    </NuxtLink>
+                  </div>
+                </div>
+
+                <!-- TIER 2: LOAF (Medium Size - 4 Columns) -->
+                <div v-if="getVendorsByTier(sub, 'loaf').length > 0" class="space-y-2.5">
+                  <div class="flex items-center gap-1.5 sm:gap-2 pt-1">
+                    <span class="text-sm">🍞</span>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-toast-700">
+                      Loaf
+                    </h4>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                    <div v-for="vendor in getVendorsByTier(sub, 'loaf')" :key="vendor.name"
+                      class="bg-white rounded-lg p-2.5 sm:p-3 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group border-none">
+                      <div class="space-y-1 sm:space-y-1.5">
+                        <h5
+                          class="text-xs sm:text-sm font-bold font-serif text-toast-900 group-hover:text-toast-700 transition-colors">
+                          {{ vendor.name }}
+                        </h5>
+
+                        <p v-if="vendor.tagline" class="text-xs text-toast-700/90 leading-relaxed line-clamp-2">
+                          {{ vendor.tagline }}
+                        </p>
+                      </div>
+
+                      <div class="pt-2 mt-2 border-t border-bread-200/80 flex items-center justify-end">
+                        <UDropdownMenu
+                          :items="getSupplierDropdownItems(vendor, sub.title, cat.title)"
+                          :content="{ align: 'end' }"
+                          :ui="supplierDropdownUi"
+                        >
+                          <button
+                            type="button"
+                            class="text-[11px] font-semibold text-toast-600 hover:text-toast-900 transition-colors inline-flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-bread-100"
+                          >
+                            <span>More info</span>
+                            <UIcon name="i-lucide-chevron-down" class="size-3" />
+                          </button>
+                        </UDropdownMenu>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- TIER 3: SLICE (Smallest Size - Compact Chips) -->
+                <div v-if="getVendorsByTier(sub, 'slice').length > 0" class="space-y-2">
+                  <div class="flex items-center gap-1.5 sm:gap-2 pt-1">
+                    <span class="text-sm">🥪</span>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-stone-600">
+                      Slice
+                    </h4>
+                  </div>
+
+                  <div class="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
+                    <div v-for="vendor in getVendorsByTier(sub, 'slice')" :key="vendor.name">
+                      <!-- Special Subtle Highlight for Creative Preppers -->
+                      <UDropdownMenu
+                        v-if="isSpecialVendor(vendor.name)"
+                        :items="getSupplierDropdownItems(vendor, sub.title, cat.title)"
+                        :content="{ align: 'start' }"
+                        :ui="supplierDropdownUi"
+                      >
+                        <button
+                          type="button"
+                          class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white hover:bg-amber-50/70 text-xs font-bold text-amber-900 flex items-center gap-1.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer border-none"
+                          title="Actions for Creative Preppers"
+                        >
+                          <UIcon name="i-ph-sparkle-fill" class="size-3 sm:size-3.5 text-amber-600" />
+                          <span>{{ vendor.name }}</span>
+                          <UBadge color="warning" variant="solid" size="xs" class="text-[9px] py-0 px-1 font-bold uppercase">
+                            Featured
+                          </UBadge>
+                          <UIcon name="i-lucide-chevron-down" class="size-3 text-amber-700/60 ml-0.5" />
+                        </button>
+                      </UDropdownMenu>
+
+                      <!-- Standard Slice Mini-Chip (Smallest Size) -->
+                      <UDropdownMenu
+                        v-else
+                        :items="getSupplierDropdownItems(vendor, sub.title, cat.title)"
+                        :content="{ align: 'start' }"
+                        :ui="supplierDropdownUi"
+                      >
+                        <button
+                          type="button"
+                          class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md bg-white hover:bg-white/90 text-xs font-medium text-toast-900 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 sm:gap-2 group cursor-pointer border-none"
+                          :title="'Actions for ' + vendor.name"
+                        >
+                          <span
+                            class="size-1.5 rounded-full bg-toast-400 group-hover:bg-toast-600 transition-colors shrink-0"></span>
+                          <span>{{ vendor.name }}</span>
+                          <UIcon name="i-lucide-chevron-down" class="size-2.5 text-toast-400 group-hover:text-toast-600 ml-0.5" />
+                        </button>
+                      </UDropdownMenu>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</template>
+
+<style scoped>
+@media (min-width: 1024px) {
+
+  :deep(#dashboard-panel-suppliers-categories),
+  #dashboard-panel-suppliers-categories {
+    position: sticky !important;
+    top: 5rem !important;
+  }
+}
+</style>

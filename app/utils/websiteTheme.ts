@@ -44,22 +44,94 @@ export function resolveTypography(typographyName?: string | null): TypographySet
   return typographySets.find((set) => set.name === typographyName) || typographySets[0]!
 }
 
-export function resolvePaletteFromRecord(
-  paletteName?: string | null,
-  stored?: Record<string, string> | null
-): ColorPalette {
-  if (stored && stored.primary && stored.secondary && stored.text_color) {
-    return {
-      name: paletteName || 'Custom',
-      colors: {
-        primary: stored.primary,
-        secondary: stored.secondary,
-        text_color: stored.text_color,
-        secondary_text_color:
-          stored.secondary_text_color || (stored.primary === '#1A1A1A' ? '#FFFFFF' : '#333333'),
-      },
+export function isDarkColor(hex?: string | null): boolean {
+  if (!hex || typeof hex !== 'string') return false
+  let clean = hex.replace('#', '').trim()
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('')
+  }
+  if (clean.length !== 6) return false
+  const r = parseInt(clean.substring(0, 2), 16) / 255
+  const g = parseInt(clean.substring(2, 4), 16) / 255
+  const b = parseInt(clean.substring(4, 6), 16) / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  return l < 0.55
+}
+
+export function formatHex(color?: string | null): string {
+  if (!color || typeof color !== 'string') return ''
+  let clean = color.trim()
+  if (!clean.startsWith('#')) clean = `#${clean}`
+  if (/^#[0-9A-Fa-f]{3}$/.test(clean)) {
+    clean = `#${clean[1]}${clean[1]}${clean[2]}${clean[2]}${clean[3]}${clean[3]}`
+  }
+  return clean.toUpperCase()
+}
+
+export function extractCustomColors(
+  stored?: unknown
+): ColorPalette['colors'] | null {
+  if (!stored) return null
+  let obj: any = stored
+  if (typeof obj === 'string') {
+    try {
+      obj = JSON.parse(obj)
+    } catch {
+      return null
     }
   }
+  if (!obj || typeof obj !== 'object') return null
+
+  // Unwrap nested .colors or .customColors if present
+  if (obj.colors && typeof obj.colors === 'object') {
+    obj = { ...obj, ...obj.colors }
+  }
+  if (obj.customColors && typeof obj.customColors === 'object') {
+    obj = { ...obj, ...obj.customColors }
+  }
+
+  const primaryRaw = (obj.primary || obj.background) as string | undefined
+  const secondaryRaw = (obj.secondary || obj.surface) as string | undefined
+  const textColorRaw = (obj.text_color || obj.textColor || obj.text || obj.heading) as string | undefined
+  const secondaryTextColorRaw = (obj.secondary_text_color || obj.secondaryTextColor || obj.secondary_text) as string | undefined
+
+  if (primaryRaw && secondaryRaw) {
+    const primary = formatHex(primaryRaw)
+    const secondary = formatHex(secondaryRaw)
+    const text_color = formatHex(textColorRaw) || (isDarkColor(primary) ? '#FDFBF7' : '#1A1A1A')
+    const secondary_text_color =
+      formatHex(secondaryTextColorRaw) || (isDarkColor(secondary) ? '#FDFBF7' : '#1A1A1A')
+
+    return {
+      primary,
+      secondary,
+      text_color,
+      secondary_text_color,
+    }
+  }
+
+  return null
+}
+
+export function resolvePaletteFromRecord(
+  paletteName?: string | null,
+  stored?: unknown
+): ColorPalette {
+  const custom = extractCustomColors(stored)
+  if (custom) {
+    return {
+      name: paletteName || 'Custom',
+      colors: custom,
+    }
+  }
+
+  if (paletteName && paletteName !== 'Custom') {
+    const preset = colorPalettes.find((palette) => palette.name === paletteName)
+    if (preset) return preset
+  }
+
   return resolvePalette(paletteName)
 }
 
@@ -108,3 +180,142 @@ export function getGoogleMapsUrl(
   if (!location) return ''
   return `https://maps.google.com/maps?q=hotels+near+${encodeURIComponent(location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`
 }
+
+export const headerFontOptions = [
+  { value: 'Parisienne', label: 'Parisienne', category: 'Romantic French Script' },
+  { value: 'Great Vibes', label: 'Great Vibes', category: 'Flourished Calligraphy' },
+  { value: 'Alex Brush', label: 'Alex Brush', category: 'Classic Cursive Script' },
+  { value: 'Pinyon Script', label: 'Pinyon Script', category: 'Formal Copperplate' },
+  { value: 'MonteCarlo', label: 'MonteCarlo', category: 'Vintage Luxury Script' },
+  { value: 'Allura', label: 'Allura', category: 'Graceful Handwritten' },
+  { value: 'Playfair Display', label: 'Playfair Display', category: 'Romantic Editorial Serif' },
+  { value: 'Bodoni Moda', label: 'Bodoni Moda', category: 'High-Fashion Luxury Serif' },
+  { value: 'Cinzel', label: 'Cinzel', category: 'Royal Roman Capitals' },
+  { value: 'Cormorant Garamond', label: 'Cormorant Garamond', category: 'Timeless Regal Serif' },
+  { value: 'Prata', label: 'Prata', category: 'Didone Romantic Serif' },
+  { value: 'Italiana', label: 'Italiana', category: 'Florentine Luxury Serif' },
+  { value: 'DM Serif Display', label: 'DM Serif Display', category: 'Modern Wedding Serif' },
+  { value: 'Marcellus', label: 'Marcellus', category: 'Classic Flared Serif' },
+  { value: 'Castoro', label: 'Castoro', category: 'Poetic Literary Serif' },
+]
+
+export const subheaderFontOptions = [
+  { value: 'Cormorant Garamond', label: 'Cormorant Garamond', category: 'Regal Serif' },
+  { value: 'Playfair Display', label: 'Playfair Display', category: 'Editorial Serif' },
+  { value: 'Cinzel', label: 'Cinzel', category: 'Royal Roman Capitals' },
+  { value: 'Lora', label: 'Lora', category: 'Contemporary Literary Serif' },
+  { value: 'Marcellus', label: 'Marcellus', category: 'Classic Flared Serif' },
+  { value: 'Bodoni Moda', label: 'Bodoni Moda', category: 'Luxury Serif' },
+  { value: 'Prata', label: 'Prata', category: 'Romantic Serif' },
+  { value: 'Montserrat', label: 'Montserrat', category: 'Clean Modern Sans' },
+  { value: 'Josefin Sans', label: 'Josefin Sans', category: 'Art Deco Sans' },
+  { value: 'Tenor Sans', label: 'Tenor Sans', category: 'Humanist Refined Sans' },
+  { value: 'Outfit', label: 'Outfit', category: 'Modern Geometric Sans' },
+  { value: 'Raleway', label: 'Raleway', category: 'Sophisticated Light Sans' },
+  { value: 'Quicksand', label: 'Quicksand', category: 'Soft Gentle Sans' },
+  { value: 'Great Vibes', label: 'Great Vibes', category: 'Calligraphy Accent' },
+  { value: 'Parisienne', label: 'Parisienne', category: 'Script Accent' },
+]
+
+export const bodyFontOptions = [
+  { value: 'Montserrat', label: 'Montserrat', category: 'Clean & Modern Sans' },
+  { value: 'Lato', label: 'Lato', category: 'Warm & Balanced Sans' },
+  { value: 'Open Sans', label: 'Open Sans', category: 'Crisp & Highly Legible' },
+  { value: 'Raleway', label: 'Raleway', category: 'Sophisticated Sans' },
+  { value: 'Nunito Sans', label: 'Nunito Sans', category: 'Soft & Friendly Sans' },
+  { value: 'Plus Jakarta Sans', label: 'Plus Jakarta Sans', category: 'Contemporary Clean' },
+  { value: 'Inter', label: 'Inter', category: 'Neutral Minimalist Sans' },
+  { value: 'Outfit', label: 'Outfit', category: 'Modern Geometric Sans' },
+  { value: 'Lora', label: 'Lora', category: 'Warm Literary Serif' },
+  { value: 'Cormorant Garamond', label: 'Cormorant Garamond', category: 'Classic Fine Serif' },
+  { value: 'Merriweather', label: 'Merriweather', category: 'Stately Traditional Serif' },
+  { value: 'Josefin Sans', label: 'Josefin Sans', category: 'Art Deco Sans' },
+]
+
+export interface ResolvedWebsiteTheme {
+  palette: ColorPalette
+  typography: TypographySet
+  invertColors: boolean
+  simplifiedColors: boolean
+}
+
+export function resolveCustomSiteTheme(site?: any | null): ResolvedWebsiteTheme {
+  if (!site) {
+    return {
+      palette: resolvePalette('Gilded Flora'),
+      typography: resolveTypography('Romantic Script'),
+      invertColors: false,
+      simplifiedColors: false,
+    }
+  }
+
+  const parsedColorPalette =
+    typeof site.colorPalette === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(site.colorPalette)
+          } catch {
+            return null
+          }
+        })()
+      : site.colorPalette
+
+  const paletteRecord =
+    typeof parsedColorPalette === 'object' && parsedColorPalette !== null
+      ? (parsedColorPalette as Record<string, unknown>)
+      : {}
+
+  let motifConfig: any = null
+  if (typeof site.motif === 'string' && site.motif.trim().startsWith('{')) {
+    try {
+      motifConfig = JSON.parse(site.motif.trim())
+    } catch {
+      motifConfig = null
+    }
+  }
+
+  const colorSource =
+    extractCustomColors(site.colorPalette) ||
+    extractCustomColors(paletteRecord) ||
+    extractCustomColors(motifConfig?.customColors) ||
+    extractCustomColors(motifConfig) ||
+    null
+
+  const paletteName = motifConfig?.colorPaletteName || site.colorPaletteName
+
+  const palette: ColorPalette = colorSource
+    ? {
+        name: paletteName || 'Custom',
+        colors: colorSource,
+      }
+    : resolvePaletteFromRecord(
+        paletteName,
+        paletteRecord || motifConfig?.customColors
+      )
+
+  const typographyName = site.typography?.name || site.fontFamily
+  const typography: TypographySet = site.typography?.headerFont
+    ? {
+        name:
+          typographyName ||
+          `${site.typography.headerFont} / ${site.typography.subheaderFont || 'Cormorant Garamond'} / ${site.typography.bodyFont || 'Montserrat'}`,
+        headerFont: site.typography.headerFont || 'Parisienne',
+        subheaderFont: site.typography.subheaderFont || 'Cormorant Garamond',
+        bodyFont: site.typography.bodyFont || 'Montserrat',
+      }
+    : resolveTypography(typographyName)
+
+  const rawInvert = site.invertColors ?? paletteRecord.invertColors ?? motifConfig?.invertColors
+  const invertColors = Boolean(rawInvert)
+
+  const rawSimplified = site.simplifiedColors ?? paletteRecord.simplifiedColors ?? motifConfig?.simplifiedColors
+  const simplifiedColors = Boolean(rawSimplified)
+
+  return {
+    palette,
+    typography,
+    invertColors,
+    simplifiedColors,
+  }
+}
+

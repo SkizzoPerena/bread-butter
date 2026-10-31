@@ -63,17 +63,17 @@ const state = reactive({
       <div class="space-y-4">
         <p class="text-center text-lg">We'd love to hear from you!</p>
 
-        <!-- Social Media Links -->
+        <!-- Social Media & Contact Links -->
         <div class="flex justify-center space-x-4">
           <UButton :icon="isCopied ? 'i-lucide-check' : 'i-lucide-phone-call'" variant="ghost" color="neutral" size="xl"
             :aria-label="isCopied ? 'Phone number copied' : 'Copy phone number'"
             :title="isCopied ? 'Copied!' : 'Click to copy phone number'" @click="copyPhoneNumber" />
-          <UButton icon="i-mdi-facebook" to="https://facebook.com/yourpage" target="_blank" variant="ghost"
-            color="neutral" size="xl" aria-label="Facebook" />
-          <UButton icon="i-mdi-instagram" to="https://instagram.com/yourpage" target="_blank" variant="ghost"
-            color="neutral" size="xl" aria-label="Instagram" />
-          <UButton icon="i-heroicons-globe-alt" to="https://yourwebsite.com" target="_blank" variant="ghost"
-            color="neutral" size="xl" aria-label="Website" />
+          <UButton icon="i-simple-icons-facebook" to="https://www.facebook.com/profile.php?id=61593088533548" target="_blank"
+            variant="ghost" color="neutral" size="xl" aria-label="Facebook" title="Visit our Facebook page" />
+          <UButton icon="i-simple-icons-instagram" to="https://www.instagram.com/breadplusbutterph/" target="_blank"
+            variant="ghost" color="neutral" size="xl" aria-label="Instagram" title="Visit our Instagram profile" />
+          <UButton icon="i-lucide-mail" to="mailto:hello@bread-plus-butter.com" variant="ghost" color="neutral"
+            size="xl" aria-label="Email" title="Send email to hello@bread-plus-butter.com" />
         </div>
 
         <UDivider label="OR" class="text-gray-500" />

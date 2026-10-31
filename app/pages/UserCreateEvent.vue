@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { setUiUnpaidEvent } from '~/utils/paymentPendingGuard'
+import { EVENT_TYPE_OPTIONS } from '~/types/event'
 
 useHead({
   title: 'Create Event - Bread + Butter',
 })
 
 const toast = useToast()
+const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { isUiOnlyMode } = useApiMode()
+const { finishPageTransition } = usePageTransition()
 
 type ViewStep = 'packages' | 'details'
 
@@ -103,15 +106,7 @@ watch(isWeddingEventType, (isWedding) => {
   }
 })
 
-const eventTypeOptions = [
-  { label: 'Wedding', value: 'WEDDING' },
-  { label: 'Birthday', value: 'BIRTHDAY' },
-  { label: 'Debut', value: 'DEBUT' },
-  { label: 'Baptism', value: 'BAPTISM' },
-  { label: 'Anniversary', value: 'ANNIVERSARY' },
-  { label: 'Corporate Event', value: 'CORPORATE' },
-  { label: 'Special Party', value: 'PARTY' }
-]
+const eventTypeOptions = EVENT_TYPE_OPTIONS
 
 function formatDateInputValue(date: Date): string {
   const year = date.getFullYear()
@@ -121,18 +116,15 @@ function formatDateInputValue(date: Date): string {
 }
 
 const minEventDate = computed(() => {
-  const min = new Date()
-  min.setFullYear(min.getFullYear() + 1)
-  return formatDateInputValue(min)
+  return formatDateInputValue(new Date())
 })
 
-function isEventDateAtLeastOneYearOut(dateStr: string): boolean {
+function isEventDateInPast(dateStr: string): boolean {
   if (!dateStr.trim()) return false
   const selected = new Date(`${dateStr}T00:00:00`)
-  const min = new Date()
-  min.setFullYear(min.getFullYear() + 1)
-  min.setHours(0, 0, 0, 0)
-  return selected >= min
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return selected < today
 }
 
 function switchView(view: ViewStep) {
@@ -174,10 +166,10 @@ function submitEventSetup() {
     return
   }
 
-  if (!isEventDateAtLeastOneYearOut(eventForm.eventDate)) {
+  if (isEventDateInPast(eventForm.eventDate)) {
     toast.add({
-      title: 'Event date too soon',
-      description: 'Please select a date at least one year from today.',
+      title: 'Event date in the past',
+      description: 'Please select today or a future date for your event.',
       color: 'warning',
     })
     return
@@ -212,6 +204,10 @@ function submitEventSetup() {
   })
 }
 
+onMounted(() => {
+  loadSeatingFeature()
+  finishPageTransition()
+})
 </script>
 
 <template>
@@ -231,6 +227,10 @@ function submitEventSetup() {
           {{ currentView === 'packages'
             ? 'Choose a package tailored to your planning needs and celebration budget.'
             : 'Fill in your initial event details to customize your platform experience.' }}
+        </p>
+        <p v-if="seatingPlansEnabled" class="text-xs text-white/80">
+          Need tables and QR codes only?
+          <NuxtLink to="/user/create-seating" class="underline font-semibold">Start a seating plan</NuxtLink>
         </p>
 
         <!-- View Switcher Tabs indicator -->
@@ -290,7 +290,7 @@ function submitEventSetup() {
 
           <div class="space-y-5">
             <UFormField label="Event Name" required>
-              <UInput v-model="eventForm.eventName" placeholder="e.g. Mark & Sarah's Wedding" size="lg"
+              <UInput v-model="eventForm.eventName" placeholder="e.g. Mark & Sarah's Celebration" size="lg"
                 class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
             </UFormField>
 
@@ -300,7 +300,7 @@ function submitEventSetup() {
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>
 
-              <UFormField label="Target Event Date" required description="Must be at least one year from today">
+              <UFormField label="Target Event Date" required>
                 <UInput v-model="eventForm.eventDate" type="date" size="lg" :min="minEventDate"
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg" />
               </UFormField>

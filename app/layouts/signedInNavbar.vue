@@ -108,6 +108,10 @@ const dropitems: DropdownMenuItem[][] = [
     icon: 'i-lucide-message-square-warning',
     to: '/user/report-issue'
   }, {
+    label: 'Back to Home',
+    icon: 'i-lucide-home',
+    to: '/?view=landing'
+  }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
     onSelect: () => logout()
@@ -184,8 +188,8 @@ const partnersItems: PartnerNavItem[][] = [
       to: '/bakers/login',
       active: false,
       iconBgClass: 'bg-toast-600',
-      badge: 'Supplier Portal',
-      descriptionText: 'Are you a part of our bakery? Sign in here to access your partnership portal.'
+      badge: 'Supplier Partners',
+      descriptionText: 'Are you a supplier partner? Sign in here to access your Bakers partnership portal.'
     }
   ]
 ]
@@ -297,7 +301,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
     ]">
       <template #title>
         <div class="flex items-center gap-2.5">
-          <NuxtLink to="/" class="flex items-center">
+          <NuxtLink to="/?view=landing" class="flex items-center">
             <img class="h-10 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
           </NuxtLink>
           <UBadge
@@ -535,7 +539,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
             </template>
           </UPopover>
           <div class="flex items-center gap-2">
-            <NuxtLink to="/" class="flex items-center" @click="closeMobileMenu">
+            <NuxtLink to="/?view=landing" class="flex items-center" @click="closeMobileMenu">
               <img class="h-7 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
             </NuxtLink>
             <UBadge
@@ -623,6 +627,8 @@ const moreInfoItems: DropdownMenuItem[][] = [
         </Transition>
       </Teleport>
     </ClientOnly>
+
+    <BackToTopButton />
   </div>
 </template>
 

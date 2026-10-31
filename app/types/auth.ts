@@ -8,6 +8,7 @@ export interface AuthUser {
   profileImageURL?: string
   emailNotifEnabled?: boolean
   isRestricted?: boolean
+  referralCode?: string
 }
 
 export interface UserAccount {
@@ -32,7 +33,7 @@ export interface AccountResponse {
 export interface AccountUpdatePayload {
   firstName: string
   lastName: string
-  gender: 'MALE' | 'FEMALE'
+  gender: 'MALE' | 'FEMALE' | 'PREFER_NOT_TO_SAY'
 }
 
 export interface AccountMessageResponse {
@@ -81,7 +82,7 @@ export interface RegisterCredentials {
   password: string
   firstName: string
   lastName: string
-  gender: 'MALE' | 'FEMALE'
+  gender: 'MALE' | 'FEMALE' | 'PREFER_NOT_TO_SAY'
   referralCode?: string
 }
 

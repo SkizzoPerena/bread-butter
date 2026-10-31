@@ -18,6 +18,8 @@ definePageMeta({
   bgClass: 'bg-orange-50'
 })
 
+useWeddingFonts()
+
 const toast = useToast()
 const route = useRoute()
 const { fetchEvent } = useEvents()
@@ -25,6 +27,7 @@ const { fetchGuestsByEvent } = useGuests()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { isExporting, exportEventPdf } = useEventPdfExport()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -236,9 +239,10 @@ const canAssignToExistingInModal = computed(
   () => guestGroups.value.length > 0
 )
 
-function rsvpStatusColor(status: string): 'success' | 'error' | 'secondary' {
+function rsvpStatusColor(status: string): 'success' | 'error' | 'warning' | 'secondary' {
   if (status === 'Attending') return 'success'
   if (status === 'Not Attending') return 'error'
+  if (status === 'No Response') return 'warning'
   return 'secondary'
 }
 
@@ -332,6 +336,7 @@ const columns: TableColumn<GuestTableRow>[] = [
         Attending: 'success' as const,
         'Not Attending': 'error' as const,
         Pending: 'secondary' as const,
+        'No Response': 'warning' as const,
       }[row.getValue('rsvpStatus') as string]
 
       return h(UBadge, { class: 'capitalize', variant: 'subtle', color }, () =>
@@ -342,7 +347,7 @@ const columns: TableColumn<GuestTableRow>[] = [
   {
     accessorKey: 'invitationSent',
     header: 'Invitation Sent',
-    cell: ({ row }) => (row.getValue('invitationSent') ? 'Yes' : 'No'),
+    cell: ({ row }) => row.original.inviteDelivery,
   },
   {
     id: 'actions',
@@ -352,30 +357,32 @@ const columns: TableColumn<GuestTableRow>[] = [
       const canEdit = !mutationsDisabled.value
       const canSendInvite = canSendGuestInvite(person)
       const canRemove = !mutationsDisabled.value
+      const isSendingThisGuest = sendingGuestId.value === person.guestId
 
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
-        canEdit
-          ? h(resolveComponent('UButton'), {
-              size: 'xs',
-              variant: 'ghost',
-              color: 'neutral',
-              icon: 'i-lucide-pencil',
-              'aria-label': 'Edit guest',
-              onClick: () => openEditGuestModal(person),
-            })
-          : null,
         canSendInvite
           ? h(resolveComponent('UButton'), {
               size: 'xs',
               variant: 'ghost',
               color: 'orange',
               icon: 'i-lucide-send',
-              loading: sendingGuestId.value === person.guestId,
-              disabled: isInvitingAll.value,
+              loading: isSendingThisGuest,
+              disabled: mutationsDisabled.value || Boolean(sendingGuestId.value),
               'aria-label': 'Send invitation',
+              title: 'Send invitation',
               onClick: () => handleSendGuestInvite(person.guestId),
             })
-          : null,
+          : h(resolveComponent('UButton'), {
+              size: 'xs',
+              variant: 'ghost',
+              color: 'neutral',
+              icon: 'i-lucide-mail-check',
+              loading: isSendingThisGuest,
+              disabled: mutationsDisabled.value || Boolean(sendingGuestId.value),
+              'aria-label': 'Resend invitation',
+              title: 'Resend invitation',
+              onClick: () => handleSendGuestInvite(person.guestId),
+            }),
         canRemove
           ? h(resolveComponent('UButton'), {
               size: 'xs',
@@ -459,6 +466,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 
@@ -501,8 +509,10 @@ watch(eventId, () => {
           </UButton>
           <UButton
             icon="i-lucide-mail"
-            :disabled="!canInviteAll"
+            :disabled="!canInviteAll || isInvitingAll"
             :loading="isInvitingAll"
+            color="orange"
+            variant="soft"
             @click="handleInviteAll"
           >
             Invite All

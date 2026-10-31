@@ -16,6 +16,7 @@ import {
   useSubEventGuestsManager,
 } from '~/composables/useSubEventGuestsManager'
 import { rsvpsToSummary } from '~/composables/useSubEventRsvps'
+import { formatGuestDisplayName } from '~/utils/guestName'
 import {
   isoToCalendarDate,
   isSubEventDateBeforeParent,
@@ -41,6 +42,7 @@ const { findSubEventById, updateSubEvent, deleteSubEvent } = useSubEvents()
 const { fetchAllSubEventRsvps } = useSubEventRsvps()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { finishPageTransition } = usePageTransition()
 
 const df = new DateFormatter('en-US', { dateStyle: 'medium' })
 
@@ -377,6 +379,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 
@@ -739,11 +742,11 @@ watch([eventId, subEventId], () => {
                   <UCheckbox
                     :model-value="selectedInviteGuestIds.has(guest._id)"
                     :disabled="isSendingInvites"
-                    :aria-label="`Select ${guest.displayName}`"
+                    :aria-label="`Select ${formatGuestDisplayName(guest.firstName, guest.lastName)}`"
                     @update:model-value="(value) => toggleInviteSelection(guest._id, value === true)"
                   />
                 </td>
-                <td class="px-3 py-2 font-medium">{{ guest.displayName }}</td>
+                <td class="px-3 py-2 font-medium">{{ formatGuestDisplayName(guest.firstName, guest.lastName) }}</td>
                 <td class="px-3 py-2 text-muted">{{ guest.email }}</td>
               </tr>
             </tbody>

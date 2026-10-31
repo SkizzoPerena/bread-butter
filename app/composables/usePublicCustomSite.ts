@@ -103,6 +103,23 @@ function getMockMeta(siteName: string, accessToken?: string | null): PublicCusto
     )
   }
 
+  const storedMock = uiMockSitesStore.value[slug]
+  if (storedMock) {
+    if (storedMock.passwordProtected && !accessToken) {
+      return {
+        success: true,
+        passwordProtected: true,
+        siteName: storedMock.siteName,
+      }
+    }
+    return {
+      success: true,
+      passwordProtected: Boolean(storedMock.passwordProtected),
+      siteName: storedMock.siteName,
+      customSite: storedMock,
+    }
+  }
+
   if (slug === 'mary-shane') {
     if (!accessToken) {
       return {
@@ -120,11 +137,12 @@ function getMockMeta(siteName: string, accessToken?: string | null): PublicCusto
   }
 
   if (slug === 'jane-and-john') {
+    const fallbackSite = uiMockSitesStore.value['jane-and-john'] || MOCK_PUBLISHED
     return {
       success: true,
       passwordProtected: false,
       siteName: 'jane-and-john',
-      customSite: MOCK_PUBLISHED,
+      customSite: fallbackSite,
     }
   }
 

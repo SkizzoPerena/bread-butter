@@ -1,6 +1,6 @@
 import type { EventRecord } from '~/types/event'
 import { isEventFullyPaid } from '~/types/payment'
-import { isPartnerAuthPublicPath, isPartnerPath, isUserAuthPublicPath } from '~/utils/authGuard'
+import { isPartnerAuthPublicPath, isPartnerPath, isPublicPath, isUserAuthPublicPath } from '~/utils/authGuard'
 import { getPackageSlugFromTier, resolveEventTierCode } from '~/utils/eventTierFeatures'
 
 export interface PendingPaymentQueryParams {
@@ -12,6 +12,23 @@ export interface PendingPaymentQueryParams {
 
 const UI_PENDING_KEY = 'bpb-ui-pending-payment'
 const UI_UNPAID_KEY = 'bpb-ui-unpaid-event'
+
+export function isSeatingFlowPath(path: string): boolean {
+  return (
+    path === '/user/create-seating' ||
+    path === '/seating-unavailable' ||
+    path.startsWith('/user/seating-payment') ||
+    path.startsWith('/seating/') ||
+    path.startsWith('/seat/') ||
+    path.startsWith('/attend/') ||
+    path.startsWith('/jam/')
+  )
+}
+
+/** Seating plans are only listed on home, so a host with plans must be able to reach it. */
+export function isUserHomePath(path: string): boolean {
+  return path === '/' || path === '/user/dashboard'
+}
 
 /**
  * Checks if an event has a proof of payment submitted but is not yet fully paid (approved).
@@ -72,6 +89,10 @@ export function isSingleUnpaidEventAccount(events: EventRecord[]): events is [Ev
  * - /website-maker
  */
 export function shouldRedirectToPaymentPending(path: string): boolean {
+  if (path !== '/' && path !== '/user/dashboard' && isPublicPath(path)) {
+    return false
+  }
+
   // Always allowed user pages
   if (
     path === '/user/payment-pending' ||
@@ -93,7 +114,7 @@ export function shouldRedirectToPaymentPending(path: string): boolean {
   }
 
   // Public guest-facing or site routes
-  if (path.startsWith('/sites/') || path.startsWith('/rsvp/')) {
+  if (path.startsWith('/sites/') || path.startsWith('/rsvp/') || isSeatingFlowPath(path)) {
     return false
   }
 
@@ -124,6 +145,10 @@ export function shouldRedirectToPaymentPending(path: string): boolean {
  * Determines whether a user with 0 events should be redirected to /user/create-event.
  */
 export function shouldRedirectToCreateEvent(path: string): boolean {
+  if (path !== '/' && path !== '/user/dashboard' && isPublicPath(path)) {
+    return false
+  }
+
   if (
     path === '/user/create-event' ||
     path === '/user/payment' ||
@@ -139,7 +164,7 @@ export function shouldRedirectToCreateEvent(path: string): boolean {
     return false
   }
 
-  if (path.startsWith('/sites/') || path.startsWith('/rsvp/')) {
+  if (path.startsWith('/sites/') || path.startsWith('/rsvp/') || isSeatingFlowPath(path)) {
     return false
   }
 
@@ -163,6 +188,10 @@ export function shouldRedirectToCreateEvent(path: string): boolean {
  * Determines whether a user with a single unpaid event should be redirected to /user/payment.
  */
 export function shouldRedirectToUserPayment(path: string): boolean {
+  if (path !== '/' && path !== '/user/dashboard' && isPublicPath(path)) {
+    return false
+  }
+
   if (
     path === '/user/payment' ||
     path === '/user/payment-pending' ||
@@ -177,7 +206,7 @@ export function shouldRedirectToUserPayment(path: string): boolean {
     return false
   }
 
-  if (path.startsWith('/sites/') || path.startsWith('/rsvp/')) {
+  if (path.startsWith('/sites/') || path.startsWith('/rsvp/') || isSeatingFlowPath(path)) {
     return false
   }
 
@@ -237,8 +266,13 @@ export function buildUserPaymentQuery(event: EventRecord): Record<string, string
 export function resolveUserPostLoginRedirect(
   events: EventRecord[],
   redirect?: string,
+  gatherings: unknown[] = [],
 ): string | { path: string; query: Record<string, string> } {
   if (events.length === 0) {
+    if (gatherings.length > 0) {
+      if (redirect && redirect !== '/' && redirect !== '/user/create-event') return redirect
+      return '/'
+    }
     return redirect && redirect !== '/' ? redirect : '/user/create-event'
   }
 

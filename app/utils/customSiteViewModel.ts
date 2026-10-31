@@ -1,6 +1,9 @@
-import type { PublicCustomSiteRecord } from '~/types/customSite'
+import type { CustomSiteGiftRegistry, PublicCustomSiteRecord } from '~/types/customSite'
+import type { DressCodeRecord } from '~/types/dressCode'
+import type { GalleryRecord } from '~/types/gallery'
 import aisleImage from '~/assets/bpb-images/login-aisle.webp'
 import {
+  extractCustomColors,
   resolvePaletteFromRecord,
   resolveTypography,
   type ColorPalette,
@@ -16,6 +19,7 @@ export interface CustomSiteDiyComponent {
 }
 
 export interface CustomSiteViewModel {
+  event?: string
   format: string
   siteTitle: string
   siteDescription: string
@@ -48,16 +52,30 @@ export interface CustomSiteViewModel {
   weddingPartyIntro?: string
   weddingPartyMembers?: { id: string; name: string; role: string; notes?: string }[]
   whereToStayAccommodations?: { id?: string; name: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
+  dressCode?: DressCodeRecord | null
+  gallery?: GalleryRecord | null
+  giftRegistry?: CustomSiteGiftRegistry | null
+}
+
+function parseJsonIfString(value: unknown): any {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
+  return value
 }
 
 function paletteRecordFromSite(
   site: PublicCustomSiteRecord
-): Record<string, string> | null {
-  const palette = site.colorPalette
+): Record<string, unknown> | null {
+  const palette = parseJsonIfString(site.colorPalette)
   if (!palette || typeof palette !== 'object') {
     return null
   }
-  return palette as Record<string, string>
+  return palette as Record<string, unknown>
 }
 
 export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteViewModel {
@@ -65,16 +83,14 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
   const paragraph = site.contentSections?.find((section) => section.type === 'paragraph')
   const typographyName = site.typography?.name || site.fontFamily
   const motifConfig = parseMotifConfig(site.motif)
-  const paletteRecord = (typeof site.colorPalette === 'object' && site.colorPalette !== null)
-    ? (site.colorPalette as Record<string, unknown>)
-    : {}
-  const rawInvert = site.invertColors ?? paletteRecord.invertColors ?? motifConfig?.invertColors
+  const parsedPalette = paletteRecordFromSite(site) || {}
+  const rawInvert = site.invertColors ?? parsedPalette.invertColors ?? motifConfig?.invertColors
   const invertColors = Boolean(rawInvert)
 
-  const rawSimplified = site.simplifiedColors ?? paletteRecord.simplifiedColors ?? motifConfig?.simplifiedColors
+  const rawSimplified = site.simplifiedColors ?? parsedPalette.simplifiedColors ?? motifConfig?.simplifiedColors
   const simplifiedColors = Boolean(rawSimplified)
 
-  const rawSinglePage = site.singlePageSite ?? paletteRecord.singlePageSite ?? motifConfig?.singlePageSite
+  const rawSinglePage = site.singlePageSite ?? parsedPalette.singlePageSite ?? motifConfig?.singlePageSite
   const singlePageSite = rawSinglePage !== undefined ? Boolean(rawSinglePage) : true
 
   const rawDiy = (site.diyComponents && site.diyComponents.length > 0)
@@ -88,7 +104,17 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
     description: String(c.content || c.description || ''),
   }))
 
+  const colorSource =
+    extractCustomColors(site.colorPalette) ||
+    extractCustomColors(parsedPalette) ||
+    extractCustomColors(motifConfig?.customColors) ||
+    extractCustomColors(motifConfig) ||
+    null
+
+  const paletteName = motifConfig?.colorPaletteName || site.colorPaletteName
+
   return {
+    event: site.event,
     format: site.templateType || 'format1',
     siteTitle: site.title,
     siteDescription: site.subtitle,
@@ -101,10 +127,15 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
     whereToStayLatitude: site.whereToStay?.latitude ?? motifConfig?.whereToStay?.latitude ?? null,
     whereToStayLongitude: site.whereToStay?.longitude ?? motifConfig?.whereToStay?.longitude ?? null,
     rsvpDeadlineDate: '',
-    palette: resolvePaletteFromRecord(
-      motifConfig?.colorPaletteName || site.colorPaletteName,
-      paletteRecordFromSite(site) || (motifConfig?.customColors as unknown as Record<string, string>) || null
-    ),
+    palette: colorSource
+      ? {
+          name: paletteName || 'Custom',
+          colors: colorSource,
+        }
+      : resolvePaletteFromRecord(
+          paletteName,
+          parsedPalette || motifConfig?.customColors
+        ),
     typography: site.typography?.headerFont
       ? {
           name: typographyName || 'Romantic Script',
@@ -153,5 +184,19 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
           image: a.image || '',
         }))
       : (motifConfig?.whereToStay?.accommodations || []),
+    dressCode: site.dressCode || motifConfig?.dressCode || null,
+    giftRegistry: site.giftRegistry ?? null,
+    gallery: site.galleryRecord || motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
+      title: 'Captured Moments',
+      subtitle: 'A glimpse into our favorite memories and love story.',
+      layout: 'grid',
+      columns: 3,
+      photos: site.gallery.map((g, i) => ({
+        id: `g-${i}`,
+        url: g.imageURL,
+        caption: g.caption || '',
+      })),
+      enableLightbox: true,
+    } : null),
   }
 }

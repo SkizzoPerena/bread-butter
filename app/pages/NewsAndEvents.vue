@@ -22,6 +22,10 @@ interface NewsEventItem {
   description: string
   icon: string
   badgeColor?: string
+  location?: string
+  link?: string
+  linkText?: string
+  statusText?: string
 }
 
 interface NewsEventCategory {
@@ -36,51 +40,49 @@ const selectedCategoryId = ref<string>('all')
 
 const categories: NewsEventCategory[] = [
   {
-    id: 'product-updates',
-    title: 'Platform Releases & Features',
-    icon: 'i-lucide-sparkles',
-    items: [
-      {
-        title: 'Bread + Butter 2.0 Collaborative Workspace',
-        date: 'Upcoming • Q2 2026',
-        tag: 'Feature Drop',
-        description: 'Real-time collaborative editing for seating plans and vendor checklists between celebrants and their coordinators.',
-        icon: 'i-lucide-layers'
-      },
-      {
-        title: 'Automated RSVP Reminders & SMS Delivery',
-        date: 'Upcoming • Q3 2026',
-        tag: 'Communication',
-        description: 'Send polite automated nudges via SMS and email to pending guests before your catering cutoff deadline.',
-        icon: 'i-lucide-mail'
-      },
-      {
-        title: 'Enhanced Multi-Event Dashboard for Planners',
-        date: 'Upcoming • Q3 2026',
-        tag: 'Planner Tools',
-        description: 'Consolidated client portal with customizable permission levels, task boards, and invoice schedules.',
-        icon: 'i-lucide-kanban'
-      }
-    ]
-  },
-  {
     id: 'expos-fairs',
     title: 'Bridal Expos & Community Fairs',
     icon: 'i-lucide-calendar-heart',
     items: [
       {
-        title: 'Metro Bridal Expo 2026 - Interactive Lounge',
-        date: 'June 2026 • Grand Ballroom',
-        tag: 'In-Person Expo',
-        description: 'Meet our founding team, test-drive interactive wedding websites on touch displays, and claim exclusive partner vouchers.',
-        icon: 'i-lucide-map-pin'
+        title: 'Toast Wedding Fair',
+        date: 'October 24–25',
+        location: 'SMX Convention Center Manila',
+        tag: 'Bridal Fair',
+        description: 'Produced by Bride and Breakfast, Toast Wedding Fair is Manila’s premier curated bridal event featuring top-tier wedding suppliers, exclusive fair discounts, and inspiration under one roof.',
+        icon: 'i-lucide-calendar-heart',
+        link: 'https://www.facebook.com/toastweddingfair',
+        linkText: 'View on Facebook'
       },
       {
-        title: 'Celebrations & Beyond Annual Wedding Fair',
-        date: 'August 2026 • SMX Convention Center',
-        tag: 'Partner Showcase',
-        description: 'Discover over 50 Bread + Butter verified suppliers, from boutique bakers to luxury photography studios.',
-        icon: 'i-lucide-sparkles'
+        title: 'Getting Married Bridal Fair',
+        date: 'November 14–15',
+        location: 'Function Rooms 1 and 2, SMX Convention Center',
+        tag: 'Bridal Fair',
+        description: 'One of the Philippines’ premier bridal fairs gathering top caterers, photography studios, couture designers, and planners with grand supplier discounts and free admission.',
+        icon: 'i-lucide-calendar-heart',
+        link: 'https://www.facebook.com/gettingmarriedbridalfair',
+        linkText: 'View on Facebook'
+      },
+      {
+        title: '53rd Before I Do Bridal Fair',
+        date: 'November 28–29',
+        location: 'Megatrade Hall 1, SM Megamall',
+        tag: 'Bridal Fair',
+        description: 'Connect directly with trusted wedding partners for the 53rd edition of Before I Do, featuring exclusive venue deals, bridal freebies, and on-the-spot booking privileges.',
+        icon: 'i-lucide-calendar-heart',
+        link: 'https://www.facebook.com/B4.ido',
+        linkText: 'View on Facebook'
+      },
+      {
+        title: "The Wedding Library's Bridal Fair",
+        date: 'February 5–7',
+        location: 'World Trade Center',
+        tag: 'Bridal Fair',
+        description: "The Philippines' biggest bridal fair with hundreds of wedding experts, massive booking promos, and grand raffle prizes across three full days at the World Trade Center.",
+        icon: 'i-lucide-calendar-heart',
+        link: 'https://www.facebook.com/theweddinglibrary',
+        linkText: 'View on Facebook'
       }
     ]
   },
@@ -88,20 +90,20 @@ const categories: NewsEventCategory[] = [
     id: 'workshops-webinars',
     title: 'Webinars & Partner Masterclasses',
     icon: 'i-lucide-presentation',
+    items: []
+  },
+  {
+    id: 'product-updates',
+    title: 'Platform Releases & Features',
+    icon: 'i-lucide-sparkles',
     items: [
       {
-        title: 'Masterclass: Streamlining Client Workflows with Digital Hubs',
-        date: 'July 2026 • Live Online',
-        tag: 'Planner Webinar',
-        description: 'Veteran event coordinators demonstrate how to cut 15+ administrative hours per couple using automated checklists.',
-        icon: 'i-lucide-video'
-      },
-      {
-        title: 'Vendor Spotlight: Crafting Standout Supplier Profiles',
-        date: 'September 2026 • Live Online',
-        tag: 'Vendor Workshop',
-        description: 'Tips for suppliers on maximizing bookings, structuring transparent pricing packages, and managing client reviews.',
-        icon: 'i-lucide-store'
+        title: 'bread+butter closed testing has begun!',
+        date: 'Active Now',
+        tag: 'Closed Beta',
+        description: 'Our core collaborative planning tools, ceremony budgeting calculators, and verified supplier directory are now officially undergoing closed testing with select celebrants and coordinator partners.',
+        icon: 'i-lucide-rocket',
+        statusText: 'In Progress'
       }
     ]
   }
@@ -118,15 +120,21 @@ const filteredCategories = computed(() => {
     })
     .map((cat) => {
       if (!query) return cat
+      const catMatches = cat.title.toLowerCase().includes(query)
+      const isWebinarMatch = cat.id === 'workshops-webinars' && ('webinars'.includes(query) || 'webinars coming soon'.includes(query))
       const matchingItems = cat.items.filter(
         (item) =>
           item.title.toLowerCase().includes(query) ||
           item.description.toLowerCase().includes(query) ||
-          item.tag.toLowerCase().includes(query)
+          item.tag.toLowerCase().includes(query) ||
+          (item.location && item.location.toLowerCase().includes(query))
       )
-      return { ...cat, items: matchingItems }
+      if (matchingItems.length > 0 || catMatches || isWebinarMatch) {
+        return { ...cat, items: matchingItems }
+      }
+      return null
     })
-    .filter((cat) => cat.items.length > 0)
+    .filter((cat): cat is NewsEventCategory => cat !== null)
 })
 
 const totalItemsCount = computed(() => {
@@ -220,8 +228,22 @@ const totalItemsCount = computed(() => {
               </div>
             </div>
 
+            <!-- Empty Items / Webinars Coming Soon Banner -->
+            <div v-if="cat.items.length === 0"
+              class="bg-white/80 border-2 border-dashed border-toast-400/40 rounded-xl p-8 sm:p-12 text-center space-y-2.5 shadow-2xs">
+              <div class="size-12 rounded-full bg-toast-600/10 text-toast-700 flex items-center justify-center mx-auto mb-1">
+                <UIcon name="i-lucide-presentation" class="size-6 text-toast-700" />
+              </div>
+              <h3 class="text-base sm:text-lg font-bold font-serif text-toast-900">
+                webinars coming soon
+              </h3>
+              <p class="text-xs sm:text-sm text-toast-700/80 max-w-md mx-auto leading-relaxed">
+                Stay tuned! We're curating masterclasses and supplier workshops to help you plan with confidence.
+              </p>
+            </div>
+
             <!-- Items Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
               <div v-for="item in cat.items" :key="item.title"
                 class="bg-white/90 border border-toast-300/40 rounded-xl p-4 sm:p-5 md:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow duration-200">
                 <div class="space-y-2.5 sm:space-y-3">
@@ -239,6 +261,12 @@ const totalItemsCount = computed(() => {
                     {{ item.title }}
                   </h3>
 
+                  <!-- Venue Location -->
+                  <div v-if="item.location" class="flex items-center gap-1.5 text-xs text-toast-600 font-medium">
+                    <UIcon name="i-lucide-map-pin" class="size-3.5 text-toast-500 shrink-0" />
+                    <span>{{ item.location }}</span>
+                  </div>
+
                   <p class="text-xs sm:text-sm text-toast-700/90 leading-relaxed">
                     {{ item.description }}
                   </p>
@@ -246,7 +274,13 @@ const totalItemsCount = computed(() => {
 
                 <div
                   class="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-toast-200/60 flex items-center justify-between text-xs text-toast-600 font-semibold">
-                  <span>Coming Soon</span>
+                  <NuxtLink v-if="item.link" :to="item.link" target="_blank" rel="noopener noreferrer"
+                    class="text-toast-700 hover:text-toast-950 inline-flex items-center gap-1.5 font-bold transition-colors">
+                    <UIcon name="i-simple-icons-facebook" class="size-3.5 text-[#1877F2]" />
+                    <span>{{ item.linkText || 'View Event Page' }}</span>
+                    <UIcon name="i-lucide-external-link" class="size-3 ml-0.5 text-toast-400" />
+                  </NuxtLink>
+                  <span v-else>{{ item.statusText || 'Active Now' }}</span>
                   <UIcon :name="item.icon" class="size-4 text-toast-500" />
                 </div>
               </div>

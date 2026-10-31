@@ -33,6 +33,7 @@ const { requireEventFeature } = useEventFeatureGate()
 const { fetchSubEventsByEvent, createSubEvent } = useSubEvents()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const df = new DateFormatter('en-US', { dateStyle: 'medium' })
 
@@ -89,7 +90,7 @@ const selectedDateLabel = computed(() => {
 
 function navigateToSubEvent(subEvent: SubEventRecord) {
   const targetEventId = eventId.value || 'mock-event-id'
-  navigateTo({
+  startPageTransition({
     path: '/event/sub-event',
     query: {
       eventId: targetEventId,
@@ -196,6 +197,7 @@ async function loadEventData() {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 

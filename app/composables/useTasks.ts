@@ -10,6 +10,11 @@ import type {
 } from '~/types/task'
 import type { TaskStatus } from '~/types/task'
 import { EVENT_CANCELLED_REASONS, TASK_DELETE_REASONS, actorRole, matchReason, capture, tracked } from '~/utils/analytics'
+import {
+  applyDeadlineOverrides,
+  setTaskDeadlineOverride,
+} from '~/utils/taskDeadlineStorage'
+import { useActiveEvent } from '~/composables/useActiveEvent'
 
 const MOCK_ASSIGNEE = { _id: 'mock-assignee-1', name: 'Florist' }
 
@@ -20,8 +25,9 @@ const MOCK_TASKS: TaskRecord[] = [
     title: 'Book a live band',
     details: 'Find and book a live band for the reception.',
     status: 'TODO',
-    priority: 1,
+    priority: 3,
     deadline: '2026-08-15T00:00:00.000Z',
+    createdAt: '2026-02-10T09:30:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: null,
@@ -32,8 +38,10 @@ const MOCK_TASKS: TaskRecord[] = [
     title: 'Book a photo booth',
     details: 'Find and book a photo booth service for the reception.',
     status: 'ONGOING',
-    priority: 1,
+    priority: 3,
+    isImportant: true,
     deadline: '2026-06-15T00:00:00.000Z',
+    createdAt: '2026-02-15T14:20:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: MOCK_ASSIGNEE,
@@ -44,8 +52,10 @@ const MOCK_TASKS: TaskRecord[] = [
     title: 'Finalize catering menu',
     details: 'Confirm final menu choices with the caterer.',
     status: 'ONGOING',
-    priority: 3,
+    priority: 1,
+    isImportant: true,
     deadline: '2026-07-01T00:00:00.000Z',
+    createdAt: '2026-03-01T11:00:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: null,
@@ -58,6 +68,7 @@ const MOCK_TASKS: TaskRecord[] = [
     status: 'COMPLETED',
     priority: 2,
     deadline: '2026-05-01T00:00:00.000Z',
+    createdAt: '2026-01-20T16:45:00.000Z',
     parentTask: null,
     subtasks: [],
     assignee: null,
@@ -66,10 +77,14 @@ const MOCK_TASKS: TaskRecord[] = [
 
 export function useTasks() {
   const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
+  const { activeEventId } = useActiveEvent()
 
   async function fetchTasksByEvent(eventId: string): Promise<TaskRecord[]> {
     if (isUiOnlyMode.value) {
-      return MOCK_TASKS.map((task) => ({ ...task, event: eventId }))
+      return applyDeadlineOverrides(
+        MOCK_TASKS.map((task) => ({ ...task, event: eventId })),
+        eventId
+      )
     }
 
     const response = await apiRequest<TasksByEventResponse>(`/user/tasks/event/${eventId}`)
@@ -82,7 +97,8 @@ export function useTasks() {
       if (!found) {
         throw new Error('Task not found')
       }
-      return found
+      const eventId = found.event || activeEventId.value || 'mock-event-id'
+      return applyDeadlineOverrides([found], eventId)[0]
     }
 
     const response = await apiRequest<TaskResponse>(`/user/tasks/${taskId}`)
@@ -100,8 +116,10 @@ export function useTasks() {
         title: payload.title,
         details: payload.details,
         priority: payload.priority,
+        isImportant: Boolean(payload.isImportant),
         deadline: payload.deadline,
         status: 'TODO',
+        createdAt: new Date().toISOString(),
         parentTask: null,
         subtasks: [],
         attachedFileURLs: [],
@@ -123,6 +141,9 @@ export function useTasks() {
     formData.append('details', payload.details)
     formData.append('priority', String(payload.priority))
     formData.append('deadline', payload.deadline)
+    if (payload.isImportant !== undefined) {
+      formData.append('isImportant', String(payload.isImportant))
+    }
     if (payload.assigneeId) {
       formData.append('assigneeId', payload.assigneeId)
     }
@@ -172,6 +193,10 @@ export function useTasks() {
     priority: number
   ): Promise<UpdateTaskMessageResponse> {
     if (isUiOnlyMode.value) {
+      const found = MOCK_TASKS.find((t) => t._id === taskId)
+      if (found) {
+        found.priority = priority
+      }
       return {
         success: true,
         status: 200,
@@ -251,6 +276,9 @@ export function useTasks() {
     if (payload.details !== undefined) {
       formData.append('details', payload.details)
     }
+    if (payload.deadline !== undefined) {
+      formData.append('deadline', payload.deadline)
+    }
     if (payload.keepImageURLs !== undefined) {
       formData.append('keepImageURLs', JSON.stringify(payload.keepImageURLs))
     }
@@ -264,7 +292,7 @@ export function useTasks() {
       response = await apiUpload<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/details`, formData, {
         method: 'PATCH',
       })
-    } catch (error) {
+    } catch (error: any) {
       if (role) {
         const reason = matchReason(error, EVENT_CANCELLED_REASONS)
         if (reason) capture('task_rejected', { role, reason })
@@ -274,6 +302,43 @@ export function useTasks() {
     return response.task
       ? { ...response, task: normalizeTask(response.task) }
       : response
+  }
+
+  async function updateTaskDeadline(
+    taskId: string,
+    deadline: string,
+    eventId?: string
+  ): Promise<UpdateTaskMessageResponse> {
+    const targetEventId = eventId || activeEventId.value || 'mock-event-id'
+
+    if (isUiOnlyMode.value) {
+      const found = MOCK_TASKS.find((t) => t._id === taskId)
+      if (found) {
+        found.deadline = deadline
+      }
+      setTaskDeadlineOverride(targetEventId, taskId, deadline)
+      return {
+        success: true,
+        status: 200,
+        message: 'Task due date updated successfully.',
+        task: found ? { ...found, deadline } : ({ _id: taskId, deadline } as TaskRecord),
+      }
+    }
+
+    const role = actorRole()
+    try {
+      const response = await apiRequest<UpdateTaskMessageResponse>(`/user/tasks/${taskId}/deadline`, {
+        method: 'PATCH',
+        body: { deadline },
+      })
+      return response.task ? { ...response, task: normalizeTask(response.task) } : response
+    } catch (error: any) {
+      if (role) {
+        const reason = matchReason(error, EVENT_CANCELLED_REASONS)
+        if (reason) capture('task_rejected', { role, reason })
+      }
+      throw error
+    }
   }
 
   async function hardDeleteTask(taskId: string): Promise<DeleteTaskResponse> {
@@ -312,7 +377,20 @@ export function useTasks() {
     updateTaskPriority,
     updateTaskAssignee,
     updateTaskDetails,
+    updateTaskDeadline,
     hardDeleteTask,
+  }
+}
+
+export function shiftMockTaskDeadlines(diffMs: number) {
+  if (diffMs === 0) return
+  for (const task of MOCK_TASKS) {
+    if (task.deadline) {
+      const oldTime = new Date(task.deadline).getTime()
+      if (!Number.isNaN(oldTime)) {
+        task.deadline = new Date(oldTime + diffMs).toISOString()
+      }
+    }
   }
 }
 

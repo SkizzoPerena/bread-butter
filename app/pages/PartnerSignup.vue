@@ -7,6 +7,10 @@ definePageMeta({
   layout: false
 })
 
+useHead({
+  title: 'Become a Dough Maker - Bread + Butter'
+})
+
 const toast = useToast()
 const { register } = useAuth('partner')
 
@@ -14,14 +18,15 @@ const isSubmitting = ref(false)
 
 const genderOptions = [
   { label: 'Male', value: 'MALE' },
-  { label: 'Female', value: 'FEMALE' }
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Prefer not to say', value: 'PREFER_NOT_TO_SAY' }
 ]
 
 const schema = z.object({
   firstName: z.string().min(1, 'Enter your first name'),
   lastName: z.string().min(1, 'Enter your last name'),
   email: z.string().email('Invalid email'),
-  gender: z.enum(['MALE', 'FEMALE'], { message: 'Please select a gender' }),
+  gender: z.enum(['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY'], { message: 'Please select a gender' }),
   password: z.string().min(8, 'Must be at least 8 characters'),
   repass: z.string().min(8, 'Must be at least 8 characters'),
   tnc: z.boolean().refine(val => val === true, 'You must agree to the terms and conditions.'),
@@ -105,7 +110,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   } catch (error) {
     toast.add({
       title: 'Sign up failed',
-      description: getApiErrorMessage(error, 'Unable to create your partner account.'),
+      description: getApiErrorMessage(error, 'Unable to create your dough maker account.'),
       color: 'error'
     })
   } finally {
@@ -121,8 +126,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         <UForm :schema="schema" :state="state" class="space-y-3 sm:space-y-4" @submit="onSubmit">
           <div class="flex justify-between items-center mb-2 sm:mb-4">
             <div class="text-left text-sm text-bread-400">
-              <div class="text-xl font-serif font-semibold text-white">Become a Partner</div>
-              Create your partner account
+              <div class="text-xl font-serif font-semibold text-white">Become a Dough Maker</div>
+              Create your dough maker account
             </div>
 
             <img src="~/assets/bpb-icons/logomark.svg" class="h-10" />
@@ -195,7 +200,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
                 Sign up
               </UButton>
               <div class="text-xs sm:text-sm text-center">
-                Already a partner? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink>
+                Already a Dough Maker? <ULink to="/partners/login" class="text-bread-400 font-medium">Sign in</ULink>
                 instead.
               </div>
             </div>

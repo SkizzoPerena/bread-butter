@@ -62,7 +62,10 @@ const features = [
   }
 ]
 
-const plans = ref<PricingPlanProps[]>([
+const { isAuthenticated } = useAuth('user')
+const authCtaTarget = computed(() => (isAuthenticated.value ? '/' : '/user/signup'))
+
+const plans = computed<PricingPlanProps[]>(() => [
   {
     title: 'Bread',
     description: 'Essential tools for your website and guests.',
@@ -80,7 +83,7 @@ const plans = ref<PricingPlanProps[]>([
     ],
     button: {
       label: "Let's get baking!",
-      to: '/user/signup'
+      to: authCtaTarget.value
     }
   },
   {
@@ -98,7 +101,7 @@ const plans = ref<PricingPlanProps[]>([
     ],
     button: {
       label: 'Spread the word!',
-      to: '/user/signup'
+      to: authCtaTarget.value
     }
   },
   {
@@ -114,7 +117,7 @@ const plans = ref<PricingPlanProps[]>([
     ],
     button: {
       label: 'To butter days!',
-      to: '/user/signup'
+      to: authCtaTarget.value
     }
   }
 ])
@@ -154,7 +157,7 @@ function scrollMotion(delay: number = 0) {
         </div>
         <UContainer class="flex justify-center items-center my-0">
           <div class="w-56 sm:w-64">
-            <UButton to="/user/signup" size="lg" block color="neutral" variant="soft"
+            <UButton :to="authCtaTarget" size="lg" block color="neutral" variant="soft"
               class="font-bold text-sm sm:text-base">LET'S GET THIS BREAD
             </UButton>
           </div>
@@ -354,7 +357,7 @@ function scrollMotion(delay: number = 0) {
 
 
           <div class="w-56 sm:w-64">
-            <UButton to="/user/signup" size="lg" block color="bread" variant="solid"
+            <UButton :to="authCtaTarget" size="lg" block color="bread" variant="solid"
               class="font-bold text-xs sm:text-sm text-toast-700">
               LET'S GET THIS BREAD
             </UButton>

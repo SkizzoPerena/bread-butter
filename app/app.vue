@@ -6,6 +6,7 @@
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+    <AppPageTransitionOverlay />
   </UApp>
 </template>
 
