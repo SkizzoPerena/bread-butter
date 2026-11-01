@@ -66,7 +66,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-bread-400">
+  <div class="min-h-screen flex flex-col" :class="isUserDashboard ? 'bg-toast-700 text-white' : 'bg-bread-400'">
     <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar shrink-0">
       <template #toggle>
         <!-- Back button on non-user dashboard pages (leftmost side) -->
