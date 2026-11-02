@@ -1,6 +1,6 @@
 import { GATHERING_ID, PASS_TOKEN, expect, test } from './helpers'
 import { stubApi } from './helpers'
-import { openWorkspace } from './seating-fixtures'
+import { openInvitationPage, openSettingsPage } from './seating-fixtures'
 
 const invitation = {
   success: true,
@@ -67,17 +67,39 @@ test('a guest reads the invitation and replies on one page, with no passcode ste
   expect(reply?.body).toEqual({ rsvpStatus: 'NOT_GOING', answers: [] })
 })
 
-test('a host can save an invitation with the passcode left empty', async ({ page }) => {
-  const calls = await openWorkspace(page, {
+test('a host can remove a passcode from the invitation page', async ({ page }) => {
+  const calls = await openInvitationPage(page, {
+    gathering: { passcode: 'SECRET' },
     routes: {
       [`PATCH /gatherings/${GATHERING_ID}`]: route => route.fulfill({
         json: { success: true, status: 200, gathering: { _id: GATHERING_ID, status: 'ACTIVE', tables: [], passcode: '' } },
       }),
     },
   })
-  await page.getByRole('button', { name: 'Invitation & Passcode' }).click()
-  await page.getByRole('button', { name: 'Save Invitation' }).click()
+  await page.getByRole('button', { name: 'Next Step' }).click()
+  await page.getByPlaceholder('e.g. CELEBRATE2026').fill('')
+  await page.getByRole('button', { name: 'Save Draft' }).click()
 
   await expect.poll(() => calls.filter(call => call.method === 'PATCH').length).toBe(1)
   expect(calls.find(call => call.method === 'PATCH')?.body).toMatchObject({ passcode: '' })
+})
+
+test('a host can remove a passcode from settings', async ({ page }) => {
+  const calls = await openSettingsPage(page, {
+    gathering: { passcode: 'SECRET' },
+    routes: {
+      [`GET /gatherings/${GATHERING_ID}/upgrade-options`]: route => route.fulfill({
+        json: { success: true, status: 200, current: {}, options: [], pendingUpgrade: null },
+      }),
+      [`PATCH /gatherings/${GATHERING_ID}`]: route => route.fulfill({
+        json: { success: true, status: 200, gathering: { _id: GATHERING_ID, name: 'Damson supper', status: 'ACTIVE', tables: [], maxGuests: 10 } },
+      }),
+    },
+  })
+  await page.getByPlaceholder('e.g. CELEBRATE2026').fill('')
+  await page.getByRole('button', { name: 'Save Jam Settings' }).click()
+
+  await expect.poll(() => calls.some(call => (
+    call.method === 'PATCH' && (call.body as { passcode?: string })?.passcode === ''
+  ))).toBe(true)
 })
