@@ -59,7 +59,7 @@ async function load() {
     if (gatheringId.value) {
       gathering.value = await getGathering(gatheringId.value)
       if (gathering.value.status === 'ACTIVE') {
-        await navigateTo(`/seating/${gathering.value._id}`)
+        await navigateTo(`/jam/dashboard/${gathering.value._id}`)
       }
       return
     }
@@ -121,7 +121,7 @@ async function payWithCheckout() {
       `/user/seating-payment?gatheringId=${gathering.value._id}&cancelled=1`,
     )
     if (checkout.alreadyPaid) {
-      await navigateTo(`/seating/${gathering.value._id}`)
+      await navigateTo(`/jam/dashboard/${gathering.value._id}`)
       return
     }
     if (checkout.checkoutUrl) {

@@ -9,7 +9,7 @@ definePageMeta({ layout: false, middleware: 'seating-enabled' })
 const route = useRoute()
 const { fetchAttendance } = useSeating()
 
-const token = computed(() => String(route.params.token || ''))
+const token = computed(() => String(route.params.token || route.query.token || ''))
 const checkIn = computed(() => String(route.query.checkin || '') === '1')
 const pass = ref<PublicSeatDetail | null>(null)
 const errorMessage = ref('')

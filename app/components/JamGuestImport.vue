@@ -131,7 +131,7 @@ async function addSelected() {
           {{ selected.length }} selected · {{ creditsRemaining }} guest slots left
           <NuxtLink
             v-if="overLimit"
-            :to="`/user/seating-upgrade/${gatheringId}`"
+            :to="`/user/jam-upgrade/${gatheringId}`"
             class="underline"
           >
             Upgrade your plan

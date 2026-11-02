@@ -59,7 +59,7 @@ onMounted(async () => {
         </p>
         <UButton
           v-if="(status === 'approved' || isUpgrade) && gatheringId"
-          :to="`/seating/${gatheringId}`"
+          :to="`/jam/dashboard/${gatheringId}`"
         >
           Open seating plan
         </UButton>

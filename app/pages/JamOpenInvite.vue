@@ -14,7 +14,7 @@ definePageMeta({ layout: false, middleware: 'seating-enabled' })
 const route = useRoute()
 const { fetchOpenInvite, unlockOpenInvite, registerOpenGuest } = useSeating()
 
-const token = computed(() => String(route.params.token || ''))
+const token = computed(() => String(route.params.token || route.query.token || ''))
 const step = ref<'loading' | 'passcode' | 'form' | 'unavailable'>('loading')
 const gatheringName = ref('')
 const passcode = ref('')

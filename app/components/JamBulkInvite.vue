@@ -138,7 +138,7 @@ async function retrySkipped() {
       >
         That's {{ preview.shortBy }} more than you have credits for.
         <NuxtLink
-          :to="`/user/seating-upgrade/${gatheringId}`"
+          :to="`/user/jam-upgrade/${gatheringId}`"
           class="underline"
         >
           Upgrade your plan

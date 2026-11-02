@@ -8,7 +8,7 @@ definePageMeta({ layout: false, middleware: 'seating-enabled' })
 const route = useRoute()
 const { fetchJamSite, unlockJamSite } = useSeating()
 
-const token = computed(() => String(route.params.token || ''))
+const token = computed(() => String(route.params.token || route.query.token || ''))
 const gatheringName = ref('')
 const invitation = ref<JamInvitation | null>(null)
 const passcode = ref('')

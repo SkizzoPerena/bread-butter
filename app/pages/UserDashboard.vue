@@ -10,6 +10,7 @@ import {
 
 definePageMeta({
   layout: 'user-navbar',
+  isUserDashboard: true,
 })
 
 const { isUiOnlyMode } = useApiMode()

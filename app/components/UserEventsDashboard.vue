@@ -324,8 +324,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="w-full flex-1 min-h-[calc(100vh-3.5rem)] bg-toast-700 text-white py-6 sm:py-8 px-3.5 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto space-y-6">
+  <div class="w-full flex-1 bg-toast-700 text-white py-3.5 sm:py-5 px-3.5 sm:px-6 lg:px-8 flex flex-col items-center">
+    <div class="w-full max-w-7xl mx-auto space-y-6">
       <!-- Navbar Teleport Actions -->
       <ClientOnly>
         <Teleport to="#navbar-actions">
@@ -343,21 +343,22 @@ onMounted(() => {
       </ClientOnly>
 
       <!-- Main Dashboard Container -->
-      <div class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-6 lg:p-8 space-y-6 w-full rounded-2xl">
+      <div
+        class="bread-container bg-bread-400 text-toast-900 p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 w-full rounded-2xl">
         <!-- Top Toolbar with UTabs and Contextual Action Button -->
         <UTabs v-model="activeTab" :items="tabItems" :content="false" class="w-full " :ui="{
         }" />
 
 
         <!-- Loading State Skeleton -->
-        <div v-if="isLoadingEvents" class="space-y-4">
+        <div v-if="isLoadingEvents" class="space-y-4 w-full">
           <div class="border-b border-toast-600/20 pb-4">
             <USkeleton class="h-6 sm:h-8 w-48 bg-toast-900/10" />
           </div>
-          <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
             <div v-for="n in 3" :key="`skeleton-home-${n}`"
               class="bg-toast-500/90 rounded-xl overflow-hidden border border-white/10">
-              <USkeleton class="aspect-3/2 w-full rounded-none bg-white/15" />
+              <USkeleton class="aspect-[3/2] w-full rounded-none bg-white/15" />
               <div class="space-y-2 p-3 sm:space-y-3 sm:p-4">
                 <USkeleton class="h-4 sm:h-5 w-3/4 bg-white/20" />
                 <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
@@ -369,9 +370,9 @@ onMounted(() => {
         </div>
 
         <!-- TAB CONTENT: EVENTS -->
-        <div v-else-if="activeTab === 'events'" class="space-y-6">
+        <div v-else-if="activeTab === 'events'" class="space-y-6 w-full">
           <!-- Ongoing Events -->
-          <div v-if="ongoingEvents.length > 0" class="space-y-4">
+          <div v-if="ongoingEvents.length > 0" class="space-y-4 w-full">
             <div class="flex items-center justify-between pb-1">
               <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-800 flex items-center gap-2">
                 <UIcon name="i-lucide-calendar-heart" class="size-5 text-toast-700" />
@@ -382,11 +383,11 @@ onMounted(() => {
               </span>
             </div>
 
-            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
               <div v-for="event in ongoingEvents" :key="event._id"
                 class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden transition-all duration-200 border-5 border-toast-500 text-white group">
                 <div>
-                  <div class="aspect-3/2 w-full overflow-hidden rounded-lg relative bg-toast-800">
+                  <div class="aspect-[3/2] w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
                     <!-- If event has a custom cover image -->
                     <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
                       class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
@@ -397,10 +398,10 @@ onMounted(() => {
                       <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*"
                         variant="area" label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
                         icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
-                        class="h-full w-full rounded-none border-0 !bg-toast-800 hover:!bg-toast-900 transition-colors"
+                        class="h-full w-full rounded-none border-0 bg-toast-800! hover:bg-toast-900! transition-colors"
                         :ui="{
-                          root: 'h-full w-full !bg-toast-800',
-                          base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer !bg-toast-800 hover:!bg-toast-900 !border-dashed !border-toast-600/60 transition-colors',
+                          root: 'h-full w-full bg-toast-800!',
+                          base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer bg-toast-800! hover:bg-toast-900! border-dashed! border-toast-600/60! transition-colors',
                           wrapper: 'flex flex-col items-center justify-center text-center',
                           label: 'text-xs font-bold text-white mt-1',
                           description: 'text-[11px] text-toast-200 mt-0.5',
@@ -409,10 +410,10 @@ onMounted(() => {
                     </div>
                   </div>
 
-                  <div class="p-4 sm:p-5 space-y-2.5">
+                  <div class="p-3 sm:p-4 space-y-2">
                     <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
                       <div
-                        class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors break-words hyphens-none leading-tight">
+                        class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
                         {{ event.eventName }}
                       </div>
 
@@ -429,7 +430,7 @@ onMounted(() => {
 
                         <!-- Package tier badge -->
                         <UBadge color="bread" variant="subtle" size="xs"
-                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs truncate max-w-[150px]">
+                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs truncate max-w-37.5">
                           {{ formatEventPriceTier(event) }}
                         </UBadge>
                       </div>
@@ -438,7 +439,7 @@ onMounted(() => {
                     <div class="space-y-1.5 pt-0.5 text-xs sm:text-sm text-toast-100">
                       <div class="flex items-start gap-2">
                         <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
-                        <span class="break-words hyphens-none flex-1">{{ event.venue || 'Venue pending' }}</span>
+                        <span class="wrap-break-word hyphens-none flex-1">{{ event.venue || 'Venue pending' }}</span>
                       </div>
                       <div class="flex items-center gap-2 truncate">
                         <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-bread-300 shrink-0" />
@@ -448,7 +449,7 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <div class="p-4 sm:p-5 pt-0">
+                <div class="p-3 sm:p-4 pt-0">
                   <UButton block size="sm" :color="getEventAction(event).color" variant="solid"
                     :icon="getEventAction(event).icon" trailing
                     class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
@@ -472,11 +473,11 @@ onMounted(() => {
               </span>
             </div>
 
-            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
               <div v-for="event in pastEvents" :key="event._id"
                 class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden border-5 border-toast-500 text-white group">
                 <div>
-                  <div class="aspect-3/2 w-full overflow-hidden rounded-t-lg relative bg-toast-800">
+                  <div class="aspect-[3/2] w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
                     <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
                       class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                       @error="() => onCoverImageError(event)" />
@@ -484,10 +485,10 @@ onMounted(() => {
                       <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*"
                         variant="area" label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
                         icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
-                        class="h-full w-full rounded-none border-0 !bg-toast-800 hover:!bg-toast-900 transition-colors"
+                        class="h-full w-full rounded-none border-0 bg-toast-800! hover:bg-toast-900! transition-colors"
                         :ui="{
-                          root: 'h-full w-full !bg-toast-800',
-                          base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer !bg-toast-800 hover:!bg-toast-900 !border-dashed !border-toast-600/60 transition-colors',
+                          root: 'h-full w-full bg-toast-800!',
+                          base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer bg-toast-800! hover:bg-toast-900! border-dashed! border-toast-600/60! transition-colors',
                           wrapper: 'flex flex-col items-center justify-center text-center',
                           label: 'text-xs font-bold text-white mt-1',
                           description: 'text-[11px] text-toast-200 mt-0.5',
@@ -496,10 +497,10 @@ onMounted(() => {
                     </div>
                   </div>
 
-                  <div class="p-4 sm:p-5 space-y-2.5">
+                  <div class="p-3 sm:p-4 space-y-2">
                     <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
                       <div
-                        class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors break-words hyphens-none leading-tight">
+                        class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
                         {{ event.eventName }}
                       </div>
 
@@ -516,7 +517,7 @@ onMounted(() => {
 
                         <!-- Package tier badge -->
                         <UBadge color="bread" variant="subtle" size="xs"
-                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs truncate max-w-[150px]">
+                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs truncate max-w-37.5">
                           {{ formatEventPriceTier(event) }}
                         </UBadge>
                       </div>
@@ -525,7 +526,7 @@ onMounted(() => {
                     <div class="space-y-1.5 pt-0.5 text-xs sm:text-sm text-toast-100">
                       <div class="flex items-start gap-2">
                         <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
-                        <span class="break-words hyphens-none flex-1">{{ event.venue || 'Venue pending' }}</span>
+                        <span class="wrap-break-word hyphens-none flex-1">{{ event.venue || 'Venue pending' }}</span>
                       </div>
                       <div class="flex items-center gap-2 truncate">
                         <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-bread-300 shrink-0" />
@@ -535,7 +536,7 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <div class="p-4 sm:p-5 pt-0">
+                <div class="p-3 sm:p-4 pt-0">
                   <UButton block size="sm" :color="getEventAction(event).color" variant="solid"
                     :icon="getEventAction(event).icon" trailing
                     class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
@@ -548,7 +549,7 @@ onMounted(() => {
           </div>
 
           <!-- Empty Events State -->
-          <div v-if="userEvents.length === 0" class="p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto">
+          <div v-if="userEvents.length === 0" class="p-6 sm:p-8 text-center space-y-3.5 max-w-xl mx-auto w-full">
             <div
               class="size-16 rounded-full bg-toast-600 text-white flex items-center justify-center mx-auto shadow-sm">
               <UIcon name="i-lucide-calendar-plus" class="size-8" />
@@ -570,8 +571,8 @@ onMounted(() => {
         </div>
 
         <!-- TAB CONTENT: JAMS -->
-        <div v-else-if="activeTab === 'seating'" class="space-y-6">
-          <div v-if="seatingPlans.length > 0" class="space-y-4">
+        <div v-else-if="activeTab === 'seating'" class="space-y-6 w-full">
+          <div v-if="seatingPlans.length > 0" class="space-y-4 w-full">
             <div class="flex items-center justify-between pb-1">
               <div class="flex items-center gap-2">
                 <UIcon name="i-lucide-layout-grid" class="size-5 text-toast-700" />
@@ -584,14 +585,14 @@ onMounted(() => {
               </span>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2">
+            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
               <div v-for="plan in seatingPlans" :key="plan._id"
-                class="bg-toast-500 rounded-xl p-4 sm:p-5 space-y-3 flex flex-col justify-between border-5 border-toast-500 text-white group">
+                class="bg-toast-500 rounded-xl p-3.5 sm:p-4 space-y-2.5 flex flex-col justify-between border-5 border-toast-500 text-white group">
                 <div class="space-y-2">
                   <!-- Row 1: Plan Name, Hazard alert (if unpaid), and Plan Type badge -->
                   <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
                     <h3
-                      class="min-w-0 flex-1 font-serif text-lg sm:text-xl font-bold text-white group-hover:text-bread-200 transition-colors break-words hyphens-none leading-tight">
+                      class="min-w-0 flex-1 font-serif text-lg sm:text-xl font-bold text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
                       {{ plan.name }}
                     </h3>
 
@@ -623,7 +624,7 @@ onMounted(() => {
                   <div class="space-y-1 text-xs text-toast-100 pt-0.5">
                     <div class="flex items-start gap-1.5">
                       <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
-                      <span class="break-words hyphens-none flex-1">{{ plan.venue || 'Venue pending' }}</span>
+                      <span class="wrap-break-word hyphens-none flex-1">{{ plan.venue || 'Venue pending' }}</span>
                     </div>
                     <div class="flex items-center gap-1.5 truncate">
                       <UIcon name="i-lucide-calendar" class="size-3.5 text-bread-300 shrink-0" />
@@ -635,17 +636,17 @@ onMounted(() => {
                   <UButton block size="sm" :color="plan.status === 'ACTIVE' ? 'bread' : 'neutral'" variant="solid"
                     :icon="plan.status === 'ACTIVE' ? 'i-lucide-arrow-right' : 'i-lucide-credit-card'" trailing
                     class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold" :to="plan.status === 'ACTIVE'
-                      ? `/seating/${plan._id}`
+                      ? `/jam/dashboard/${plan._id}`
                       : { path: '/user/seating-payment', query: { gatheringId: plan._id } }">
                     {{ plan.status === 'ACTIVE' ? 'Open Jam' : 'Complete Payment' }}
                   </UButton>
                 </div>
               </div>
-            </div>
+            </UPageGrid>
           </div>
 
           <!-- Empty Jams State -->
-          <div v-else class="p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto">
+          <div v-else class="p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto w-full">
             <div
               class="size-16 rounded-full bg-toast-600 text-white flex items-center justify-center mx-auto shadow-sm">
               <UIcon name="i-lucide-layout-grid" class="size-8" />

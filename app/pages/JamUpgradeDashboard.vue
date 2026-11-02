@@ -6,7 +6,7 @@ import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
 definePageMeta({ layout: 'signed-in-navbar', middleware: 'seating-enabled' })
-useHead({ title: 'Upgrade seating plan - Bread + Butter' })
+useHead({ title: 'Upgrade Jam - Bread + Butter' })
 
 // These close an old attempt so a new one can start. They aren't something a host needs to fix.
 const SYSTEM_DENIALS = ['Replaced by a newer upgrade request.', 'The checkout expired before it was paid.']
@@ -16,7 +16,7 @@ const toast = useToast()
 const { isPaymongoActivated } = usePaymongoActivation()
 const { getUpgradeOptions, listGatheringPayments, submitUpgradeProof, createUpgradeCheckout } = useSeating()
 
-const gatheringId = computed(() => String(route.params.gatheringId || ''))
+const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
 const options = ref<JamUpgradeOptions | null>(null)
 const denied = ref<SeatingPaymentRecord | null>(null)
 const selected = ref<JamUpgradeOption | null>(null)
@@ -26,7 +26,7 @@ const proofPanel = ref<PaymentProofPanelExpose | null>(null)
 
 const pending = computed(() => options.value?.pendingUpgrade ?? null)
 const pendingManual = computed(() => pending.value?.provider === 'MANUAL')
-const workspacePath = computed(() => `/seating/${gatheringId.value}`)
+const workspacePath = computed(() => `/jam/dashboard/${gatheringId.value}`)
 
 onMounted(load)
 
@@ -80,7 +80,7 @@ async function payWithCheckout() {
   try {
     const checkout = await createUpgradeCheckout(gatheringId.value, {
       packageId: selected.value._id,
-      cancelPath: `/user/seating-upgrade/${gatheringId.value}?cancelled=1`,
+      cancelPath: `/user/jam-upgrade/${gatheringId.value}?cancelled=1`,
       idempotencyKey: idempotencyKeyFor(selected.value._id),
     })
     if (checkout.alreadyPaid) {
@@ -145,7 +145,7 @@ async function payWithProof() {
           variant="outline"
           class="mt-3"
         >
-          Back to my seating plan
+          Back to Jam dashboard
         </UButton>
       </div>
       <template v-else>
@@ -260,7 +260,7 @@ async function payWithProof() {
           variant="ghost"
           class="text-white"
         >
-          Back to my seating plan
+          Back to Jam dashboard
         </UButton>
       </template>
     </UContainer>

@@ -94,7 +94,8 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Dashboard',
     icon: 'i-lucide-layout-dashboard',
-    to: '/'
+    to: '/',
+    active: false
   }, {
     label: 'Profile',
     icon: 'i-lucide-user-cog',
@@ -110,7 +111,8 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Back to Home',
     icon: 'i-lucide-home',
-    to: '/?view=landing'
+    to: '/?view=landing',
+    active: false
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',

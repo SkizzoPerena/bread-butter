@@ -7,7 +7,7 @@ definePageMeta({ layout: false, middleware: 'seating-enabled' })
 const route = useRoute()
 const { fetchPublicSeatList, fetchPublicGuestSeat } = useSeating()
 
-const token = computed(() => String(route.params.token || ''))
+const token = computed(() => String(route.params.token || route.query.token || ''))
 const listing = ref<PublicSeatList | null>(null)
 const seat = ref<PublicSeatDetail | null>(null)
 const selectedId = ref('')

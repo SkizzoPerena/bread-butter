@@ -96,7 +96,18 @@ export function isPublicPath(path: string): boolean {
   if (normalized.startsWith('/rsvp/')) return true
   if (normalized.startsWith('/seat/')) return true
   if (normalized.startsWith('/attend/')) return true
-  if (normalized.startsWith('/jam/')) return true
+  if (
+    normalized.startsWith('/jam/') &&
+    !normalized.startsWith('/jam/dashboard') &&
+    !normalized.startsWith('/jam/checkin') &&
+    !normalized.startsWith('/jam/guests') &&
+    !normalized.startsWith('/jam/invitation') &&
+    !normalized.startsWith('/jam/invite') &&
+    !normalized.startsWith('/jam/tables') &&
+    !normalized.startsWith('/jam/settings') &&
+    !normalized.startsWith('/jam/rsvps') &&
+    !normalized.startsWith('/jam/rsvp-manager')
+  ) return true
   return false
 }
 
@@ -128,6 +139,19 @@ export function isUserExclusivePath(
   if (normalized === '/event/dashboard' || normalized === '/event-dashboard') return false
   if (normalized.startsWith('/event/')) return true
   if (normalized.startsWith('/seating/')) return true
+  if (
+    normalized.startsWith('/jam/dashboard') ||
+    normalized.startsWith('/jam-dashboard') ||
+    normalized.startsWith('/jam/checkin') ||
+    normalized.startsWith('/jam/guests') ||
+    normalized.startsWith('/jam/invitation') ||
+    normalized.startsWith('/jam/invite') ||
+    normalized.startsWith('/jam/tables') ||
+    normalized.startsWith('/jam/settings') ||
+    normalized.startsWith('/jam/rsvps') ||
+    normalized.startsWith('/jam/rsvp-manager') ||
+    normalized.startsWith('/user/jam-upgrade')
+  ) return true
   return false
 }
 

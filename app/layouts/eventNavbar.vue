@@ -55,7 +55,8 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Back to Home',
     icon: 'i-lucide-home',
-    to: '/?view=landing'
+    to: '/?view=landing',
+    active: false
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
@@ -65,7 +66,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar text-bread-50 shrink-0">
+  <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar text-white shrink-0">
     <template #toggle>
       <!-- Built-in Navbar Toggle for Mobile -->
       <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'start', side: 'bottom' }" :ui="{

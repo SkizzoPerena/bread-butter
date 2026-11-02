@@ -14,7 +14,7 @@ const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const seating = useSeating()
 
-const gatheringId = computed(() => String(route.params.gatheringId || ''))
+const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
 const gathering = ref<GatheringRecord | null>(null)
 const guests = ref<SeatingGuestRecord[]>([])
 const loading = ref(true)
@@ -179,7 +179,7 @@ async function downloadGuests() {
           size="sm"
           label="Back to Workspace"
           class="text-bread-200 hover:text-white cursor-pointer font-semibold -ml-2"
-          :to="`/seating/${gatheringId}`"
+          :to="`/jam/dashboard/${gatheringId}`"
         />
       </div>
 
@@ -400,11 +400,11 @@ async function downloadGuests() {
                 No guests in this view are checked in yet.
               </div>
 
-              <div v-else class="divide-y divide-emerald-100 border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20">
+              <div v-else class="border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20">
                 <div
                   v-for="guest in displayedInAttendance"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-emerald-50/50 transition-colors"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-emerald-50/50 transition-colors border-b border-emerald-100 last:border-b-0"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="size-8 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center shrink-0 text-xs">
@@ -459,11 +459,11 @@ async function downloadGuests() {
                 All registered attendees are checked in!
               </div>
 
-              <div v-else class="divide-y divide-bread-200/60 border border-bread-200/60 rounded-xl overflow-hidden bg-white/70">
+              <div v-else class="border border-bread-200/60 rounded-xl overflow-hidden bg-white/70">
                 <div
                   v-for="guest in displayedNotConfirmed"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-toast-50/50 transition-colors"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-toast-50/50 transition-colors border-b border-bread-200/60 last:border-b-0"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="size-8 rounded-full bg-toast-100 text-toast-600 font-bold flex items-center justify-center shrink-0 text-xs">
