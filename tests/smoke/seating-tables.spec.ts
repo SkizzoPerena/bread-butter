@@ -234,6 +234,17 @@ test('renaming sends only the name, and an empty name goes back to the position'
   await expect(tableCards(page).nth(0)).toContainText('Table 1')
 })
 
+test('a table keeps its name readable in a narrow card', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await openTablesPage(page, {
+    tables: [table('t1', 1, 2, 'Family'), table('t2', 2, 2, 'Friends'), table('t3', 3, 2, 'Colleagues')],
+  })
+
+  const name = page.getByRole('heading', { name: 'Family' })
+  await expect(name).toBeVisible()
+  expect((await name.boundingBox())?.width).toBeGreaterThan(30)
+})
+
 test('a host marks an empty seat unavailable', async ({ page }) => {
   const calls = await openTablesPage(page, {
     tables: [table('t1', 1, 2)],

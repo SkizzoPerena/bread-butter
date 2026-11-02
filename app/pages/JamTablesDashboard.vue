@@ -869,13 +869,14 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               <!-- Table Card Header (toast-500, draggable for swapping) -->
               <div
                 draggable="true"
-                class="px-3.5 py-2.5 bg-toast-500 text-white flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-colors rounded-t-2xl"
+                class="px-3.5 py-2.5 bg-toast-500 text-white flex flex-wrap items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-colors rounded-t-2xl"
                 title="Drag this table onto another table to swap their positions. Guests stay with their table."
                 @dragstart="onTableDragStart($event, table)"
                 @dragend="onTableDragEnd"
               >
                 <!-- Drag Grip & Table Label -->
-                <div class="flex items-center gap-2 min-w-0 flex-1">
+                <!-- The basis makes the controls wrap below, instead of squeezing the name away. -->
+                <div class="flex items-center gap-2 min-w-0 flex-1 basis-32">
                   <div
                     class="size-6 rounded-md bg-white/20 text-white flex items-center justify-center shadow-2xs shrink-0 group-hover:bg-white/30"
                   >
