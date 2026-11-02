@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GatheringRecord, SeatingGuestRecord, SeatingSeat, SeatingTable } from '~/types/seating'
+import type { GatheringRecord, SeatMoveTarget, SeatingGuestRecord, SeatingSeat, SeatingTable } from '~/types/seating'
 import { guestDisplayName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 
@@ -31,9 +31,11 @@ const isAddTablePopoverOpen = ref(false)
 
 // Drag and Drop State
 const draggedGuestId = ref<string | null>(null)
-const draggedTableIndex = ref<number | null>(null)
-const dragOverTableIndex = ref<number | null>(null)
+const draggedTableId = ref<string | null>(null)
+const dragOverTableId = ref<string | null>(null)
+const dragOverSeatKey = ref<string | null>(null)
 const isOverUnseatZone = ref(false)
+const pendingSaves = ref(0)
 
 // Computed Guest Metrics
 const attendingGuests = computed(() =>
@@ -85,9 +87,10 @@ const filteredTables = computed(() => {
   })
 })
 
-async function load() {
+/** `quiet` keeps the page on screen, for refreshing it after a change. */
+async function load(quiet = false) {
   if (!gatheringId.value) return
-  loading.value = true
+  if (!quiet) loading.value = true
   try {
     const [gatheringData, guestsData] = await Promise.all([
       seating.getGathering(gatheringId.value),
@@ -95,7 +98,6 @@ async function load() {
     ])
     gathering.value = gatheringData
     guests.value = guestsData.guests
-    compactAllTables()
 
     setActiveEvent({
       _id: gatheringData._id,
@@ -118,7 +120,47 @@ async function load() {
   }
 }
 
-onMounted(load)
+// Guests can choose seats while the host is here, so pick those up when the plan has changed.
+const REFRESH_INTERVAL_MS = 30_000
+let refreshTimer: ReturnType<typeof setInterval> | undefined
+
+async function refreshIfSeatsChanged() {
+  if (loading.value || draggedGuestId.value || draggedTableId.value || pendingSaves.value) return
+  try {
+    const latest = await seating.getGathering(gatheringId.value)
+    if (latest.seatVersion !== gathering.value?.seatVersion) await load(true)
+  } catch {
+    // The next check tries again.
+  }
+}
+
+onMounted(() => {
+  load()
+  refreshTimer = setInterval(refreshIfSeatsChanged, REFRESH_INTERVAL_MS)
+  window.addEventListener('focus', refreshIfSeatsChanged)
+})
+
+onBeforeUnmount(() => {
+  clearInterval(refreshTimer)
+  window.removeEventListener('focus', refreshIfSeatsChanged)
+})
+
+// Saves run one at a time, in the order they were made. Any failure shows the plan as it really is.
+let saveQueue: Promise<void> = Promise.resolve()
+
+function queueSave(failureTitle: string, save: () => Promise<void>) {
+  pendingSaves.value += 1
+  saveQueue = saveQueue
+    .then(save)
+    .catch(async (error) => {
+      toast.add({ title: failureTitle, description: getApiErrorMessage(error), color: 'error' })
+      await load(true)
+    })
+    .finally(() => {
+      pendingSaves.value -= 1
+    })
+  return saveQueue
+}
 
 // Helper to get seats of a table
 function seatsOf(table: SeatingTable): SeatingSeat[] {
@@ -133,99 +175,95 @@ function guestInSeat(table: SeatingTable, seatNumber: number): SeatingGuestRecor
   return guests.value.find((g) => g.tableId === table._id && g.seatNumber === seatNumber)
 }
 
-function tableSeatedGuests(tableId: string): SeatingGuestRecord[] {
-  return guests.value
-    .filter((g) => g.tableId === tableId && g.seatNumber !== null)
-    .sort((a, b) => (a.seatNumber || 0) - (b.seatNumber || 0))
-}
-
-function guestAtSeat(table: SeatingTable, seatNumber: number): SeatingGuestRecord | undefined {
-  const seated = tableSeatedGuests(table._id)
-  return seated[seatNumber - 1]
-}
-
 function occupiedSeatsCount(table: SeatingTable): number {
-  return tableSeatedGuests(table._id).length
+  return guests.value.filter((g) => g.tableId === table._id && g.seatNumber !== null).length
 }
 
-async function compactTableSeats(tableId: string): Promise<void> {
-  const tableGuests = tableSeatedGuests(tableId)
-  const changedGuests: { guest: SeatingGuestRecord; newSeat: number }[] = []
-
-  tableGuests.forEach((g, index) => {
-    const expectedSeat = index + 1
-    if (g.seatNumber !== expectedSeat) {
-      g.seatNumber = expectedSeat
-      changedGuests.push({ guest: g, newSeat: expectedSeat })
-    }
-  })
-
-  if (changedGuests.length > 0) {
-    await Promise.all(
-      changedGuests.map(({ guest, newSeat }) =>
-        seating.moveSeat(gatheringId.value, guest._id, tableId, newSeat).catch(() => {})
-      )
-    )
-  }
+function nextOpenSeat(table: SeatingTable): SeatingSeat | undefined {
+  return seatsOf(table).find((seat) => !seat.unavailable && !guestInSeat(table, seat.number))
 }
 
-function compactAllTables() {
-  if (!gathering.value) return
-  gathering.value.tables.forEach((t) => {
-    const tableGuests = tableSeatedGuests(t._id)
-    tableGuests.forEach((g, idx) => {
-      g.seatNumber = idx + 1
+function tablePosition(table: SeatingTable): number {
+  return (gathering.value?.tables ?? []).findIndex((t) => t._id === table._id) + 1
+}
+
+function seatKey(table: SeatingTable, seatNumber: number): string {
+  return `${table._id}-${seatNumber}`
+}
+
+function applyGuest(updated: SeatingGuestRecord | null) {
+  if (!updated) return
+  const index = guests.value.findIndex((g) => g._id === updated._id)
+  if (index !== -1) guests.value[index] = { ...guests.value[index], ...updated }
+}
+
+function tableLabelOf(tableId: string | null): string {
+  return gathering.value?.tables.find((t) => t._id === tableId)?.label ?? ''
+}
+
+function saveMove(guest: SeatingGuestRecord, target: SeatMoveTarget, failureTitle: string) {
+  return queueSave(failureTitle, async () => {
+    const result = await seating.moveSeat(gatheringId.value, guest._id, target)
+    applyGuest(result.guest)
+    applyGuest(result.swappedGuest)
+    if (gathering.value) gathering.value.seatVersion = result.seatVersion
+    toast.add({
+      title: result.message,
+      description: result.guest.seatNumber
+        ? `${guestDisplayName(result.guest)}: ${tableLabelOf(result.guest.tableId)}, Seat ${result.guest.seatNumber}.`
+        : `${guestDisplayName(result.guest)} is unassigned.`,
+      color: result.guest.seatNumber ? 'success' : 'neutral',
     })
   })
 }
 
-async function assignGuestToTable(guestId: string, table: SeatingTable) {
+/** A drop on a table takes its lowest open seat. The server chooses, so this is only a preview. */
+function assignGuestToTable(guestId: string, table: SeatingTable) {
   const guest = guests.value.find((g) => g._id === guestId)
-  if (!guest) return
+  if (!guest || guest.tableId === table._id) return
 
-  // If already at this table, nothing to do
-  if (guest.tableId === table._id) return
-
-  const currentTableGuests = tableSeatedGuests(table._id)
-  if (currentTableGuests.length >= table.capacity) {
+  const seat = nextOpenSeat(table)
+  if (!seat) {
     toast.add({
       title: 'Table is full',
-      description: `${table.label} has reached its capacity of ${table.capacity} seats.`,
+      description: `${table.label} has no open seats.`,
       color: 'warning',
     })
     return
   }
 
-  const previousTableId = guest.tableId
-  const nextSeatNumber = currentTableGuests.length + 1
-
   guest.tableId = table._id
-  guest.seatNumber = nextSeatNumber
-  guest.isAttending = true
+  guest.seatNumber = seat.number
+  return saveMove(guest, { tableId: table._id }, 'Could not assign seat')
+}
 
-  toast.add({
-    title: 'Guest seated',
-    description: `${guestDisplayName(guest)} assigned to ${table.label}, Seat ${nextSeatNumber}.`,
-    color: 'success',
-  })
-
-  try {
-    await seating.moveSeat(gatheringId.value, guest._id, table._id, nextSeatNumber)
-    if (previousTableId && previousTableId !== table._id) {
-      await compactTableSeats(previousTableId)
-    }
-  } catch (error) {
-    toast.add({ title: 'Could not assign seat', description: getApiErrorMessage(error), color: 'error' })
-    await load()
+/** A taken seat trades the two guests, or unassigns its holder if the dragged guest had no seat. */
+function assignGuestToSeat(guestId: string, table: SeatingTable, seat: SeatingSeat) {
+  const guest = guests.value.find((g) => g._id === guestId)
+  if (!guest) return
+  if (seat.unavailable) {
+    toast.add({ title: 'This seat is unavailable', color: 'warning' })
+    return
   }
+  const occupant = guestInSeat(table, seat.number)
+  if (occupant?._id === guest._id) return
+
+  if (occupant) {
+    occupant.tableId = guest.tableId
+    occupant.seatNumber = guest.seatNumber
+  }
+  guest.tableId = table._id
+  guest.seatNumber = seat.number
+  return saveMove(
+    guest,
+    { tableId: table._id, seatNumber: seat.number, expectedGuestId: occupant?._id ?? null },
+    'Could not assign seat',
+  )
 }
 
 // Table Naming helpers
 function isTableCustomNamed(table: SeatingTable): boolean {
-  if (!table.label) return false
-  const trimmed = table.label.trim()
-  if (!trimmed) return false
-  return !/^Table\s+\d+$/i.test(trimmed)
+  return Boolean(table.customLabel)
 }
 
 const isRenameModalOpen = ref(false)
@@ -234,46 +272,22 @@ const editingTableLabel = ref('')
 
 function openRenameModal(table: SeatingTable) {
   targetTableToRename.value = table
-  editingTableLabel.value = table.label
+  editingTableLabel.value = table.customLabel ?? ''
   isRenameModalOpen.value = true
 }
 
-async function saveTableRename() {
-  if (!gathering.value || !targetTableToRename.value) return
+function saveTableRename() {
   const table = targetTableToRename.value
-  const trimmed = editingTableLabel.value.trim()
-  const tableIndex = gathering.value.tables.findIndex((t) => t._id === table._id)
-  const defaultLabel = `Table ${tableIndex >= 0 ? tableIndex + 1 : 1}`
-
-  const newLabel = trimmed || defaultLabel
-  const oldLabel = table.label
-  table.label = newLabel
-  table.customLabel = trimmed ? newLabel : ''
+  if (!table) return
+  const label = editingTableLabel.value.trim()
   isRenameModalOpen.value = false
+  targetTableToRename.value = null
+  if (label === (table.customLabel ?? '')) return
 
-  if (oldLabel === newLabel) return
-
-  toast.add({
-    title: 'Table renamed',
-    description: `Renamed to ${newLabel}.`,
-    color: 'success',
+  return queueSave('Could not rename table', async () => {
+    gathering.value = await seating.updateTable(gatheringId.value, table._id, { label })
+    toast.add({ title: 'Table renamed', color: 'success' })
   })
-
-  try {
-    saving.value = true
-    const payload = gathering.value.tables.map((t) => ({
-      _id: t._id,
-      label: t.label,
-      capacity: t.capacity,
-    }))
-    await seating.replaceTables(gatheringId.value, payload)
-  } catch (error) {
-    toast.add({ title: 'Could not rename table', description: getApiErrorMessage(error), color: 'error' })
-    table.label = oldLabel
-  } finally {
-    saving.value = false
-    targetTableToRename.value = null
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -282,7 +296,7 @@ async function saveTableRename() {
 
 function onGuestDragStart(event: DragEvent, guest: SeatingGuestRecord) {
   draggedGuestId.value = guest._id
-  draggedTableIndex.value = null
+  draggedTableId.value = null
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'guest', guestId: guest._id }))
@@ -291,121 +305,96 @@ function onGuestDragStart(event: DragEvent, guest: SeatingGuestRecord) {
 
 function onGuestDragEnd() {
   draggedGuestId.value = null
-  dragOverTableIndex.value = null
+  dragOverTableId.value = null
+  dragOverSeatKey.value = null
   isOverUnseatZone.value = false
 }
 
-function onTableDragLeave(event: DragEvent, index: number) {
+function onTableDragLeave(event: DragEvent, table: SeatingTable) {
   const related = event.relatedTarget as HTMLElement | null
   const current = event.currentTarget as HTMLElement | null
   if (current && related && current.contains(related)) {
     return
   }
-  if (dragOverTableIndex.value === index) {
-    dragOverTableIndex.value = null
+  if (dragOverTableId.value === table._id) {
+    dragOverTableId.value = null
   }
 }
 
-function onTableDragStart(event: DragEvent, index: number) {
-  draggedTableIndex.value = index
+function onTableDragStart(event: DragEvent, table: SeatingTable) {
+  draggedTableId.value = table._id
   draggedGuestId.value = null
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'table', tableIndex: index }))
+    event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'table', tableId: table._id }))
   }
 }
 
 function onTableDragEnd() {
-  draggedTableIndex.value = null
-  dragOverTableIndex.value = null
+  draggedTableId.value = null
+  dragOverTableId.value = null
 }
 
-// Swapping Tables
-async function onTableDrop(event: DragEvent, targetIndex: number) {
-  dragOverTableIndex.value = null
-  const sourceIndex = draggedTableIndex.value
-  draggedTableIndex.value = null
-
-  if (sourceIndex === null || sourceIndex === targetIndex || !gathering.value) return
+// Swapping Tables. Guests and custom names stay with their table, and numbers follow the position.
+function onTableDrop(target: SeatingTable) {
+  dragOverTableId.value = null
+  const sourceId = draggedTableId.value
+  draggedTableId.value = null
+  if (!sourceId || sourceId === target._id || !gathering.value) return
 
   const tables = [...gathering.value.tables]
-  const tableA = tables[sourceIndex]
-  const tableB = tables[targetIndex]
-  if (!tableA || !tableB) return
+  const from = tables.findIndex((t) => t._id === sourceId)
+  const to = tables.findIndex((t) => t._id === target._id)
+  const source = tables[from]
+  const destination = tables[to]
+  if (!source || !destination) return
+  tables[from] = destination
+  tables[to] = source
+  gathering.value.tables = tables.map((t, index) => ({
+    ...t,
+    sortOrder: index,
+    label: t.customLabel || `Table ${index + 1}`,
+  }))
 
-  // 1. Swap table positions in layout
-  tables[sourceIndex] = tableB
-  tables[targetIndex] = tableA
-
-  // 2. Adjust table labels based on the user's rule:
-  // "when I move a named table, the moved table retains the name,
-  // and the moved table will retain the table number of the named table,
-  // unless the moved table also has a name"
-  tables.forEach((t, idx) => {
-    t.sortOrder = idx
-    if (!isTableCustomNamed(t)) {
-      t.label = `Table ${idx + 1}`
-    }
+  return queueSave('Could not save swapped tables', async () => {
+    gathering.value = await seating.swapTables(gatheringId.value, source._id, destination._id)
+    toast.add({ title: 'Tables swapped', color: 'success' })
   })
-
-  // 3. Guests stay with their table, so they move to the new location with their table
-  gathering.value.tables = tables
-
-  toast.add({
-    title: 'Tables swapped',
-    description: `Moved ${tableA.label} and ${tableB.label} and their guests to their new locations.`,
-    color: 'success',
-  })
-
-  try {
-    saving.value = true
-    const payload = tables.map((t) => ({
-      _id: t._id,
-      label: t.label,
-      capacity: t.capacity,
-    }))
-    const updated = await seating.replaceTables(gatheringId.value, payload)
-    gathering.value = updated
-  } catch (error) {
-    toast.add({ title: 'Could not save swapped tables', description: getApiErrorMessage(error), color: 'error' })
-  } finally {
-    saving.value = false
-  }
 }
 
-// Dropping guest onto table container (assigns to next seat 1..n)
-async function onTableGuestDrop(event: DragEvent, table: SeatingTable) {
-  dragOverTableIndex.value = null
+// Dropping guest onto table container (takes the next open seat)
+function onTableGuestDrop(table: SeatingTable) {
+  dragOverTableId.value = null
   const guestId = draggedGuestId.value
   draggedGuestId.value = null
   if (!guestId) return
 
-  await assignGuestToTable(guestId, table)
+  return assignGuestToTable(guestId, table)
 }
 
-async function unseatGuest(guest: SeatingGuestRecord) {
-  const previousTableId = guest.tableId
+// Dropping a guest onto one seat. A dragged table falls through to its table's drop.
+function onSeatDragOver(table: SeatingTable, seatNumber: number) {
+  if (draggedGuestId.value) dragOverSeatKey.value = seatKey(table, seatNumber)
+}
+
+function onSeatDrop(event: DragEvent, table: SeatingTable, seat: SeatingSeat) {
+  const guestId = draggedGuestId.value
+  if (!guestId) return
+  event.stopPropagation()
+  draggedGuestId.value = null
+  dragOverTableId.value = null
+  dragOverSeatKey.value = null
+  return assignGuestToSeat(guestId, table, seat)
+}
+
+function unseatGuest(guest: SeatingGuestRecord) {
   guest.tableId = null
   guest.seatNumber = null
-
-  toast.add({
-    title: `${guestDisplayName(guest)} unassigned`,
-    color: 'neutral',
-  })
-
-  try {
-    await seating.moveSeat(gatheringId.value, guest._id, null, null)
-    if (previousTableId) {
-      await compactTableSeats(previousTableId)
-    }
-  } catch (error) {
-    toast.add({ title: 'Could not unassign guest', description: getApiErrorMessage(error), color: 'error' })
-    await load()
-  }
+  return saveMove(guest, { tableId: null }, 'Could not unassign guest')
 }
 
 // Dropping guest to unseat pool
-async function onDropToUnseat(event: DragEvent) {
+function onDropToUnseat() {
   isOverUnseatZone.value = false
   const guestId = draggedGuestId.value
   draggedGuestId.value = null
@@ -415,134 +404,96 @@ async function onDropToUnseat(event: DragEvent) {
   if (!guest) return
   if (!guest.tableId && !guest.seatNumber) return
 
-  await unseatGuest(guest)
+  return unseatGuest(guest)
 }
 
 // ---------------------------------------------------------------------------
 // Table Management: Add & Modify Seats On The Fly
 // ---------------------------------------------------------------------------
 
-async function addNewTable() {
-  if (!gathering.value) return
-  const tables = [...gathering.value.tables]
-  const newIndex = tables.length
-  const capacity = Math.max(1, Math.min(newTableSeats.value || 8, 30))
+function layoutRow(table: SeatingTable) {
+  return { _id: table._id, label: table.customLabel ?? '', capacity: table.capacity }
+}
 
-  const newTable: SeatingTable = {
-    _id: `table-${Date.now()}`,
-    label: `Table ${newIndex + 1}`,
-    capacity,
-    sortOrder: newIndex,
-    seats: Array.from({ length: capacity }, (_, i) => ({
-      number: i + 1,
-      unavailable: false,
-      guest: null,
-    })),
-  }
-  tables.push(newTable)
-  gathering.value.tables = tables
+function addNewTable() {
+  if (!gathering.value) return
+  const capacity = Math.max(1, Math.min(newTableSeats.value || 8, 30))
+  const layout = [...gathering.value.tables.map(layoutRow), { label: '', capacity }]
   isAddTablePopoverOpen.value = false
 
-  toast.add({
-    title: 'Table added',
-    description: `${newTable.label} created with ${capacity} seats.`,
-    color: 'success',
-  })
-
-  try {
+  return queueSave('Could not add table', async () => {
     saving.value = true
-    const payload = tables.map((t) => ({
-      _id: t._id,
-      label: t.label,
-      capacity: t.capacity,
-    }))
-    const updated = await seating.replaceTables(gatheringId.value, payload)
-    gathering.value = updated
-  } catch (error) {
-    toast.add({ title: 'Could not add table', description: getApiErrorMessage(error), color: 'error' })
-  } finally {
-    saving.value = false
-  }
+    try {
+      gathering.value = await seating.replaceTables(gatheringId.value, layout)
+      toast.add({ title: 'Table added', description: `New table with ${capacity} seats.`, color: 'success' })
+    } finally {
+      saving.value = false
+    }
+  })
 }
 
-async function updateTableCapacity(table: SeatingTable, newCapacity: number) {
-  if (newCapacity < 1 || newCapacity > 30 || !gathering.value) return
-  if (newCapacity === table.capacity) return
+// Each click on the stepper would be a write, so save once the host has stopped clicking.
+const CAPACITY_SAVE_DELAY_MS = 400
+const capacitySaves = new Map<string, { timer: ReturnType<typeof setTimeout>, confirmClear: boolean }>()
 
-  const oldCapacity = table.capacity
-  table.capacity = newCapacity
+function updateTableCapacity(table: SeatingTable, newCapacity: number) {
+  if (newCapacity < 1 || newCapacity > 30 || newCapacity === table.capacity) return
 
-  table.seats = Array.from({ length: newCapacity }, (_, i) => {
-    const existing = table.seats?.find((s) => s.number === i + 1)
-    return existing ?? { number: i + 1, unavailable: false, guest: null }
+  const affected = guests.value.filter((g) => g.tableId === table._id && (g.seatNumber || 0) > newCapacity)
+  if (affected.length && !window.confirm(`Removing this seat also unseats ${affected.map(guestDisplayName).join(', ')}. Continue?`)) {
+    return
+  }
+  affected.forEach((g) => {
+    g.tableId = null
+    g.seatNumber = null
   })
 
-  if (newCapacity < oldCapacity) {
-    const affected = guests.value.filter((g) => g.tableId === table._id && (g.seatNumber || 0) > newCapacity)
-    affected.forEach((g) => {
-      g.tableId = null
-      g.seatNumber = null
-    })
-    await Promise.all(
-      affected.map((g) => seating.moveSeat(gatheringId.value, g._id, null, null).catch(() => {}))
-    )
-  }
+  table.capacity = newCapacity
+  table.seats = Array.from({ length: newCapacity }, (_, i) => (
+    table.seats?.find((s) => s.number === i + 1) ?? { number: i + 1, unavailable: false, guest: null }
+  ))
 
-  try {
-    const payload = gathering.value.tables.map((t) => ({
-      _id: t._id,
-      label: t.label,
-      capacity: t.capacity,
-    }))
-    await seating.replaceTables(gatheringId.value, payload)
-  } catch (error) {
-    toast.add({ title: 'Could not update capacity', description: getApiErrorMessage(error), color: 'error' })
-  }
+  const pending = capacitySaves.get(table._id)
+  if (pending) clearTimeout(pending.timer)
+  const confirmClear = Boolean(pending?.confirmClear) || affected.length > 0
+  capacitySaves.set(table._id, {
+    confirmClear,
+    timer: setTimeout(() => {
+      capacitySaves.delete(table._id)
+      const capacity = table.capacity
+      queueSave('Could not update capacity', async () => {
+        gathering.value = await seating.updateTable(gatheringId.value, table._id, { capacity, confirmClear })
+      })
+    }, CAPACITY_SAVE_DELAY_MS),
+  })
 }
 
-async function removeTable(tableId: string) {
+function removeTable(tableId: string) {
   if (!gathering.value) return
   const targetTable = gathering.value.tables.find((t) => t._id === tableId)
   if (!targetTable) return
 
   const guestsOnTable = guests.value.filter((g) => g.tableId === tableId)
+  if (guestsOnTable.length && !window.confirm(`Deleting ${targetTable.label} also unseats ${guestsOnTable.length === 1 ? '1 guest' : `${guestsOnTable.length} guests`}. Continue?`)) {
+    return
+  }
   guestsOnTable.forEach((g) => {
     g.tableId = null
     g.seatNumber = null
   })
 
-  const updatedTables = gathering.value.tables
-    .filter((t) => t._id !== tableId)
-    .map((t, idx) => ({
-      ...t,
-      sortOrder: idx,
-      label: isTableCustomNamed(t) ? t.label : `Table ${idx + 1}`,
-    }))
+  const remaining = gathering.value.tables.filter((t) => t._id !== tableId)
+  gathering.value.tables = remaining
 
-  gathering.value.tables = updatedTables
-
-  toast.add({
-    title: 'Table removed',
-    description: `${targetTable.label} has been deleted.`,
-    color: 'neutral',
-  })
-
-  try {
+  return queueSave('Could not delete table', async () => {
     saving.value = true
-    const payload = updatedTables.map((t) => ({
-      _id: t._id,
-      label: t.label,
-      capacity: t.capacity,
-    }))
-    await seating.replaceTables(gatheringId.value, payload)
-    await Promise.all(
-      guestsOnTable.map((g) => seating.moveSeat(gatheringId.value, g._id, null, null).catch(() => {}))
-    )
-  } catch (error) {
-    toast.add({ title: 'Could not delete table', description: getApiErrorMessage(error), color: 'error' })
-  } finally {
-    saving.value = false
-  }
+    try {
+      gathering.value = await seating.replaceTables(gatheringId.value, remaining.map(layoutRow), true)
+      toast.add({ title: 'Table removed', description: `${targetTable.label} has been deleted.`, color: 'neutral' })
+    } finally {
+      saving.value = false
+    }
+  })
 }
 
 async function runAutoAssign() {
@@ -557,7 +508,7 @@ async function runAutoAssign() {
       description: `Assigned seats to ${result.assignedCount} guests.`,
       color: 'success',
     })
-    await load()
+    await load(true)
   } catch (error) {
     toast.add({ title: 'Could not auto-assign', description: getApiErrorMessage(error), color: 'error' })
   } finally {
@@ -583,7 +534,6 @@ async function toggleSeatSelectionLock() {
 async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
   try {
     gathering.value = await seating.setSeatUnavailable(gatheringId.value, table._id, seat.number, !seat.unavailable)
-    await load()
   } catch (error) {
     toast.add({ title: 'Could not toggle seat', description: getApiErrorMessage(error), color: 'error' })
   }
@@ -701,7 +651,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                   {{ unseatedGuests.length }}
                 </UBadge>
               </div>
-              <span class="text-[10px] text-muted">Drag onto any table</span>
+              <span class="text-[10px] text-muted">Drag onto a table or seat</span>
             </div>
 
             <!-- Search unassigned guests -->
@@ -723,7 +673,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                   : 'border-bread-300 bg-toast-50/40 text-muted'"
               @dragover.prevent="isOverUnseatZone = true"
               @dragleave="isOverUnseatZone = false"
-              @drop="onDropToUnseat"
+              @drop="onDropToUnseat()"
             >
               <UIcon name="i-lucide-user-minus" class="size-4 shrink-0" />
               <span>Drop guest here to unseat</span>
@@ -864,7 +814,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             </div>
             <h3 class="font-serif text-lg font-bold text-toast-900">No tables created yet</h3>
             <p class="text-xs text-toast-600 max-w-sm">
-              Add your first reception table above. You can customize seat capacity on the fly and drag guests to their seats.
+              Add your first reception table above. You can change a table's seats at any time and drag guests onto them.
             </p>
             <UButton
               icon="i-lucide-plus"
@@ -901,47 +851,27 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start"
           >
             <div
-              v-for="(table, index) in filteredTables"
+              v-for="table in filteredTables"
               :key="table._id"
+              data-testid="jam-table"
               class="relative bg-white rounded-2xl border border-bread-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-start overflow-hidden group select-none"
               :class="[
-                dragOverTableIndex === index && draggedTableIndex !== null
-                  ? 'ring-4 ring-toast-400 bg-toast-50/40 scale-[1.01] border-toast-400'
-                  : draggedTableIndex === index
+                dragOverTableId === table._id && (draggedTableId !== null || draggedGuestId !== null)
+                  ? 'ring-4 ring-toast-400 bg-toast-50/40 border-toast-400'
+                  : draggedTableId === table._id
                     ? 'opacity-40 border-dashed border-toast-300'
                     : '',
               ]"
-              @dragover.prevent="dragOverTableIndex = index"
-              @dragleave="onTableDragLeave($event, index)"
-              @drop="draggedTableIndex !== null ? onTableDrop($event, index) : onTableGuestDrop($event, table)"
+              @dragover.prevent="dragOverTableId = table._id"
+              @dragleave="onTableDragLeave($event, table)"
+              @drop="draggedTableId !== null ? onTableDrop(table) : onTableGuestDrop(table)"
             >
-              <!-- Drag-over Guest Assignment Overlay (Full container takeover) -->
-              <div
-                v-if="draggedGuestId && dragOverTableIndex === index"
-                class="absolute inset-0 z-30 bg-toast-500/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center rounded-2xl pointer-events-none transition-all animate-in fade-in zoom-in-95 duration-150 text-white shadow-xl"
-              >
-                <div class="size-14 rounded-full bg-white text-toast-600 flex items-center justify-center mb-3 shadow-md">
-                  <UIcon name="i-lucide-user-plus" class="size-7" />
-                </div>
-                <p class="font-serif font-bold text-lg sm:text-xl text-white">
-                  assign guest to {{ table.label }}
-                </p>
-                <p class="text-xs text-toast-100 font-medium mt-1.5">
-                  <span v-if="occupiedSeatsCount(table) >= table.capacity" class="bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded-full">
-                    Table is full ({{ table.capacity }}/{{ table.capacity }} seats)
-                  </span>
-                  <span v-else class="bg-white/20 text-white font-semibold px-2.5 py-0.5 rounded-full">
-                    Will be seated at Seat {{ occupiedSeatsCount(table) + 1 }}
-                  </span>
-                </p>
-              </div>
-
               <!-- Table Card Header (toast-500, draggable for swapping) -->
               <div
                 draggable="true"
                 class="px-3.5 py-2.5 bg-toast-500 text-white flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-colors rounded-t-2xl"
-                title="Drag this table to another table to swap positions and guests"
-                @dragstart="onTableDragStart($event, index)"
+                title="Drag this table onto another table to swap their positions. Guests stay with their table."
+                @dragstart="onTableDragStart($event, table)"
                 @dragend="onTableDragEnd"
               >
                 <!-- Drag Grip & Table Label -->
@@ -967,7 +897,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                       size="xs"
                       class="bg-white/20 text-white text-[9.5px] font-mono px-1.5 py-0 shrink-0 font-semibold"
                     >
-                      Table {{ index + 1 }}
+                      Table {{ tablePosition(table) }}
                     </UBadge>
                     <button
                       type="button"
@@ -1029,34 +959,45 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 </div>
               </div>
 
-              <!-- Interactive Banquet Table Body with Sequential Seats -->
+              <!-- Interactive Banquet Table Body -->
               <div class="p-3 sm:p-3.5 flex flex-col justify-start">
-                <!-- Seat Slots Grid (Numbered sequentially 1 to n with no gaps) -->
+                <p
+                  v-if="draggedGuestId && dragOverTableId === table._id"
+                  class="mb-2 rounded-lg bg-toast-100 px-2 py-1 text-center text-[11px] font-semibold text-toast-900"
+                >
+                  {{ nextOpenSeat(table) ? `Drop on a seat, or anywhere here for Seat ${nextOpenSeat(table)?.number}` : 'No open seats. Drop on a guest to swap.' }}
+                </p>
+                <!-- Seat Slots Grid. Seats keep their real numbers, because guests choose their own. -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 content-start items-start">
                   <div
-                    v-for="seatNum in table.capacity"
-                    :key="`${table._id}-${seatNum}`"
-                    class="min-h-[46px]"
+                    v-for="seat in seatsOf(table)"
+                    :key="seatKey(table, seat.number)"
+                    class="min-h-[46px] rounded-xl transition-all"
+                    :class="dragOverSeatKey === seatKey(table, seat.number) ? 'ring-2 ring-toast-500' : ''"
+                    data-testid="host-seat"
+                    @dragover.prevent="onSeatDragOver(table, seat.number)"
+                    @dragleave="dragOverSeatKey = null"
+                    @drop="onSeatDrop($event, table, seat)"
                   >
-                    <!-- 1. OCCUPIED SEAT (1 to n) -->
+                    <!-- 1. OCCUPIED SEAT -->
                     <div
-                      v-if="guestAtSeat(table, seatNum)"
+                      v-if="guestInSeat(table, seat.number)"
                       draggable="true"
                       class="flex items-center justify-between gap-2 p-2 rounded-xl bg-toast-100 hover:bg-toast-200/80 shadow-2xs transition-all cursor-grab active:cursor-grabbing select-none group"
-                      :class="draggedGuestId === guestAtSeat(table, seatNum)?._id ? 'opacity-40 ring-2 ring-toast-400' : ''"
-                      @dragstart="onGuestDragStart($event, guestAtSeat(table, seatNum)!)"
+                      :class="draggedGuestId === guestInSeat(table, seat.number)?._id ? 'opacity-40 ring-2 ring-toast-400' : ''"
+                      @dragstart="onGuestDragStart($event, guestInSeat(table, seat.number)!)"
                       @dragend="onGuestDragEnd"
                     >
                       <div class="flex items-center gap-1.5 min-w-0">
                         <span class="size-5.5 rounded-md bg-toast-500 text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0 shadow-2xs">
-                          {{ seatNum }}
+                          {{ seat.number }}
                         </span>
                         <div class="min-w-0">
                           <p class="text-xs font-bold text-toast-900 truncate leading-tight">
-                            {{ guestDisplayName(guestAtSeat(table, seatNum)!) }}
+                            {{ guestDisplayName(guestInSeat(table, seat.number)!) }}
                           </p>
-                          <p v-if="guestAtSeat(table, seatNum)?.partyName" class="text-[10px] text-toast-600 truncate font-medium">
-                            {{ guestAtSeat(table, seatNum)?.partyName }}
+                          <p v-if="guestInSeat(table, seat.number)?.partyName" class="text-[10px] text-toast-600 truncate font-medium">
+                            {{ guestInSeat(table, seat.number)?.partyName }}
                           </p>
                         </div>
                       </div>
@@ -1065,21 +1006,35 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                         type="button"
                         class="size-5 rounded flex items-center justify-center cursor-pointer text-toast-400 hover:text-rose-600 hover:bg-rose-100/70 transition-colors shrink-0"
                         title="Unseat guest"
-                        @click.stop="unseatGuest(guestAtSeat(table, seatNum)!)"
+                        @click.stop="unseatGuest(guestInSeat(table, seat.number)!)"
                       >
                         <UIcon name="i-lucide-x" class="size-3.5" />
                       </button>
                     </div>
 
-                    <!-- 2. EMPTY SEAT (No individual drop, sequential placeholder) -->
+                    <!-- 2. EMPTY OR UNAVAILABLE SEAT -->
                     <div
                       v-else
-                      class="flex items-center gap-2 p-2 rounded-xl bg-toast-50/50 text-toast-400 select-none border border-toast-100/60"
+                      class="flex items-center justify-between gap-2 p-2 rounded-xl select-none border"
+                      :class="seat.unavailable
+                        ? 'bg-rose-50/60 text-rose-400 border-rose-100'
+                        : 'bg-toast-50/50 text-toast-400 border-toast-100/60'"
                     >
-                      <span class="size-5.5 rounded-md bg-white border border-toast-200/60 text-toast-400 text-[10px] font-mono font-bold flex items-center justify-center shadow-2xs">
-                        {{ seatNum }}
-                      </span>
-                      <span class="text-[11px] font-medium text-toast-400">Available</span>
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="size-5.5 rounded-md bg-white border border-toast-200/60 text-toast-400 text-[10px] font-mono font-bold flex items-center justify-center shadow-2xs shrink-0">
+                          {{ seat.number }}
+                        </span>
+                        <span class="text-[11px] font-medium truncate">{{ seat.unavailable ? 'Unavailable' : 'Available' }}</span>
+                      </div>
+                      <button
+                        type="button"
+                        class="size-5 rounded flex items-center justify-center cursor-pointer text-toast-400 hover:text-toast-800 hover:bg-toast-100 transition-colors shrink-0"
+                        :title="seat.unavailable ? 'Make this seat available' : 'Make this seat unavailable'"
+                        :aria-label="`${seat.unavailable ? 'Make available' : 'Make unavailable'}: ${table.label}, seat ${seat.number}`"
+                        @click.stop="toggleSeat(table, seat)"
+                      >
+                        <UIcon :name="seat.unavailable ? 'i-lucide-rotate-ccw' : 'i-lucide-ban'" class="size-3" />
+                      </button>
                     </div>
                   </div>
                 </div>

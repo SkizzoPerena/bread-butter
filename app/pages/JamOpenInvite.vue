@@ -30,6 +30,7 @@ const resultMessage = ref('')
 const attendanceToken = ref('')
 const attendPath = ref('')
 const saving = ref(false)
+const seatPicker = ref<{ reload: () => Promise<void> } | null>(null)
 
 useHead({ title: 'Join the guest list' })
 
@@ -120,7 +121,14 @@ async function register() {
       </p>
 
       <template v-if="attendanceToken">
-        <JamSeatPicker :token="attendanceToken" />
+        <JamCompanionForm
+          :token="attendanceToken"
+          @changed="seatPicker?.reload()"
+        />
+        <JamSeatPicker
+          ref="seatPicker"
+          :token="attendanceToken"
+        />
         <NuxtLink
           :to="attendPath"
           class="inline-block rounded-md border border-toast-800 px-4 py-2"

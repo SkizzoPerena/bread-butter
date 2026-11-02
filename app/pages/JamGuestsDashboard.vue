@@ -366,28 +366,13 @@ async function handleAddGuest() {
       })
     }
 
-    // 2. Register companions in backend as [[name]]'s companion n
+    // 2. Companions need no email, and follow the guest's reply
     if (paxCount > 1) {
-      const [emailUser, emailDomain] = addForm.email.trim().toLowerCase().split('@')
-      for (let n = 1; n < paxCount; n++) {
-        const companionEmail = emailDomain
-          ? `${emailUser}+companion${n}@${emailDomain}`
-          : `${emailUser}-companion${n}@guest.local`
-
-        const compGuest = await seating.createGuest(gatheringId.value, {
-          firstName: `${primaryFullName}'s companion`,
-          lastName: `${n}`,
-          email: companionEmail,
-          partyName: primaryParty,
-        })
-
-        if (addForm.rsvpStatus && addForm.rsvpStatus !== 'PENDING') {
-          await seating.updateGuest(gatheringId.value, compGuest._id, {
-            rsvpStatus: addForm.rsvpStatus,
-            isAttending: addForm.rsvpStatus === 'GOING',
-          })
-        }
-      }
+      await seating.saveGuestCompanions(
+        gatheringId.value,
+        newGuest._id,
+        Array.from({ length: paxCount - 1 }, () => ({})),
+      )
     }
 
     toast.add({
@@ -404,6 +389,19 @@ async function handleAddGuest() {
   } finally {
     saving.value = false
   }
+}
+
+const editingIsCompanion = computed(() => Boolean(
+  guests.value.find((guest) => guest._id === editingGuestId.value)?.companionOf,
+))
+
+function companionOfName(guest: SeatingGuestRecord): string {
+  const primary = guests.value.find((item) => item._id === guest.companionOf)
+  return primary ? guestDisplayName(primary) : 'a guest'
+}
+
+function companionCount(guest: SeatingGuestRecord): number {
+  return guests.value.filter((item) => item.companionOf === guest._id).length
 }
 
 function openEditGuestModal(guest: SeatingGuestRecord) {
@@ -425,8 +423,10 @@ async function handleEditGuest() {
       lastName: editForm.lastName.trim() || undefined,
       email: editForm.email.trim().toLowerCase() || undefined,
       partyName: editForm.partyName.trim(),
-      rsvpStatus: editForm.rsvpStatus,
-      isAttending: editForm.rsvpStatus === 'GOING',
+      // A companion follows the reply of the guest who brought them.
+      ...(editingIsCompanion.value
+        ? {}
+        : { rsvpStatus: editForm.rsvpStatus, isAttending: editForm.rsvpStatus === 'GOING' }),
     })
     toast.add({ title: 'Guest updated successfully', color: 'success' })
     isEditGuestModalOpen.value = false
@@ -452,6 +452,10 @@ async function handleQuickStatusChange(guest: SeatingGuestRecord, status: RsvpSt
 }
 
 function promptDeleteGuest(guest: SeatingGuestRecord) {
+  const companions = companionCount(guest)
+  if (companions && !confirm(`Removing ${guestDisplayName(guest)} also removes their ${companions === 1 ? 'companion' : `${companions} companions`}. Continue?`)) {
+    return
+  }
   guestToDelete.value = guest
   isDeleteConfirmOpen.value = true
 }
@@ -992,7 +996,10 @@ function getTableLabel(tableId: string | null): string {
                               (Waiting for name)
                             </span>
                           </div>
-                          <div v-if="guest.partyName" class="text-[10.5px] text-muted truncate">
+                          <div v-if="guest.companionOf" class="text-[10.5px] text-muted truncate" data-testid="companion-of">
+                            Companion of <strong class="font-medium text-toast-700">{{ companionOfName(guest) }}</strong>
+                          </div>
+                          <div v-else-if="guest.partyName" class="text-[10.5px] text-muted truncate">
                             Party: <strong class="font-medium text-toast-700">{{ guest.partyName }}</strong>
                           </div>
                         </div>
@@ -1002,13 +1009,21 @@ function getTableLabel(tableId: string | null): string {
                     <!-- Email Address -->
                     <td class="py-3 px-3">
                       <span class="font-mono text-xs text-toast-700 truncate block max-w-44">
-                        {{ guest.email }}
+                        {{ guest.email || '—' }}
                       </span>
                     </td>
 
                     <!-- RSVP Status Dropdown -->
                     <td class="py-3 px-3">
+                      <span
+                        v-if="guest.companionOf"
+                        class="text-[11px] text-muted"
+                        title="A companion follows the reply of the guest who brought them"
+                      >
+                        {{ guest.rsvpStatus === 'GOING' ? 'Going' : 'Pending' }}
+                      </span>
                       <select
+                        v-else
                         :value="guest.rsvpStatus || 'PENDING'"
                         class="text-[11px] font-bold rounded-lg px-2 py-0.5 border cursor-pointer focus:outline-none"
                         :class="{
@@ -1070,6 +1085,7 @@ function getTableLabel(tableId: string | null): string {
                     <td class="py-3 px-3 text-right">
                       <div class="flex items-center justify-end gap-1">
                         <UButton
+                          v-if="guest.email"
                           color="neutral"
                           variant="ghost"
                           size="xs"
@@ -1079,7 +1095,7 @@ function getTableLabel(tableId: string | null): string {
                           @click="sendInviteToGuest(guest._id)"
                         />
                         <UButton
-                          v-if="guest.rsvpStatus === 'GOING'"
+                          v-if="guest.rsvpStatus === 'GOING' && guest.email"
                           color="neutral"
                           variant="ghost"
                           size="xs"
@@ -1287,7 +1303,7 @@ function getTableLabel(tableId: string | null): string {
                   </div>
                   <div class="flex items-center gap-2">
                     <UButton
-                      v-if="!guest.checkedInAt"
+                      v-if="!guest.checkedInAt && guest.email"
                       color="orange"
                       variant="outline"
                       size="xs"
@@ -1297,7 +1313,7 @@ function getTableLabel(tableId: string | null): string {
                       Resend QR Pass
                     </UButton>
                     <UBadge
-                      v-else
+                      v-else-if="guest.checkedInAt"
                       color="success"
                       variant="subtle"
                       size="xs"
@@ -1453,7 +1469,7 @@ function getTableLabel(tableId: string | null): string {
             <!-- Preview of registered companions -->
             <div v-if="addForm.pax > 1" class="pt-2 border-t border-toast-200/70 text-xs">
               <span class="text-toast-700 font-medium text-[11px] block mb-1">
-                Reflected in backend as:
+                Listed with no email, until you add their names:
               </span>
               <div class="space-y-1 max-h-28 overflow-y-auto pr-1">
                 <div
@@ -1463,7 +1479,7 @@ function getTableLabel(tableId: string | null): string {
                 >
                   <UIcon name="i-lucide-user-plus" class="size-3 text-toast-500 shrink-0" />
                   <span class="truncate">
-                    {{ `${addForm.firstName.trim()} ${addForm.lastName.trim()}`.trim() || 'Guest' }}'s companion {{ n }}
+                    {{ addForm.firstName.trim() || 'Guest' }}'s companion {{ n }}
                   </span>
                 </div>
               </div>
@@ -1515,7 +1531,9 @@ function getTableLabel(tableId: string | null): string {
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1">Email Address</label>
+            <label class="block text-xs font-semibold text-toast-900 mb-1">
+              Email Address<span v-if="editingIsCompanion" class="text-muted font-normal"> (optional for a companion)</span>
+            </label>
             <input
               v-model="editForm.email"
               type="email"
@@ -1536,7 +1554,11 @@ function getTableLabel(tableId: string | null): string {
             </div>
             <div>
               <label class="block text-xs font-semibold text-toast-900 mb-1">RSVP Status</label>
+              <p v-if="editingIsCompanion" class="text-[11px] text-muted pt-1.5">
+                Follows the reply of the guest who brought them.
+              </p>
               <select
+                v-else
                 v-model="editForm.rsvpStatus"
                 class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500 font-semibold"
               >

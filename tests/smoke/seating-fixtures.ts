@@ -56,19 +56,21 @@ export function seatingTable(_id: string, label: string, capacity: number, custo
   return { _id, label, customLabel, capacity, sortOrder: 0 }
 }
 
-export async function openWorkspace(
+type WorkspaceOptions = { tables?: unknown[], routes?: RouteMap, guests?: object[], gathering?: object }
+
+async function stubWorkspace(
   page: Page,
-  { tables = [] as unknown[], routes = {} as RouteMap, guests: guestOverrides = [{}] as object[] } = {},
+  { tables = [], routes = {}, guests: guestOverrides = [{}], gathering = {} }: WorkspaceOptions,
 ) {
   await signIn(page)
   const guests = guestOverrides.map(guestRecord)
-  const calls = await stubApi(page, {
+  return stubApi(page, {
     routes: {
       [`GET /gatherings/${GATHERING_ID}/guests`]: route => route.fulfill({
         json: { success: true, status: 200, guests, maxGuests: 10, guestCount: guests.length, attendingCount: 1 },
       }),
       [`GET /gatherings/${GATHERING_ID}`]: route => route.fulfill({
-        json: { success: true, status: 200, gathering: { ...GATHERING, tables } },
+        json: { success: true, status: 200, gathering: { ...GATHERING, tables, ...gathering } },
       }),
       [`POST /gatherings/${GATHERING_ID}/guests`]: async (route) => {
         const guest = guestRecord({
@@ -90,8 +92,31 @@ export async function openWorkspace(
       ...routes,
     },
   })
+}
+
+export async function openWorkspace(page: Page, options: WorkspaceOptions = {}) {
+  const calls = await stubWorkspace(page, options)
   await page.goto(`/seating/${GATHERING_ID}`)
   await expect(page.getByRole('heading', { name: 'Quick Navigation' })).toBeVisible()
+  return calls
+}
+
+export async function openTablesPage(page: Page, options: WorkspaceOptions = {}) {
+  const calls = await stubWorkspace(page, options)
+  await page.goto(`/jam/tables/${GATHERING_ID}`)
+  await expect(page.getByRole('heading', { name: 'Tables & Seating' })).toBeVisible()
+  return calls
+}
+
+export async function openGuestsPage(page: Page, options: WorkspaceOptions = {}) {
+  const calls = await stubWorkspace(page, options)
+  await page.goto(`/jam/guests/${GATHERING_ID}`)
+  return calls
+}
+
+export async function openSettingsPage(page: Page, options: WorkspaceOptions = {}) {
+  const calls = await stubWorkspace(page, options)
+  await page.goto(`/jam/settings/${GATHERING_ID}`)
   return calls
 }
 
