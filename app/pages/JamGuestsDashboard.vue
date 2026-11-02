@@ -438,7 +438,16 @@ async function handleEditGuest() {
   }
 }
 
-async function handleQuickStatusChange(guest: SeatingGuestRecord, status: RsvpStatus) {
+async function handleQuickStatusChange(guest: SeatingGuestRecord, select: HTMLSelectElement) {
+  const status = select.value as RsvpStatus
+  // A guest invited by email alone can't be marked as coming until they have a name.
+  if (status === 'GOING' && guestNeedsName(guest)) {
+    select.value = guest.rsvpStatus || 'PENDING'
+    openEditGuestModal(guest)
+    editForm.rsvpStatus = 'GOING'
+    toast.add({ title: 'Add their name first', description: 'A guest needs a name to be marked as going.', color: 'warning' })
+    return
+  }
   try {
     await seating.updateGuest(gatheringId.value, guest._id, {
       rsvpStatus: status,
@@ -775,6 +784,17 @@ function getTableLabel(tableId: string | null): string {
       <!-- Left Panel Bottom Links -->
       <div class="space-y-2 pt-4">
         <UButton
+          icon="i-lucide-mails"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          block
+          class="w-full justify-center"
+          @click="isBulkInviteOpen = true"
+        >
+          Bulk Invite
+        </UButton>
+        <UButton
           icon="i-lucide-copy"
           color="neutral"
           variant="outline"
@@ -1031,7 +1051,7 @@ function getTableLabel(tableId: string | null): string {
                           'bg-rose-50 text-rose-800 border-rose-200': guest.rsvpStatus === 'NOT_GOING',
                           'bg-amber-50 text-amber-800 border-amber-200': !guest.rsvpStatus || guest.rsvpStatus === 'PENDING',
                         }"
-                        @change="handleQuickStatusChange(guest, ($event.target as HTMLSelectElement).value as RsvpStatus)"
+                        @change="handleQuickStatusChange(guest, $event.target as HTMLSelectElement)"
                       >
                         <option value="GOING">Going</option>
                         <option value="PENDING">Pending</option>
@@ -1594,7 +1614,7 @@ function getTableLabel(tableId: string | null): string {
         <div class="p-4 sm:p-5">
           <JamBulkInvite
             :gathering-id="gatheringId"
-            @invited="isBulkInviteOpen = false; load()"
+            @sent="load()"
           />
         </div>
       </template>
@@ -1607,6 +1627,7 @@ function getTableLabel(tableId: string | null): string {
           <JamGuestImport
             :gathering-id="gatheringId"
             :guest-count="guests.length"
+            start-open
             @imported="isImportOpen = false; load()"
           />
         </div>

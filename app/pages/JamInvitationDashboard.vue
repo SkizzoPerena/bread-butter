@@ -249,9 +249,9 @@ async function saveInvitation() {
   isSaving.value = true
   try {
     const updated = await seating.saveInvitation(gatheringId.value, {
-      passcode: rsvpData.passcode.trim() || undefined,
-      invitationSubject: rsvpData.emailSubject.trim() || undefined,
-      invitationMessage: rsvpData.personalMessage.trim() || undefined,
+      passcode: rsvpData.passcode.trim(),
+      invitationSubject: rsvpData.emailSubject.trim(),
+      invitationMessage: rsvpData.personalMessage.trim(),
       invitationDesign: {
         mode: designMode.value,
         imageUrl: ownImageUrl.value,
@@ -340,6 +340,18 @@ async function updateOpenInvite(enabled: boolean) {
     toast.add({ title: enabled ? 'Open invite enabled' : 'Open invite disabled', color: 'success' })
   } catch (error) {
     toast.add({ title: 'Could not update open invite', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
+
+// A link that reached the wrong people can only be stopped by replacing it.
+async function replaceOpenInvite() {
+  if (!gatheringId.value) return
+  if (!window.confirm('Replace this link? The current link will stop working for anyone who has it.')) return
+  try {
+    gathering.value = await seating.setOpenInvite(gatheringId.value, { regenerate: true })
+    toast.add({ title: 'Open invite link replaced', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not replace the link', description: getApiErrorMessage(error), color: 'error' })
   }
 }
 </script>
@@ -527,8 +539,17 @@ async function updateOpenInvite(enabled: boolean) {
                     <USwitch
                       :model-value="Boolean(gathering?.openInvite?.enabled)"
                       color="violet"
+                      aria-label="Open Registration"
                       @update:model-value="updateOpenInvite($event)"
                     />
+                  </div>
+                  <div v-if="gathering?.openInvite?.enabled && openInviteUrl" class="space-y-1.5 pt-1">
+                    <p data-testid="open-invite-link" class="text-[11px] font-mono break-all text-stone-700">
+                      {{ openInviteUrl }}
+                    </p>
+                    <UButton size="xs" color="neutral" variant="outline" @click="replaceOpenInvite">
+                      Replace Link
+                    </UButton>
                   </div>
                 </div>
               </div>

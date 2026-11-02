@@ -781,6 +781,9 @@ watch(eventId, () => {
                     <span v-if="formatRsvpDate(rsvp.respondedAt)" class="text-[10px] text-muted">
                       Responded {{ formatRsvpDate(rsvp.respondedAt) }}
                     </span>
+                    <span v-if="formatRsvpDate(rsvp.rsvpReminderSentAt)" class="text-[10px] text-muted">
+                      Reminder sent {{ formatRsvpDate(rsvp.rsvpReminderSentAt) }}
+                    </span>
                   </div>
                 </div>
 

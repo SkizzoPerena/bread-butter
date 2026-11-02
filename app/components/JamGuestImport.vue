@@ -5,6 +5,8 @@ import { getApiErrorMessage } from '~/types/auth'
 const props = defineProps<{
   gatheringId: string
   guestCount: number
+  /** Opened on purpose, so it starts expanded and says so when there's nothing to copy from. */
+  startOpen?: boolean
 }>()
 
 const emit = defineEmits<{ imported: [] }>()
@@ -19,6 +21,7 @@ const selected = ref<string[]>([])
 const creditsRemaining = ref(0)
 const loading = ref(false)
 const saving = ref(false)
+const plansLoaded = ref(false)
 
 const selectable = computed(() => importable.value.filter((guest) => !guest.alreadyOnList))
 const overLimit = computed(() => selected.value.length > creditsRemaining.value)
@@ -30,6 +33,7 @@ function displayName(guest: JamImportableGuest) {
 onMounted(async () => {
   const plans = await seating.listGatherings().catch(() => [])
   otherPlans.value = plans.filter((plan) => plan._id !== props.gatheringId)
+  plansLoaded.value = true
 })
 
 async function loadGuests() {
@@ -68,7 +72,7 @@ async function addSelected() {
   <details
     v-if="otherPlans.length"
     class="white-bread-container p-4 sm:p-5 shadow-xs"
-    :open="guestCount === 0"
+    :open="startOpen || guestCount === 0"
     data-testid="guest-import"
   >
     <summary class="cursor-pointer font-serif font-bold text-base text-toast-900">
@@ -153,4 +157,11 @@ async function addSelected() {
       </p>
     </div>
   </details>
+  <p
+    v-else-if="startOpen && plansLoaded"
+    class="text-sm text-muted"
+    data-testid="guest-import-empty"
+  >
+    You don't have another Jam to copy guests from yet.
+  </p>
 </template>

@@ -114,6 +114,19 @@ export async function openGuestsPage(page: Page, options: WorkspaceOptions = {})
   return calls
 }
 
+export async function openInvitationPage(page: Page, options: WorkspaceOptions = {}) {
+  const calls = await stubWorkspace(page, options)
+  await page.goto(`/jam/invitation/${GATHERING_ID}`)
+  await expect(page.getByText('1. Event Details')).toBeVisible()
+  return calls
+}
+
+export async function openRsvpPage(page: Page, options: WorkspaceOptions = {}) {
+  const calls = await stubWorkspace(page, options)
+  await page.goto(`/jam/rsvps/${GATHERING_ID}`)
+  return calls
+}
+
 export async function openSettingsPage(page: Page, options: WorkspaceOptions = {}) {
   const calls = await stubWorkspace(page, options)
   await page.goto(`/jam/settings/${GATHERING_ID}`)

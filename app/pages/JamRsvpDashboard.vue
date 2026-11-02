@@ -154,7 +154,7 @@ const filteredGuests = computed(() => {
     list = list.filter((g) =>
       guestDisplayName(g).toLowerCase().includes(q) ||
       (g.email || '').toLowerCase().includes(q) ||
-      (g.answers ?? []).some((a) => a.question.toLowerCase().includes(q) || a.answer.toLowerCase().includes(q))
+      (g.answers ?? []).some((a) => a.question.toLowerCase().includes(q) || String(a.answer ?? '').toLowerCase().includes(q))
     )
   }
   return list
@@ -216,7 +216,7 @@ function getQuestionAnswerChartData(q: EventQuestion): ChartSlice[] {
   for (const guest of guests.value) {
     const matched = guest.answers?.find((a) => a.question.trim().toLowerCase() === q.question.trim().toLowerCase())
     if (matched && matched.answer) {
-      const val = matched.answer.trim()
+      const val = String(matched.answer).trim()
       counts.set(val, (counts.get(val) || 0) + 1)
     }
   }
@@ -226,7 +226,7 @@ function getQuestionAnswerChartData(q: EventQuestion): ChartSlice[] {
 
 function countQuestionAnswers(q: EventQuestion): number {
   return guests.value.filter((guest) =>
-    guest.answers?.some((a) => a.question.trim().toLowerCase() === q.question.trim().toLowerCase() && a.answer?.trim())
+    guest.answers?.some((a) => a.question.trim().toLowerCase() === q.question.trim().toLowerCase() && String(a.answer ?? '').trim())
   ).length
 }
 
@@ -731,6 +731,7 @@ watch(gatheringId, () => {
                       </UBadge>
                     </div>
                     <p class="text-toast-700">{{ formatRsvpAnswerValue(answer.answer) }}</p>
+                    <p v-if="answer.notes" class="text-toast-600 italic">{{ answer.notes }}</p>
                   </div>
                 </div>
                 <div v-else class="text-xs text-muted italic">

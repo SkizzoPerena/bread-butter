@@ -93,7 +93,7 @@ async function saveAllSettings() {
 
     // 2. Save passcode & seat selection lock
     const updated = await seating.saveInvitation(gatheringId.value, {
-      passcode: form.passcode.trim() || undefined,
+      passcode: form.passcode.trim(),
       seatSelectionLocked: form.seatSelectionLocked,
       maxCompanionsPerGuest: form.maxCompanionsPerGuest,
     })
