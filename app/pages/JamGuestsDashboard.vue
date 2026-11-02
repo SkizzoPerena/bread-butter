@@ -62,6 +62,7 @@ const addForm = reactive({
   email: '',
   partyName: '',
   rsvpStatus: 'PENDING' as RsvpStatus,
+  pax: 1,
 })
 
 // Edit Guest Form
@@ -335,6 +336,7 @@ function openAddGuestModal() {
   addForm.email = ''
   addForm.partyName = ''
   addForm.rsvpStatus = 'PENDING'
+  addForm.pax = 1
   isAddGuestModalOpen.value = true
 }
 
@@ -345,11 +347,16 @@ async function handleAddGuest() {
   }
   saving.value = true
   try {
+    const primaryFullName = `${addForm.firstName.trim()} ${addForm.lastName.trim()}`.trim() || addForm.email.trim()
+    const primaryParty = addForm.partyName.trim() || (addForm.pax > 1 ? `${primaryFullName}'s Party` : undefined)
+    const paxCount = Math.max(1, Math.min(addForm.pax || 1, 20))
+
+    // 1. Create primary guest
     const newGuest = await seating.createGuest(gatheringId.value, {
       firstName: addForm.firstName.trim(),
       lastName: addForm.lastName.trim(),
       email: addForm.email.trim().toLowerCase(),
-      partyName: addForm.partyName.trim() || undefined,
+      partyName: primaryParty,
     })
 
     if (addForm.rsvpStatus && addForm.rsvpStatus !== 'PENDING') {
@@ -359,7 +366,37 @@ async function handleAddGuest() {
       })
     }
 
-    toast.add({ title: 'Guest added successfully', color: 'success' })
+    // 2. Register companions in backend as [[name]]'s companion n
+    if (paxCount > 1) {
+      const [emailUser, emailDomain] = addForm.email.trim().toLowerCase().split('@')
+      for (let n = 1; n < paxCount; n++) {
+        const companionEmail = emailDomain
+          ? `${emailUser}+companion${n}@${emailDomain}`
+          : `${emailUser}-companion${n}@guest.local`
+
+        const compGuest = await seating.createGuest(gatheringId.value, {
+          firstName: `${primaryFullName}'s companion`,
+          lastName: `${n}`,
+          email: companionEmail,
+          partyName: primaryParty,
+        })
+
+        if (addForm.rsvpStatus && addForm.rsvpStatus !== 'PENDING') {
+          await seating.updateGuest(gatheringId.value, compGuest._id, {
+            rsvpStatus: addForm.rsvpStatus,
+            isAttending: addForm.rsvpStatus === 'GOING',
+          })
+        }
+      }
+    }
+
+    toast.add({
+      title: 'Guest registered',
+      description: paxCount > 1
+        ? `Added ${primaryFullName} + ${paxCount - 1} companion(s) (${paxCount} pax total).`
+        : 'Guest added successfully',
+      color: 'success',
+    })
     isAddGuestModalOpen.value = false
     await load()
   } catch (error) {
@@ -1376,6 +1413,60 @@ function getTableLabel(tableId: string | null): string {
                 <option value="GOING">Going (Attending)</option>
                 <option value="NOT_GOING">Not Going (Declined)</option>
               </select>
+            </div>
+          </div>
+
+          <!-- Pax / Registered Companions -->
+          <div class="bg-toast-50/80 border border-toast-200/90 rounded-xl p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="block text-xs font-semibold text-toast-900">Total Pax / Seats</label>
+                <p class="text-[11px] text-muted">Total number of guests registered under this entry</p>
+              </div>
+              <div class="flex items-center gap-1.5 bg-white border border-toast-300/80 rounded-lg p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                  :disabled="addForm.pax <= 1"
+                  @click="addForm.pax = Math.max(1, addForm.pax - 1)"
+                >
+                  -
+                </button>
+                <input
+                  v-model.number="addForm.pax"
+                  type="number"
+                  min="1"
+                  max="20"
+                  class="w-10 text-center font-bold font-mono text-xs text-toast-900 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                  :disabled="addForm.pax >= 20"
+                  @click="addForm.pax = Math.min(20, addForm.pax + 1)"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <!-- Preview of registered companions -->
+            <div v-if="addForm.pax > 1" class="pt-2 border-t border-toast-200/70 text-xs">
+              <span class="text-toast-700 font-medium text-[11px] block mb-1">
+                Reflected in backend as:
+              </span>
+              <div class="space-y-1 max-h-28 overflow-y-auto pr-1">
+                <div
+                  v-for="n in (addForm.pax - 1)"
+                  :key="n"
+                  class="flex items-center gap-2 px-2 py-1 bg-white/95 border border-bread-200 rounded-lg text-[11px] text-toast-800 font-mono shadow-2xs"
+                >
+                  <UIcon name="i-lucide-user-plus" class="size-3 text-toast-500 shrink-0" />
+                  <span class="truncate">
+                    {{ `${addForm.firstName.trim()} ${addForm.lastName.trim()}`.trim() || 'Guest' }}'s companion {{ n }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

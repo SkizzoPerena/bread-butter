@@ -1437,6 +1437,60 @@ watch(eventId, () => {
               :disabled="mutationsDisabled"
             />
           </UFormField>
+
+          <!-- Pax / Registered Companions -->
+          <div class="bg-toast-50/80 border border-toast-200/90 rounded-xl p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="block text-xs font-semibold text-toast-900">Total Pax / Registered Seats</label>
+                <p class="text-[11px] text-muted">Number of guests registered under this entry</p>
+              </div>
+              <div class="flex items-center gap-1.5 bg-white border border-toast-300/80 rounded-lg p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                  :disabled="!addGuestState.pax || addGuestState.pax <= 1"
+                  @click="addGuestState.pax = Math.max(1, (addGuestState.pax || 1) - 1)"
+                >
+                  -
+                </button>
+                <input
+                  v-model.number="addGuestState.pax"
+                  type="number"
+                  min="1"
+                  max="20"
+                  class="w-10 text-center font-bold font-mono text-xs text-toast-900 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                  :disabled="(addGuestState.pax || 1) >= 20"
+                  @click="addGuestState.pax = Math.min(20, (addGuestState.pax || 1) + 1)"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <!-- Preview of registered companions -->
+            <div v-if="(addGuestState.pax || 1) > 1" class="pt-2 border-t border-toast-200/70 text-xs">
+              <span class="text-toast-700 font-medium text-[11px] block mb-1">
+                Reflected in backend as:
+              </span>
+              <div class="space-y-1 max-h-28 overflow-y-auto pr-1">
+                <div
+                  v-for="n in ((addGuestState.pax || 1) - 1)"
+                  :key="n"
+                  class="flex items-center gap-2 px-2 py-1 bg-white/95 border border-bread-200 rounded-lg text-[11px] text-toast-800 font-mono shadow-2xs"
+                >
+                  <UIcon name="i-lucide-user-plus" class="size-3 text-toast-500 shrink-0" />
+                  <span class="truncate">
+                    {{ `${addGuestState.firstName || ''} ${addGuestState.lastName || ''}`.trim() || 'Guest' }}'s companion {{ n }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
           <UButton
             type="submit"
             block

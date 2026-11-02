@@ -356,18 +356,18 @@ function downloadGuests() {
     >
       <!-- ================= LEFT DIVISION: col-span-3 (Workspace Area: Overview & 2x2 Grid) ================= -->
       <section
-        class="lg:col-span-3 p-3.5 sm:p-4 lg:p-5 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-full max-h-[calc(100vh-64px)] min-h-0 overflow-hidden justify-between"
+        class="lg:col-span-3 p-2.5 sm:p-3 lg:p-3.5 flex flex-col gap-2.5 sm:gap-3 bg-toast-50/20 h-full max-h-[calc(100vh-64px)] min-h-0 overflow-y-auto lg:overflow-hidden justify-between"
       >
         <!-- 1. Topmost Container: 3 Metric Groups (Days, Confirmed Guests, Seating Assignment) -->
-        <div class="white-bread-container p-3.5 sm:p-4 lg:p-4.5 shadow-sm rounded-2xl shrink-0">
+        <div class="white-bread-container p-2.5 sm:p-3 shadow-xs rounded-xl shrink-0">
           <div
-            class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 divide-y sm:divide-y-0 sm:divide-x divide-bread-200/60"
+            class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-bread-200/60"
           >
             <!-- Column 1: Days to Gathering -->
-            <div class="space-y-1 pt-1 sm:pt-0 sm:pr-3 min-w-0">
+            <div class="space-y-0.5 pt-1 sm:pt-0 sm:pr-2.5 min-w-0">
               <div class="dash-item-header flex items-center gap-1.5 text-toast-700 font-semibold min-w-0">
                 <span class="truncate">Days to Gathering</span>
-                <UIcon name="i-lucide-calendar-heart" class="size-4 text-red-500 shrink-0" />
+                <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-red-500 shrink-0" />
               </div>
               <div class="dash-top-value font-bold font-serif text-highlighted tracking-tight truncate">
                 {{ daysRemaining }} Days
@@ -378,10 +378,10 @@ function downloadGuests() {
             </div>
 
             <!-- Column 2: Confirmed Guests -->
-            <div class="space-y-1 pt-1 sm:pt-0 sm:px-3 min-w-0">
+            <div class="space-y-0.5 pt-1 sm:pt-0 sm:px-2.5 min-w-0">
               <div class="dash-item-header flex items-center gap-1.5 text-toast-700 font-semibold min-w-0">
                 <span class="truncate">Confirmed Guests</span>
-                <UIcon name="i-lucide-users" class="size-4 text-teal-500 shrink-0" />
+                <UIcon name="i-lucide-users" class="size-3.5 text-teal-500 shrink-0" />
               </div>
               <div class="dash-top-value font-bold font-serif text-highlighted tracking-tight truncate">
                 {{ goingCount }}
@@ -392,13 +392,13 @@ function downloadGuests() {
             </div>
 
             <!-- Column 3: Seating Completion (col-span-2) -->
-            <div class="space-y-1.5 pt-1 sm:pt-0 sm:pl-3 col-span-2 flex flex-col justify-between min-w-0">
+            <div class="space-y-0.5 pt-1 sm:pt-0 sm:pl-2.5 col-span-2 flex flex-col justify-between min-w-0">
               <div class="dash-item-header flex items-center gap-1.5 text-toast-700 font-semibold min-w-0">
                 <span class="truncate">Seats Assigned</span>
-                <UIcon name="i-lucide-layout-grid" class="size-4 text-green-500 shrink-0" />
+                <UIcon name="i-lucide-layout-grid" class="size-3.5 text-green-500 shrink-0" />
               </div>
-              <div class="w-full py-0.5">
-                <UProgress :model-value="seatedPercent" color="success" size="sm" class="w-full" />
+              <div class="w-full py-0">
+                <UProgress :model-value="seatedPercent" color="success" size="xs" class="w-full" />
               </div>
               <div class="flex items-center justify-between min-w-0 gap-2">
                 <span class="dash-top-value font-bold font-serif text-highlighted tracking-tight shrink-0">
@@ -415,78 +415,78 @@ function downloadGuests() {
         <!-- Inactive Plan Notice if not yet paid -->
         <div
           v-if="!active"
-          class="white-bread-container p-6 text-center space-y-4 max-w-lg mx-auto my-auto shadow-sm border border-amber-200/80 bg-amber-50/40 shrink-0 rounded-2xl"
+          class="white-bread-container p-5 text-center space-y-3 max-w-lg mx-auto my-auto shadow-sm border border-amber-200/80 bg-amber-50/40 shrink-0 rounded-xl"
         >
-          <div class="size-14 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
-            <UIcon name="i-lucide-lock" class="size-7" />
+          <div class="size-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+            <UIcon name="i-lucide-lock" class="size-6" />
           </div>
-          <div class="space-y-1.5">
-            <h2 class="text-2xl font-serif font-bold text-toast-900">Seating Workspace Locked</h2>
-            <p class="text-xs sm:text-sm text-toast-700 leading-relaxed">
+          <div class="space-y-1">
+            <h2 class="text-xl font-serif font-bold text-toast-900">Seating Workspace Locked</h2>
+            <p class="text-xs text-toast-700 leading-relaxed">
               Complete payment for your <strong>{{ gathering.packageName }}</strong> plan to unlock guests, tables, auto-seating, and digital check-in.
             </p>
           </div>
           <UButton
             color="toast"
-            size="md"
+            size="sm"
             icon="i-lucide-credit-card"
             variant="solid"
-            class="bg-toast-800 hover:bg-toast-900 text-white font-bold py-2.5 px-5 rounded-xl shadow-sm cursor-pointer"
+            class="bg-toast-800 hover:bg-toast-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm cursor-pointer"
             :to="{ path: '/user/seating-payment', query: { gatheringId: gathering._id } }"
           >
             Complete Payment Now
           </UButton>
         </div>
 
-        <!-- ================= 2x2 NAVIGATION & WORKSPACE GRID (ENLARGED TILES) ================= -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 w-full flex-1 min-h-0">
+        <!-- ================= 2x2 NAVIGATION & WORKSPACE GRID (COMPACT & FITS 100VH) ================= -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3 w-full flex-1 min-h-0">
           <!-- ---------------- ROW 1 COL 1: GUEST LIST ---------------- -->
-          <div class="white-bread-container p-4 sm:p-4.5 lg:p-5 flex flex-col justify-between shadow-xs space-y-3 border border-bread-200/90 rounded-2xl h-full">
+          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
             <!-- Header -->
-            <div class="space-y-2.5">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2.5">
-                <div class="flex items-center gap-2.5">
-                  <div class="size-8 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-users" class="size-4.5" />
+            <div class="space-y-1.5 min-h-0">
+              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="size-7 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center shadow-2xs">
+                    <UIcon name="i-lucide-users" class="size-4" />
                   </div>
-                  <h3 class="font-serif font-bold text-base sm:text-lg text-toast-900">Guest List</h3>
+                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Guest List</h3>
                 </div>
-                <UBadge color="primary" variant="subtle" size="sm" class="font-semibold px-2 py-0.5">
+                <UBadge color="primary" variant="subtle" size="xs" class="font-semibold px-2 py-0.5">
                   {{ guests.length }} / {{ gathering.maxGuests }}
                 </UBadge>
               </div>
 
-              <!-- Guest List Parameters & Stats (Enlarged) -->
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60">
-                  <span class="text-[10px] text-muted block uppercase font-semibold">Attending / Going</span>
-                  <span class="font-bold font-serif text-base sm:text-lg text-emerald-600">{{ goingCount }}</span>
+              <!-- Guest List Parameters & Stats -->
+              <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
+                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Attending / Going</span>
+                  <span class="font-bold font-serif text-sm sm:text-base text-emerald-600">{{ goingCount }}</span>
                 </div>
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60">
-                  <span class="text-[10px] text-muted block uppercase font-semibold">Awaiting RSVP</span>
-                  <span class="font-bold font-serif text-base sm:text-lg text-amber-600">{{ pendingCount }}</span>
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
+                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Awaiting RSVP</span>
+                  <span class="font-bold font-serif text-sm sm:text-base text-amber-600">{{ pendingCount }}</span>
                 </div>
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60">
-                  <span class="text-[10px] text-muted block uppercase font-semibold">Declined</span>
-                  <span class="font-bold font-serif text-base sm:text-lg text-rose-600">{{ notGoingCount }}</span>
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
+                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Declined</span>
+                  <span class="font-bold font-serif text-sm sm:text-base text-rose-600">{{ notGoingCount }}</span>
                 </div>
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60">
-                  <span class="text-[10px] text-muted block uppercase font-semibold">Seats Assigned</span>
-                  <span class="font-bold font-serif text-base sm:text-lg text-blue-600">{{ seatedCount }}</span>
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
+                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Seats Assigned</span>
+                  <span class="font-bold font-serif text-sm sm:text-base text-blue-600">{{ seatedCount }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Action Buttons: High Contrast Toast Styling -->
-            <div class="space-y-2 pt-2 border-t border-bread-200/60">
-              <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1.5 pt-1.5 border-t border-bread-200/60">
+              <div class="grid grid-cols-2 gap-1.5">
                 <UButton
                   color="toast"
                   variant="soft"
                   size="xs"
                   icon="i-lucide-user-plus"
                   block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border-2 border-toast-300/80 font-bold py-1.5 px-2 text-xs rounded-xl shadow-2xs cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
                   @click="isAddGuestModalOpen = true"
                 >
                   Add new guest
@@ -497,7 +497,7 @@ function downloadGuests() {
                   size="xs"
                   icon="i-lucide-mail"
                   block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border-2 border-toast-300/80 font-bold py-1.5 px-2 text-xs rounded-xl shadow-2xs cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
                   @click="isBulkInviteModalOpen = true"
                 >
                   Bulk Invite
@@ -511,7 +511,7 @@ function downloadGuests() {
                 icon="i-lucide-arrow-right"
                 trailing
                 block
-                class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1.5 px-3 text-xs rounded-xl shadow-sm cursor-pointer justify-center transition-all"
+                class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
               >
                 Open Guest List
               </UButton>
@@ -519,20 +519,20 @@ function downloadGuests() {
           </div>
 
           <!-- ---------------- ROW 1 COL 2: INVITATION ---------------- -->
-          <div class="white-bread-container p-4 sm:p-4.5 lg:p-5 flex flex-col justify-between shadow-xs space-y-3 border border-bread-200/90 rounded-2xl h-full">
+          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
             <!-- Header -->
-            <div class="space-y-2.5">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2.5">
-                <div class="flex items-center gap-2.5">
-                  <div class="size-8 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-mail" class="size-4.5" />
+            <div class="space-y-1.5 min-h-0">
+              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="size-7 rounded-lg bg-violet-500/10 text-violet-600 flex items-center justify-center shadow-2xs">
+                    <UIcon name="i-lucide-mail" class="size-4" />
                   </div>
-                  <h3 class="font-serif font-bold text-base sm:text-lg text-toast-900">Invitation</h3>
+                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Invitation</h3>
                 </div>
                 <UBadge
                   :color="hasInvitation ? 'success' : 'neutral'"
                   variant="subtle"
-                  size="sm"
+                  size="xs"
                   class="font-semibold px-2 py-0.5"
                 >
                   {{ hasInvitation ? 'Invitation created' : 'No invitation yet' }}
@@ -541,11 +541,11 @@ function downloadGuests() {
 
               <!-- Status Display -->
               <!-- State A: Invitation NOT created yet -->
-              <div v-if="!hasInvitation" class="space-y-3 py-1.5">
-                <p class="text-xs sm:text-sm text-toast-700 leading-relaxed font-medium">
+              <div v-if="!hasInvitation" class="space-y-2 py-1">
+                <p class="text-xs text-toast-700 leading-relaxed font-medium">
                   You don't have an invitation design yet. Choose how you want to create your invitation:
                 </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   <UButton
                     :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
@@ -553,7 +553,7 @@ function downloadGuests() {
                     size="xs"
                     icon="i-lucide-palette"
                     block
-                    class="w-full bg-toast-800 hover:bg-toast-900 text-white font-bold py-1.5 px-2 text-xs rounded-xl shadow-sm cursor-pointer justify-center transition-all"
+                    class="w-full bg-toast-800 hover:bg-toast-900 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
                   >
                     Invitation Maker
                   </UButton>
@@ -564,7 +564,7 @@ function downloadGuests() {
                     size="xs"
                     icon="i-lucide-upload"
                     block
-                    class="w-full bg-toast-100 hover:bg-toast-200 text-toast-950 border-2 border-toast-300/80 font-bold py-1.5 px-2 text-xs rounded-xl shadow-2xs cursor-pointer justify-center transition-all"
+                    class="w-full bg-toast-100 hover:bg-toast-200 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
                   >
                     Upload Invitation
                   </UButton>
@@ -572,8 +572,8 @@ function downloadGuests() {
               </div>
 
               <!-- State B: Invitation created -->
-              <div v-else class="space-y-2.5 pt-1">
-                <div class="bg-toast-50/70 p-3 rounded-xl border border-bread-200/60 space-y-1.5">
+              <div v-else class="space-y-1.5 pt-0.5">
+                <div class="bg-toast-50/70 p-2 sm:p-2.5 rounded-lg border border-bread-200/60 space-y-1">
                   <div class="flex items-center justify-between text-xs sm:text-sm">
                     <span class="font-bold text-toast-800">Invitations Sent</span>
                     <span class="font-bold text-toast-900 font-mono">
@@ -583,9 +583,9 @@ function downloadGuests() {
                   <UProgress
                     :model-value="guests.length ? (invitationsSentCount / guests.length) * 100 : 0"
                     color="primary"
-                    size="sm"
+                    size="xs"
                   />
-                  <span class="text-[11px] text-muted block font-medium">
+                  <span class="text-[10.5px] text-muted block font-medium">
                     {{ invitationsSentCount }} sent to registered guests
                   </span>
                 </div>
@@ -593,8 +593,8 @@ function downloadGuests() {
             </div>
 
             <!-- Action Buttons for Created State: High Contrast Toast -->
-            <div v-if="hasInvitation" class="pt-2 border-t border-bread-200/60">
-              <div class="grid grid-cols-2 gap-2">
+            <div v-if="hasInvitation" class="pt-1.5 border-t border-bread-200/60">
+              <div class="grid grid-cols-2 gap-1.5">
                 <UButton
                   :to="`/jam/invitation/${gatheringId}`"
                   color="toast"
@@ -602,7 +602,7 @@ function downloadGuests() {
                   size="xs"
                   icon="i-lucide-pencil"
                   block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border-2 border-toast-300/80 font-bold py-1.5 px-2 text-xs rounded-xl shadow-2xs cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
                 >
                   Edit invitation
                 </UButton>
@@ -612,7 +612,7 @@ function downloadGuests() {
                   size="xs"
                   icon="i-lucide-send"
                   block
-                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1.5 px-2 text-xs rounded-xl shadow-sm cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
                   @click="isBulkInviteModalOpen = true"
                 >
                   Mass invite
@@ -622,20 +622,20 @@ function downloadGuests() {
           </div>
 
           <!-- ---------------- ROW 2 COL 1: TABLES & SEATS ---------------- -->
-          <div class="white-bread-container p-4 sm:p-4.5 lg:p-5 flex flex-col justify-between shadow-xs space-y-3 border border-bread-200/90 rounded-2xl h-full">
+          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
             <!-- Header -->
-            <div class="space-y-2.5">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2.5">
-                <div class="flex items-center gap-2.5">
-                  <div class="size-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-layout-grid" class="size-4.5" />
+            <div class="space-y-1.5 min-h-0">
+              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="size-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-2xs">
+                    <UIcon name="i-lucide-layout-grid" class="size-4" />
                   </div>
-                  <h3 class="font-serif font-bold text-base sm:text-lg text-toast-900">Tables & Seats</h3>
+                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Tables & Seats</h3>
                 </div>
                 <UBadge
                   :color="hasTables ? 'success' : 'neutral'"
                   variant="subtle"
-                  size="sm"
+                  size="xs"
                   class="font-semibold px-2 py-0.5"
                 >
                   {{ hasTables ? `${gathering.tables.length} tables` : 'No tables yet' }}
@@ -643,8 +643,8 @@ function downloadGuests() {
               </div>
 
               <!-- State A: No tables arranged yet -->
-              <div v-if="!hasTables" class="py-2.5 text-center space-y-2.5">
-                <p class="text-xs sm:text-sm text-toast-700 leading-relaxed font-medium">
+              <div v-if="!hasTables" class="py-1.5 text-center space-y-2">
+                <p class="text-xs text-toast-700 leading-relaxed font-medium">
                   No tables or seat arrangements set up yet. Configure your venue layout to seat attending guests.
                 </p>
                 <UButton
@@ -654,32 +654,32 @@ function downloadGuests() {
                   size="xs"
                   icon="i-lucide-plus"
                   block
-                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1.5 px-3 text-xs rounded-xl shadow-sm cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
                 >
                   Setup tables and seats
                 </UButton>
               </div>
 
               <!-- State B: Existing tables instance -->
-              <div v-else class="space-y-2 pt-0.5 text-xs sm:text-sm">
-                <div class="grid grid-cols-2 gap-2">
-                  <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60">
-                    <span class="text-[10px] text-muted block uppercase font-semibold">Tables Configured</span>
-                    <span class="font-bold font-serif text-base sm:text-lg text-toast-900">{{ gathering.tables.length }}</span>
+              <div v-else class="space-y-1.5 pt-0.5 text-xs">
+                <div class="grid grid-cols-2 gap-1.5">
+                  <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold">Tables Configured</span>
+                    <span class="font-bold font-serif text-sm sm:text-base text-toast-900">{{ gathering.tables.length }}</span>
                   </div>
-                  <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60">
-                    <span class="text-[10px] text-muted block uppercase font-semibold">Total Capacity</span>
-                    <span class="font-bold font-serif text-base sm:text-lg text-toast-900">{{ totalSeatsCapacity }} Seats</span>
+                  <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold">Total Capacity</span>
+                    <span class="font-bold font-serif text-sm sm:text-base text-toast-900">{{ totalSeatsCapacity }} Seats</span>
                   </div>
                 </div>
 
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60 space-y-1.5">
-                  <div class="flex items-center justify-between text-xs sm:text-sm">
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 space-y-1">
+                  <div class="flex items-center justify-between text-xs">
                     <span class="text-toast-800 font-semibold">Seating Completion</span>
                     <span class="font-bold text-toast-900 font-mono">{{ seatedPercent }}%</span>
                   </div>
-                  <UProgress :model-value="seatedPercent" color="success" size="sm" />
-                  <span class="text-[10.5px] text-muted block truncate font-medium">
+                  <UProgress :model-value="seatedPercent" color="success" size="xs" />
+                  <span class="text-[10px] text-muted block truncate font-medium">
                     {{ seatedCount }} of {{ attendingGuests.length }} attending seated · {{ unseatedGuestsCount }} unassigned
                   </span>
                 </div>
@@ -687,7 +687,7 @@ function downloadGuests() {
             </div>
 
             <!-- Action Button: High Contrast Toast -->
-            <div v-if="hasTables" class="pt-2 border-t border-bread-200/60">
+            <div v-if="hasTables" class="pt-1.5 border-t border-bread-200/60">
               <UButton
                 :to="`/jam/tables/${gatheringId}`"
                 color="toast"
@@ -696,7 +696,7 @@ function downloadGuests() {
                 icon="i-lucide-arrow-right"
                 trailing
                 block
-                class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1.5 px-3 text-xs rounded-xl shadow-sm cursor-pointer justify-center transition-all"
+                class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
               >
                 Open table & seat manager
               </UButton>
@@ -704,39 +704,39 @@ function downloadGuests() {
           </div>
 
           <!-- ---------------- ROW 2 COL 2: JAM SETTINGS ---------------- -->
-          <div class="white-bread-container p-4 sm:p-4.5 lg:p-5 flex flex-col justify-between shadow-xs space-y-3 border border-bread-200/90 rounded-2xl h-full">
+          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
             <!-- Header & Info -->
-            <div class="space-y-2 min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-2.5">
-                <div class="flex items-center gap-2.5">
-                  <div class="size-8 rounded-xl bg-slate-500/10 text-slate-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-settings" class="size-4.5" />
+            <div class="space-y-1.5 min-h-0">
+              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="size-7 rounded-lg bg-slate-500/10 text-slate-600 flex items-center justify-center shadow-2xs">
+                    <UIcon name="i-lucide-settings" class="size-4" />
                   </div>
-                  <h3 class="font-serif font-bold text-base sm:text-lg text-toast-900">Jam Settings & Plan</h3>
+                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Jam Settings & Plan</h3>
                 </div>
-                <UBadge color="warning" variant="solid" size="sm" class="text-black font-semibold px-2 py-0.5">
+                <UBadge color="warning" variant="solid" size="xs" class="text-black font-semibold px-2 py-0.5">
                   {{ gathering.packageName }}
                 </UBadge>
               </div>
 
               <!-- Package Tier & Passcode Split -->
-              <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="grid grid-cols-2 gap-1.5 text-xs">
                 <!-- Package Tier Info -->
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60 space-y-0.5">
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 space-y-0.5">
                   <div class="flex items-center justify-between">
-                    <span class="text-[10px] text-muted uppercase font-semibold">Package Tier</span>
-                    <span class="text-[10px] text-toast-700 font-bold">{{ gathering.maxGuests }} Max</span>
+                    <span class="text-[9.5px] text-muted uppercase font-semibold">Package Tier</span>
+                    <span class="text-[9.5px] text-toast-700 font-bold">{{ gathering.maxGuests }} Max</span>
                   </div>
-                  <div class="font-serif font-bold text-sm sm:text-base text-toast-900 truncate">
+                  <div class="font-serif font-bold text-xs sm:text-sm text-toast-900 truncate">
                     {{ gathering.packageName }}
                   </div>
                 </div>
 
                 <!-- Passcode Info with High-Contrast Copy Button -->
-                <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60 flex items-center justify-between gap-1.5">
+                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 flex items-center justify-between gap-1">
                   <div class="min-w-0">
-                    <span class="text-[10px] text-muted block uppercase font-semibold">Passcode</span>
-                    <span class="font-mono font-bold text-xs sm:text-sm text-toast-900 truncate block">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold">Passcode</span>
+                    <span class="font-mono font-bold text-xs text-toast-900 truncate block">
                       {{ gathering.passcode || 'Not set' }}
                     </span>
                   </div>
@@ -745,7 +745,7 @@ function downloadGuests() {
                     color="toast"
                     variant="solid"
                     icon="i-lucide-copy"
-                    class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer shrink-0 rounded-lg shadow-2xs py-1.5 px-2.5"
+                    class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer shrink-0 rounded-lg shadow-2xs py-1 px-2 text-[11px]"
                     title="Copy passcode"
                     @click="copyPasscode"
                   >
@@ -755,27 +755,27 @@ function downloadGuests() {
               </div>
 
               <!-- Email Credits Display -->
-              <div class="bg-toast-50/70 p-2.5 rounded-xl border border-bread-200/60 space-y-1.5">
+              <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 space-y-1">
                 <div class="flex items-center justify-between text-xs sm:text-sm">
-                  <span class="font-bold text-toast-800">Email Credits</span>
-                  <span class="font-bold font-mono text-toast-900">
+                  <span class="font-bold text-toast-800 text-xs">Email Credits</span>
+                  <span class="font-bold font-mono text-toast-900 text-xs">
                     {{ emailCreditsRemaining }} Left
                   </span>
                 </div>
                 <UProgress
                   :model-value="gathering.maxGuests ? (emailCreditsRemaining / gathering.maxGuests) * 100 : 0"
                   color="warning"
-                  size="sm"
+                  size="xs"
                 />
-                <span class="text-[10.5px] text-muted block truncate font-medium">
+                <span class="text-[10px] text-muted block truncate font-medium">
                   {{ guests.length }} used of {{ gathering.maxGuests }} plan capacity
                 </span>
               </div>
             </div>
 
             <!-- Action Buttons: Jam settings & Plan details (High Contrast Toast) -->
-            <div class="pt-2 border-t border-bread-200/60">
-              <div class="grid grid-cols-2 gap-2">
+            <div class="pt-1.5 border-t border-bread-200/60">
+              <div class="grid grid-cols-2 gap-1.5">
                 <UButton
                   :to="`/jam/settings/${gatheringId}`"
                   color="toast"
@@ -783,7 +783,7 @@ function downloadGuests() {
                   size="xs"
                   icon="i-lucide-settings"
                   block
-                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1.5 px-2 text-xs rounded-xl shadow-sm cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
                 >
                   Settings & Plan
                 </UButton>
@@ -794,7 +794,7 @@ function downloadGuests() {
                   size="xs"
                   icon="i-lucide-arrow-up-circle"
                   block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border-2 border-toast-300/80 font-bold py-1.5 px-2 text-xs rounded-xl shadow-2xs cursor-pointer justify-center transition-all"
+                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
                 >
                   Upgrade Plan
                 </UButton>

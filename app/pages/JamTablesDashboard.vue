@@ -33,7 +33,6 @@ const isAddTablePopoverOpen = ref(false)
 const draggedGuestId = ref<string | null>(null)
 const draggedTableIndex = ref<number | null>(null)
 const dragOverTableIndex = ref<number | null>(null)
-const dragOverSeatKey = ref<string | null>(null)
 const isOverUnseatZone = ref(false)
 
 // Computed Guest Metrics
@@ -96,6 +95,7 @@ async function load() {
     ])
     gathering.value = gatheringData
     guests.value = guestsData.guests
+    compactAllTables()
 
     setActiveEvent({
       _id: gatheringData._id,
@@ -133,8 +133,147 @@ function guestInSeat(table: SeatingTable, seatNumber: number): SeatingGuestRecor
   return guests.value.find((g) => g.tableId === table._id && g.seatNumber === seatNumber)
 }
 
+function tableSeatedGuests(tableId: string): SeatingGuestRecord[] {
+  return guests.value
+    .filter((g) => g.tableId === tableId && g.seatNumber !== null)
+    .sort((a, b) => (a.seatNumber || 0) - (b.seatNumber || 0))
+}
+
+function guestAtSeat(table: SeatingTable, seatNumber: number): SeatingGuestRecord | undefined {
+  const seated = tableSeatedGuests(table._id)
+  return seated[seatNumber - 1]
+}
+
 function occupiedSeatsCount(table: SeatingTable): number {
-  return guests.value.filter((g) => g.tableId === table._id && g.seatNumber).length
+  return tableSeatedGuests(table._id).length
+}
+
+async function compactTableSeats(tableId: string): Promise<void> {
+  const tableGuests = tableSeatedGuests(tableId)
+  const changedGuests: { guest: SeatingGuestRecord; newSeat: number }[] = []
+
+  tableGuests.forEach((g, index) => {
+    const expectedSeat = index + 1
+    if (g.seatNumber !== expectedSeat) {
+      g.seatNumber = expectedSeat
+      changedGuests.push({ guest: g, newSeat: expectedSeat })
+    }
+  })
+
+  if (changedGuests.length > 0) {
+    await Promise.all(
+      changedGuests.map(({ guest, newSeat }) =>
+        seating.moveSeat(gatheringId.value, guest._id, tableId, newSeat).catch(() => {})
+      )
+    )
+  }
+}
+
+function compactAllTables() {
+  if (!gathering.value) return
+  gathering.value.tables.forEach((t) => {
+    const tableGuests = tableSeatedGuests(t._id)
+    tableGuests.forEach((g, idx) => {
+      g.seatNumber = idx + 1
+    })
+  })
+}
+
+async function assignGuestToTable(guestId: string, table: SeatingTable) {
+  const guest = guests.value.find((g) => g._id === guestId)
+  if (!guest) return
+
+  // If already at this table, nothing to do
+  if (guest.tableId === table._id) return
+
+  const currentTableGuests = tableSeatedGuests(table._id)
+  if (currentTableGuests.length >= table.capacity) {
+    toast.add({
+      title: 'Table is full',
+      description: `${table.label} has reached its capacity of ${table.capacity} seats.`,
+      color: 'warning',
+    })
+    return
+  }
+
+  const previousTableId = guest.tableId
+  const nextSeatNumber = currentTableGuests.length + 1
+
+  guest.tableId = table._id
+  guest.seatNumber = nextSeatNumber
+  guest.isAttending = true
+
+  toast.add({
+    title: 'Guest seated',
+    description: `${guestDisplayName(guest)} assigned to ${table.label}, Seat ${nextSeatNumber}.`,
+    color: 'success',
+  })
+
+  try {
+    await seating.moveSeat(gatheringId.value, guest._id, table._id, nextSeatNumber)
+    if (previousTableId && previousTableId !== table._id) {
+      await compactTableSeats(previousTableId)
+    }
+  } catch (error) {
+    toast.add({ title: 'Could not assign seat', description: getApiErrorMessage(error), color: 'error' })
+    await load()
+  }
+}
+
+// Table Naming helpers
+function isTableCustomNamed(table: SeatingTable): boolean {
+  if (!table.label) return false
+  const trimmed = table.label.trim()
+  if (!trimmed) return false
+  return !/^Table\s+\d+$/i.test(trimmed)
+}
+
+const isRenameModalOpen = ref(false)
+const targetTableToRename = ref<SeatingTable | null>(null)
+const editingTableLabel = ref('')
+
+function openRenameModal(table: SeatingTable) {
+  targetTableToRename.value = table
+  editingTableLabel.value = table.label
+  isRenameModalOpen.value = true
+}
+
+async function saveTableRename() {
+  if (!gathering.value || !targetTableToRename.value) return
+  const table = targetTableToRename.value
+  const trimmed = editingTableLabel.value.trim()
+  const tableIndex = gathering.value.tables.findIndex((t) => t._id === table._id)
+  const defaultLabel = `Table ${tableIndex >= 0 ? tableIndex + 1 : 1}`
+
+  const newLabel = trimmed || defaultLabel
+  const oldLabel = table.label
+  table.label = newLabel
+  table.customLabel = trimmed ? newLabel : ''
+  isRenameModalOpen.value = false
+
+  if (oldLabel === newLabel) return
+
+  toast.add({
+    title: 'Table renamed',
+    description: `Renamed to ${newLabel}.`,
+    color: 'success',
+  })
+
+  try {
+    saving.value = true
+    const payload = gathering.value.tables.map((t) => ({
+      _id: t._id,
+      label: t.label,
+      capacity: t.capacity,
+    }))
+    await seating.replaceTables(gatheringId.value, payload)
+  } catch (error) {
+    toast.add({ title: 'Could not rename table', description: getApiErrorMessage(error), color: 'error' })
+    table.label = oldLabel
+  } finally {
+    saving.value = false
+    targetTableToRename.value = null
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +292,18 @@ function onGuestDragStart(event: DragEvent, guest: SeatingGuestRecord) {
 function onGuestDragEnd() {
   draggedGuestId.value = null
   dragOverTableIndex.value = null
-  dragOverSeatKey.value = null
   isOverUnseatZone.value = false
+}
+
+function onTableDragLeave(event: DragEvent, index: number) {
+  const related = event.relatedTarget as HTMLElement | null
+  const current = event.currentTarget as HTMLElement | null
+  if (current && related && current.contains(related)) {
+    return
+  }
+  if (dragOverTableIndex.value === index) {
+    dragOverTableIndex.value = null
+  }
 }
 
 function onTableDragStart(event: DragEvent, index: number) {
@@ -188,39 +337,23 @@ async function onTableDrop(event: DragEvent, targetIndex: number) {
   tables[sourceIndex] = tableB
   tables[targetIndex] = tableA
 
-  // 2. Adjust table labels based on new arrangement (Table 1, Table 2...)
+  // 2. Adjust table labels based on the user's rule:
+  // "when I move a named table, the moved table retains the name,
+  // and the moved table will retain the table number of the named table,
+  // unless the moved table also has a name"
   tables.forEach((t, idx) => {
     t.sortOrder = idx
-    if (/^Table\s+\d+$/i.test(t.label.trim()) || !t.label.trim()) {
+    if (!isTableCustomNamed(t)) {
       t.label = `Table ${idx + 1}`
     }
   })
 
-  // 3. Swap guests between the two tables (tableA guests move to tableB, tableB guests move to tableA)
-  const guestsA = guests.value.filter((g) => g.tableId === tableA._id)
-  const guestsB = guests.value.filter((g) => g.tableId === tableB._id)
-
-  guestsA.forEach((g) => {
-    g.tableId = tableB._id
-    if ((g.seatNumber || 0) > tableB.capacity) {
-      g.seatNumber = null
-      g.tableId = null
-    }
-  })
-
-  guestsB.forEach((g) => {
-    g.tableId = tableA._id
-    if ((g.seatNumber || 0) > tableA.capacity) {
-      g.seatNumber = null
-      g.tableId = null
-    }
-  })
-
+  // 3. Guests stay with their table, so they move to the new location with their table
   gathering.value.tables = tables
 
   toast.add({
     title: 'Tables swapped',
-    description: `Swapped arrangement, numbers, and guests of ${tableA.label} and ${tableB.label}.`,
+    description: `Moved ${tableA.label} and ${tableB.label} and their guests to their new locations.`,
     color: 'success',
   })
 
@@ -231,11 +364,8 @@ async function onTableDrop(event: DragEvent, targetIndex: number) {
       label: t.label,
       capacity: t.capacity,
     }))
-    await seating.replaceTables(gatheringId.value, payload)
-    await Promise.all([
-      ...guestsA.map((g) => seating.moveSeat(gatheringId.value, g._id, g.tableId, g.seatNumber).catch(() => {})),
-      ...guestsB.map((g) => seating.moveSeat(gatheringId.value, g._id, g.tableId, g.seatNumber).catch(() => {})),
-    ])
+    const updated = await seating.replaceTables(gatheringId.value, payload)
+    gathering.value = updated
   } catch (error) {
     toast.add({ title: 'Could not save swapped tables', description: getApiErrorMessage(error), color: 'error' })
   } finally {
@@ -243,74 +373,35 @@ async function onTableDrop(event: DragEvent, targetIndex: number) {
   }
 }
 
-// Dropping guest on specific seat
-async function onSeatDrop(event: DragEvent, table: SeatingTable, seatNumber: number) {
-  dragOverSeatKey.value = null
+// Dropping guest onto table container (assigns to next seat 1..n)
+async function onTableGuestDrop(event: DragEvent, table: SeatingTable) {
   dragOverTableIndex.value = null
   const guestId = draggedGuestId.value
   draggedGuestId.value = null
   if (!guestId) return
 
-  const guest = guests.value.find((g) => g._id === guestId)
-  if (!guest) return
+  await assignGuestToTable(guestId, table)
+}
 
-  // If seat is occupied, swap occupants
-  const existingGuest = guests.value.find((g) => g.tableId === table._id && g.seatNumber === seatNumber)
-  if (existingGuest && existingGuest._id !== guest._id) {
-    existingGuest.tableId = guest.tableId
-    existingGuest.seatNumber = guest.seatNumber
-  }
-
-  guest.tableId = table._id
-  guest.seatNumber = seatNumber
-  guest.isAttending = true
+async function unseatGuest(guest: SeatingGuestRecord) {
+  const previousTableId = guest.tableId
+  guest.tableId = null
+  guest.seatNumber = null
 
   toast.add({
-    title: 'Guest seated',
-    description: `${guestDisplayName(guest)} placed at ${table.label}, Seat ${seatNumber}.`,
-    color: 'success',
+    title: `${guestDisplayName(guest)} unassigned`,
+    color: 'neutral',
   })
 
   try {
-    await seating.moveSeat(gatheringId.value, guest._id, table._id, seatNumber)
+    await seating.moveSeat(gatheringId.value, guest._id, null, null)
+    if (previousTableId) {
+      await compactTableSeats(previousTableId)
+    }
   } catch (error) {
-    toast.add({ title: 'Could not assign seat', description: getApiErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Could not unassign guest', description: getApiErrorMessage(error), color: 'error' })
     await load()
   }
-}
-
-// Dropping guest onto whole table (auto-seats to first free slot)
-async function onTableGuestDrop(event: DragEvent, table: SeatingTable) {
-  dragOverTableIndex.value = null
-  const guestId = draggedGuestId.value
-  if (!guestId) return
-
-  const occupiedSeatNums = new Set(
-    guests.value
-      .filter((g) => g.tableId === table._id && g.seatNumber)
-      .map((g) => g.seatNumber as number)
-  )
-
-  let firstEmptySeat: number | null = null
-  for (let s = 1; s <= table.capacity; s++) {
-    const isUnavailable = table.seats?.find((seat) => seat.number === s)?.unavailable
-    if (!occupiedSeatNums.has(s) && !isUnavailable) {
-      firstEmptySeat = s
-      break
-    }
-  }
-
-  if (!firstEmptySeat) {
-    toast.add({
-      title: 'Table is full',
-      description: `${table.label} has no empty seats. Add seats or choose another table.`,
-      color: 'warning',
-    })
-    draggedGuestId.value = null
-    return
-  }
-
-  await onSeatDrop(event, table, firstEmptySeat)
 }
 
 // Dropping guest to unseat pool
@@ -322,39 +413,9 @@ async function onDropToUnseat(event: DragEvent) {
 
   const guest = guests.value.find((g) => g._id === guestId)
   if (!guest) return
-
   if (!guest.tableId && !guest.seatNumber) return
 
-  guest.tableId = null
-  guest.seatNumber = null
-
-  toast.add({
-    title: 'Guest unseated',
-    description: `${guestDisplayName(guest)} moved to unassigned pool.`,
-    color: 'neutral',
-  })
-
-  try {
-    await seating.moveSeat(gatheringId.value, guest._id, null, null)
-  } catch (error) {
-    toast.add({ title: 'Could not unassign guest', description: getApiErrorMessage(error), color: 'error' })
-    await load()
-  }
-}
-
-async function unseatGuest(guest: SeatingGuestRecord) {
-  guest.tableId = null
-  guest.seatNumber = null
-  toast.add({
-    title: `${guestDisplayName(guest)} unassigned`,
-    color: 'neutral',
-  })
-  try {
-    await seating.moveSeat(gatheringId.value, guest._id, null, null)
-  } catch (error) {
-    toast.add({ title: 'Could not unassign guest', description: getApiErrorMessage(error), color: 'error' })
-    await load()
-  }
+  await unseatGuest(guest)
 }
 
 // ---------------------------------------------------------------------------
@@ -455,7 +516,7 @@ async function removeTable(tableId: string) {
     .map((t, idx) => ({
       ...t,
       sortOrder: idx,
-      label: /^Table\s+\d+$/i.test(t.label.trim()) || !t.label.trim() ? `Table ${idx + 1}` : t.label,
+      label: isTableCustomNamed(t) ? t.label : `Table ${idx + 1}`,
     }))
 
   gathering.value.tables = updatedTables
@@ -837,50 +898,93 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           <!-- Interactive Tables Grid -->
           <div
             v-else
-            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"
+            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start"
           >
             <div
               v-for="(table, index) in filteredTables"
               :key="table._id"
-              class="bg-white rounded-2xl border-2 transition-all shadow-xs flex flex-col justify-between overflow-hidden group select-none"
+              class="relative bg-white rounded-2xl border border-bread-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-start overflow-hidden group select-none"
               :class="[
-                dragOverTableIndex === index
-                  ? 'border-emerald-500 ring-4 ring-emerald-200 bg-emerald-50/30 scale-[1.01]'
+                dragOverTableIndex === index && draggedTableIndex !== null
+                  ? 'ring-4 ring-toast-400 bg-toast-50/40 scale-[1.01] border-toast-400'
                   : draggedTableIndex === index
-                    ? 'opacity-40 border-dashed border-toast-400'
-                    : 'border-toast-200/90 hover:border-toast-300 hover:shadow-sm',
+                    ? 'opacity-40 border-dashed border-toast-300'
+                    : '',
               ]"
               @dragover.prevent="dragOverTableIndex = index"
-              @dragleave="dragOverTableIndex = null"
+              @dragleave="onTableDragLeave($event, index)"
               @drop="draggedTableIndex !== null ? onTableDrop($event, index) : onTableGuestDrop($event, table)"
             >
-              <!-- Table Card Header (Draggable for Swapping) -->
+              <!-- Drag-over Guest Assignment Overlay (Full container takeover) -->
+              <div
+                v-if="draggedGuestId && dragOverTableIndex === index"
+                class="absolute inset-0 z-30 bg-toast-500/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center rounded-2xl pointer-events-none transition-all animate-in fade-in zoom-in-95 duration-150 text-white shadow-xl"
+              >
+                <div class="size-14 rounded-full bg-white text-toast-600 flex items-center justify-center mb-3 shadow-md">
+                  <UIcon name="i-lucide-user-plus" class="size-7" />
+                </div>
+                <p class="font-serif font-bold text-lg sm:text-xl text-white">
+                  assign guest to {{ table.label }}
+                </p>
+                <p class="text-xs text-toast-100 font-medium mt-1.5">
+                  <span v-if="occupiedSeatsCount(table) >= table.capacity" class="bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded-full">
+                    Table is full ({{ table.capacity }}/{{ table.capacity }} seats)
+                  </span>
+                  <span v-else class="bg-white/20 text-white font-semibold px-2.5 py-0.5 rounded-full">
+                    Will be seated at Seat {{ occupiedSeatsCount(table) + 1 }}
+                  </span>
+                </p>
+              </div>
+
+              <!-- Table Card Header (toast-500, draggable for swapping) -->
               <div
                 draggable="true"
-                class="px-4 py-3 bg-toast-50/70 border-b border-toast-200/70 flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-colors"
+                class="px-3.5 py-2.5 bg-toast-500 text-white flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-colors rounded-t-2xl"
                 title="Drag this table to another table to swap positions and guests"
                 @dragstart="onTableDragStart($event, index)"
                 @dragend="onTableDragEnd"
               >
                 <!-- Drag Grip & Table Label -->
-                <div class="flex items-center gap-2 min-w-0">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
                   <div
-                    class="size-6 rounded-md bg-white border border-toast-200/70 flex items-center justify-center text-toast-400 group-hover:text-toast-700 shadow-2xs shrink-0"
+                    class="size-6 rounded-md bg-white/20 text-white flex items-center justify-center shadow-2xs shrink-0 group-hover:bg-white/30"
                   >
                     <UIcon name="i-lucide-grip-vertical" class="size-3.5" />
                   </div>
-                  <div>
-                    <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900 truncate">
+
+                  <div class="flex items-center gap-1.5 min-w-0 group/name">
+                    <h3
+                      class="font-serif font-bold text-sm sm:text-base text-white truncate cursor-pointer hover:text-toast-100"
+                      :title="'Click to rename ' + table.label"
+                      @click.stop="openRenameModal(table)"
+                    >
                       {{ table.label }}
                     </h3>
+                    <UBadge
+                      v-if="isTableCustomNamed(table)"
+                      color="neutral"
+                      variant="solid"
+                      size="xs"
+                      class="bg-white/20 text-white text-[9.5px] font-mono px-1.5 py-0 shrink-0 font-semibold"
+                    >
+                      Table {{ index + 1 }}
+                    </UBadge>
+                    <button
+                      type="button"
+                      class="opacity-0 group-hover/name:opacity-100 p-1 text-white/80 hover:text-white hover:bg-white/20 rounded-md transition-opacity cursor-pointer shrink-0"
+                      title="Rename table"
+                      @click.stop="openRenameModal(table)"
+                    >
+                      <UIcon name="i-lucide-pencil" class="size-3" />
+                    </button>
                   </div>
                 </div>
 
                 <!-- On the fly seat count adjustment & Delete -->
                 <div class="flex items-center gap-1.5 shrink-0">
-                  <!-- Stepper for on the fly seats -->
+                  <!-- Stepper for on the fly seats (Solid white pill) -->
                   <div
-                    class="inline-flex items-center gap-1 bg-white rounded-lg p-0.5 border border-toast-200/80 shadow-2xs"
+                    class="inline-flex items-center gap-1 bg-white rounded-lg p-0.5 shadow-2xs"
                     title="Change seat capacity on the fly"
                     @click.stop
                   >
@@ -904,152 +1008,78 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                   </div>
 
                   <!-- Table Occupancy Badge -->
-                  <UBadge
-                    :color="occupiedSeatsCount(table) >= table.capacity ? 'emerald' : 'toast'"
-                    variant="subtle"
-                    size="xs"
-                    class="font-medium text-[10px]"
+                  <span
+                    class="font-bold text-[10px] px-2 py-0.5 rounded-full shrink-0 shadow-2xs"
+                    :class="occupiedSeatsCount(table) >= table.capacity
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-toast-900'"
                   >
                     {{ occupiedSeatsCount(table) }}/{{ table.capacity }}
-                  </UBadge>
+                  </span>
 
                   <!-- Delete Table -->
-                  <UButton
-                    icon="i-lucide-trash-2"
-                    color="error"
-                    variant="ghost"
-                    size="xs"
-                    class="cursor-pointer hover:bg-rose-50"
+                  <button
+                    type="button"
+                    class="size-6 rounded-lg text-white/80 hover:text-white hover:bg-rose-600/70 flex items-center justify-center cursor-pointer transition-colors"
                     title="Delete Table"
                     @click.stop="removeTable(table._id)"
-                  />
+                  >
+                    <UIcon name="i-lucide-trash-2" class="size-3.5" />
+                  </button>
                 </div>
               </div>
 
-              <!-- Interactive Banquet Table Body with Centerpiece & Seats -->
-              <div class="p-3.5 space-y-3 flex-1 flex flex-col justify-between">
-                <!-- Round Table Centerpiece (Drop target for auto-seating) -->
-                <div
-                  class="rounded-xl border-2 border-dashed p-3 text-center transition-all flex items-center justify-between gap-3"
-                  :class="dragOverTableIndex === index && draggedGuestId
-                    ? 'border-emerald-500 bg-emerald-100/70 ring-2 ring-emerald-300'
-                    : 'border-toast-200 bg-toast-50/40'"
-                  @dragover.prevent="dragOverTableIndex = index"
-                  @dragleave="dragOverTableIndex = null"
-                  @drop.stop="onTableGuestDrop($event, table)"
-                >
-                  <div class="flex items-center gap-2 min-w-0">
-                    <div class="size-8 rounded-full bg-toast-200/70 border border-toast-300/60 flex items-center justify-center text-toast-800 shrink-0">
-                      <UIcon name="i-lucide-utensils" class="size-4" />
-                    </div>
-                    <div class="text-left min-w-0">
-                      <p class="text-xs font-bold text-toast-900 truncate">
-                        {{ table.label }} Center
-                      </p>
-                      <p class="text-[10px] text-muted">
-                        {{ table.capacity - occupiedSeatsCount(table) }} seats remaining
-                      </p>
-                    </div>
-                  </div>
-
-                  <span class="text-[10px] text-toast-600 bg-toast-100/80 px-2 py-0.5 rounded-full font-medium shrink-0">
-                    Drop to auto-seat
-                  </span>
-                </div>
-
-                <!-- Seat Slots Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <!-- Interactive Banquet Table Body with Sequential Seats -->
+              <div class="p-3 sm:p-3.5 flex flex-col justify-start">
+                <!-- Seat Slots Grid (Numbered sequentially 1 to n with no gaps) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 content-start items-start">
                   <div
-                    v-for="seat in seatsOf(table)"
-                    :key="`${table._id}-${seat.number}`"
+                    v-for="seatNum in table.capacity"
+                    :key="`${table._id}-${seatNum}`"
                     class="min-h-[46px]"
                   >
-                    <!-- 1. OCCUPIED SEAT (Draggable guest!) -->
+                    <!-- 1. OCCUPIED SEAT (1 to n) -->
                     <div
-                      v-if="guestInSeat(table, seat.number)"
+                      v-if="guestAtSeat(table, seatNum)"
                       draggable="true"
-                      class="flex items-center justify-between gap-2 p-2 rounded-xl bg-toast-50/80 border border-toast-200/80 shadow-2xs hover:bg-toast-100/80 transition-all cursor-grab active:cursor-grabbing select-none group"
-                      :class="draggedGuestId === guestInSeat(table, seat.number)?._id ? 'opacity-40 ring-2 ring-toast-400' : ''"
-                      @dragstart="onGuestDragStart($event, guestInSeat(table, seat.number)!)"
+                      class="flex items-center justify-between gap-2 p-2 rounded-xl bg-toast-100 hover:bg-toast-200/80 shadow-2xs transition-all cursor-grab active:cursor-grabbing select-none group"
+                      :class="draggedGuestId === guestAtSeat(table, seatNum)?._id ? 'opacity-40 ring-2 ring-toast-400' : ''"
+                      @dragstart="onGuestDragStart($event, guestAtSeat(table, seatNum)!)"
                       @dragend="onGuestDragEnd"
                     >
                       <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="size-5 rounded-md bg-toast-200/70 text-toast-800 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
-                          {{ seat.number }}
+                        <span class="size-5.5 rounded-md bg-toast-500 text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0 shadow-2xs">
+                          {{ seatNum }}
                         </span>
                         <div class="min-w-0">
-                          <p class="text-xs font-semibold text-toast-900 truncate leading-tight">
-                            {{ guestDisplayName(guestInSeat(table, seat.number)!) }}
+                          <p class="text-xs font-bold text-toast-900 truncate leading-tight">
+                            {{ guestDisplayName(guestAtSeat(table, seatNum)!) }}
                           </p>
-                          <p v-if="guestInSeat(table, seat.number)?.partyName" class="text-[10px] text-muted truncate">
-                            {{ guestInSeat(table, seat.number)?.partyName }}
+                          <p v-if="guestAtSeat(table, seatNum)?.partyName" class="text-[10px] text-toast-600 truncate font-medium">
+                            {{ guestAtSeat(table, seatNum)?.partyName }}
                           </p>
                         </div>
                       </div>
 
-                      <UButton
-                        icon="i-lucide-x"
-                        color="neutral"
-                        variant="ghost"
-                        size="xs"
-                        class="size-5 p-0 cursor-pointer text-muted hover:text-rose-600 hover:bg-rose-50 shrink-0"
+                      <button
+                        type="button"
+                        class="size-5 rounded flex items-center justify-center cursor-pointer text-toast-400 hover:text-rose-600 hover:bg-rose-100/70 transition-colors shrink-0"
                         title="Unseat guest"
-                        @click.stop="unseatGuest(guestInSeat(table, seat.number)!)"
-                      />
-                    </div>
-
-                    <!-- 2. UNAVAILABLE / BLOCKED SEAT -->
-                    <div
-                      v-else-if="seat.unavailable"
-                      class="flex items-center justify-between gap-2 p-2 rounded-xl bg-neutral-100 text-neutral-400 text-xs border border-neutral-200/70 select-none"
-                    >
-                      <div class="flex items-center gap-1.5">
-                        <span class="size-5 rounded-md bg-neutral-200 text-neutral-500 text-[10px] font-mono font-bold flex items-center justify-center">
-                          {{ seat.number }}
-                        </span>
-                        <span class="text-[11px] italic">Seat Blocked</span>
-                      </div>
-                      <UButton
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        class="text-[10px] p-1 cursor-pointer"
-                        @click="toggleSeat(table, seat)"
+                        @click.stop="unseatGuest(guestAtSeat(table, seatNum)!)"
                       >
-                        Unblock
-                      </UButton>
+                        <UIcon name="i-lucide-x" class="size-3.5" />
+                      </button>
                     </div>
 
-                    <!-- 3. EMPTY SEAT (Interactive Drop Target) -->
+                    <!-- 2. EMPTY SEAT (No individual drop, sequential placeholder) -->
                     <div
                       v-else
-                      class="flex items-center justify-between gap-2 p-2 rounded-xl border-2 border-dashed transition-all select-none"
-                      :class="dragOverSeatKey === `${table._id}-${seat.number}`
-                        ? 'border-emerald-500 bg-emerald-100 ring-2 ring-emerald-300 scale-[1.02]'
-                        : 'border-bread-200/90 hover:border-toast-300 bg-white/70 text-muted'"
-                      @dragover.prevent="dragOverSeatKey = `${table._id}-${seat.number}`"
-                      @dragleave="dragOverSeatKey = null"
-                      @drop.stop="onSeatDrop($event, table, seat.number)"
+                      class="flex items-center gap-2 p-2 rounded-xl bg-toast-50/50 text-toast-400 select-none border border-toast-100/60"
                     >
-                      <div class="flex items-center gap-1.5">
-                        <span class="size-5 rounded-md bg-bread-100 text-toast-600 text-[10px] font-mono font-bold flex items-center justify-center">
-                          {{ seat.number }}
-                        </span>
-                        <span class="text-[11px] font-medium text-muted">Empty</span>
-                      </div>
-
-                      <div class="flex items-center gap-1">
-                        <UButton
-                          size="xs"
-                          color="neutral"
-                          variant="ghost"
-                          class="text-[10px] p-0.5 text-muted hover:text-toast-800 cursor-pointer"
-                          title="Block this seat"
-                          @click="toggleSeat(table, seat)"
-                        >
-                          Block
-                        </UButton>
-                      </div>
+                      <span class="size-5.5 rounded-md bg-white border border-toast-200/60 text-toast-400 text-[10px] font-mono font-bold flex items-center justify-center shadow-2xs">
+                        {{ seatNum }}
+                      </span>
+                      <span class="text-[11px] font-medium text-toast-400">Available</span>
                     </div>
                   </div>
                 </div>
@@ -1059,6 +1089,52 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
         </div>
       </main>
     </div>
+
+    <!-- Change Table Name Modal -->
+    <UModal v-model:open="isRenameModalOpen" title="Change Table Name">
+      <template #content>
+        <div class="p-4 sm:p-5 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-toast-900 mb-1.5">
+              Table Name
+            </label>
+            <UInput
+              v-model="editingTableLabel"
+              placeholder="e.g. VIP Table, Presidential, Family"
+              size="md"
+              class="w-full"
+              autofocus
+              @keydown.enter.prevent="saveTableRename"
+            />
+            <p class="text-[11px] text-muted mt-1.5">
+              Leave blank to use default numbering (e.g. Table 1).
+            </p>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-bread-200/60">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="cursor-pointer"
+              @click="isRenameModalOpen = false"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="toast"
+              variant="solid"
+              size="sm"
+              class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer"
+              :loading="saving"
+              @click="saveTableRename"
+            >
+              Change table name
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
