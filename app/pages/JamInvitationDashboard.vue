@@ -10,13 +10,6 @@ import {
   type TypographySet,
 } from '~/utils/websiteTheme'
 import { formatDateWithWeekday, formatTime } from '~/utils/invitationDisplay'
-import {
-  INVITATION_TEMPLATES,
-  getTemplateForEventType,
-  getTemplateById,
-  type InvitationTemplatePreset,
-} from '~/utils/invitationTemplates'
-import JamInvitationCard from '~/components/JamInvitationCard.vue'
 import { getApiErrorMessage } from '~/types/auth'
 import { currentOriginPath } from '~/utils/seatingQr'
 
@@ -35,7 +28,6 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
-const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -52,8 +44,8 @@ const isCopiedRsvpLink = ref(false)
 // Steps matching InvitationMaker.vue
 const currentStep = ref(0)
 const steps = [
-  { id: 'core-details', label: '1. Event Details', description: 'Template, names, headline, schedule, and venue' },
-  { id: 'rsvp-deadline', label: '2. RSVP & Access', description: 'RSVP deadline, button label, passcode, and open invite link' },
+  { id: 'core-details', label: '1. Event Details', description: 'Names, headline, date, time, and venue' },
+  { id: 'rsvp-deadline', label: '2. RSVP & Access', description: 'RSVP deadline, passcode, and open invite link' },
   { id: 'banner-image', label: '3. Stationery & Banner', description: 'Upload a panoramic banner or your own invitation image' },
   { id: 'style-cohesion', label: '4. Colors & Fonts', description: 'Choose color palettes, typography, and accent colors' },
 ]
@@ -64,28 +56,15 @@ const previewMode = ref<'stationery' | 'email'>('stationery')
 
 // Editor Form State
 const rsvpData = reactive({
-  templateId: 'wedding',
-  headerLabel: 'WEDDING INVITATION',
+  requestLine: 'Together with their families',
   headline: '',
-  hostName: '',
-  requestLine: 'Together with their families,',
-  primaryName: '',
-  personalMessage: 'request the honor of your presence as they celebrate their marriage.',
   eventDate: '',
   eventTime: '18:00',
   eventVenue: '',
-  scheduleType: 'dual' as 'single' | 'dual',
-  ceremonyTitle: 'Ceremony',
-  ceremonyTime: '2:00 PM',
-  ceremonyVenue: '',
-  receptionTitle: 'Reception',
-  receptionTime: '5:00 PM',
-  receptionVenue: '',
-  celebrationTitle: 'Celebration',
-  deadlineText: 'Kindly confirm your attendance by [RSVP Deadline].',
-  ctaText: 'Confirm Attendance',
+  deadlineText: 'Kindly reply by the deadline so we can prepare your table and seat.',
   passcode: '',
   emailSubject: 'You are warmly invited to celebrate with us!',
+  personalMessage: '',
 })
 
 // Design Mode & Theme
@@ -137,33 +116,6 @@ const guestRsvpSampleUrl = computed(() => {
   return publicInvitationUrl.value
 })
 
-const activeTemplatePreset = computed<InvitationTemplatePreset>(() => {
-  return getTemplateForEventType(gathering.value?.eventType)
-})
-
-function applyTemplate(templateId: string, force = false) {
-  const tmpl = getTemplateById(templateId)
-  rsvpData.templateId = tmpl.id
-  if (force || !rsvpData.headerLabel) rsvpData.headerLabel = tmpl.headerLabel
-  if (force || !rsvpData.headline) rsvpData.headline = tmpl.headline
-  if (force || !rsvpData.hostName) rsvpData.hostName = tmpl.defaultHostName || ''
-  if (force || !rsvpData.requestLine) rsvpData.requestLine = tmpl.requestLine
-  if (force || !rsvpData.personalMessage) rsvpData.personalMessage = tmpl.defaultMessage
-  if (force || !rsvpData.scheduleType) rsvpData.scheduleType = tmpl.scheduleType
-  if (force || !rsvpData.ceremonyTitle) rsvpData.ceremonyTitle = tmpl.ceremonyTitle || 'Ceremony'
-  if (force || !rsvpData.ceremonyTime) rsvpData.ceremonyTime = tmpl.ceremonyTime || '2:00 PM'
-  if (force || !rsvpData.ceremonyVenue) rsvpData.ceremonyVenue = tmpl.ceremonyVenue || rsvpData.eventVenue || ''
-  if (force || !rsvpData.receptionTitle) rsvpData.receptionTitle = tmpl.receptionTitle || 'Reception'
-  if (force || !rsvpData.receptionTime) rsvpData.receptionTime = tmpl.receptionTime || '5:00 PM'
-  if (force || !rsvpData.receptionVenue) rsvpData.receptionVenue = tmpl.receptionVenue || rsvpData.eventVenue || ''
-  if (force || !rsvpData.celebrationTitle) rsvpData.celebrationTitle = tmpl.celebrationTitle || 'Celebration'
-  if (force || !rsvpData.deadlineText) rsvpData.deadlineText = tmpl.deadlineText
-  if (force || !rsvpData.ctaText) rsvpData.ctaText = tmpl.ctaButtonText
-  if (force) {
-    toast.add({ title: `${tmpl.name} template applied`, color: 'success' })
-  }
-}
-
 async function load() {
   if (!gatheringId.value) return
   isLoading.value = true
@@ -175,46 +127,29 @@ async function load() {
     gathering.value = gatheringData
     guests.value = guestsData.guests
 
-    // Template is constant depending on the event type
-    const defaultTemplate = getTemplateForEventType(gatheringData.eventType)
-    const d = gatheringData.invitationDesign
-
-    rsvpData.templateId = defaultTemplate.id
-    rsvpData.headerLabel = d?.headerLabel ?? defaultTemplate.headerLabel
-    rsvpData.headline = d?.headline ?? defaultTemplate.headline
-    rsvpData.hostName = d?.hostName ?? defaultTemplate.defaultHostName ?? ''
-    rsvpData.requestLine = d?.requestLine ?? defaultTemplate.requestLine
-    rsvpData.primaryName = d?.primaryName ?? gatheringData.name ?? ''
-    rsvpData.personalMessage = gatheringData.invitationMessage || defaultTemplate.defaultMessage
+    // Populate editor fields
+    rsvpData.headline = gatheringData.invitationDesign?.headline || gatheringData.name || ''
+    rsvpData.requestLine = gatheringData.invitationDesign?.requestLine || 'Together with their families'
     rsvpData.eventVenue = gatheringData.venue || ''
     rsvpData.eventDate = gatheringData.eventDate ? gatheringData.eventDate.slice(0, 10) : ''
-    rsvpData.eventTime = d?.eventTime || defaultTemplate.eventTime || '18:00'
-    rsvpData.scheduleType = d?.scheduleType || defaultTemplate.scheduleType
-    rsvpData.ceremonyTitle = d?.ceremonyTitle || defaultTemplate.ceremonyTitle || 'Ceremony'
-    rsvpData.ceremonyTime = d?.ceremonyTime || defaultTemplate.ceremonyTime || '2:00 PM'
-    rsvpData.ceremonyVenue = d?.ceremonyVenue || gatheringData.venue || defaultTemplate.ceremonyVenue || ''
-    rsvpData.receptionTitle = d?.receptionTitle || defaultTemplate.receptionTitle || 'Reception'
-    rsvpData.receptionTime = d?.receptionTime || defaultTemplate.receptionTime || '5:00 PM'
-    rsvpData.receptionVenue = d?.receptionVenue || gatheringData.venue || defaultTemplate.receptionVenue || ''
-    rsvpData.celebrationTitle = d?.celebrationTitle || defaultTemplate.celebrationTitle || 'Celebration'
-    rsvpData.deadlineText = d?.deadlineText || defaultTemplate.deadlineText
-    rsvpData.ctaText = d?.ctaText || defaultTemplate.ctaButtonText
+    rsvpData.eventTime = gatheringData.invitationDesign?.eventTime || '18:00'
+    rsvpData.deadlineText = gatheringData.invitationDesign?.deadlineText || 'Kindly reply by the deadline so we can prepare your table and seat.'
     rsvpData.passcode = gatheringData.passcode || ''
     rsvpData.emailSubject = gatheringData.invitationSubject || `You are warmly invited to ${gatheringData.name}!`
+    rsvpData.personalMessage = gatheringData.invitationMessage || ''
 
-    if (d) {
+    if (gatheringData.invitationDesign) {
+      const d = gatheringData.invitationDesign
       designMode.value = d.mode || 'MAKER'
       ownImageUrl.value = d.imageUrl || ''
       bannerImageUrl.value = d.bannerImageUrl || ''
       if (d.paletteName) customPaletteName.value = d.paletteName
       if (d.typographyName) customTypographyName.value = d.typographyName
-      if (d.accentColor) customAccentColor.value = d.accentColor
     }
 
     isPublished.value = Boolean(
-      d?.headline ||
-      d?.imageUrl ||
-      d?.primaryName ||
+      gatheringData.invitationDesign?.headline ||
+      gatheringData.invitationDesign?.imageUrl ||
       gatheringData.invitationMessage
     )
 
@@ -232,7 +167,6 @@ async function load() {
     toast.add({ title: 'Could not load invitation', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     isLoading.value = false
-    finishPageTransition()
   }
 }
 
@@ -315,35 +249,19 @@ async function saveInvitation() {
   isSaving.value = true
   try {
     const updated = await seating.saveInvitation(gatheringId.value, {
-      passcode: rsvpData.passcode.trim() || undefined,
-      invitationSubject: rsvpData.emailSubject.trim() || undefined,
-      invitationMessage: rsvpData.personalMessage.trim() || undefined,
-      venue: rsvpData.eventVenue.trim() || undefined,
-      eventDate: rsvpData.eventDate.trim() || undefined,
+      passcode: rsvpData.passcode.trim(),
+      invitationSubject: rsvpData.emailSubject.trim(),
+      invitationMessage: rsvpData.personalMessage.trim(),
       invitationDesign: {
         mode: designMode.value,
         imageUrl: ownImageUrl.value,
         bannerImageUrl: bannerImageUrl.value,
-        paletteName: customPaletteName.value,
-        typographyName: customTypographyName.value,
-        accentColor: customAccentColor.value,
-        templateId: activeTemplatePreset.value.id,
-        headerLabel: rsvpData.headerLabel.trim() || undefined,
         headline: rsvpData.headline.trim() || undefined,
-        hostName: rsvpData.hostName.trim() || undefined,
         requestLine: rsvpData.requestLine.trim() || undefined,
-        primaryName: rsvpData.primaryName.trim() || undefined,
-        scheduleType: rsvpData.scheduleType,
-        ceremonyTitle: rsvpData.ceremonyTitle.trim() || undefined,
-        ceremonyTime: rsvpData.ceremonyTime.trim() || undefined,
-        ceremonyVenue: rsvpData.ceremonyVenue.trim() || undefined,
-        receptionTitle: rsvpData.receptionTitle.trim() || undefined,
-        receptionTime: rsvpData.receptionTime.trim() || undefined,
-        receptionVenue: rsvpData.receptionVenue.trim() || undefined,
-        celebrationTitle: rsvpData.celebrationTitle.trim() || undefined,
         eventTime: rsvpData.eventTime.trim() || undefined,
         deadlineText: rsvpData.deadlineText.trim() || undefined,
-        ctaText: rsvpData.ctaText.trim() || undefined,
+        paletteName: customPaletteName.value,
+        typographyName: customTypographyName.value,
       },
     })
     gathering.value = updated
@@ -424,11 +342,23 @@ async function updateOpenInvite(enabled: boolean) {
     toast.add({ title: 'Could not update open invite', description: getApiErrorMessage(error), color: 'error' })
   }
 }
+
+// A link that reached the wrong people can only be stopped by replacing it.
+async function replaceOpenInvite() {
+  if (!gatheringId.value) return
+  if (!window.confirm('Replace this link? The current link will stop working for anyone who has it.')) return
+  try {
+    gathering.value = await seating.setOpenInvite(gatheringId.value, { regenerate: true })
+    toast.add({ title: 'Open invite link replaced', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not replace the link', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
 </script>
 
 <template>
   <div>
-    <!-- Navbar Actions Teleport -->
+    <!-- Navbar Actions Teleport matching InvitationMaker.vue -->
     <ClientOnly>
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
@@ -492,7 +422,7 @@ async function updateOpenInvite(enabled: boolean) {
       </Teleport>
     </ClientOnly>
 
-    <!-- Main Content Container -->
+    <!-- Main Content Container matching InvitationMaker.vue layout -->
     <UContainer class="py-6">
       <div v-if="isLoading" class="flex items-center justify-center py-20 text-muted">
         <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-violet-600" />
@@ -534,150 +464,31 @@ async function updateOpenInvite(enabled: boolean) {
           <!-- Step Scroll Body -->
           <UScrollArea class="w-full shrink min-h-0 my-0 py-0">
             <div class="px-6 py-4">
-              <!-- Step 1: Core Details & Templates -->
+              <!-- Step 1: Core Details -->
               <div v-if="currentStepData?.id === 'core-details'" class="flex flex-col gap-4">
-                <!-- Constant Event Template Indicator -->
-                <div class="rounded-xl border border-violet-200/80 bg-violet-50/70 p-3 flex items-center justify-between">
-                  <div class="flex items-center gap-2.5 min-w-0">
-                    <div class="size-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
-                      <UIcon :name="activeTemplatePreset.icon" class="w-4 h-4 text-violet-700" />
-                    </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-1.5 flex-wrap">
-                        <span class="text-xs font-bold text-violet-950 truncate">{{ activeTemplatePreset.name }} Template</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-200/80 text-violet-900 font-semibold">{{ gathering?.eventType || activeTemplatePreset.name }}</span>
-                      </div>
-                      <p class="text-[11px] text-violet-700 truncate">
-                        Template is fixed based on your event type
-                      </p>
-                    </div>
-                  </div>
-                  <UButton
-                    size="2xs"
-                    variant="ghost"
-                    color="violet"
-                    icon="i-lucide-rotate-ccw"
-                    @click="applyTemplate(activeTemplatePreset.id, true)"
-                  >
-                    Reset Defaults
-                  </UButton>
+                <UFormField label="Introductory Line">
+                  <UInput v-model="rsvpData.requestLine" placeholder="e.g., Together with their families" class="w-full" />
+                </UFormField>
+                <UFormField label="Event Headline">
+                  <UInput v-model="rsvpData.headline" placeholder="e.g., Sarah & Michael are getting married!" size="lg" class="w-full" />
+                </UFormField>
+                <div class="grid grid-cols-2 gap-4">
+                  <UFormField label="Event Date">
+                    <UInput type="date" v-model="rsvpData.eventDate" icon="i-lucide-calendar" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Event Time">
+                    <UInput type="text" v-model="rsvpData.eventTime" placeholder="6:00 PM" icon="i-lucide-clock" class="w-full" />
+                  </UFormField>
                 </div>
-
-                <!-- Header Label -->
-                <UFormField label="Header Tagline" help="Top uppercase label (e.g. WEDDING INVITATION, 18TH BIRTHDAY INVITATION)">
-                  <UInput v-model="rsvpData.headerLabel" placeholder="e.g. WEDDING INVITATION" class="w-full uppercase text-xs" />
+                <UFormField label="Venue / Location">
+                  <UInput v-model="rsvpData.eventVenue" placeholder="e.g., The Grand Ballroom, Manila" icon="i-lucide-map-pin" class="w-full" />
                 </UFormField>
-
-                <!-- Headline -->
-                <UFormField label="Headline (Optional)" help="E.g. A Night to Remember, A Blessed Celebration, Let's Celebrate!, You're Invited!">
-                  <UInput v-model="rsvpData.headline" placeholder="e.g. You're Invited!" class="w-full font-bold" />
-                </UFormField>
-
-                <!-- Host / Company / Organization Name (prominent for Corporate Events) -->
-                <UFormField
-                  v-if="activeTemplatePreset.id === 'corporate-event' || rsvpData.hostName"
-                  label="Company / Organization Name"
-                  help="Host presenting the invitation (e.g. [Company / Organization Name])"
-                >
-                  <UInput v-model="rsvpData.hostName" placeholder="e.g. [Company / Organization Name]" class="w-full font-bold" />
-                </UFormField>
-
-                <!-- Introductory Request Line -->
-                <UFormField label="Introductory Request Line" help="Opening invitation text">
-                  <UTextarea v-model="rsvpData.requestLine" :rows="2" placeholder="e.g. Together with their families," class="w-full" />
-                </UFormField>
-
-                <!-- Primary Name(s) -->
-                <UFormField label="Celebrant / Couple / Honoree Names" help="The primary focal name(s)">
-                  <UInput v-model="rsvpData.primaryName" placeholder="e.g. Sarah & Michael or Chloe" size="lg" class="w-full font-bold" />
-                </UFormField>
-
-                <!-- Personal / Narrative Message -->
-                <UFormField label="Invitation Message" help="Narrative invitation text">
-                  <UTextarea v-model="rsvpData.personalMessage" :rows="3" placeholder="e.g. request the honor of your presence as they celebrate their marriage." class="w-full" />
-                </UFormField>
-
-                <!-- Event Date -->
-                <UFormField label="Event Date">
-                  <UInput type="date" v-model="rsvpData.eventDate" icon="i-lucide-calendar" class="w-full" />
-                </UFormField>
-
-                <!-- Schedule & Venue Arrangement -->
-                <div class="space-y-3 pt-2 border-t border-stone-200">
-                  <div class="flex items-center justify-between">
-                    <label class="text-xs font-semibold uppercase tracking-wider text-stone-600">
-                      Schedule & Location
-                    </label>
-                    <div class="inline-flex rounded-lg border border-stone-200 p-0.5 bg-stone-100 text-xs">
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors"
-                        :class="rsvpData.scheduleType === 'single' ? 'bg-white shadow-2xs text-stone-900 font-semibold' : 'text-stone-500 hover:text-stone-800'"
-                        @click="rsvpData.scheduleType = 'single'"
-                      >
-                        Single Location
-                      </button>
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors"
-                        :class="rsvpData.scheduleType === 'dual' ? 'bg-white shadow-2xs text-stone-900 font-semibold' : 'text-stone-500 hover:text-stone-800'"
-                        @click="rsvpData.scheduleType = 'dual'"
-                      >
-                        Ceremony + Reception
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Dual Schedule (Ceremony & Reception) -->
-                  <div v-if="rsvpData.scheduleType === 'dual'" class="space-y-3">
-                    <div class="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
-                      <div class="font-bold text-xs text-stone-800 flex items-center gap-1.5">
-                        <UIcon name="i-lucide-church" class="w-3.5 h-3.5 text-violet-600" />
-                        <span>Ceremony Details</span>
-                      </div>
-                      <UInput v-model="rsvpData.ceremonyTitle" placeholder="Section Title (e.g. Ceremony)" class="w-full" />
-                      <div class="grid grid-cols-2 gap-2">
-                        <UInput v-model="rsvpData.ceremonyTime" placeholder="e.g. 2:00 PM" icon="i-lucide-clock" class="w-full" />
-                        <UInput v-model="rsvpData.ceremonyVenue" placeholder="Ceremony Venue / Church" icon="i-lucide-map-pin" class="w-full" />
-                      </div>
-                    </div>
-
-                    <div class="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
-                      <div class="font-bold text-xs text-stone-800 flex items-center gap-1.5">
-                        <UIcon name="i-lucide-party-popper" class="w-3.5 h-3.5 text-violet-600" />
-                        <span>Reception Details</span>
-                      </div>
-                      <UInput v-model="rsvpData.receptionTitle" placeholder="Section Title (e.g. Reception)" class="w-full" />
-                      <div class="grid grid-cols-2 gap-2">
-                        <UInput v-model="rsvpData.receptionTime" placeholder="e.g. 5:00 PM" icon="i-lucide-clock" class="w-full" />
-                        <UInput v-model="rsvpData.receptionVenue" placeholder="Reception Venue / Ballroom" icon="i-lucide-map-pin" class="w-full" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Single Schedule (Celebration) -->
-                  <div v-else class="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
-                    <div class="font-bold text-xs text-stone-800 flex items-center gap-1.5">
-                      <UIcon name="i-lucide-calendar-clock" class="w-3.5 h-3.5 text-violet-600" />
-                      <span>Celebration Details</span>
-                    </div>
-                    <UInput v-model="rsvpData.celebrationTitle" placeholder="Section Title (e.g. Celebration)" class="w-full" />
-                    <div class="grid grid-cols-2 gap-2">
-                      <UInput v-model="rsvpData.eventTime" placeholder="e.g. 6:00 PM" icon="i-lucide-clock" class="w-full" />
-                      <UInput v-model="rsvpData.eventVenue" placeholder="Event Venue / Location" icon="i-lucide-map-pin" class="w-full" />
-                    </div>
-                  </div>
-                </div>
               </div>
 
-              <!-- Step 2: RSVP & Access -->
+              <!-- Step 2: RSVP & Deadline -->
               <div v-else-if="currentStepData?.id === 'rsvp-deadline'" class="flex flex-col gap-4">
-                <UFormField label="RSVP Button Label">
-                  <UInput v-model="rsvpData.ctaText" placeholder="Confirm Attendance" class="w-full" />
-                </UFormField>
-
                 <UFormField label="RSVP Deadline Message">
-                  <UTextarea v-model="rsvpData.deadlineText" placeholder="e.g., Kindly confirm your attendance by [RSVP Deadline]." class="w-full" />
+                  <UTextarea v-model="rsvpData.deadlineText" placeholder="e.g., Kindly reply by March 1 so we can prepare your table and seat." class="w-full" />
                 </UFormField>
 
                 <!-- Passcode Protection -->
@@ -728,8 +539,17 @@ async function updateOpenInvite(enabled: boolean) {
                     <USwitch
                       :model-value="Boolean(gathering?.openInvite?.enabled)"
                       color="violet"
+                      aria-label="Open Registration"
                       @update:model-value="updateOpenInvite($event)"
                     />
+                  </div>
+                  <div v-if="gathering?.openInvite?.enabled && openInviteUrl" class="space-y-1.5 pt-1">
+                    <p data-testid="open-invite-link" class="text-[11px] font-mono break-all text-stone-700">
+                      {{ openInviteUrl }}
+                    </p>
+                    <UButton size="xs" color="neutral" variant="outline" @click="replaceOpenInvite">
+                      Replace Link
+                    </UButton>
                   </div>
                 </div>
               </div>
@@ -754,7 +574,7 @@ async function updateOpenInvite(enabled: boolean) {
                         <span v-if="designMode === 'MAKER'" class="w-2 h-2 rounded-full bg-violet-600"></span>
                       </div>
                       <p class="text-[10.5px] text-stone-500">
-                        Styled stationery templates and optional 1:5 banner.
+                        Styled typography and optional 1:5 banner.
                       </p>
                     </button>
 
@@ -969,7 +789,7 @@ async function updateOpenInvite(enabled: boolean) {
           </div>
         </UPageCard>
 
-        <!-- RIGHT SIDE: Live Preview (col-span-2) -->
+        <!-- RIGHT SIDE: Live Preview (col-span-2) matching InvitationMaker.vue -->
         <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-4">
           <!-- Preview Switcher -->
           <div class="flex items-center justify-end px-1">
@@ -1002,42 +822,179 @@ async function updateOpenInvite(enabled: boolean) {
           <!-- 1. Luxury Stationery Invitation Card (Web View) -->
           <div
             v-if="previewMode === 'stationery'"
-            class="w-full transition-all duration-300"
-            :class="isPublished ? 'max-w-xl mx-auto my-4' : 'w-full'"
+            class="relative rounded-2xl transition-all duration-300 shadow-xl overflow-hidden"
+            :class="[
+              isPublished ? 'max-w-2xl mx-auto w-full my-4' : 'w-full',
+              bannerImageUrl ? '' : 'p-8 sm:p-12'
+            ]"
+            :style="{
+              backgroundColor: effectivePalette.colors.primary,
+              borderColor: effectivePalette.colors.secondary,
+              borderWidth: '2px',
+              borderStyle: 'solid'
+            }"
           >
-            <JamInvitationCard
-              :gathering-name="gathering?.name || 'Gathering'"
-              :venue="rsvpData.eventVenue || gathering?.venue || ''"
-              :event-date="rsvpData.eventDate"
-              :message="rsvpData.personalMessage"
-              :design="{
-                mode: designMode,
-                imageUrl: ownImageUrl,
-                bannerImageUrl: bannerImageUrl,
-                paletteName: customPaletteName,
-                typographyName: customTypographyName,
-                accentColor: customAccentColor,
-                templateId: activeTemplatePreset.id,
-                headerLabel: rsvpData.headerLabel,
-                headline: rsvpData.headline,
-                hostName: rsvpData.hostName,
-                requestLine: rsvpData.requestLine,
-                primaryName: rsvpData.primaryName,
-                scheduleType: rsvpData.scheduleType,
-                ceremonyTitle: rsvpData.ceremonyTitle,
-                ceremonyTime: rsvpData.ceremonyTime,
-                ceremonyVenue: rsvpData.ceremonyVenue,
-                receptionTitle: rsvpData.receptionTitle,
-                receptionTime: rsvpData.receptionTime,
-                receptionVenue: rsvpData.receptionVenue,
-                celebrationTitle: rsvpData.celebrationTitle,
-                eventTime: rsvpData.eventTime,
-                deadlineText: rsvpData.deadlineText,
-                ctaText: rsvpData.ctaText,
-              }"
-              :cta-href="openInviteUrl || publicInvitationUrl || '#'"
-              :show-cta="true"
-            />
+            <!-- Mode A: Custom Stationery Image Uploaded -->
+            <div v-if="designMode === 'IMAGE' && ownImageUrl" class="p-4 sm:p-6 text-center space-y-4">
+              <img :src="ownImageUrl" alt="Stationery" class="max-w-full h-auto rounded-xl shadow-md mx-auto" />
+              <div class="pt-2">
+                <a
+                  :href="openInviteUrl || publicInvitationUrl || '#'"
+                  target="_blank"
+                  class="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full font-semibold text-sm transition-all shadow-md hover:scale-[1.02] cursor-pointer"
+                  :style="{
+                    backgroundColor: effectivePalette.colors.secondary,
+                    color: effectivePalette.colors.secondary_text_color,
+                    fontFamily: effectiveTypography.subheaderFont
+                  }"
+                >
+                  <span>RSVP Here</span>
+                  <UIcon name="i-lucide-arrow-right" class="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+            <!-- Mode B: Built-in Maker Canvas -->
+            <div v-else>
+              <!-- 1:5 Header Banner Image (Flush Top & Sides) -->
+              <div
+                v-if="bannerImageUrl"
+                class="w-full overflow-hidden border-b"
+                :style="{ borderColor: `${effectivePalette.colors.secondary}40` }"
+              >
+                <img
+                  :src="bannerImageUrl"
+                  alt="Invitation Header Banner"
+                  class="w-full aspect-5/1 object-cover object-center block"
+                />
+              </div>
+
+              <!-- Card Content Wrapper with Double Border Frame -->
+              <div
+                class="relative"
+                :class="bannerImageUrl ? 'p-6 sm:p-10' : ''"
+              >
+                <div
+                  class="absolute inset-3 sm:inset-4 rounded-xl pointer-events-none"
+                  :style="{
+                    borderColor: `${effectivePalette.colors.secondary}45`,
+                    borderWidth: '1px',
+                    borderStyle: 'solid'
+                  }"
+                />
+
+                <div class="relative z-10 flex flex-col gap-6 text-center py-4 px-2 sm:px-6">
+                  <!-- Header Area -->
+                  <div class="space-y-3">
+                    <p
+                      class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em]"
+                      :style="{
+                        color: effectivePalette.colors.secondary_text_color,
+                        fontFamily: effectiveTypography.subheaderFont
+                      }"
+                    >
+                      {{ rsvpData.requestLine || 'Together with their families' }}
+                    </p>
+
+                    <h1
+                      class="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight"
+                      :style="{
+                        color: effectivePalette.colors.text_color,
+                        fontFamily: effectiveTypography.headerFont
+                      }"
+                    >
+                      {{ rsvpData.headline || gathering?.name || 'Celebration' }}
+                    </h1>
+
+                    <!-- Date, Time, Venue -->
+                    <div class="mt-4 flex flex-col items-center gap-1">
+                      <div
+                        class="text-sm sm:text-base font-semibold uppercase tracking-wider"
+                        :style="{
+                          color: effectivePalette.colors.text_color,
+                          fontFamily: effectiveTypography.subheaderFont
+                        }"
+                      >
+                        {{ formatDateWithWeekday(rsvpData.eventDate) || 'Saturday, October 24, 2026' }}
+                      </div>
+
+                      <div
+                        v-if="rsvpData.eventTime"
+                        class="text-xs sm:text-sm"
+                        :style="{
+                          color: effectivePalette.colors.secondary_text_color,
+                          fontFamily: effectiveTypography.bodyFont
+                        }"
+                      >
+                        {{ formatTime(rsvpData.eventTime) || rsvpData.eventTime }}
+                      </div>
+
+                      <div
+                        v-if="rsvpData.eventVenue"
+                        class="flex items-center text-xs sm:text-sm font-medium pt-1"
+                        :style="{
+                          color: effectivePalette.colors.text_color,
+                          fontFamily: effectiveTypography.subheaderFont
+                        }"
+                      >
+                        <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5 mr-1 opacity-70" />
+                        {{ rsvpData.eventVenue }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Decorative Divider -->
+                  <div class="flex items-center justify-center my-0.5">
+                    <div
+                      class="w-14 h-[1px]"
+                      :style="{ backgroundColor: `${effectivePalette.colors.secondary}70` }"
+                    />
+                    <span class="mx-3 text-xs" :style="{ color: effectivePalette.colors.secondary }">✦</span>
+                    <div
+                      class="w-14 h-[1px]"
+                      :style="{ backgroundColor: `${effectivePalette.colors.secondary}70` }"
+                    />
+                  </div>
+
+                  <!-- Prominent "RSVP Here" CTA Button -->
+                  <div class="my-2 flex flex-col items-center justify-center gap-2">
+                    <a
+                      :href="openInviteUrl || publicInvitationUrl || '#'"
+                      target="_blank"
+                      class="group relative inline-flex items-center justify-center gap-2.5 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+                      :style="{
+                        backgroundColor: effectivePalette.colors.secondary,
+                        color: effectivePalette.colors.secondary_text_color,
+                        fontFamily: effectiveTypography.subheaderFont
+                      }"
+                    >
+                      <span>RSVP Here</span>
+                      <UIcon name="i-lucide-arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </a>
+                  </div>
+
+                  <!-- Deadline & Security Info -->
+                  <div class="space-y-1">
+                    <p
+                      class="text-xs max-w-md mx-auto leading-relaxed"
+                      :style="{
+                        color: effectivePalette.colors.secondary_text_color,
+                        fontFamily: effectiveTypography.bodyFont
+                      }"
+                    >
+                      {{ rsvpData.deadlineText }}
+                    </p>
+                    <p
+                      v-if="rsvpData.passcode"
+                      class="text-[11px] font-mono font-semibold"
+                      :style="{ color: effectivePalette.colors.secondary_text_color }"
+                    >
+                      Passcode: {{ rsvpData.passcode }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- 2. Email Client Preview (Email View) -->
@@ -1067,36 +1024,21 @@ async function updateOpenInvite(enabled: boolean) {
               </div>
 
               <div class="space-y-2 text-center py-2">
-                <p v-if="rsvpData.headerLabel" class="text-xs text-muted uppercase tracking-wider font-semibold">
-                  {{ rsvpData.headerLabel }}
-                </p>
+                <p class="text-xs text-muted uppercase tracking-wider font-semibold">You're Invited to</p>
                 <h2 class="font-serif font-bold text-2xl text-toast-900">
-                  {{ rsvpData.headline || rsvpData.primaryName || gathering?.name }}
+                  {{ rsvpData.headline || gathering?.name }}
                 </h2>
-                <p v-if="rsvpData.hostName" class="font-bold text-sm text-toast-800">
-                  {{ rsvpData.hostName }}
+                <p class="text-xs text-toast-700">
+                  {{ formatDateWithWeekday(rsvpData.eventDate) }} · {{ formatTime(rsvpData.eventTime) }}
                 </p>
-                <p v-if="rsvpData.requestLine" class="text-xs text-stone-600 whitespace-pre-line">
-                  {{ rsvpData.requestLine }}
+                <p v-if="rsvpData.eventVenue" class="text-xs text-muted">
+                  {{ rsvpData.eventVenue }}
                 </p>
-                <p v-if="rsvpData.headline && rsvpData.primaryName" class="font-bold text-lg text-toast-900">
-                  {{ rsvpData.primaryName }}
-                </p>
-                <p class="text-xs text-toast-700 font-semibold pt-1">
-                  {{ formatDateWithWeekday(rsvpData.eventDate) || 'Event Date' }}
-                </p>
-                <div v-if="rsvpData.scheduleType === 'dual'" class="text-xs text-stone-600 space-y-1">
-                  <p><strong>{{ rsvpData.ceremonyTitle }}:</strong> {{ rsvpData.ceremonyTime }} · {{ rsvpData.ceremonyVenue }}</p>
-                  <p><strong>{{ rsvpData.receptionTitle }}:</strong> {{ rsvpData.receptionTime }} · {{ rsvpData.receptionVenue }}</p>
-                </div>
-                <div v-else class="text-xs text-stone-600">
-                  <p>{{ formatTime(rsvpData.eventTime) || rsvpData.eventTime }} <span v-if="rsvpData.eventVenue">· {{ rsvpData.eventVenue }}</span></p>
-                </div>
               </div>
 
               <div
                 v-if="rsvpData.personalMessage"
-                class="bg-toast-50/70 p-3.5 rounded-xl border border-bread-200/60 text-xs text-toast-800 leading-relaxed text-center"
+                class="bg-toast-50/70 p-3.5 rounded-xl border border-bread-200/60 text-xs text-toast-800 leading-relaxed"
               >
                 {{ rsvpData.personalMessage }}
               </div>
@@ -1107,10 +1049,10 @@ async function updateOpenInvite(enabled: boolean) {
                   target="_blank"
                   class="inline-block bg-toast-800 hover:bg-toast-900 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-sm transition-all"
                 >
-                  {{ rsvpData.ctaText || 'Confirm Attendance' }}
+                  RSVP & View Invitation
                 </a>
-                <p v-if="rsvpData.deadlineText" class="text-[10.5px] text-muted mt-2">
-                  {{ rsvpData.deadlineText }}
+                <p class="text-[10.5px] text-muted mt-2">
+                  Clicking the button opens your personalized guest invitation and RSVP questionnaire.
                 </p>
               </div>
             </div>

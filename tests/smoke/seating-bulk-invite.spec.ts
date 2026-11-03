@@ -1,5 +1,12 @@
 import { GATHERING_ID, expect, test } from './helpers'
-import { openWorkspace } from './seating-fixtures'
+import type { Page } from '@playwright/test'
+import { openGuestsPage } from './seating-fixtures'
+
+async function openBulkInvite(page: Page, options: Parameters<typeof openGuestsPage>[1]) {
+  const calls = await openGuestsPage(page, options)
+  await page.getByRole('button', { name: 'Bulk Invite' }).click()
+  return calls
+}
 
 const API = `/gatherings/${GATHERING_ID}`
 
@@ -30,7 +37,7 @@ const sendResult = (overrides = {}) => ({
 })
 
 test('a host pastes emails, sees the counts, then sends', async ({ page }) => {
-  const calls = await openWorkspace(page, {
+  const calls = await openBulkInvite(page, {
     routes: {
       [`POST ${API}/invites/bulk/preview`]: route => route.fulfill({
         json: preview({ duplicateCount: 1, alreadyOnList: 1 }),
@@ -58,7 +65,7 @@ test('a host pastes emails, sees the counts, then sends', async ({ page }) => {
 })
 
 test('over the limit blocks sending and offers an upgrade', async ({ page }) => {
-  await openWorkspace(page, {
+  await openBulkInvite(page, {
     routes: {
       [`POST ${API}/invites/bulk/preview`]: route => route.fulfill({
         json: preview({ toInvite: 7, creditsRemaining: 5, shortBy: 2, canSend: false }),
@@ -70,12 +77,12 @@ test('over the limit blocks sending and offers an upgrade', async ({ page }) => 
   await panel.getByRole('button', { name: 'Check List' }).click()
 
   await expect(page.getByTestId('bulk-preview')).toContainText("That's 2 more than you have credits for.")
-  await expect(panel.getByRole('link', { name: 'Upgrade your plan' })).toHaveAttribute('href', `/user/seating-upgrade/${GATHERING_ID}`)
+  await expect(panel.getByRole('link', { name: 'Upgrade your plan' })).toHaveAttribute('href', `/user/jam-upgrade/${GATHERING_ID}`)
   await expect(panel.getByRole('button', { name: /Send .*Invitations/ })).toBeDisabled()
 })
 
 test('an invalid address must be fixed, and editing the list needs a fresh check', async ({ page }) => {
-  await openWorkspace(page, {
+  await openBulkInvite(page, {
     routes: {
       [`POST ${API}/invites/bulk/preview`]: route => route.fulfill({
         json: route.request().postDataJSON().emails.includes('nope')
@@ -97,7 +104,7 @@ test('an invalid address must be fixed, and editing the list needs a fresh check
 })
 
 test('a guest who could not be emailed can be tried again', async ({ page }) => {
-  const calls = await openWorkspace(page, {
+  const calls = await openBulkInvite(page, {
     routes: {
       [`POST ${API}/invites/bulk/preview`]: route => route.fulfill({ json: preview() }),
       [`POST ${API}/invites/bulk`]: route => route.fulfill({ json: sendResult({ sent: 1, skipped: 1 }) }),
@@ -128,7 +135,7 @@ test('an unnamed guest shows their email, and needs a name to be marked as comin
     isAttending: false,
     isBulkInvite: true,
   }
-  const calls = await openWorkspace(page, {
+  const calls = await openGuestsPage(page, {
     guests: [unnamed],
     routes: {
       [`PATCH ${API}/guests/g9`]: route => route.fulfill({
@@ -136,21 +143,21 @@ test('an unnamed guest shows their email, and needs a name to be marked as comin
       }),
     },
   })
-  await expect(page.getByText('Waiting for name')).toBeVisible()
+  const row = page.getByRole('row').filter({ hasText: 'unnamed@example.com' })
+  await expect(row).toContainText('Waiting for name')
   await expect(page.getByText('undefined')).toHaveCount(0)
 
-  const status = page.locator('select').filter({ has: page.getByRole('option', { name: 'Attending' }) }).first()
-  await status.selectOption('GOING')
+  await row.locator('select').selectOption('GOING')
 
   const dialog = page.getByRole('dialog')
-  await expect(dialog).toContainText('unnamed@example.com')
+  await expect(dialog.getByPlaceholder('guest@example.com')).toHaveValue('unnamed@example.com')
   expect(calls.filter(call => call.method === 'PATCH')).toHaveLength(0)
 
-  await dialog.getByLabel('First name').fill('Lea')
-  await dialog.getByLabel('Last name').fill('Santos')
-  await dialog.getByRole('button', { name: 'Mark as Attending' }).click()
+  await dialog.getByPlaceholder('First name').fill('Lea')
+  await dialog.getByPlaceholder('Last name').fill('Santos')
+  await dialog.getByRole('button', { name: 'Save Changes' }).click()
 
-  await expect.poll(() => calls.find(call => call.method === 'PATCH')?.body).toEqual({
+  await expect.poll(() => calls.find(call => call.method === 'PATCH')?.body).toMatchObject({
     rsvpStatus: 'GOING',
     firstName: 'Lea',
     lastName: 'Santos',

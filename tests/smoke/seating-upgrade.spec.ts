@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { GATHERING_ID, expect, signIn, stubApi, test } from './helpers'
-import { BLANK_PNG, openWorkspace } from './seating-fixtures'
+import { BLANK_PNG, openGuestsPage } from './seating-fixtures'
 
 const UPGRADE_PATH = `/user/seating-upgrade/${GATHERING_ID}`
 const API = `/gatherings/${GATHERING_ID}`
@@ -100,10 +100,10 @@ test('the largest plan says so, and a cancelled checkout reassures the host', as
   await expect(page.getByText("You weren't charged")).toBeVisible()
 })
 
-test('the workspace links to the upgrade page, more prominently once the list is full', async ({ page }) => {
-  await openWorkspace(page, { guests: Array.from({ length: 10 }, (_, index) => ({ _id: `g${index}`, email: `g${index}@example.com` })) })
-  await expect(page.getByRole('link', { name: 'Upgrade Plan' })).toHaveAttribute('href', UPGRADE_PATH)
-  await expect(page.getByText('Your guest list is full.')).toBeVisible()
+test('the guest list links to the upgrade page, more prominently once the list is full', async ({ page }) => {
+  await openGuestsPage(page, { guests: Array.from({ length: 10 }, (_, index) => ({ _id: `g${index}`, email: `g${index}@example.com` })) })
+  await expect(page.getByRole('link', { name: 'Upgrade Plan' }).first()).toHaveAttribute('href', `/user/jam-upgrade/${GATHERING_ID}`)
+  await expect(page.getByText("Guest list full").first()).toBeVisible()
 })
 
 test('returning from PayMongo with payment_id confirms the payment', async ({ page }) => {
@@ -124,5 +124,5 @@ test('returning from PayMongo with payment_id confirms the payment', async ({ pa
   await page.goto(`/user/seating-payment/success?payment_id=pay1&gatheringId=${GATHERING_ID}&upgrade=1`)
 
   await expect(page.getByRole('heading', { name: 'Your plan is upgraded' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Open seating plan' })).toHaveAttribute('href', `/seating/${GATHERING_ID}`)
+  await expect(page.getByRole('link', { name: 'Open seating plan' })).toHaveAttribute('href', `/jam/dashboard/${GATHERING_ID}`)
 })

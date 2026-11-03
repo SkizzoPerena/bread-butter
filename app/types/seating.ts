@@ -101,6 +101,10 @@ export interface GatheringRecord {
   openInvite?: { enabled: boolean, token: string | null }
   questions?: EventQuestion[]
   seatSelectionLocked?: boolean
+  /** How many companions each guest can bring. 0 turns companions off. */
+  maxCompanionsPerGuest?: number
+  /** Raised by every seat change, so a page can tell its view is out of date. */
+  seatVersion?: number
   guestCount: number
   attendingCount: number
   checkedInCount: number
@@ -129,7 +133,10 @@ export interface SeatingGuestRecord {
   firstName?: string
   lastName?: string
   isBulkInvite?: boolean
-  email: string
+  /** The guest who brought this companion, whose reply they follow. */
+  companionOf?: string | null
+  /** Missing for a companion, who gets their pass from the guest who brought them. */
+  email?: string
   partyName: string
   rsvpStatus: RsvpStatus
   answers?: RsvpAnswer[]
@@ -178,6 +185,49 @@ export interface JamInviteUnlocked {
   answers?: RsvpAnswer[]
   rsvpStatus?: RsvpStatus
   needsName?: boolean
+  maxCompanions?: number
+}
+
+export interface JamCompanion {
+  _id: string
+  firstName: string
+  lastName: string
+  name: string
+  /** The name is still a placeholder such as "Skizzo's companion 1". */
+  namePending: boolean
+  tableId: string | null
+  tableLabel: string | null
+  seatNumber: number | null
+  checkedInAt: string | null
+  attendPath: string
+}
+
+export interface JamCompanionRow {
+  _id?: string
+  firstName?: string
+  lastName?: string
+}
+
+export interface JamCompanionList {
+  message?: string
+  maxCompanions: number
+  companions: JamCompanion[]
+}
+
+export interface SeatMoveTarget {
+  /** Null takes the guest off their seat. */
+  tableId: string | null
+  /** Leave out to take the table's lowest open seat. */
+  seatNumber?: number
+  /** Who the page thinks holds the seat, so a seat that just changed isn't overwritten. */
+  expectedGuestId?: string | null
+}
+
+export interface SeatMoveResult {
+  message: string
+  guest: SeatingGuestRecord
+  swappedGuest: SeatingGuestRecord | null
+  seatVersion?: number
 }
 
 export interface JamOpenInvitation {
@@ -246,14 +296,17 @@ export interface JamRsvpResult {
   attendPath?: string
 }
 
-export type JamSeatStatus = 'OPEN' | 'TAKEN' | 'UNAVAILABLE' | 'YOURS'
+export type JamSeatStatus = 'OPEN' | 'TAKEN' | 'UNAVAILABLE' | 'YOURS' | 'COMPANION'
+
+export type JamChosenSeat = { tableId: string, tableLabel: string, seatNumber: number }
 
 export interface JamSeatMap {
   gatheringName: string
   locked: boolean
   message?: string
-  seat: { tableId: string, tableLabel: string, seatNumber: number } | null
-  tables: { _id: string, label: string, seats: { number: number, status: JamSeatStatus }[] }[]
+  seat: JamChosenSeat | null
+  companions?: { _id: string, name: string, seat: JamChosenSeat | null }[]
+  tables: { _id: string, label: string, seats: { number: number, status: JamSeatStatus, companionId?: string }[] }[]
 }
 
 export interface PublicSeatDetail {
@@ -266,6 +319,10 @@ export interface PublicSeatDetail {
   seatNumber: number | null
   seated: boolean
   checkedInAt: string | null
+  /** A companion's pass only shows their seat. Replies and seats go through their guest. */
+  isCompanion?: boolean
+  /** Only on a guest's own pass. Each has a link to their pass, which the guest can share. */
+  companions?: JamCompanion[]
 }
 
 export interface CheckInResult {
@@ -276,6 +333,7 @@ export interface CheckInResult {
   seatNumber: number | null
   checkedInAt: string | null
   attendanceToken: string
+  companions?: { id: string, name: string, checkedInAt: string | null }[]
 }
 
 export function guestNeedsName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName'>): boolean {
@@ -283,5 +341,5 @@ export function guestNeedsName(guest: Pick<SeatingGuestRecord, 'firstName' | 'la
 }
 
 export function guestDisplayName(guest: Pick<SeatingGuestRecord, 'firstName' | 'lastName' | 'email'>): string {
-  return `${guest.firstName ?? ''} ${guest.lastName ?? ''}`.trim() || guest.email
+  return `${guest.firstName ?? ''} ${guest.lastName ?? ''}`.trim() || guest.email || 'Guest'
 }

@@ -1,5 +1,5 @@
 import { GATHERING_ID, PASS_TOKEN, expect, stubApi, test } from './helpers'
-import { openWorkspace } from './seating-fixtures'
+import { openInvitationPage } from './seating-fixtures'
 
 const OPEN_TOKEN = PASS_TOKEN
 const GUEST_TOKEN = 'f'.repeat(48)
@@ -117,9 +117,9 @@ test('a full plan explains itself, and a link that is off says so', async ({ pag
   await expect(page.getByLabel('First name')).toHaveCount(0)
 })
 
-test('a host turns the link on, copies it, and can replace it', async ({ page }) => {
+test('a host turns the link on, sees it, and can replace it', async ({ page }) => {
   let state = { enabled: false, token: null as string | null }
-  const calls = await openWorkspace(page, {
+  const calls = await openInvitationPage(page, {
     routes: {
       [`GET /gatherings/${GATHERING_ID}`]: route => route.fulfill({
         json: { success: true, status: 200, gathering: { _id: GATHERING_ID, status: 'ACTIVE', tables: [], maxGuests: 10, openInvite: state } },
@@ -136,16 +136,16 @@ test('a host turns the link on, copies it, and can replace it', async ({ page })
       },
     },
   })
-  await page.getByRole('button', { name: 'Invitation & Passcode' }).click()
+  await page.getByRole('button', { name: 'Next Step' }).click()
 
-  await page.getByRole('button', { name: 'Turn On Open Invite' }).click()
+  await page.getByRole('switch', { name: 'Open Registration' }).click()
   await expect(page.getByTestId('open-invite-link')).toContainText(`/jam/open/${OPEN_TOKEN}`)
 
   page.on('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Replace Link' }).click()
   await expect(page.getByTestId('open-invite-link')).toContainText(`/jam/open/${'b'.repeat(48)}`)
 
-  await page.getByRole('button', { name: 'Turn Off Open Invite' }).click()
+  await page.getByRole('switch', { name: 'Open Registration' }).click()
   await expect(page.getByTestId('open-invite-link')).toHaveCount(0)
   expect(calls.filter(call => call.url.endsWith('/open-invite')).map(call => call.body)).toEqual([
     { enabled: true },

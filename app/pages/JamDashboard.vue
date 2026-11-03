@@ -928,7 +928,7 @@ function downloadGuests() {
         <div class="p-4 sm:p-5">
           <JamBulkInvite
             :gathering-id="gatheringId"
-            @sent="isBulkInviteModalOpen = false; load()"
+            @sent="load()"
           />
         </div>
       </template>

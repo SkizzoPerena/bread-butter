@@ -127,6 +127,30 @@ async function resend(guest: SeatingGuestRecord) {
   }
 }
 
+const companionsLeftToCheckIn = computed(() => (
+  lastScannedGuest.value?.companions?.filter((companion) => !companion.checkedInAt) ?? []
+))
+
+async function checkInScannedCompanions() {
+  const guest = lastScannedGuest.value
+  if (!guest) return
+  const waiting = companionsLeftToCheckIn.value
+  try {
+    await Promise.all(waiting.map((companion) => seating.checkInGuest(gatheringId.value, companion.id)))
+    lastScannedGuest.value = {
+      ...guest,
+      companions: guest.companions?.map((companion) => ({
+        ...companion,
+        checkedInAt: companion.checkedInAt ?? new Date().toISOString(),
+      })),
+    }
+    toast.add({ title: `${waiting.length === 1 ? 'Companion' : `${waiting.length} companions`} checked in`, color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not check in companions', description: getApiErrorMessage(error), color: 'error' })
+  }
+  await load()
+}
+
 async function onScan(value: string) {
   const token = attendanceTokenFromScan(value)
   if (!token || token === lastScan.value) return
@@ -287,6 +311,15 @@ async function downloadGuests() {
                     {{ lastScannedGuest.tableLabel ? `${lastScannedGuest.tableLabel}, Seat ${lastScannedGuest.seatNumber}` : 'No seat yet' }}
                   </p>
                 </div>
+                <UButton
+                  v-if="companionsLeftToCheckIn.length"
+                  size="xs"
+                  color="primary"
+                  variant="solid"
+                  class="shrink-0 cursor-pointer"
+                  :label="`Check in ${companionsLeftToCheckIn.length} ${companionsLeftToCheckIn.length === 1 ? 'companion' : 'companions'} too`"
+                  @click="checkInScannedCompanions"
+                />
               </div>
               <div v-else class="text-[11px] text-muted italic">
                 Camera is ready for arrival passes.
@@ -480,7 +513,7 @@ async function downloadGuests() {
                       </div>
                       <p class="text-xs text-muted truncate">
                         {{ tableFor(guest)?.label || 'Unassigned table' }}<span v-if="guest.seatNumber">, Seat {{ guest.seatNumber }}</span>
-                        · {{ guest.email }}
+                        <template v-if="guest.email"> · {{ guest.email }}</template>
                       </p>
                     </div>
                   </div>
@@ -494,6 +527,7 @@ async function downloadGuests() {
                       @click="checkIn(guest)"
                     />
                     <UButton
+                      v-if="guest.email"
                       size="xs"
                       color="neutral"
                       variant="soft"

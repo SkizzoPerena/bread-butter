@@ -31,6 +31,7 @@ const form = reactive({
   eventDate: '',
   passcode: '',
   seatSelectionLocked: false,
+  maxCompanionsPerGuest: 0,
 })
 
 const emailCreditsRemaining = computed(() => {
@@ -57,6 +58,7 @@ async function load() {
     form.eventDate = gatheringData.eventDate ? gatheringData.eventDate.slice(0, 10) : ''
     form.passcode = gatheringData.passcode || ''
     form.seatSelectionLocked = Boolean(gatheringData.seatSelectionLocked)
+    form.maxCompanionsPerGuest = gatheringData.maxCompanionsPerGuest ?? 0
 
     setActiveEvent({
       _id: gatheringData._id,
@@ -97,8 +99,9 @@ async function saveAllSettings() {
 
     // 2. Save passcode & seat selection lock
     const updated = await seating.saveInvitation(gatheringId.value, {
-      passcode: form.passcode.trim() || undefined,
+      passcode: form.passcode.trim(),
       seatSelectionLocked: form.seatSelectionLocked,
+      maxCompanionsPerGuest: form.maxCompanionsPerGuest,
     })
 
     gathering.value = updated
@@ -301,6 +304,36 @@ async function saveAllSettings() {
                 When locked, guests cannot pick or change their own seats from their personal passes; only the host can arrange seats.
               </span>
             </label>
+          </div>
+
+          <div class="flex items-center justify-between gap-3 pt-2 border-t border-bread-200/60">
+            <div class="text-xs text-toast-900">
+              <strong class="block font-semibold">Companions each guest can bring</strong>
+              <span class="text-muted block text-[11px]">
+                Guests who reply that they're coming can add this many companions, who count toward your guest limit. Set to 0 to turn this off.
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5 bg-white border border-toast-300/80 rounded-lg p-0.5 shadow-2xs shrink-0">
+              <button
+                type="button"
+                aria-label="Allow fewer companions"
+                class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                :disabled="form.maxCompanionsPerGuest <= 0"
+                @click="form.maxCompanionsPerGuest -= 1"
+              >
+                -
+              </button>
+              <span data-testid="max-companions" class="w-6 text-center font-bold font-mono text-xs text-toast-900">{{ form.maxCompanionsPerGuest }}</span>
+              <button
+                type="button"
+                aria-label="Allow more companions"
+                class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                :disabled="form.maxCompanionsPerGuest >= 10"
+                @click="form.maxCompanionsPerGuest += 1"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           <div class="flex justify-end pt-3 border-t border-bread-200/60">
