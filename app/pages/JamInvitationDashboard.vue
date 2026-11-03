@@ -145,6 +145,7 @@ async function load() {
       bannerImageUrl.value = d.bannerImageUrl || ''
       if (d.paletteName) customPaletteName.value = d.paletteName
       if (d.typographyName) customTypographyName.value = d.typographyName
+      customAccentColor.value = d.accentColor || resolvePalette(customPaletteName.value).colors.secondary
     }
 
     isPublished.value = Boolean(
@@ -244,6 +245,17 @@ async function removeImage() {
   }
 }
 
+function choosePalette(name: string) {
+  customPaletteName.value = name
+  customAccentColor.value = resolvePalette(name).colors.secondary
+}
+
+// The palette's own accent is saved as none, so guests see the palette as it is.
+function savedAccentColor(): string {
+  const paletteAccent = resolvePalette(customPaletteName.value).colors.secondary
+  return customAccentColor.value.toLowerCase() === paletteAccent.toLowerCase() ? '' : customAccentColor.value
+}
+
 async function saveInvitation() {
   if (!gatheringId.value) return
   isSaving.value = true
@@ -262,6 +274,7 @@ async function saveInvitation() {
         deadlineText: rsvpData.deadlineText.trim() || undefined,
         paletteName: customPaletteName.value,
         typographyName: customTypographyName.value,
+        accentColor: savedAccentColor(),
       },
     })
     gathering.value = updated
@@ -694,7 +707,7 @@ async function replaceOpenInvite() {
                       :class="customPaletteName === palette.name
                         ? 'border-violet-500 bg-violet-50/60 ring-2 ring-violet-500/20'
                         : 'border-stone-200 bg-white hover:border-stone-300'"
-                      @click="customPaletteName = palette.name"
+                      @click="choosePalette(palette.name)"
                     >
                       <span class="text-xs font-semibold text-stone-900 block truncate">{{ palette.name }}</span>
                       <div class="flex items-center gap-1 mt-1.5">

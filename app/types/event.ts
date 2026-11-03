@@ -64,6 +64,8 @@ export interface GuestRecord {
   email: string
   roles?: { _id: string; name: string }[]
   tableCode?: string | null
+  /** The guest who brought this companion. A companion follows their reply and gets no invite. */
+  companionOf?: string | null
   rsvp?: GuestRsvpSnapshot | null
 }
 
