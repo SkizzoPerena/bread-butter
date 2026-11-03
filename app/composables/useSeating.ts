@@ -137,6 +137,7 @@ export function useSeating() {
   async function createGathering(body: {
     packageId: string
     name: string
+    eventType?: string
     venue: string
     eventDate: string
   }): Promise<GatheringRecord> {
@@ -146,6 +147,7 @@ export function useSeating() {
       const gathering: GatheringRecord = {
         _id: `mock-gathering-${Date.now()}`,
         name: body.name,
+        eventType: body.eventType || 'GENERAL_CELEBRATIONS',
         venue: body.venue,
         eventDate: body.eventDate,
         status: 'PENDING_PAYMENT',
@@ -208,6 +210,7 @@ export function useSeating() {
   async function submitDraftProof(details: {
     packageId: string
     name: string
+    eventType?: string
     venue: string
     eventDate: string
   }, payload: {
@@ -230,6 +233,7 @@ export function useSeating() {
     const form = new FormData()
     form.append('packageId', details.packageId)
     form.append('name', details.name)
+    if (details.eventType) form.append('eventType', details.eventType)
     form.append('venue', details.venue)
     form.append('eventDate', details.eventDate)
     form.append('transactionId', payload.transactionId)
@@ -594,6 +598,7 @@ export function useSeating() {
   async function updateGathering(gatheringId: string, body: {
     packageId?: string
     name?: string
+    eventType?: string
     venue?: string
     eventDate?: string
   }): Promise<GatheringRecord> {
@@ -609,6 +614,7 @@ export function useSeating() {
         gathering.maxGuests = jamPackage.maxGuests
       }
       if (body.name !== undefined) gathering.name = body.name
+      if (body.eventType !== undefined) gathering.eventType = body.eventType
       if (body.venue !== undefined) gathering.venue = body.venue
       if (body.eventDate !== undefined) gathering.eventDate = body.eventDate
       return gathering
@@ -627,6 +633,8 @@ export function useSeating() {
     seatSelectionLocked?: boolean
     questions?: EventQuestion[]
     invitationDesign?: JamInvitationDesign
+    venue?: string
+    eventDate?: string
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)

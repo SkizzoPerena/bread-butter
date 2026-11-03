@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { GatheringRecord, JamUpgradeOptions } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
+import { EVENT_TYPE_OPTIONS } from '~/types/event'
 
 definePageMeta({
   layout: 'jam-sub-navbar',
@@ -13,6 +14,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -24,6 +26,7 @@ const saving = ref(false)
 
 const form = reactive({
   name: '',
+  eventType: 'WEDDING',
   venue: '',
   eventDate: '',
   passcode: '',
@@ -49,6 +52,7 @@ async function load() {
     upgradeOptions.value = upgradeData
 
     form.name = gatheringData.name || ''
+    form.eventType = gatheringData.eventType || 'WEDDING'
     form.venue = gatheringData.venue || ''
     form.eventDate = gatheringData.eventDate ? gatheringData.eventDate.slice(0, 10) : ''
     form.passcode = gatheringData.passcode || ''
@@ -68,6 +72,7 @@ async function load() {
     toast.add({ title: 'Could not load settings', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -85,6 +90,7 @@ async function saveAllSettings() {
     // 1. Update gathering details
     await seating.updateGathering(gatheringId.value, {
       name: form.name.trim(),
+      eventType: form.eventType,
       venue: form.venue.trim(),
       eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : undefined,
     }).catch(() => {})
@@ -113,12 +119,12 @@ async function saveAllSettings() {
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
           <UButton
-            :to="`/user/jam-upgrade/${gatheringId}`"
             color="primary"
             variant="solid"
             size="xs"
             icon="i-lucide-sparkles"
             class="cursor-pointer"
+            @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
           >
             Upgrade Plan
           </UButton>
@@ -176,12 +182,12 @@ async function saveAllSettings() {
           </div>
 
           <UButton
-            :to="`/user/jam-upgrade/${gatheringId}`"
             color="primary"
             variant="solid"
             size="sm"
             icon="i-lucide-arrow-up-circle"
             class="cursor-pointer"
+            @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
           >
             Upgrade Plan & Credits
           </UButton>
@@ -229,13 +235,15 @@ async function saveAllSettings() {
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Venue / Location</label>
-              <input
-                v-model="form.venue"
-                type="text"
-                placeholder="e.g. The Grand Ballroom, Manila"
+              <label class="block text-xs font-semibold text-toast-900 mb-1">Event Type</label>
+              <select
+                v-model="form.eventType"
                 class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
-              />
+              >
+                <option v-for="opt in EVENT_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
             </div>
             <div>
               <label class="block text-xs font-semibold text-toast-900 mb-1">Event Date</label>
@@ -245,6 +253,16 @@ async function saveAllSettings() {
                 class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
               />
             </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-toast-900 mb-1">Venue / Location</label>
+            <input
+              v-model="form.venue"
+              type="text"
+              placeholder="e.g. The Grand Ballroom, Manila"
+              class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+            />
           </div>
         </div>
       </div>

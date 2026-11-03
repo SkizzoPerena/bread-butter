@@ -2,7 +2,7 @@
 import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 import type { EventRecord } from '~/types/event'
 import type { GatheringRecord } from '~/types/seating'
-import { formatEventPriceTier } from '~/types/event'
+import { formatEventPriceTier, mapApiToEventTypeLabel } from '~/types/event'
 import { getEventBalanceDue, isEventFullyPaid, isTierUpgradePending, getPendingUpgradeStatusLabel } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { useAuth } from '~/composables/useAuth'
@@ -317,6 +317,13 @@ function handleEventAction(event: EventRecord) {
   startPageTransition(action.to)
 }
 
+function handleOpenJam(plan: GatheringRecord) {
+  const target = plan.status === 'ACTIVE'
+    ? `/jam/dashboard/${plan._id}`
+    : { path: '/user/seating-payment', query: { gatheringId: plan._id } }
+  startPageTransition(target)
+}
+
 onMounted(() => {
   loadSeatingFeature()
   loadUserEvents()
@@ -388,6 +395,14 @@ onMounted(() => {
                 class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden transition-all duration-200 border-5 border-toast-500 text-white group">
                 <div>
                   <div class="aspect-[3/2] w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
+                    <!-- Package tier badge on upper right of image -->
+                    <div class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
+                      <UBadge color="neutral" variant="solid" size="xs"
+                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-toast-900/80 backdrop-blur-xs text-white shadow-xs border border-white/20">
+                        {{ formatEventPriceTier(event) }}
+                      </UBadge>
+                    </div>
+
                     <!-- If event has a custom cover image -->
                     <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
                       class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
@@ -428,10 +443,10 @@ onMounted(() => {
                           </div>
                         </UTooltip>
 
-                        <!-- Package tier badge -->
+                        <!-- Event type badge -->
                         <UBadge color="bread" variant="subtle" size="xs"
-                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs truncate max-w-37.5">
-                          {{ formatEventPriceTier(event) }}
+                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold truncate max-w-37.5">
+                          {{ mapApiToEventTypeLabel(event.eventType || 'GENERAL_CELEBRATIONS') }}
                         </UBadge>
                       </div>
                     </div>
@@ -478,6 +493,14 @@ onMounted(() => {
                 class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden border-5 border-toast-500 text-white group">
                 <div>
                   <div class="aspect-[3/2] w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
+                    <!-- Package tier badge on upper right of image -->
+                    <div class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
+                      <UBadge color="neutral" variant="solid" size="xs"
+                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-toast-900/80 backdrop-blur-xs text-white shadow-xs border border-white/20">
+                        {{ formatEventPriceTier(event) }}
+                      </UBadge>
+                    </div>
+
                     <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
                       class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                       @error="() => onCoverImageError(event)" />
@@ -515,10 +538,10 @@ onMounted(() => {
                           </div>
                         </UTooltip>
 
-                        <!-- Package tier badge -->
+                        <!-- Event type badge -->
                         <UBadge color="bread" variant="subtle" size="xs"
-                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs truncate max-w-37.5">
-                          {{ formatEventPriceTier(event) }}
+                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold truncate max-w-37.5">
+                          {{ mapApiToEventTypeLabel(event.eventType || 'GENERAL_CELEBRATIONS') }}
                         </UBadge>
                       </div>
                     </div>
@@ -587,7 +610,8 @@ onMounted(() => {
 
             <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
               <div v-for="plan in seatingPlans" :key="plan._id"
-                class="bg-toast-500 rounded-xl p-3.5 sm:p-4 space-y-2.5 flex flex-col justify-between border-5 border-toast-500 text-white group">
+                class="bg-toast-500 rounded-xl p-3.5 sm:p-4 space-y-2.5 flex flex-col justify-between border-5 border-toast-500 text-white group cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+                @click="handleOpenJam(plan)">
                 <div class="space-y-2">
                   <!-- Row 1: Plan Name, Hazard alert (if unpaid), and Plan Type badge -->
                   <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
@@ -607,10 +631,10 @@ onMounted(() => {
                         </div>
                       </UTooltip>
 
-                      <!-- Plan package badge -->
+                      <!-- Event type badge -->
                       <UBadge color="bread" variant="subtle" size="xs"
-                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold">
-                        {{ plan.packageName }}
+                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold shrink-0">
+                        {{ mapApiToEventTypeLabel(plan.eventType || 'GENERAL_CELEBRATIONS') }}
                       </UBadge>
                     </div>
                   </div>
@@ -635,9 +659,8 @@ onMounted(() => {
                 <div class="pt-2">
                   <UButton block size="sm" :color="plan.status === 'ACTIVE' ? 'bread' : 'neutral'" variant="solid"
                     :icon="plan.status === 'ACTIVE' ? 'i-lucide-arrow-right' : 'i-lucide-credit-card'" trailing
-                    class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold" :to="plan.status === 'ACTIVE'
-                      ? `/jam/dashboard/${plan._id}`
-                      : { path: '/user/seating-payment', query: { gatheringId: plan._id } }">
+                    class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
+                    @click.stop="handleOpenJam(plan)">
                     {{ plan.status === 'ACTIVE' ? 'Open Jam' : 'Complete Payment' }}
                   </UButton>
                 </div>

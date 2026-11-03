@@ -68,6 +68,7 @@ const toast = useToast()
 const route = useRoute()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -254,6 +255,7 @@ async function loadData() {
     toast.add({ title: 'Could not load RSVP data', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     isLoadingEvent.value = false
+    finishPageTransition()
   }
 }
 

@@ -19,6 +19,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -314,6 +315,7 @@ async function load() {
     toast.add({ title: 'Could not load guest list', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -574,12 +576,12 @@ function getTableLabel(tableId: string | null): string {
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
           <UButton
-            :to="`/jam/rsvps/${gatheringId}`"
             icon="i-lucide-calendar"
             color="neutral"
             variant="ghost"
             size="sm"
             class="cursor-pointer font-sans"
+            @click.prevent="startPageTransition(`/jam/rsvps/${gatheringId}`)"
           >
             RSVP Manager
           </UButton>
@@ -738,12 +740,13 @@ function getTableLabel(tableId: string | null): string {
             <div class="bg-toast-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-toast-700 font-sans">Email Credits</span>
-                <NuxtLink
-                  :to="`/user/jam-upgrade/${gatheringId}`"
-                  class="text-[10px] text-orange-600 hover:text-orange-700 font-semibold underline"
+                <button
+                  type="button"
+                  class="text-[10px] text-orange-600 hover:text-orange-700 font-semibold underline cursor-pointer"
+                  @click="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
                 >
                   Upgrade
-                </NuxtLink>
+                </button>
               </div>
               <span class="text-lg sm:text-xl font-bold font-serif text-highlighted tracking-tight mt-1">
                 {{ emailCreditsRemaining }}
@@ -861,11 +864,12 @@ function getTableLabel(tableId: string | null): string {
         >
           <template #actions>
             <UButton
-              :to="`/user/jam-upgrade/${gatheringId}`"
               color="warning"
               variant="soft"
               size="xs"
               icon="i-lucide-arrow-up-circle"
+              class="cursor-pointer"
+              @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
             >
               Upgrade Plan
             </UButton>
@@ -1190,11 +1194,11 @@ function getTableLabel(tableId: string | null): string {
               Set up tables in the Tables & Seats manager to arrange guest seating.
             </p>
             <UButton
-              :to="`/jam/tables/${gatheringId}`"
               icon="i-lucide-layout-grid"
               color="orange"
               size="xs"
-              class="mt-3"
+              class="mt-3 cursor-pointer"
+              @click.prevent="startPageTransition(`/jam/tables/${gatheringId}`)"
             >
               Open Tables & Seats
             </UButton>

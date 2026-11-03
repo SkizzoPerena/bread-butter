@@ -39,7 +39,21 @@ export interface JamInvitationDesign {
   deadlineText?: string
   paletteName?: string
   typographyName?: string
+  accentColor?: string
   bannerImageUrl?: string
+  templateId?: string
+  headerLabel?: string
+  hostName?: string
+  primaryName?: string
+  scheduleType?: 'single' | 'dual'
+  ceremonyTitle?: string
+  ceremonyTime?: string
+  ceremonyVenue?: string
+  receptionTitle?: string
+  receptionTime?: string
+  receptionVenue?: string
+  celebrationTitle?: string
+  ctaText?: string
 }
 
 export interface SeatingUpgradeSnapshot {
@@ -69,6 +83,7 @@ export interface SeatingPaymentRecord {
 export interface GatheringRecord {
   _id: string
   name: string
+  eventType?: string
   venue: string
   eventDate: string
   status: GatheringStatus

@@ -14,6 +14,7 @@ const SYSTEM_DENIALS = ['Replaced by a newer upgrade request.', 'The checkout ex
 const route = useRoute()
 const toast = useToast()
 const { isPaymongoActivated } = usePaymongoActivation()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const { getUpgradeOptions, listGatheringPayments, submitUpgradeProof, createUpgradeCheckout } = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -49,6 +50,7 @@ async function load() {
     toast.add({ title: 'Could not load upgrades', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -86,7 +88,7 @@ async function payWithCheckout() {
     if (checkout.alreadyPaid) {
       forgetIdempotencyKey(selected.value._id)
       toast.add({ title: 'Your plan is upgraded', color: 'success' })
-      await navigateTo(workspacePath.value)
+      await startPageTransition(workspacePath.value)
       return
     }
     if (checkout.checkoutUrl) {
@@ -141,9 +143,9 @@ async function payWithProof() {
       >
         Upgrades aren't available for this plan.
         <UButton
-          :to="workspacePath"
           variant="outline"
-          class="mt-3"
+          class="mt-3 cursor-pointer"
+          @click.prevent="startPageTransition(workspacePath)"
         >
           Back to Jam dashboard
         </UButton>
@@ -256,9 +258,9 @@ async function payWithProof() {
         </template>
 
         <UButton
-          :to="workspacePath"
           variant="ghost"
-          class="text-white"
+          class="text-white cursor-pointer"
+          @click.prevent="startPageTransition(workspacePath)"
         >
           Back to Jam dashboard
         </UButton>

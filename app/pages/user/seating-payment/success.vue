@@ -7,6 +7,7 @@ useHead({ title: 'Seating payment received - Bread + Butter' })
 const route = useRoute()
 const { getCheckoutStatus, getGathering } = useSeating()
 const { isUiOnlyMode } = useApiMode()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const status = ref<'loading' | 'approved' | 'processing' | 'error'>('loading')
 const gatheringName = ref('')
@@ -35,6 +36,8 @@ onMounted(async () => {
   } catch (error) {
     status.value = 'error'
     useToast().add({ title: 'Could not confirm payment', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    finishPageTransition()
   }
 })
 </script>
@@ -59,14 +62,16 @@ onMounted(async () => {
         </p>
         <UButton
           v-if="(status === 'approved' || isUpgrade) && gatheringId"
-          :to="`/jam/dashboard/${gatheringId}`"
+          class="cursor-pointer"
+          @click="startPageTransition(`/jam/dashboard/${gatheringId}`)"
         >
           Open seating plan
         </UButton>
         <UButton
           v-else
-          to="/"
           variant="outline"
+          class="cursor-pointer"
+          @click="startPageTransition('/')"
         >
           Back home
         </UButton>

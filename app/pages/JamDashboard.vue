@@ -10,6 +10,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -194,27 +195,27 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
 
 function onQuickNavItemClick(item: QuickNavItem) {
   if (item.id === 'guests') {
-    navigateTo(`/jam/guests/${gatheringId.value}`)
+    startPageTransition(`/jam/guests/${gatheringId.value}`)
     return
   }
   if (item.id === 'invite') {
-    navigateTo(`/jam/invitation/${gatheringId.value}`)
+    startPageTransition(`/jam/invitation/${gatheringId.value}`)
     return
   }
   if (item.id === 'rsvp') {
-    navigateTo(`/jam/rsvps/${gatheringId.value}`)
+    startPageTransition(`/jam/rsvps/${gatheringId.value}`)
     return
   }
   if (item.id === 'tables') {
-    navigateTo(`/jam/tables/${gatheringId.value}`)
+    startPageTransition(`/jam/tables/${gatheringId.value}`)
     return
   }
   if (item.id === 'checkin') {
-    navigateTo(`/jam/checkin/${gatheringId.value}`)
+    startPageTransition(`/jam/checkin/${gatheringId.value}`)
     return
   }
   if (item.id === 'settings') {
-    navigateTo(`/jam/settings/${gatheringId.value}`)
+    startPageTransition(`/jam/settings/${gatheringId.value}`)
     return
   }
   if (item.id === 'view_pass') {
@@ -232,6 +233,7 @@ function onQuickNavItemClick(item: QuickNavItem) {
 async function load() {
   if (!gatheringId.value) {
     loading.value = false
+    finishPageTransition()
     return
   }
   loading.value = true
@@ -257,6 +259,7 @@ async function load() {
     toast.add({ title: 'Could not load seating plan', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -432,7 +435,7 @@ function downloadGuests() {
             icon="i-lucide-credit-card"
             variant="solid"
             class="bg-toast-800 hover:bg-toast-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm cursor-pointer"
-            :to="{ path: '/user/seating-payment', query: { gatheringId: gathering._id } }"
+            @click.prevent="startPageTransition({ path: '/user/seating-payment', query: { gatheringId: gathering._id } })"
           >
             Complete Payment Now
           </UButton>
@@ -504,7 +507,6 @@ function downloadGuests() {
                 </UButton>
               </div>
               <UButton
-                :to="`/jam/guests/${gatheringId}`"
                 color="toast"
                 variant="solid"
                 size="xs"
@@ -512,6 +514,7 @@ function downloadGuests() {
                 trailing
                 block
                 class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
+                @click.prevent="startPageTransition(`/jam/guests/${gatheringId}`)"
               >
                 Open Guest List
               </UButton>
@@ -547,24 +550,24 @@ function downloadGuests() {
                 </p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   <UButton
-                    :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
                     variant="solid"
                     size="xs"
                     icon="i-lucide-palette"
                     block
                     class="w-full bg-toast-800 hover:bg-toast-900 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
+                    @click.prevent="startPageTransition(`/jam/invitation/${gatheringId}`)"
                   >
                     Invitation Maker
                   </UButton>
                   <UButton
-                    :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
                     variant="soft"
                     size="xs"
                     icon="i-lucide-upload"
                     block
                     class="w-full bg-toast-100 hover:bg-toast-200 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
+                    @click.prevent="startPageTransition(`/jam/invitation/${gatheringId}`)"
                   >
                     Upload Invitation
                   </UButton>
@@ -596,13 +599,13 @@ function downloadGuests() {
             <div v-if="hasInvitation" class="pt-1.5 border-t border-bread-200/60">
               <div class="grid grid-cols-2 gap-1.5">
                 <UButton
-                  :to="`/jam/invitation/${gatheringId}`"
                   color="toast"
                   variant="soft"
                   size="xs"
                   icon="i-lucide-pencil"
                   block
                   class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
+                  @click.prevent="startPageTransition(`/jam/invitation/${gatheringId}`)"
                 >
                   Edit invitation
                 </UButton>
@@ -648,13 +651,13 @@ function downloadGuests() {
                   No tables or seat arrangements set up yet. Configure your venue layout to seat attending guests.
                 </p>
                 <UButton
-                  :to="`/jam/tables/${gatheringId}`"
                   color="toast"
                   variant="solid"
                   size="xs"
                   icon="i-lucide-plus"
                   block
                   class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
+                  @click.prevent="startPageTransition(`/jam/tables/${gatheringId}`)"
                 >
                   Setup tables and seats
                 </UButton>
@@ -689,7 +692,6 @@ function downloadGuests() {
             <!-- Action Button: High Contrast Toast -->
             <div v-if="hasTables" class="pt-1.5 border-t border-bread-200/60">
               <UButton
-                :to="`/jam/tables/${gatheringId}`"
                 color="toast"
                 variant="solid"
                 size="xs"
@@ -697,6 +699,7 @@ function downloadGuests() {
                 trailing
                 block
                 class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
+                @click.prevent="startPageTransition(`/jam/tables/${gatheringId}`)"
               >
                 Open table & seat manager
               </UButton>
@@ -777,24 +780,24 @@ function downloadGuests() {
             <div class="pt-1.5 border-t border-bread-200/60">
               <div class="grid grid-cols-2 gap-1.5">
                 <UButton
-                  :to="`/jam/settings/${gatheringId}`"
                   color="toast"
                   variant="solid"
                   size="xs"
                   icon="i-lucide-settings"
                   block
                   class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
+                  @click.prevent="startPageTransition(`/jam/settings/${gatheringId}`)"
                 >
                   Settings & Plan
                 </UButton>
                 <UButton
-                  :to="`/user/jam-upgrade/${gatheringId}`"
                   color="toast"
                   variant="soft"
                   size="xs"
                   icon="i-lucide-arrow-up-circle"
                   block
                   class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
+                  @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
                 >
                   Upgrade Plan
                 </UButton>

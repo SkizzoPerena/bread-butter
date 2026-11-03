@@ -12,6 +12,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -89,6 +90,7 @@ async function load() {
     toast.add({ title: 'Could not load gathering', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -179,7 +181,7 @@ async function downloadGuests() {
           size="sm"
           label="Back to Workspace"
           class="text-bread-200 hover:text-white cursor-pointer font-semibold -ml-2"
-          :to="`/jam/dashboard/${gatheringId}`"
+          @click="startPageTransition(`/jam/dashboard/${gatheringId}`)"
         />
       </div>
 

@@ -12,10 +12,10 @@ const gatheringId = computed(() => {
 })
 
 async function handleBack() {
-  await startPageTransition()
   if (gatheringId.value) {
-    navigateTo(`/jam/dashboard/${gatheringId.value}`)
+    await startPageTransition(`/jam/dashboard/${gatheringId.value}`)
   } else {
+    await startPageTransition()
     router.back()
   }
 }

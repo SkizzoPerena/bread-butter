@@ -13,6 +13,7 @@ definePageMeta({
 const route = useRoute()
 const toast = useToast()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -115,6 +116,7 @@ async function load() {
     })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 

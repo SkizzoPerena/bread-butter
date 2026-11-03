@@ -11,12 +11,14 @@ useHead({ title: 'Seating payment - Bread + Butter' })
 const route = useRoute()
 const toast = useToast()
 const { isPaymongoActivated } = usePaymongoActivation()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const { getGathering, createGathering, submitProof, submitDraftProof, createCheckout, listPackages } = useSeating()
 
 const gatheringId = computed(() => String(route.query.gatheringId || ''))
 const draft = computed(() => ({
   packageId: String(route.query.packageId || ''),
   name: String(route.query.name || ''),
+  eventType: String(route.query.eventType || 'WEDDING'),
   venue: String(route.query.venue || ''),
   eventDate: String(route.query.eventDate || ''),
 }))
@@ -59,7 +61,7 @@ async function load() {
     if (gatheringId.value) {
       gathering.value = await getGathering(gatheringId.value)
       if (gathering.value.status === 'ACTIVE') {
-        await navigateTo(`/jam/dashboard/${gathering.value._id}`)
+        await startPageTransition(`/jam/dashboard/${gathering.value._id}`)
       }
       return
     }
@@ -69,6 +71,7 @@ async function load() {
     toast.add({ title: 'Could not load seating plan', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -90,11 +93,12 @@ async function payWithProof() {
     const result = await submitDraftProof({
       packageId: draft.value.packageId,
       name: draft.value.name,
+      eventType: draft.value.eventType,
       venue: draft.value.venue,
       eventDate: draft.value.eventDate,
     }, payload)
     toast.add({ title: 'Payment submitted', description: 'We will open the seating plan after it is approved.', color: 'success' })
-    await navigateTo({ path: '/user/seating-payment', query: { gatheringId: result.gatheringId } })
+    await startPageTransition({ path: '/user/seating-payment', query: { gatheringId: result.gatheringId } })
   } catch (error) {
     toast.add({ title: 'Could not submit payment', description: getApiErrorMessage(error), color: 'error' })
   } finally {
@@ -110,6 +114,7 @@ async function payWithCheckout() {
       gathering.value = await createGathering({
         packageId: draft.value.packageId,
         name: draft.value.name,
+        eventType: draft.value.eventType,
         venue: draft.value.venue,
         eventDate: draft.value.eventDate,
       })
@@ -121,7 +126,7 @@ async function payWithCheckout() {
       `/user/seating-payment?gatheringId=${gathering.value._id}&cancelled=1`,
     )
     if (checkout.alreadyPaid) {
-      await navigateTo(`/jam/dashboard/${gathering.value._id}`)
+      await startPageTransition(`/jam/dashboard/${gathering.value._id}`)
       return
     }
     if (checkout.checkoutUrl) {

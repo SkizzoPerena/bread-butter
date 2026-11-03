@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { JamPackageRecord } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
+import { EVENT_TYPE_OPTIONS } from '~/types/event'
 
 definePageMeta({ layout: 'signed-in-navbar' })
 useHead({ title: 'New seating plan - Bread + Butter' })
@@ -11,11 +12,15 @@ const route = useRoute()
 const toast = useToast()
 const { listPackages, getGathering, updateGathering } = useSeating()
 const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
+const { startPageTransition, finishPageTransition } = usePageTransition()
+
+const eventTypeOptions = EVENT_TYPE_OPTIONS
 
 const packages = ref<JamPackageRecord[]>([])
 const currentView = ref<ViewStep>('packages')
 const selectedId = ref('')
 const name = ref('')
+const eventType = ref('WEDDING')
 const venue = ref('')
 const eventDate = ref('')
 const loading = ref(true)
@@ -72,11 +77,13 @@ onMounted(async () => {
       const gathering = await getGathering(editingId.value)
       selectedId.value = String(gathering.jamPackage || '')
       name.value = gathering.name
+      eventType.value = gathering.eventType || 'WEDDING'
       venue.value = gathering.venue
       eventDate.value = toDateInput(gathering.eventDate)
     } else if (route.query.packageId) {
       selectedId.value = String(route.query.packageId)
       name.value = String(route.query.name || '')
+      eventType.value = String(route.query.eventType || 'WEDDING')
       venue.value = String(route.query.venue || '')
       eventDate.value = toDateInput(String(route.query.eventDate || ''))
     }
@@ -84,6 +91,7 @@ onMounted(async () => {
     toast.add({ title: 'Could not load packages', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 })
 
@@ -101,17 +109,18 @@ async function submit() {
   const details = {
     packageId: selected.value._id,
     name: name.value.trim(),
+    eventType: eventType.value,
     venue: venue.value.trim(),
     eventDate: eventDateIso,
   }
   if (!editingId.value) {
-    await navigateTo({ path: '/user/seating-payment', query: details })
+    await startPageTransition({ path: '/user/seating-payment', query: details })
     return
   }
   saving.value = true
   try {
     await updateGathering(editingId.value, details)
-    await navigateTo({ path: '/user/seating-payment', query: { gatheringId: editingId.value } })
+    await startPageTransition({ path: '/user/seating-payment', query: { gatheringId: editingId.value } })
   } catch (error) {
     toast.add({ title: 'Could not save seating plan', description: getApiErrorMessage(error), color: 'error' })
   } finally {
@@ -244,6 +253,30 @@ async function submit() {
                 class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
               />
             </UFormField>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <UFormField
+                label="Event Type"
+                required
+              >
+                <USelect
+                  v-model="eventType"
+                  :items="eventTypeOptions"
+                  size="lg"
+                  class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                />
+              </UFormField>
+              <UFormField
+                label="Date"
+                required
+              >
+                <UInput
+                  v-model="eventDate"
+                  type="date"
+                  size="lg"
+                  class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                />
+              </UFormField>
+            </div>
             <UFormField
               label="Venue"
               required
@@ -251,17 +284,6 @@ async function submit() {
               <UInput
                 v-model="venue"
                 placeholder="The garden hall"
-                size="lg"
-                class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
-              />
-            </UFormField>
-            <UFormField
-              label="Date"
-              required
-            >
-              <UInput
-                v-model="eventDate"
-                type="date"
                 size="lg"
                 class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
               />
