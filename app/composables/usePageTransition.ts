@@ -27,6 +27,18 @@ export function usePageTransition() {
     }
   }
 
+  /**
+   * For a link's click handler. A plain click shows the transition before navigating; a click
+   * that opens a new tab or window is left to the browser.
+   */
+  function followLink(event: MouseEvent, to: RouteLocationRaw) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return
+    }
+    event.preventDefault()
+    startPageTransition(to)
+  }
+
   function finishPageTransition(options?: { minDuration?: number }) {
     if (!isTransitionActive.value) return
 
@@ -48,6 +60,7 @@ export function usePageTransition() {
     isTransitionActive,
     isTransitionVisible,
     startPageTransition,
+    followLink,
     finishPageTransition,
   }
 }

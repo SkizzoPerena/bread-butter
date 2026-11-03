@@ -26,7 +26,7 @@ const { fetchUserEvents, updateEvent } = useEvents()
 const { listGatherings } = useSeating()
 const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { loadPageData, isUiOnlyMode } = useApiMode()
-const { startPageTransition, finishPageTransition } = usePageTransition()
+const { startPageTransition, followLink, finishPageTransition } = usePageTransition()
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -336,14 +336,14 @@ onMounted(() => {
       <!-- Navbar Teleport Actions -->
       <ClientOnly>
         <Teleport to="#navbar-actions">
-          <UButton v-if="activeTab === 'events'" icon="i-lucide-plus" color="bread"
+          <UButton :to="'/user/create-event'" v-if="activeTab === 'events'" icon="i-lucide-plus" color="bread"
             class="font-semibold rounded-lg shadow-xs cursor-pointer text-xs sm:text-sm"
-            @click.prevent="startPageTransition('/user/create-event')">
+            @click="followLink($event, '/user/create-event')">
             Create New Event
           </UButton>
-          <UButton v-else-if="seatingPlansEnabled" icon="i-lucide-layout-grid" color="bread"
+          <UButton :to="'/user/create-seating'" v-else-if="seatingPlansEnabled" icon="i-lucide-layout-grid" color="bread"
             class="font-semibold rounded-lg shadow-xs cursor-pointer text-xs sm:text-sm"
-            @click.prevent="startPageTransition('/user/create-seating')">
+            @click="followLink($event, '/user/create-seating')">
             Create New Jam
           </UButton>
         </Teleport>
@@ -584,9 +584,9 @@ onMounted(() => {
               </p>
             </div>
             <div class="pt-2">
-              <UButton color="primary" variant="solid" size="md"
+              <UButton :to="'/user/create-event'" color="primary" variant="solid" size="md"
                 class="font-semibold bg-toast-600 hover:bg-toast-700 text-white rounded-lg shadow-sm cursor-pointer"
-                icon="i-lucide-plus" @click.prevent="startPageTransition('/user/create-event')">
+                icon="i-lucide-plus" @click="followLink($event, '/user/create-event')">
                 Create Your First Event
               </UButton>
             </div>
@@ -681,9 +681,9 @@ onMounted(() => {
               </p>
             </div>
             <div class="pt-2">
-              <UButton color="primary" variant="solid" size="md"
+              <UButton :to="'/user/create-seating'" color="primary" variant="solid" size="md"
                 class="font-semibold bg-toast-600 hover:bg-toast-700 text-white rounded-lg shadow-sm cursor-pointer"
-                icon="i-lucide-plus" @click.prevent="startPageTransition('/user/create-seating')">
+                icon="i-lucide-plus" @click="followLink($event, '/user/create-seating')">
                 Create Your First Jam
               </UButton>
             </div>

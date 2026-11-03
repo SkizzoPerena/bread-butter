@@ -12,7 +12,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
-const { startPageTransition, finishPageTransition } = usePageTransition()
+const { followLink, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -199,13 +199,14 @@ async function downloadGuests() {
       <!-- Minimal Organizer Back Navigation -->
       <div class="flex items-center justify-between px-1">
         <UButton
+          :to="`/jam/dashboard/${gatheringId}`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
           size="sm"
           label="Back to Workspace"
           class="text-bread-200 hover:text-white cursor-pointer font-semibold -ml-2"
-          @click="startPageTransition(`/jam/dashboard/${gatheringId}`)"
+          @click="followLink($event, `/jam/dashboard/${gatheringId}`)"
         />
       </div>
 
