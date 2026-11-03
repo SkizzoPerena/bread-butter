@@ -46,6 +46,7 @@ export const addGuestSchema = z.object({
   mailingAddress: z.string().optional(),
   contactNumber: z.string().optional(),
   envelopeName: z.string().optional(),
+  pax: z.number().int().min(1).max(20).optional(),
 })
 
 export const editGuestSchema = z.object({
@@ -321,37 +322,21 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
         mailingAddress: payload.data.mailingAddress,
         contactNumber: payload.data.contactNumber,
         envelopeName: payload.data.envelopeName,
+        pax: payload.data.pax,
       })
 
-      guestList.value = appendGuestToList(guestList.value, response.guest)
-
-      const primaryFullName = `${payload.data.firstName.trim()} ${payload.data.lastName.trim()}`.trim()
-      const paxCount = payload.data.pax || 1
-      if (paxCount > 1) {
-        const [emailUser, emailDomain] = payload.data.email.trim().toLowerCase().split('@')
-        for (let n = 1; n < paxCount; n++) {
-          const companionEmail = emailDomain
-            ? `${emailUser}+companion${n}@${emailDomain}`
-            : `${emailUser}-companion${n}@guest.local`
-          try {
-            const compRes = await createGuest(targetEventId, {
-              firstName: `${primaryFullName}'s companion`,
-              lastName: `${n}`,
-              email: companionEmail,
-              mailingAddress: payload.data.mailingAddress,
-              contactNumber: payload.data.contactNumber,
-              envelopeName: `${primaryFullName}'s companion ${n}`,
-            })
-            guestList.value = appendGuestToList(guestList.value, compRes.guest)
-          } catch (e) {
-            console.error('Failed to create companion', e)
-          }
-        }
+      // The server adds the companions a guest brings and returns them with the guest.
+      const companions = response.companions ?? []
+      for (const guest of [response.guest, ...companions]) {
+        guestList.value = appendGuestToList(guestList.value, guest)
       }
 
+      const primaryFullName = `${payload.data.firstName.trim()} ${payload.data.lastName.trim()}`.trim()
       toast.add({
         title: 'Guest registered',
-        description: paxCount > 1 ? `Added ${primaryFullName} + ${paxCount - 1} companion(s) (${paxCount} pax total).` : response.message,
+        description: companions.length
+          ? `Added ${primaryFullName} + ${companions.length} companion(s) (${companions.length + 1} pax total).`
+          : response.message,
       })
       isAddGuestModalOpen.value = false
       resetAddGuestForm()
