@@ -14,7 +14,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
-const { startPageTransition, finishPageTransition } = usePageTransition()
+const { followLink, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -122,12 +122,13 @@ async function saveAllSettings() {
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
           <UButton
+            :to="`/user/jam-upgrade/${gatheringId}`"
             color="primary"
             variant="solid"
             size="xs"
             icon="i-lucide-sparkles"
             class="cursor-pointer"
-            @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
+            @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
           >
             Upgrade Plan
           </UButton>
@@ -185,12 +186,13 @@ async function saveAllSettings() {
           </div>
 
           <UButton
+            :to="`/user/jam-upgrade/${gatheringId}`"
             color="primary"
             variant="solid"
             size="sm"
             icon="i-lucide-arrow-up-circle"
             class="cursor-pointer"
-            @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
+            @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
           >
             Upgrade Plan & Credits
           </UButton>

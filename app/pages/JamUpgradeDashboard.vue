@@ -14,7 +14,7 @@ const SYSTEM_DENIALS = ['Replaced by a newer upgrade request.', 'The checkout ex
 const route = useRoute()
 const toast = useToast()
 const { isPaymongoActivated } = usePaymongoActivation()
-const { startPageTransition, finishPageTransition } = usePageTransition()
+const { startPageTransition, followLink, finishPageTransition } = usePageTransition()
 const { getUpgradeOptions, listGatheringPayments, submitUpgradeProof, createUpgradeCheckout } = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -143,9 +143,10 @@ async function payWithProof() {
       >
         Upgrades aren't available for this plan.
         <UButton
+          :to="workspacePath"
           variant="outline"
           class="mt-3 cursor-pointer"
-          @click.prevent="startPageTransition(workspacePath)"
+          @click="followLink($event, workspacePath)"
         >
           Back to Jam dashboard
         </UButton>
@@ -258,9 +259,10 @@ async function payWithProof() {
         </template>
 
         <UButton
+          :to="workspacePath"
           variant="ghost"
           class="text-white cursor-pointer"
-          @click.prevent="startPageTransition(workspacePath)"
+          @click="followLink($event, workspacePath)"
         >
           Back to Jam dashboard
         </UButton>

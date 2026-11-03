@@ -10,7 +10,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
-const { startPageTransition, finishPageTransition } = usePageTransition()
+const { startPageTransition, followLink, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -430,12 +430,13 @@ function downloadGuests() {
             </p>
           </div>
           <UButton
+            :to="{ path: '/user/seating-payment', query: { gatheringId: gathering._id } }"
             color="toast"
             size="sm"
             icon="i-lucide-credit-card"
             variant="solid"
             class="bg-toast-800 hover:bg-toast-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm cursor-pointer"
-            @click.prevent="startPageTransition({ path: '/user/seating-payment', query: { gatheringId: gathering._id } })"
+            @click="followLink($event, { path: '/user/seating-payment', query: { gatheringId: gathering._id } })"
           >
             Complete Payment Now
           </UButton>
@@ -507,6 +508,7 @@ function downloadGuests() {
                 </UButton>
               </div>
               <UButton
+                :to="`/jam/guests/${gatheringId}`"
                 color="toast"
                 variant="solid"
                 size="xs"
@@ -514,7 +516,7 @@ function downloadGuests() {
                 trailing
                 block
                 class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                @click.prevent="startPageTransition(`/jam/guests/${gatheringId}`)"
+                @click="followLink($event, `/jam/guests/${gatheringId}`)"
               >
                 Open Guest List
               </UButton>
@@ -550,24 +552,26 @@ function downloadGuests() {
                 </p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   <UButton
+                    :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
                     variant="solid"
                     size="xs"
                     icon="i-lucide-palette"
                     block
                     class="w-full bg-toast-800 hover:bg-toast-900 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                    @click.prevent="startPageTransition(`/jam/invitation/${gatheringId}`)"
+                    @click="followLink($event, `/jam/invitation/${gatheringId}`)"
                   >
                     Invitation Maker
                   </UButton>
                   <UButton
+                    :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
                     variant="soft"
                     size="xs"
                     icon="i-lucide-upload"
                     block
                     class="w-full bg-toast-100 hover:bg-toast-200 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                    @click.prevent="startPageTransition(`/jam/invitation/${gatheringId}`)"
+                    @click="followLink($event, `/jam/invitation/${gatheringId}`)"
                   >
                     Upload Invitation
                   </UButton>
@@ -599,13 +603,14 @@ function downloadGuests() {
             <div v-if="hasInvitation" class="pt-1.5 border-t border-bread-200/60">
               <div class="grid grid-cols-2 gap-1.5">
                 <UButton
+                  :to="`/jam/invitation/${gatheringId}`"
                   color="toast"
                   variant="soft"
                   size="xs"
                   icon="i-lucide-pencil"
                   block
                   class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                  @click.prevent="startPageTransition(`/jam/invitation/${gatheringId}`)"
+                  @click="followLink($event, `/jam/invitation/${gatheringId}`)"
                 >
                   Edit invitation
                 </UButton>
@@ -651,13 +656,14 @@ function downloadGuests() {
                   No tables or seat arrangements set up yet. Configure your venue layout to seat attending guests.
                 </p>
                 <UButton
+                  :to="`/jam/tables/${gatheringId}`"
                   color="toast"
                   variant="solid"
                   size="xs"
                   icon="i-lucide-plus"
                   block
                   class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                  @click.prevent="startPageTransition(`/jam/tables/${gatheringId}`)"
+                  @click="followLink($event, `/jam/tables/${gatheringId}`)"
                 >
                   Setup tables and seats
                 </UButton>
@@ -692,6 +698,7 @@ function downloadGuests() {
             <!-- Action Button: High Contrast Toast -->
             <div v-if="hasTables" class="pt-1.5 border-t border-bread-200/60">
               <UButton
+                :to="`/jam/tables/${gatheringId}`"
                 color="toast"
                 variant="solid"
                 size="xs"
@@ -699,7 +706,7 @@ function downloadGuests() {
                 trailing
                 block
                 class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                @click.prevent="startPageTransition(`/jam/tables/${gatheringId}`)"
+                @click="followLink($event, `/jam/tables/${gatheringId}`)"
               >
                 Open table & seat manager
               </UButton>
@@ -780,24 +787,26 @@ function downloadGuests() {
             <div class="pt-1.5 border-t border-bread-200/60">
               <div class="grid grid-cols-2 gap-1.5">
                 <UButton
+                  :to="`/jam/settings/${gatheringId}`"
                   color="toast"
                   variant="solid"
                   size="xs"
                   icon="i-lucide-settings"
                   block
                   class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                  @click.prevent="startPageTransition(`/jam/settings/${gatheringId}`)"
+                  @click="followLink($event, `/jam/settings/${gatheringId}`)"
                 >
                   Settings & Plan
                 </UButton>
                 <UButton
+                  :to="`/user/jam-upgrade/${gatheringId}`"
                   color="toast"
                   variant="soft"
                   size="xs"
                   icon="i-lucide-arrow-up-circle"
                   block
                   class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                  @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
+                  @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
                 >
                   Upgrade Plan
                 </UButton>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
-const { startPageTransition } = usePageTransition()
+const { startPageTransition, followLink } = usePageTransition()
 
 async function handleBack() {
   await startPageTransition()
@@ -43,10 +43,10 @@ const titleThemeClass = computed(() => {
 
           <!-- Image Slot Wrapper -->
           <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <button type="button" class="flex items-center cursor-pointer" @click="startPageTransition('/')">
+            <a href="/" class="flex items-center cursor-pointer" @click="followLink($event, '/')">
               <img v-if="route.meta.useLogo" src="~/assets/bpb-icons/logomark-toast-700.svg" class="h-7" />
               <img v-else src="~/assets/bpb-icons/logo-toast-700.svg" class="h-7" />
-            </button>
+            </a>
             <UBadge
               color="toast"
               variant="subtle"

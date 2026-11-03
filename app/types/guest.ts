@@ -7,6 +7,8 @@ export interface GuestEntryInput {
   mailingAddress?: string
   contactNumber?: string
   envelopeName?: string
+  /** Counts the guest. Above 1, the server adds their companions. */
+  pax?: number
 }
 
 export interface UpdateGuestInput {
@@ -24,6 +26,8 @@ export interface CreateGuestResponse {
   status: number
   message: string
   guest: GuestRecord
+  /** The people the guest brings, added for a pax above 1. */
+  companions?: GuestRecord[]
 }
 
 export interface UpdateGuestResponse {

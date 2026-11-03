@@ -7,7 +7,7 @@ useHead({ title: 'Seating payment received - Bread + Butter' })
 const route = useRoute()
 const { getCheckoutStatus, getGathering } = useSeating()
 const { isUiOnlyMode } = useApiMode()
-const { startPageTransition, finishPageTransition } = usePageTransition()
+const { followLink, finishPageTransition } = usePageTransition()
 
 const status = ref<'loading' | 'approved' | 'processing' | 'error'>('loading')
 const gatheringName = ref('')
@@ -61,17 +61,19 @@ onMounted(async () => {
             : 'If you paid with a manual receipt, the seating plan opens after review.' }}
         </p>
         <UButton
+          :to="`/jam/dashboard/${gatheringId}`"
           v-if="(status === 'approved' || isUpgrade) && gatheringId"
           class="cursor-pointer"
-          @click="startPageTransition(`/jam/dashboard/${gatheringId}`)"
+          @click="followLink($event, `/jam/dashboard/${gatheringId}`)"
         >
           Open seating plan
         </UButton>
         <UButton
+          :to="'/'"
           v-else
           variant="outline"
           class="cursor-pointer"
-          @click="startPageTransition('/')"
+          @click="followLink($event, '/')"
         >
           Back home
         </UButton>

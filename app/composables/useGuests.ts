@@ -26,6 +26,23 @@ function normalizeGuestEntry(entry: GuestEntryInput) {
   }
 }
 
+/** The companions the server adds, so UI-only mode looks the same. */
+function mockCompanions(primary: GuestRecord, count: number): GuestRecord[] {
+  const [user, domain] = primary.email.split('@')
+  const primaryName = `${primary.firstName} ${primary.lastName}`.trim()
+  return Array.from({ length: Math.max(0, count) }, (_, index) => ({
+    _id: `${primary._id}-companion-${index + 1}`,
+    firstName: `${primaryName}'s companion`,
+    lastName: String(index + 1),
+    email: `${user}+companion${index + 1}@${domain}`,
+    mailingAddress: primary.mailingAddress,
+    contactNumber: primary.contactNumber,
+    envelopeName: `${primaryName}'s companion ${index + 1}`,
+    companionOf: primary._id,
+    rsvp: null,
+  }))
+}
+
 export function useGuests() {
   const { apiRequest, isUiOnlyMode } = useApiMode()
 
@@ -34,23 +51,26 @@ export function useGuests() {
     entry: GuestEntryInput
   ): Promise<CreateGuestResponse> {
     const normalized = normalizeGuestEntry(entry)
+    const pax = entry.pax && entry.pax > 1 ? entry.pax : undefined
 
     if (isUiOnlyMode.value) {
+      const guest = {
+        _id: `mock-guest-${Date.now()}`,
+        ...normalized,
+        rsvp: null,
+      }
       return {
         success: true,
         status: 201,
         message: 'Guest added to the list.',
-        guest: {
-          _id: `mock-guest-${Date.now()}`,
-          ...normalized,
-          rsvp: null,
-        },
+        guest,
+        companions: mockCompanions(guest, (pax ?? 1) - 1),
       }
     }
 
     return tracked(actorRole(), () => apiRequest<CreateGuestResponse>('/user/guests', {
       method: 'POST',
-      body: { eventId, ...normalized },
+      body: { eventId, ...normalized, pax },
     }), {
       event: 'guests_added',
       props: { event_id: eventId, guest_count: 1, source: 'single' },

@@ -5,7 +5,7 @@ import { resolveProfileImageUrl } from '~/utils/profileImage'
 const route = useRoute()
 const { isUiOnlyMode } = useApiMode()
 const { displayName: eventDisplayName } = useActiveEvent()
-const { startPageTransition } = usePageTransition()
+const { followLink } = usePageTransition()
 const isJam = computed(() => route.path.startsWith('/seating') || route.path.startsWith('/jam'))
 
 const headerEventTitle = computed(() => {
@@ -91,7 +91,7 @@ const dropitems: DropdownMenuItem[][] = [
 
     <template #leading>
       <div class="flex items-center gap-2 sm:gap-2.5 mr-2 sm:mr-3 shrink-0">
-        <button type="button" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer" @click="startPageTransition('/')">
+        <a href="/" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer" @click="followLink($event, '/')">
           <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
           <UBadge
             v-if="isJam"
@@ -102,7 +102,7 @@ const dropitems: DropdownMenuItem[][] = [
           >
             JAM
           </UBadge>
-        </button>
+        </a>
         <UBadge
           color="bread"
           variant="subtle"
