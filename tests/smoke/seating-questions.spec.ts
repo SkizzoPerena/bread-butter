@@ -1,5 +1,5 @@
 import { GATHERING_ID, PASS_TOKEN, expect, stubApi, test } from './helpers'
-import { openWorkspace } from './seating-fixtures'
+import { openRsvpPage } from './seating-fixtures'
 
 const QUESTIONS = [
   { question: 'Any dietary needs?', type: 'TEXT' },
@@ -88,9 +88,24 @@ test('earlier answers come back when a guest replies again', async ({ page }) =>
   await expect(page.getByPlaceholder('Your answer')).toHaveValue('No nuts')
 })
 
-test('a host writes questions, and reads the answers on the guest list', async ({ page }) => {
-  const calls = await openWorkspace(page, {
+test('a host reads answers on the responses tab, and searching handles yes or no answers', async ({ page }) => {
+  await openRsvpPage(page, {
     guests: [{ answers: [{ question: 'Main course', answer: 'Fish', notes: 'No bones' }, { question: 'Need parking?', answer: true, notes: '' }] }],
+  })
+  await page.getByRole('tab', { name: /Responses/ }).click()
+
+  await expect(page.getByText('Main course')).toBeVisible()
+  await expect(page.getByText('Fish')).toBeVisible()
+  await expect(page.getByText('No bones')).toBeVisible()
+  await expect(page.getByText('Need parking?')).toBeVisible()
+  await expect(page.getByText('Yes', { exact: true })).toBeVisible()
+
+  await page.getByPlaceholder('Search responses...').fill('fish')
+  await expect(page.getByText('Maria Santos')).toBeVisible()
+})
+
+test('a host writes questions', async ({ page }) => {
+  const calls = await openRsvpPage(page, {
     routes: {
       [`PATCH /gatherings/${GATHERING_ID}`]: route => route.fulfill({
         json: { success: true, status: 200, gathering: { _id: GATHERING_ID, status: 'ACTIVE', tables: [], questions: [{ question: 'Bring a plus one?', type: 'YES/NO' }] } },
@@ -98,13 +113,9 @@ test('a host writes questions, and reads the answers on the guest list', async (
     },
   })
 
-  await page.getByText('Answers (2)').click()
-  await expect(page.getByText('Main course: Fish (No bones)')).toBeVisible()
-  await expect(page.getByText('Need parking?: Yes')).toBeVisible()
-
-  await page.getByRole('button', { name: 'Invitation & Passcode' }).click()
-  await page.getByRole('button', { name: 'RSVP Questions (0)' }).click()
+  await page.getByRole('button', { name: 'Edit Questions' }).first().click()
   const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Add Question' }).first().click()
   await dialog.getByPlaceholder('e.g. Do you have any dietary restrictions?').fill('Bring a plus one?')
   await dialog.getByRole('combobox').click()
   await page.getByRole('option', { name: 'Yes / No' }).click()
@@ -113,5 +124,4 @@ test('a host writes questions, and reads the answers on the guest list', async (
   await expect.poll(() => calls.find(call => call.method === 'PATCH')?.body).toEqual({
     questions: [{ question: 'Bring a plus one?', type: 'YES/NO' }],
   })
-  await expect(page.getByRole('button', { name: 'RSVP Questions (1)' })).toBeVisible()
 })

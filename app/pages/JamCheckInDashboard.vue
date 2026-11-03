@@ -12,9 +12,10 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { followLink, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
-const gatheringId = computed(() => String(route.params.gatheringId || ''))
+const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
 const gathering = ref<GatheringRecord | null>(null)
 const guests = ref<SeatingGuestRecord[]>([])
 const loading = ref(true)
@@ -89,6 +90,7 @@ async function load() {
     toast.add({ title: 'Could not load gathering', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     loading.value = false
+    finishPageTransition()
   }
 }
 
@@ -123,6 +125,30 @@ async function resend(guest: SeatingGuestRecord) {
   } catch (error) {
     toast.add({ title: 'Could not send pass', description: getApiErrorMessage(error), color: 'error' })
   }
+}
+
+const companionsLeftToCheckIn = computed(() => (
+  lastScannedGuest.value?.companions?.filter((companion) => !companion.checkedInAt) ?? []
+))
+
+async function checkInScannedCompanions() {
+  const guest = lastScannedGuest.value
+  if (!guest) return
+  const waiting = companionsLeftToCheckIn.value
+  try {
+    await Promise.all(waiting.map((companion) => seating.checkInGuest(gatheringId.value, companion.id)))
+    lastScannedGuest.value = {
+      ...guest,
+      companions: guest.companions?.map((companion) => ({
+        ...companion,
+        checkedInAt: companion.checkedInAt ?? new Date().toISOString(),
+      })),
+    }
+    toast.add({ title: `${waiting.length === 1 ? 'Companion' : `${waiting.length} companions`} checked in`, color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not check in companions', description: getApiErrorMessage(error), color: 'error' })
+  }
+  await load()
 }
 
 async function onScan(value: string) {
@@ -173,13 +199,14 @@ async function downloadGuests() {
       <!-- Minimal Organizer Back Navigation -->
       <div class="flex items-center justify-between px-1">
         <UButton
+          :to="`/jam/dashboard/${gatheringId}`"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
           size="sm"
           label="Back to Workspace"
           class="text-bread-200 hover:text-white cursor-pointer font-semibold -ml-2"
-          :to="`/seating/${gatheringId}`"
+          @click="followLink($event, `/jam/dashboard/${gatheringId}`)"
         />
       </div>
 
@@ -285,6 +312,15 @@ async function downloadGuests() {
                     {{ lastScannedGuest.tableLabel ? `${lastScannedGuest.tableLabel}, Seat ${lastScannedGuest.seatNumber}` : 'No seat yet' }}
                   </p>
                 </div>
+                <UButton
+                  v-if="companionsLeftToCheckIn.length"
+                  size="xs"
+                  color="primary"
+                  variant="solid"
+                  class="shrink-0 cursor-pointer"
+                  :label="`Check in ${companionsLeftToCheckIn.length} ${companionsLeftToCheckIn.length === 1 ? 'companion' : 'companions'} too`"
+                  @click="checkInScannedCompanions"
+                />
               </div>
               <div v-else class="text-[11px] text-muted italic">
                 Camera is ready for arrival passes.
@@ -400,11 +436,11 @@ async function downloadGuests() {
                 No guests in this view are checked in yet.
               </div>
 
-              <div v-else class="divide-y divide-emerald-100 border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20">
+              <div v-else class="border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20">
                 <div
                   v-for="guest in displayedInAttendance"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-emerald-50/50 transition-colors"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-emerald-50/50 transition-colors border-b border-emerald-100 last:border-b-0"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="size-8 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center shrink-0 text-xs">
@@ -459,11 +495,11 @@ async function downloadGuests() {
                 All registered attendees are checked in!
               </div>
 
-              <div v-else class="divide-y divide-bread-200/60 border border-bread-200/60 rounded-xl overflow-hidden bg-white/70">
+              <div v-else class="border border-bread-200/60 rounded-xl overflow-hidden bg-white/70">
                 <div
                   v-for="guest in displayedNotConfirmed"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-toast-50/50 transition-colors"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-toast-50/50 transition-colors border-b border-bread-200/60 last:border-b-0"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="size-8 rounded-full bg-toast-100 text-toast-600 font-bold flex items-center justify-center shrink-0 text-xs">
@@ -478,7 +514,7 @@ async function downloadGuests() {
                       </div>
                       <p class="text-xs text-muted truncate">
                         {{ tableFor(guest)?.label || 'Unassigned table' }}<span v-if="guest.seatNumber">, Seat {{ guest.seatNumber }}</span>
-                        · {{ guest.email }}
+                        <template v-if="guest.email"> · {{ guest.email }}</template>
                       </p>
                     </div>
                   </div>
@@ -492,6 +528,7 @@ async function downloadGuests() {
                       @click="checkIn(guest)"
                     />
                     <UButton
+                      v-if="guest.email"
                       size="xs"
                       color="neutral"
                       variant="soft"

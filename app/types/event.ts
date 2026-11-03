@@ -64,6 +64,8 @@ export interface GuestRecord {
   email: string
   roles?: { _id: string; name: string }[]
   tableCode?: string | null
+  /** The guest who brought this companion. A companion follows their reply and gets no invite. */
+  companionOf?: string | null
   rsvp?: GuestRsvpSnapshot | null
 }
 
@@ -193,7 +195,13 @@ export interface UpdateEventResponse {
 }
 
 export function mapEventTypeToApi(value: string): string {
-  return value.trim().toUpperCase().replace(/\s+/g, '_')
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, '_')
+  if (normalized === 'BAPTISM') return 'BAPTISMAL'
+  if (normalized === 'DEBUT') return '18TH_BIRTHDAY'
+  if (normalized === 'ADULT_BIRTHDAY' || normalized === 'KIDDIE_PARTY') return 'BIRTHDAY'
+  if (normalized === 'CORPORATE') return 'CORPORATE_EVENT'
+  if (normalized === 'PARTY' || normalized === 'SPECIAL_PARTY') return 'GENERAL_CELEBRATIONS'
+  return normalized
 }
 
 export function isWeddingEventType(eventType: string): boolean {
@@ -202,16 +210,16 @@ export function isWeddingEventType(eventType: string): boolean {
 
 export const EVENT_TYPE_OPTIONS = [
   { label: 'Wedding', value: 'WEDDING' },
-  { label: 'Baptism', value: 'BAPTISM' },
-  { label: 'Adult Birthday', value: 'ADULT_BIRTHDAY' },
-  { label: 'Kiddie Party', value: 'KIDDIE_PARTY' },
+  { label: '18th Birthday', value: '18TH_BIRTHDAY' },
+  { label: 'Birthday', value: 'BIRTHDAY' },
+  { label: 'Baptismal', value: 'BAPTISMAL' },
   { label: 'Anniversary', value: 'ANNIVERSARY' },
-  { label: 'Debut', value: 'DEBUT' },
-  { label: 'Corporate Event', value: 'CORPORATE' },
-  { label: 'Special Party', value: 'PARTY' },
+  { label: 'Corporate Event', value: 'CORPORATE_EVENT' },
+  { label: 'General Celebrations', value: 'GENERAL_CELEBRATIONS' },
 ]
 
-export function mapApiToEventTypeLabel(apiValue: string): string {
+export function mapApiToEventTypeLabel(apiValue?: string | null): string {
+  if (!apiValue) return ''
   const normalized = mapEventTypeToApi(apiValue)
   const option = EVENT_TYPE_OPTIONS.find((item) => item.value === normalized)
   if (option) return option.label

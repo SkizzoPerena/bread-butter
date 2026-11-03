@@ -1,5 +1,6 @@
 import { GATHERING_ID, expect, test } from './helpers'
-import { openWorkspace } from './seating-fixtures'
+import type { Page } from '@playwright/test'
+import { openGuestsPage } from './seating-fixtures'
 
 const SOURCE_ID = '507f1f77bcf86cd799439099'
 
@@ -31,8 +32,14 @@ function routes(listing = importable()) {
   }
 }
 
+async function openImport(page: Page, options: Parameters<typeof openGuestsPage>[1]) {
+  const calls = await openGuestsPage(page, options)
+  await page.getByRole('button', { name: 'Import Guests' }).first().click()
+  return calls
+}
+
 test('a host with no guests is offered another Jam, and adds the people they choose', async ({ page }) => {
-  const calls = await openWorkspace(page, { guests: [], routes: routes() as never })
+  const calls = await openImport(page, { guests: [], routes: routes() as never })
 
   const panel = page.getByTestId('guest-import')
   await expect(panel.getByLabel('Copy guests from')).toBeVisible()
@@ -53,23 +60,24 @@ test('a host with no guests is offered another Jam, and adds the people they cho
 })
 
 test('choosing more than the plan has room for offers an upgrade instead', async ({ page }) => {
-  await openWorkspace(page, { guests: [], routes: routes(importable({ creditsRemaining: 1 })) as never })
+  await openImport(page, { guests: [], routes: routes(importable({ creditsRemaining: 1 })) as never })
   const panel = page.getByTestId('guest-import')
   await panel.getByLabel('Copy guests from').selectOption(SOURCE_ID)
 
   await expect(panel.getByRole('button', { name: 'Add Selected Guests' })).toBeDisabled()
-  await expect(panel.getByRole('link', { name: 'Upgrade your plan' })).toHaveAttribute('href', `/user/seating-upgrade/${GATHERING_ID}`)
+  await expect(panel.getByRole('link', { name: 'Upgrade your plan' })).toHaveAttribute('href', `/user/jam-upgrade/${GATHERING_ID}`)
 
   await panel.getByRole('checkbox', { name: /Ana Cruz/ }).uncheck()
   await expect(panel.getByRole('button', { name: 'Add Selected Guests' })).toBeEnabled()
 })
 
-test('a host with guests already sees the offer closed, and a first Jam sees none', async ({ page }) => {
-  await openWorkspace(page, { routes: routes() as never })
-  await expect(page.getByTestId('guest-import')).toBeVisible()
-  await expect(page.getByTestId('guest-import').getByLabel('Copy guests from')).toBeHidden()
+test('a host with guests can still copy from another Jam', async ({ page }) => {
+  await openImport(page, { routes: routes() as never })
+  await expect(page.getByTestId('guest-import').getByLabel('Copy guests from')).toBeVisible()
+})
 
-  await openWorkspace(page, {
+test('a first Jam says there is nothing to copy from', async ({ page }) => {
+  await openImport(page, {
     guests: [],
     routes: {
       'GET /user/seating/gatherings': route => route.fulfill({
@@ -77,5 +85,6 @@ test('a host with guests already sees the offer closed, and a first Jam sees non
       }),
     },
   })
+  await expect(page.getByTestId('guest-import-empty')).toBeVisible()
   await expect(page.getByTestId('guest-import')).toHaveCount(0)
 })

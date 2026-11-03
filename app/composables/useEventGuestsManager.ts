@@ -46,9 +46,17 @@ export const addGuestSchema = z.object({
   mailingAddress: z.string().optional(),
   contactNumber: z.string().optional(),
   envelopeName: z.string().optional(),
+  pax: z.number().int().min(1).max(20).optional(),
 })
 
-export const editGuestSchema = addGuestSchema
+export const editGuestSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email'),
+  mailingAddress: z.string().optional(),
+  contactNumber: z.string().optional(),
+  envelopeName: z.string().optional(),
+})
 
 export type AddGuestSchema = z.output<typeof addGuestSchema>
 export type EditGuestSchema = z.output<typeof editGuestSchema>
@@ -93,6 +101,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     mailingAddress: '',
     contactNumber: '',
     envelopeName: '',
+    pax: 1,
   })
 
   const editGuestState = reactive<EditGuestSchema>({
@@ -255,6 +264,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
     addGuestState.mailingAddress = ''
     addGuestState.contactNumber = ''
     addGuestState.envelopeName = ''
+    addGuestState.pax = 1
   }
 
   function resetEditGuestForm() {
@@ -312,13 +322,21 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
         mailingAddress: payload.data.mailingAddress,
         contactNumber: payload.data.contactNumber,
         envelopeName: payload.data.envelopeName,
+        pax: payload.data.pax,
       })
 
-      guestList.value = appendGuestToList(guestList.value, response.guest)
+      // The server adds the companions a guest brings and returns them with the guest.
+      const companions = response.companions ?? []
+      for (const guest of [response.guest, ...companions]) {
+        guestList.value = appendGuestToList(guestList.value, guest)
+      }
 
+      const primaryFullName = `${payload.data.firstName.trim()} ${payload.data.lastName.trim()}`.trim()
       toast.add({
-        title: 'Guest added',
-        description: response.message,
+        title: 'Guest registered',
+        description: companions.length
+          ? `Added ${primaryFullName} + ${companions.length} companion(s) (${companions.length + 1} pax total).`
+          : response.message,
       })
       isAddGuestModalOpen.value = false
       resetAddGuestForm()

@@ -85,7 +85,7 @@ async function handleLogout() {
                 { label: 'Cashouts', icon: 'i-lucide-wallet-cards', to: '/partners/cashouts' },
                 { label: 'Collaborations', icon: 'i-lucide-users-round', to: '/partners/collaborations' },
                 { label: 'Profile', icon: 'i-lucide-user-cog', to: '/partners/profile' },
-                { label: 'Back to Home', icon: 'i-lucide-home', to: '/?view=landing' },
+                { label: 'Back to Home', icon: 'i-lucide-home', to: '/?view=landing', active: false },
                 { label: 'Sign out', icon: 'i-lucide-log-out', onSelect: handleLogout }
               ]
             ]"

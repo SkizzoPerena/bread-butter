@@ -3,6 +3,8 @@ import type { RsvpAnswer } from '~/types/rsvp'
 import type {
   CheckInResult,
   GatheringRecord,
+  JamCompanionList,
+  JamCompanionRow,
   JamInvitation,
   JamInvitationDesign,
   JamInviteDetails,
@@ -21,6 +23,8 @@ import type {
   PublicSeatDetail,
   PublicSeatList,
   RsvpStatus,
+  SeatMoveResult,
+  SeatMoveTarget,
   SeatingGuestRecord,
   SeatingPaymentRecord,
   SeatingTable,
@@ -137,6 +141,7 @@ export function useSeating() {
   async function createGathering(body: {
     packageId: string
     name: string
+    eventType?: string
     venue: string
     eventDate: string
   }): Promise<GatheringRecord> {
@@ -146,6 +151,7 @@ export function useSeating() {
       const gathering: GatheringRecord = {
         _id: `mock-gathering-${Date.now()}`,
         name: body.name,
+        eventType: body.eventType || 'GENERAL_CELEBRATIONS',
         venue: body.venue,
         eventDate: body.eventDate,
         status: 'PENDING_PAYMENT',
@@ -208,6 +214,7 @@ export function useSeating() {
   async function submitDraftProof(details: {
     packageId: string
     name: string
+    eventType?: string
     venue: string
     eventDate: string
   }, payload: {
@@ -230,6 +237,7 @@ export function useSeating() {
     const form = new FormData()
     form.append('packageId', details.packageId)
     form.append('name', details.name)
+    if (details.eventType) form.append('eventType', details.eventType)
     form.append('venue', details.venue)
     form.append('eventDate', details.eventDate)
     form.append('transactionId', payload.transactionId)
@@ -393,6 +401,65 @@ export function useSeating() {
     return response.gathering
   }
 
+  async function swapTables(gatheringId: string, tableId: string, withTableId: string): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const from = gathering.tables.findIndex((table) => table._id === tableId)
+      const to = gathering.tables.findIndex((table) => table._id === withTableId)
+      const first = gathering.tables[from]
+      const second = gathering.tables[to]
+      if (!first || !second) throw new Error('Table not found.')
+      gathering.tables[from] = second
+      gathering.tables[to] = first
+      gathering.tables = gathering.tables.map((table, index) => ({
+        ...table,
+        sortOrder: index,
+        label: table.customLabel || `Table ${index + 1}`,
+      }))
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/tables/swap`, {
+      method: 'POST',
+      body: { tableId, withTableId },
+    })
+    return response.gathering
+  }
+
+  async function updateTable(
+    gatheringId: string,
+    tableId: string,
+    body: { label?: string, capacity?: number, confirmClear?: boolean },
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const index = gathering.tables.findIndex((table) => table._id === tableId)
+      const table = gathering.tables[index]
+      if (!table) throw new Error('Table not found.')
+      if (body.label !== undefined) {
+        table.customLabel = body.label.trim()
+        table.label = table.customLabel || `Table ${index + 1}`
+      }
+      if (body.capacity !== undefined) {
+        table.capacity = body.capacity
+        table.seats = Array.from({ length: body.capacity }, (_, seatIndex) => (
+          table.seats?.[seatIndex] ?? { number: seatIndex + 1, unavailable: false, guest: null }
+        ))
+        for (const guest of mockGuests(gatheringId)) {
+          if (guest.tableId === tableId && (guest.seatNumber || 0) > body.capacity) {
+            guest.tableId = null
+            guest.seatNumber = null
+          }
+        }
+      }
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/tables/${tableId}`, {
+      method: 'PATCH',
+      body,
+    })
+    return response.gathering
+  }
+
   async function setSeatUnavailable(
     gatheringId: string,
     tableId: string,
@@ -447,28 +514,125 @@ export function useSeating() {
     return apiRequest<AssignResponse>(`/user/seating/gatherings/${gatheringId}/auto-assign`, { method: 'POST' })
   }
 
-  async function moveSeat(gatheringId: string, guestId: string, tableId: string | null, seatNumber: number | null) {
+  async function moveSeat(gatheringId: string, guestId: string, target: SeatMoveTarget): Promise<SeatMoveResult> {
     if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
       const guests = mockGuests(gatheringId)
       const guest = guests.find((item) => item._id === guestId)
       if (!guest) throw new Error('Guest not found.')
-      if (tableId && seatNumber) {
-        const occupant = guests.find((item) => item.tableId === tableId && item.seatNumber === seatNumber && item._id !== guestId)
-        if (occupant) {
-          occupant.tableId = guest.tableId
-          occupant.seatNumber = guest.seatNumber
-        }
-        guest.tableId = tableId
-        guest.seatNumber = seatNumber
-      } else {
+      const { tableId } = target
+      if (!tableId) {
         guest.tableId = null
         guest.seatNumber = null
+        return { message: 'Seat cleared.', guest, swappedGuest: null }
       }
-      return
+      const holderOf = (number: number) => guests.find((item) => item.tableId === tableId && item.seatNumber === number)
+      const seatNumber = target.seatNumber
+        ?? gathering.tables.find((table) => table._id === tableId)?.seats?.find((seat) => !seat.unavailable && !holderOf(seat.number))?.number
+      if (!seatNumber) throw new Error('This table is full.')
+      const occupant = holderOf(seatNumber)
+      if (occupant === guest) return { message: 'Seat updated.', guest, swappedGuest: null }
+      if (target.expectedGuestId !== undefined && (occupant?._id ?? null) !== target.expectedGuestId) {
+        throw new Error('That seat just changed. Refresh and try again.')
+      }
+      const wasSeated = guest.seatNumber != null
+      if (occupant) {
+        occupant.tableId = guest.tableId
+        occupant.seatNumber = guest.seatNumber
+      }
+      guest.tableId = tableId
+      guest.seatNumber = seatNumber
+      return { message: occupant && wasSeated ? 'Seats swapped.' : 'Seat updated.', guest, swappedGuest: occupant ?? null }
     }
-    await apiRequest(`/user/seating/gatherings/${gatheringId}/guests/${guestId}/seat`, {
+    return apiRequest<SeatMoveResult>(`/user/seating/gatherings/${gatheringId}/guests/${guestId}/seat`, {
       method: 'PATCH',
-      body: { tableId, seatNumber },
+      body: target,
+    })
+  }
+
+  function mockCompanionList(gatheringId: string, primary: SeatingGuestRecord): JamCompanionList {
+    const gathering = gatherings.value.find((item) => item._id === gatheringId)
+    return {
+      maxCompanions: gathering?.maxCompanionsPerGuest ?? 0,
+      companions: mockGuests(gatheringId)
+        .filter((guest) => guest.companionOf === primary._id)
+        .map((guest) => ({
+          _id: guest._id,
+          firstName: guest.firstName ?? '',
+          lastName: guest.lastName ?? '',
+          name: `${guest.firstName ?? ''} ${guest.lastName ?? ''}`.trim(),
+          namePending: (guest.firstName ?? '').endsWith('\'s companion'),
+          tableId: guest.tableId,
+          tableLabel: gathering?.tables.find((table) => table._id === guest.tableId)?.label ?? null,
+          seatNumber: guest.seatNumber,
+          checkedInAt: guest.checkedInAt,
+          attendPath: `/attend/${guest.attendanceToken}`,
+        })),
+    }
+  }
+
+  function mockSaveCompanions(gatheringId: string, primary: SeatingGuestRecord, rows: JamCompanionRow[]): JamCompanionList {
+    const guests = mockGuests(gatheringId)
+    const kept = new Set(rows.map((row) => row._id).filter(Boolean))
+    guestsByGathering.value[gatheringId] = guests.filter((guest) => guest.companionOf !== primary._id || kept.has(guest._id))
+    let placeholder = 0
+    for (const row of rows) {
+      const existing = row._id ? mockGuests(gatheringId).find((guest) => guest._id === row._id) : null
+      if (existing) {
+        if (row.firstName?.trim() && row.lastName?.trim()) {
+          existing.firstName = row.firstName.trim()
+          existing.lastName = row.lastName.trim()
+        }
+        continue
+      }
+      placeholder += 1
+      mockGuests(gatheringId).push({
+        _id: `mock-companion-${Date.now()}-${placeholder}`,
+        companionOf: primary._id,
+        firstName: row.firstName?.trim() || `${primary.firstName || 'Guest'}'s companion`,
+        lastName: row.lastName?.trim() || String(placeholder),
+        partyName: primary.partyName,
+        rsvpStatus: primary.rsvpStatus,
+        isAttending: primary.isAttending,
+        tableId: null,
+        seatNumber: null,
+        attendanceToken: mockToken(),
+        attendanceQrSentAt: null,
+        checkedInAt: null,
+      })
+    }
+    return { ...mockCompanionList(gatheringId, primary), message: 'Your companions are saved.' }
+  }
+
+  async function saveGuestCompanions(gatheringId: string, guestId: string, companions: JamCompanionRow[]): Promise<JamCompanionList> {
+    if (isUiOnlyMode.value) {
+      const primary = mockGuests(gatheringId).find((guest) => guest._id === guestId)
+      if (!primary) throw new Error('Guest not found.')
+      return mockSaveCompanions(gatheringId, primary, companions)
+    }
+    return apiRequest<JamCompanionList>(`/user/seating/gatherings/${gatheringId}/guests/${guestId}/companions`, {
+      method: 'PUT',
+      body: { companions },
+    })
+  }
+
+  async function fetchCompanions(token: string): Promise<JamCompanionList> {
+    if (isUiOnlyMode.value) {
+      const primary = mockGuestByToken(token)
+      return mockCompanionList(mockGatheringIdOf(primary), primary)
+    }
+    return apiRequest<JamCompanionList>(`/guest/seating/rsvp/${token}/companions`, { authenticated: false })
+  }
+
+  async function saveCompanions(token: string, companions: JamCompanionRow[]): Promise<JamCompanionList> {
+    if (isUiOnlyMode.value) {
+      const primary = mockGuestByToken(token)
+      return mockSaveCompanions(mockGatheringIdOf(primary), primary, companions)
+    }
+    return apiRequest<JamCompanionList>(`/guest/seating/rsvp/${token}/companions`, {
+      method: 'PUT',
+      body: { companions },
+      authenticated: false,
     })
   }
 
@@ -594,6 +758,7 @@ export function useSeating() {
   async function updateGathering(gatheringId: string, body: {
     packageId?: string
     name?: string
+    eventType?: string
     venue?: string
     eventDate?: string
   }): Promise<GatheringRecord> {
@@ -609,6 +774,7 @@ export function useSeating() {
         gathering.maxGuests = jamPackage.maxGuests
       }
       if (body.name !== undefined) gathering.name = body.name
+      if (body.eventType !== undefined) gathering.eventType = body.eventType
       if (body.venue !== undefined) gathering.venue = body.venue
       if (body.eventDate !== undefined) gathering.eventDate = body.eventDate
       return gathering
@@ -625,8 +791,11 @@ export function useSeating() {
     invitationSubject?: string
     invitationMessage?: string
     seatSelectionLocked?: boolean
+    maxCompanionsPerGuest?: number
     questions?: EventQuestion[]
     invitationDesign?: JamInvitationDesign
+    venue?: string
+    eventDate?: string
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
@@ -725,10 +894,22 @@ export function useSeating() {
           label: item.label,
           seats: (item.seats ?? []).map((seat) => {
             const holder = guests.find((other) => other.tableId === item._id && other.seatNumber === seat.number)
-            if (holder) return { number: seat.number, status: holder._id === guest._id ? 'YOURS' as const : 'TAKEN' as const }
+            if (holder?._id === guest._id) return { number: seat.number, status: 'YOURS' as const }
+            if (holder?.companionOf === guest._id) return { number: seat.number, status: 'COMPANION' as const, companionId: holder._id }
+            if (holder) return { number: seat.number, status: 'TAKEN' as const }
             return { number: seat.number, status: seat.unavailable ? 'UNAVAILABLE' as const : 'OPEN' as const }
           }),
         })),
+        companions: guests.filter((item) => item.companionOf === guest._id).map((item) => {
+          const companionTable = gathering.tables.find((other) => other._id === item.tableId)
+          return {
+            _id: item._id,
+            name: `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim(),
+            seat: companionTable && item.seatNumber
+              ? { tableId: companionTable._id, tableLabel: companionTable.label, seatNumber: item.seatNumber }
+              : null,
+          }
+        }),
       }
     }
     throw new Error('Reply that you are coming before choosing a seat.')
@@ -742,33 +923,49 @@ export function useSeating() {
     throw new Error('Invitation not found.')
   }
 
+  function mockGatheringIdOf(guest: SeatingGuestRecord) {
+    const gathering = gatherings.value.find((item) => mockGuests(item._id).includes(guest))
+    if (!gathering) throw new Error('Invitation not found.')
+    return gathering._id
+  }
+
   async function fetchSeatMap(token: string): Promise<JamSeatMap> {
     if (isUiOnlyMode.value) return mockSeatMap(token)
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { authenticated: false })
   }
 
-  async function claimSeat(token: string, tableId: string, seatNumber: number): Promise<JamSeatMap> {
+  function mockSeatHolder(token: string, companionId?: string) {
+    const guest = mockGuestByToken(token)
+    if (!companionId) return guest
+    const companion = mockGuests(mockGatheringIdOf(guest)).find((item) => item._id === companionId && item.companionOf === guest._id)
+    if (!companion) throw new Error('Companion not found.')
+    return companion
+  }
+
+  /** `companionId` chooses for a companion the guest brought, instead of for the guest. */
+  async function claimSeat(token: string, tableId: string, seatNumber: number, companionId?: string): Promise<JamSeatMap> {
     if (isUiOnlyMode.value) {
-      const guest = mockGuestByToken(token)
-      guest.tableId = tableId
-      guest.seatNumber = seatNumber
-      return { ...mockSeatMap(token), message: 'Your seat is saved.' }
+      const holder = mockSeatHolder(token, companionId)
+      holder.tableId = tableId
+      holder.seatNumber = seatNumber
+      return { ...mockSeatMap(token), message: companionId ? 'Their seat is saved.' : 'Your seat is saved.' }
     }
     return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, {
       method: 'POST',
-      body: { tableId, seatNumber },
+      body: { tableId, seatNumber, ...(companionId ? { companionId } : {}) },
       authenticated: false,
     })
   }
 
-  async function giveUpSeat(token: string): Promise<JamSeatMap> {
+  async function giveUpSeat(token: string, companionId?: string): Promise<JamSeatMap> {
     if (isUiOnlyMode.value) {
-      const guest = mockGuestByToken(token)
-      guest.tableId = null
-      guest.seatNumber = null
-      return { ...mockSeatMap(token), message: 'You gave up your seat.' }
+      const holder = mockSeatHolder(token, companionId)
+      holder.tableId = null
+      holder.seatNumber = null
+      return { ...mockSeatMap(token), message: companionId ? 'Their seat is free again.' : 'You gave up your seat.' }
     }
-    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats`, { method: 'DELETE', authenticated: false })
+    const query = companionId ? `?companionId=${encodeURIComponent(companionId)}` : ''
+    return apiRequest<JamSeatMap>(`/guest/seating/rsvp/${token}/seats${query}`, { method: 'DELETE', authenticated: false })
   }
 
   async function previewBulkInvites(gatheringId: string, emails: string[]): Promise<JamBulkPreview> {
@@ -920,11 +1117,11 @@ export function useSeating() {
       const current = mockGuests(gatheringId)
       return {
         creditsRemaining: Math.max(gathering.maxGuests - current.length, 0),
-        guests: mockGuests(sourceId).map((guest) => ({
+        guests: mockGuests(sourceId).filter((guest) => !guest.companionOf).map((guest) => ({
           _id: guest._id,
           firstName: guest.firstName ?? '',
           lastName: guest.lastName ?? '',
-          email: guest.email,
+          email: guest.email ?? '',
           partyName: guest.partyName,
           alreadyOnList: current.some((item) => item.email === guest.email),
         })),
@@ -1111,6 +1308,7 @@ export function useSeating() {
           answers: guest.answers ?? [],
           rsvpStatus: guest.rsvpStatus,
           needsName: !guest.firstName || !guest.lastName,
+          maxCompanions: gathering.maxCompanionsPerGuest ?? 0,
         }
       }
       throw new Error('Invitation not found.')
@@ -1164,9 +1362,14 @@ export function useSeating() {
     updateGuest,
     deleteGuest,
     replaceTables,
+    swapTables,
+    updateTable,
     autoAssign,
     moveSeat,
     setSeatUnavailable,
+    saveGuestCompanions,
+    fetchCompanions,
+    saveCompanions,
     resendPass,
     checkInGuest,
     undoCheckIn,

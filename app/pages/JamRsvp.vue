@@ -15,9 +15,9 @@ import JamInvitationCard from '~/components/JamInvitationCard.vue'
 definePageMeta({ layout: false, middleware: 'seating-enabled' })
 
 const route = useRoute()
-const { unlockJamInvite, respondToJamInvite } = useSeating()
+const { unlockJamInvite, respondToJamInvite, fetchCompanions } = useSeating()
 
-const token = computed(() => String(route.params.token || ''))
+const token = computed(() => String(route.params.token || route.query.token || ''))
 const step = ref<'loading' | 'reply' | 'unavailable'>('loading')
 const gatheringName = ref('')
 const invitation = ref<JamInviteUnlocked | null>(null)
@@ -32,6 +32,7 @@ const resultMessage = ref('')
 const attendPath = ref('')
 const errorMessage = ref('')
 const saving = ref(false)
+const seatPicker = ref<{ reload: () => Promise<void> } | null>(null)
 
 // Someone who isn't coming isn't asked things like a meal choice.
 const visibleQuestions = computed(() => (attendanceStatus.value === 'GOING' ? questions.value : []))
@@ -76,6 +77,12 @@ async function sendReply() {
   }
   saving.value = true
   try {
+    if (payload.status === 'NOT_GOING' && invitation.value?.rsvpStatus === 'GOING') {
+      const { companions } = await fetchCompanions(token.value)
+      if (companions.length && !window.confirm(`Replying "not coming" also removes your ${companions.length === 1 ? 'companion' : `${companions.length} companions`} from the guest list. Continue?`)) {
+        return
+      }
+    }
     const result = await respondToJamInvite(token.value, {
       rsvpStatus: payload.status,
       answers: payload.answers,
@@ -113,7 +120,14 @@ async function sendReply() {
         {{ errorMessage }}
       </p>
       <template v-if="attendPath">
-        <JamSeatPicker :token="token" />
+        <JamCompanionForm
+          :token="token"
+          @changed="seatPicker?.reload()"
+        />
+        <JamSeatPicker
+          ref="seatPicker"
+          :token="token"
+        />
         <NuxtLink
           :to="attendPath"
           class="inline-block rounded-md border border-toast-800 px-4 py-2"

@@ -10,8 +10,10 @@ const isUserDashboard = computed(() => {
   if (route.meta.isUserDashboard !== undefined) {
     return Boolean(route.meta.isUserDashboard)
   }
-  const normalizedPath = route.path.replace(/\/+$/, '') || '/'
-  return (normalizedPath === '/' && route.query.view !== 'landing') || normalizedPath === '/user/dashboard'
+  const normalizedPath = route.path.replace(/\/+$/, '').toLowerCase() || '/'
+  return (normalizedPath === '/' && route.query.view !== 'landing')
+    || normalizedPath === '/user/dashboard'
+    || normalizedPath === '/userdashboard'
 })
 
 function goBack() {
@@ -56,7 +58,8 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Back to Home',
     icon: 'i-lucide-home',
-    to: '/?view=landing'
+    to: '/?view=landing',
+    active: false
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
@@ -66,7 +69,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-bread-400">
+  <div class="min-h-screen min-h-dvh flex flex-col" :class="isUserDashboard ? 'h-screen max-h-screen max-h-dvh overflow-hidden bg-toast-700 text-white' : 'bg-bread-400'">
     <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar shrink-0">
       <template #toggle>
         <!-- Back button on non-user dashboard pages (leftmost side) -->
@@ -150,7 +153,7 @@ const dropitems: DropdownMenuItem[][] = [
         </div>
       </template>
     </UDashboardNavbar>
-    <main class="flex-1 w-full bg-bread-400 flex flex-col">
+    <main class="flex-1 w-full flex flex-col" :class="isUserDashboard ? 'bg-toast-700 text-white overflow-y-auto' : 'bg-bread-400'">
       <slot />
     </main>
     <BackToTopButton />

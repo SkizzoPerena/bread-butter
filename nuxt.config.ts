@@ -225,7 +225,6 @@ export default defineNuxtConfig({
       setPath('PartnerForgotPassword', '/partners/forgot-password')
       setPath('BakerLogin', '/bakers/login')
       setPath('BakerSignup', '/bakers/signup')
-
       // Set paths for standalone pages
       setPath('ContactUs', '/contact-us')
       setPath('faqs', '/faqs')
@@ -235,6 +234,87 @@ export default defineNuxtConfig({
       setPath('About', '/about')
       setPath('NewsAndEvents', '/news-and-events')
       setPath('UsefulTips', '/useful-tips')
+
+      // Set paths for Jam feature routes
+      const jamDashboard = pages.find(p => p.name === 'JamDashboard')
+      if (jamDashboard) {
+        jamDashboard.path = '/jam/dashboard/:gatheringId?'
+        pages.push({
+          ...jamDashboard,
+          name: 'JamDashboardDirect',
+          path: '/jam-dashboard/:gatheringId?',
+        })
+        pages.push({
+          ...jamDashboard,
+          name: 'JamDashboardLegacy',
+          path: '/seating/:gatheringId',
+        })
+      }
+
+      const jamCheckIn = pages.find(p => p.name === 'JamCheckInDashboard')
+      if (jamCheckIn) {
+        jamCheckIn.path = '/jam/checkin/:gatheringId?'
+        pages.push({
+          ...jamCheckIn,
+          name: 'JamCheckInLegacy',
+          path: '/seating/checkin/:gatheringId',
+        })
+      }
+
+      const jamUpgrade = pages.find(p => p.name === 'JamUpgradeDashboard')
+      if (jamUpgrade) {
+        jamUpgrade.path = '/user/jam-upgrade/:gatheringId?'
+        pages.push({
+          ...jamUpgrade,
+          name: 'JamUpgradeLegacy',
+          path: '/user/seating-upgrade/:gatheringId',
+        })
+      }
+
+      const jamGuests = pages.find(p => p.name === 'JamGuestsDashboard')
+      if (jamGuests) {
+        jamGuests.path = '/jam/guests/:gatheringId?'
+      }
+
+      const jamInvitation = pages.find(p => p.name === 'JamInvitationDashboard')
+      if (jamInvitation) {
+        jamInvitation.path = '/jam/invitation/:gatheringId?'
+        pages.push({
+          ...jamInvitation,
+          name: 'JamInvitationDashboardAlias',
+          path: '/jam/invite/:gatheringId?',
+        })
+      }
+
+      const jamTables = pages.find(p => p.name === 'JamTablesDashboard')
+      if (jamTables) {
+        jamTables.path = '/jam/tables/:gatheringId?'
+      }
+
+      const jamSettings = pages.find(p => p.name === 'JamSettingsDashboard')
+      if (jamSettings) {
+        jamSettings.path = '/jam/settings/:gatheringId?'
+      }
+
+      const jamRsvps = pages.find(p => p.name === 'JamRsvpDashboard')
+      if (jamRsvps) {
+        jamRsvps.path = '/jam/rsvps/:gatheringId?'
+        pages.push({
+          ...jamRsvps,
+          name: 'JamRsvpDashboardAlias',
+          path: '/jam/rsvp-manager/:gatheringId?',
+        })
+      }
+
+      setPath('JamInvitation', '/jam/:token')
+      setPath('JamOpenInvite', '/jam/open/:token')
+      setPath('JamRsvp', '/jam/rsvp/:token')
+      setPath('JamPass', '/attend/:token')
+      setPath('JamSeatFinder', '/seat/:token')
+
+      // Set paths for event guest & website routes
+      setPath('EventGuestRsvp', '/rsvp/:rsvpId')
+      setPath('EventWebsiteView', '/sites/:siteName')
     }
   }
 

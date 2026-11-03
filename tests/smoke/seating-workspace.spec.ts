@@ -1,5 +1,5 @@
 import { PASS_TOKEN, expect, test } from './helpers'
-import { BLANK_PNG, checkInCalls, gatheringQr, openCheckIn, openWorkspace, passQr, png } from './seating-fixtures'
+import { BLANK_PNG, checkInCalls, gatheringQr, openCheckIn, openGuestsPage, openWorkspace, passQr, png } from './seating-fixtures'
 
 test('with the camera unavailable, upload checks the guest in and rejects anything else', async ({ page }) => {
   const calls = await openWorkspace(page)
@@ -22,20 +22,21 @@ test('with the camera unavailable, upload checks the guest in and rejects anythi
   await expect(page.getByText('No QR code was found in that image.')).toHaveCount(0)
 })
 
-test('a new guest starts as pending, with no status choice on the form', async ({ page }) => {
-  const calls = await openWorkspace(page)
-  const form = page.locator('form').filter({ has: page.getByPlaceholder('First name') })
-  await expect(form.locator('select')).toHaveCount(0)
+test('a new guest starts as pending, and adding them sets no status', async ({ page }) => {
+  const calls = await openGuestsPage(page)
+  await page.getByRole('button', { name: 'Add New Guest' }).click()
 
-  await page.getByPlaceholder('First name').fill('Otto')
-  await page.getByPlaceholder('Last name').fill('Reyes')
-  await page.getByPlaceholder('guest@example.com').fill('otto@example.com')
-  await page.getByRole('button', { name: 'Add guest' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder('First name').fill('Otto')
+  await dialog.getByPlaceholder('Last name').fill('Reyes')
+  await dialog.getByPlaceholder('guest@example.com').fill('otto@example.com')
+  await dialog.getByRole('button', { name: 'Add Guest' }).click()
 
-  const row = page.locator('div', { hasText: 'otto@example.com' }).locator('select').last()
-  await expect(row).toHaveValue('PENDING')
+  const row = page.getByRole('row').filter({ hasText: 'otto@example.com' })
+  await expect(row.locator('select')).toHaveValue('PENDING')
 
   const created = calls.find(call => call.method === 'POST' && call.url.endsWith('/guests'))
   expect(created?.body).not.toHaveProperty('rsvpStatus')
   expect(created?.body).not.toHaveProperty('isAttending')
+  expect(calls.filter(call => call.method === 'PATCH')).toHaveLength(0)
 })

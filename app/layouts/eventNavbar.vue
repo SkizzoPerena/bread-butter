@@ -5,7 +5,7 @@ import { resolveProfileImageUrl } from '~/utils/profileImage'
 const route = useRoute()
 const { isUiOnlyMode } = useApiMode()
 const { displayName: eventDisplayName } = useActiveEvent()
-const { startPageTransition } = usePageTransition()
+const { followLink } = usePageTransition()
 const isJam = computed(() => route.path.startsWith('/seating') || route.path.startsWith('/jam'))
 
 const headerEventTitle = computed(() => {
@@ -55,7 +55,8 @@ const dropitems: DropdownMenuItem[][] = [
   }, {
     label: 'Back to Home',
     icon: 'i-lucide-home',
-    to: '/?view=landing'
+    to: '/?view=landing',
+    active: false
   }, {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
@@ -65,7 +66,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar text-bread-50 shrink-0">
+  <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar text-white shrink-0">
     <template #toggle>
       <!-- Built-in Navbar Toggle for Mobile -->
       <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'start', side: 'bottom' }" :ui="{
@@ -90,7 +91,7 @@ const dropitems: DropdownMenuItem[][] = [
 
     <template #leading>
       <div class="flex items-center gap-2 sm:gap-2.5 mr-2 sm:mr-3 shrink-0">
-        <button type="button" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer" @click="startPageTransition('/')">
+        <a href="/" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer" @click="followLink($event, '/')">
           <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
           <UBadge
             v-if="isJam"
@@ -101,7 +102,7 @@ const dropitems: DropdownMenuItem[][] = [
           >
             JAM
           </UBadge>
-        </button>
+        </a>
         <UBadge
           color="bread"
           variant="subtle"
