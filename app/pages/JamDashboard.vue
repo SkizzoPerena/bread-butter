@@ -18,6 +18,7 @@ const gathering = ref<GatheringRecord | null>(null)
 const guests = ref<SeatingGuestRecord[]>([])
 const loading = ref(true)
 const saving = ref(false)
+const exportingCsv = ref(false)
 
 const isCopiedPasscode = ref(false)
 const isAddGuestModalOpen = ref(false)
@@ -305,26 +306,27 @@ async function addGuest() {
   }
 }
 
-function downloadGuests() {
-  const headers = ['First Name', 'Last Name', 'Email', 'Party', 'RSVP Status', 'Table', 'Seat', 'Checked In']
-  const rows = guests.value.map((g) => [
-    `"${g.firstName || ''}"`,
-    `"${g.lastName || ''}"`,
-    `"${g.email || ''}"`,
-    `"${g.partyName || ''}"`,
-    `"${g.rsvpStatus || 'PENDING'}"`,
-    `"${(g as any).tableLabel || ''}"`,
-    `"${g.seatNumber || ''}"`,
-    `"${g.checkedInAt ? 'Yes' : 'No'}"`,
-  ])
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
-  const encodedUri = encodeURI(csvContent)
-  const link = document.createElement('a')
-  link.setAttribute('href', encodedUri)
-  link.setAttribute('download', `${gathering.value?.name || 'jam'}_guests.csv`)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+// The server builds the CSV, so this matches every other export: table number and name, seat,
+// question answers, and cells that can't start a spreadsheet formula.
+async function downloadGuests() {
+  if (!gatheringId.value || exportingCsv.value) return
+  exportingCsv.value = true
+  try {
+    const blob = await seating.exportGuests(gatheringId.value)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `jam-seat-plan-${gathering.value?.name || 'jam'}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.add({ title: 'Seat plan downloaded', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not export seat plan', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    exportingCsv.value = false
+  }
 }
 </script>
 

@@ -144,6 +144,12 @@ export interface SeatingGuestRecord {
   inviteSentAt?: string | null
   isAttending: boolean
   tableId: string | null
+  /** The table's name, or "Table N" when the host gave it none. */
+  tableLabel?: string | null
+  /** The table's position, from 1. */
+  tableNumber?: number | null
+  /** The name the host gave the table, if any. */
+  tableName?: string | null
   seatNumber: number | null
   attendanceToken: string
   attendanceQrSentAt: string | null
@@ -197,6 +203,8 @@ export interface JamCompanion {
   namePending: boolean
   tableId: string | null
   tableLabel: string | null
+  tableNumber?: number | null
+  tableName?: string | null
   seatNumber: number | null
   checkedInAt: string | null
   attendPath: string

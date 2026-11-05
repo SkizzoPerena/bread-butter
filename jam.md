@@ -32,7 +32,7 @@ The workspace uses the same buttons and containers for its sections:
 - **Tables and seats.** Give each table its own seat count and an optional label, which shows as "Table 2" by position when empty. Then auto-assign attending guests, and move someone after. A party sits together when the table has room. Saving a layout keeps guests in their seats, and only asks first when it would remove someone. There can be more seats than guests, up to 500. Each empty seat can be marked unavailable, so nobody can be placed there. Guests who are coming can choose their own seats until the host locks seat selection, and auto-assign only fills guests with no seat.
 - **QR and check-in.** Shows the gathering QR, lists attending guests, and checks in a personal pass by camera scan or by uploading an image of the QR. Upload also works when the camera is broken or blocked.
 
-**Export Seat Plan** saves `jam-seat-plan.csv`: table by table, with guests alphabetized by last name then first name, and anyone with no seat at the end.
+**Export Seat Plan** downloads the server's seat plan CSV, the same file the Guests, RSVP, and Check-in pages export. Each row has the table number, the table's name (blank when it has none), the seat, the guest's details, and their answers. Rows go table by table, with guests alphabetized by last name then first name, and anyone with no seat at the end under "Unseated".
 
 ## Upgrading a plan
 

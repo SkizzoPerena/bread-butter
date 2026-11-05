@@ -830,12 +830,15 @@ export function useSeating() {
   async function exportGuests(gatheringId: string): Promise<Blob> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
-      const rows = ['table,seat,last name,first name,email,party,response,checked in']
+      const rows = ['table,table name,seat,last name,first name,email,party,response,checked in']
       for (const guest of mockGuests(gatheringId)) {
-        const table = gathering.tables.find((item) => item._id === guest.tableId)
+        const tableIndex = gathering.tables.findIndex((item) => item._id === guest.tableId)
+        const table = gathering.tables[tableIndex]
+        const tableName = table?.customLabel ?? (/^table \d+$/i.test(table?.label ?? '') ? '' : table?.label ?? '')
         rows.push([
-          table?.label || 'Unseated',
-          guest.seatNumber ?? '',
+          table ? tableIndex + 1 : 'Unseated',
+          tableName,
+          table ? guest.seatNumber ?? '' : '',
           guest.lastName,
           guest.firstName,
           guest.email,
