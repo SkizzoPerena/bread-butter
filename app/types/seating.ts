@@ -80,6 +80,15 @@ export interface SeatingPaymentRecord {
   paymongoCheckoutUrl?: string
 }
 
+export type TableGroupColor = 'amber' | 'rose' | 'blue' | 'purple' | 'teal' | 'emerald' | 'stone'
+
+export interface TableGroupRecord {
+  /** Chosen by the page: letters, numbers, `_`, or `-`, up to 40 characters. */
+  id: string
+  name: string
+  color: TableGroupColor
+}
+
 export interface GatheringRecord {
   _id: string
   name: string
@@ -98,6 +107,11 @@ export interface GatheringRecord {
   invitationMessage?: string
   invitationDesign?: JamInvitationDesign
   tables: SeatingTable[]
+  tableGroups?: TableGroupRecord[]
+  /** Table `_id` to the group it belongs to. */
+  tableGroupAssignments?: Record<string, string>
+  /** Group `id` to the parties the host wants seated in it. */
+  partyAllotments?: Record<string, string[]>
   openInvite?: { enabled: boolean, token: string | null }
   questions?: EventQuestion[]
   seatSelectionLocked?: boolean

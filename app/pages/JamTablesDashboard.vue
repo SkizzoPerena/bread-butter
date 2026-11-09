@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import type { GatheringRecord, SeatMoveTarget, SeatingGuestRecord, SeatingSeat, SeatingTable } from '~/types/seating'
+import type {
+  GatheringRecord,
+  SeatMoveTarget,
+  SeatingGuestRecord,
+  SeatingSeat,
+  SeatingTable,
+  TableGroupColor,
+  TableGroupRecord,
+} from '~/types/seating'
 import { guestDisplayName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 
@@ -25,14 +33,13 @@ const saving = ref(false)
 // ---------------------------------------------------------------------------
 // Table Groups & Segregation System
 // ---------------------------------------------------------------------------
-export interface TableGroupMeta {
-  id: string
-  name: string
-  color: 'amber' | 'rose' | 'blue' | 'purple' | 'teal' | 'emerald' | 'stone'
-}
+// The server's limits for table groups. The ID pattern and limits match PYOW-Backend's gathering.service.js.
+const TABLE_GROUP_COLORS: TableGroupColor[] = ['amber', 'rose', 'blue', 'purple', 'teal', 'emerald', 'stone']
+const GROUP_ID_PATTERN = /^[A-Za-z0-9_-]{1,40}$/
+const MAX_TABLE_GROUPS = 40
+const MAX_GROUP_NAME_LENGTH = 80
 
-const DEFAULT_TABLE_GROUPS: TableGroupMeta[] = []
-
+// Groups made before they were saved on the server used these IDs as built-in samples.
 const LEGACY_DEFAULT_GROUP_IDS = new Set(['presidential', 'brides-side', 'grooms-side', 'friends', 'colleagues', 'general'])
 
 interface GroupThemeTokens {
@@ -144,51 +151,104 @@ function getBadgeColor(color?: string): 'neutral' | 'info' | 'success' | 'warnin
 const TABLE_GROUPS_STORAGE_PREFIX = 'jam_table_groups_'
 const TABLE_ASSIGNMENTS_STORAGE_PREFIX = 'jam_table_assignments_'
 
-const tableGroups = ref<TableGroupMeta[]>([...DEFAULT_TABLE_GROUPS])
+const tableGroups = ref<TableGroupRecord[]>([])
 const tableGroupAssignments = ref<Record<string, string>>({})
+const groupAllotments = ref<Record<string, string[]>>({})
 const selectedGroupFilter = ref<string>('all')
 const isGroupedView = ref(true)
 
-function loadTableGroups() {
-  if (typeof window === 'undefined' || !gatheringId.value) return
-  try {
-    const savedGroups = localStorage.getItem(`${TABLE_GROUPS_STORAGE_PREFIX}${gatheringId.value}`)
-    if (savedGroups) {
-      const parsed: TableGroupMeta[] = JSON.parse(savedGroups)
-      tableGroups.value = parsed.filter((g) => !LEGACY_DEFAULT_GROUP_IDS.has(g.id))
-    } else {
-      tableGroups.value = []
-    }
-    const savedAssignments = localStorage.getItem(`${TABLE_ASSIGNMENTS_STORAGE_PREFIX}${gatheringId.value}`)
-    if (savedAssignments) {
-      const parsedAssignments = JSON.parse(savedAssignments)
-      for (const k in parsedAssignments) {
-        if (LEGACY_DEFAULT_GROUP_IDS.has(parsedAssignments[k])) {
-          delete parsedAssignments[k]
-        }
-      }
-      tableGroupAssignments.value = parsedAssignments
-    }
-  } catch (e) {
-    console.error('Could not load table groups from storage', e)
+/** The server's groups are the truth. This page changes its copy first, then saves it. */
+function applyLayoutGroups(source: GatheringRecord) {
+  tableGroups.value = (source.tableGroups ?? []).map((group) => ({ ...group }))
+  tableGroupAssignments.value = { ...(source.tableGroupAssignments ?? {}) }
+  groupAllotments.value = Object.fromEntries(
+    Object.entries(source.partyAllotments ?? {}).map(([groupId, names]) => [groupId, [...names]]),
+  )
+}
+
+/** Built when the save runs, so it only names tables and groups that still exist. */
+function groupsPayload() {
+  const tableIds = new Set((gathering.value?.tables ?? []).map((table) => table._id))
+  const groupIds = new Set(tableGroups.value.map((group) => group.id))
+  return {
+    groups: tableGroups.value.map(({ id, name, color }) => ({ id, name, color })),
+    assignments: Object.fromEntries(
+      Object.entries(tableGroupAssignments.value)
+        .filter(([tableId, groupId]) => tableIds.has(tableId) && groupIds.has(groupId)),
+    ),
   }
 }
 
-function persistTableGroups() {
-  if (typeof window === 'undefined' || !gatheringId.value) return
+function saveGroups() {
+  return queueSave('Could not save table groups', async () => {
+    gathering.value = await seating.saveTableGroups(gatheringId.value, groupsPayload())
+  })
+}
+
+/** Groups used to live only in this browser. Reads them once so they can move to the server. */
+function readStoredGroups() {
+  if (typeof window === 'undefined' || !gatheringId.value) return null
   try {
-    localStorage.setItem(`${TABLE_GROUPS_STORAGE_PREFIX}${gatheringId.value}`, JSON.stringify(tableGroups.value))
-    localStorage.setItem(`${TABLE_ASSIGNMENTS_STORAGE_PREFIX}${gatheringId.value}`, JSON.stringify(tableGroupAssignments.value))
-  } catch (e) {
-    console.error('Could not persist table groups to storage', e)
+    const savedGroups = localStorage.getItem(`${TABLE_GROUPS_STORAGE_PREFIX}${gatheringId.value}`)
+    const savedAssignments = localStorage.getItem(`${TABLE_ASSIGNMENTS_STORAGE_PREFIX}${gatheringId.value}`)
+    if (!savedGroups && !savedAssignments) return null
+    // Shaped to the server's rules, so old data from before those rules still uploads.
+    const groups = (JSON.parse(savedGroups || '[]') as Partial<TableGroupRecord>[])
+      .filter((group): group is TableGroupRecord =>
+        typeof group?.id === 'string'
+        && GROUP_ID_PATTERN.test(group.id)
+        && !LEGACY_DEFAULT_GROUP_IDS.has(group.id)
+        && typeof group.name === 'string'
+        && group.name.trim() !== '')
+      .slice(0, MAX_TABLE_GROUPS)
+      .map((group) => ({
+        id: group.id,
+        name: group.name.trim().slice(0, MAX_GROUP_NAME_LENGTH),
+        color: TABLE_GROUP_COLORS.includes(group.color as TableGroupColor) ? group.color as TableGroupColor : 'stone',
+      }))
+    const assignments = JSON.parse(savedAssignments || '{}') as Record<string, string>
+    return { groups, assignments }
+  } catch {
+    return null
   }
+}
+
+function clearStoredGroups() {
+  try {
+    localStorage.removeItem(`${TABLE_GROUPS_STORAGE_PREFIX}${gatheringId.value}`)
+    localStorage.removeItem(`${TABLE_ASSIGNMENTS_STORAGE_PREFIX}${gatheringId.value}`)
+  } catch {
+    // Nothing to clean up when storage is blocked.
+  }
+}
+
+// A failed upload reloads the page's data, so this keeps it to one try per visit.
+let storedGroupsChecked = false
+
+/** Uploads this browser's old groups once, if the plan has none on the server yet. */
+function migrateStoredGroups(source: GatheringRecord) {
+  if (storedGroupsChecked) return
+  storedGroupsChecked = true
+  const stored = readStoredGroups()
+  if (!stored) return
+  if (source.tableGroups?.length || !stored.groups.length) {
+    clearStoredGroups()
+    return
+  }
+  tableGroups.value = stored.groups
+  tableGroupAssignments.value = stored.assignments
+  // Kept in storage until the server has them, so the next visit tries again.
+  queueSave('Could not move your table groups to your account', async () => {
+    gathering.value = await seating.saveTableGroups(gatheringId.value, groupsPayload())
+    clearStoredGroups()
+  })
 }
 
 function getTableGroupId(tableId: string): string | null {
   return tableGroupAssignments.value[tableId] || null
 }
 
-function getTableGroup(groupIdOrTableId: string): TableGroupMeta | null {
+function getTableGroup(groupIdOrTableId: string): TableGroupRecord | null {
   const gId = tableGroupAssignments.value[groupIdOrTableId] || groupIdOrTableId
   return tableGroups.value.find((g) => g.id === gId) || null
 }
@@ -199,7 +259,7 @@ function assignTableToGroup(tableId: string, groupId: string | null) {
   } else {
     tableGroupAssignments.value[tableId] = groupId
   }
-  persistTableGroups()
+  saveGroups()
   toast.add({ title: 'Table group updated', color: 'success' })
 }
 
@@ -234,7 +294,7 @@ const renderedSections = computed(() => {
     }]
   }
 
-  const sections: { id: string; group: TableGroupMeta | null; tables: SeatingTable[] }[] = activeTableGroups.value
+  const sections: { id: string; group: TableGroupRecord | null; tables: SeatingTable[] }[] = activeTableGroups.value
     .map((grp) => ({
       id: grp.id,
       group: grp,
@@ -265,7 +325,7 @@ const renderedSections = computed(() => {
 const isGroupModalOpen = ref(false)
 const editingGroupId = ref<string | null>(null)
 const groupFormName = ref('')
-const groupFormColor = ref<TableGroupMeta['color']>('blue')
+const groupFormColor = ref<TableGroupRecord['color']>('blue')
 const groupFormSelectedTableIds = ref<string[]>([])
 
 function openCreateGroupModal() {
@@ -276,7 +336,7 @@ function openCreateGroupModal() {
   isGroupModalOpen.value = true
 }
 
-function openEditGroupModal(group: TableGroupMeta) {
+function openEditGroupModal(group: TableGroupRecord) {
   editingGroupId.value = group.id
   groupFormName.value = group.name
   groupFormColor.value = group.color
@@ -326,7 +386,7 @@ function saveGroup() {
     tableGroupAssignments.value[tId] = targetId
   }
 
-  persistTableGroups()
+  saveGroups()
   isGroupModalOpen.value = false
   toast.add({
     title: editingGroupId.value ? 'Table group updated' : 'Table group created',
@@ -348,10 +408,14 @@ function deleteGroup(groupId: string) {
       delete tableGroupAssignments.value[tId]
     }
   }
+  // The server drops the group's allotments too.
+  groupAllotments.value = Object.fromEntries(
+    Object.entries(groupAllotments.value).filter(([id]) => id !== groupId),
+  )
   if (selectedGroupFilter.value === groupId) {
     selectedGroupFilter.value = 'all'
   }
-  persistTableGroups()
+  saveGroups()
   toast.add({ title: 'Table group deleted', description: `Ungrouped "${grp.name}".`, color: 'neutral' })
 }
 
@@ -418,7 +482,7 @@ const filteredTables = computed(() => {
     if (!q) return true
     if (table.label.toLowerCase().includes(q)) return true
     const grp = getTableGroup(table._id)
-    if (grp.name.toLowerCase().includes(q)) return true
+    if (grp?.name.toLowerCase().includes(q)) return true
     // Check if any seated guest on this table matches
     const seatedOnTable = guests.value.filter((g) => g.tableId === table._id)
     return seatedOnTable.some((g) =>
@@ -440,7 +504,8 @@ async function load(quiet = false) {
     gathering.value = gatheringData
     guests.value = guestsData.guests
 
-    loadTableGroups()
+    applyLayoutGroups(gatheringData)
+    migrateStoredGroups(gatheringData)
 
     setActiveEvent({
       _id: gatheringData._id,
@@ -469,7 +534,7 @@ const REFRESH_INTERVAL_MS = 30_000
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 async function refreshIfSeatsChanged() {
-  if (loading.value || draggedGuestId.value || draggedTableId.value || pendingSaves.value) return
+  if (loading.value || draggedGuestId.value || draggedTableId.value || pendingSaves.value || allotmentSaveTimer) return
   try {
     const latest = await seating.getGathering(gatheringId.value)
     if (latest.seatVersion !== gathering.value?.seatVersion) await load(true)
@@ -485,6 +550,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (allotmentSaveTimer) flushAllotmentSave()
   clearInterval(refreshTimer)
   window.removeEventListener('focus', refreshIfSeatsChanged)
 })
@@ -741,7 +807,8 @@ function addNewTable(targetGroupId?: string) {
       const newTable = gathering.value.tables[gathering.value.tables.length - 1]
       if (newTable && assignedGroup) {
         tableGroupAssignments.value[newTable._id] = assignedGroup
-        persistTableGroups()
+        // Already inside a queued save, so this saves directly instead of queueing behind itself.
+        gathering.value = await seating.saveTableGroups(gatheringId.value, groupsPayload())
       }
       toast.add({ title: 'Table added', description: `New table with ${capacity} seats.`, color: 'success' })
     } finally {
@@ -755,7 +822,6 @@ function addNewTable(targetGroupId?: string) {
 // ---------------------------------------------------------------------------
 const isAutoSortModalOpen = ref(false)
 const autoSortTargetGroupId = ref<string | null>(null)
-const groupAllotments = ref<Record<string, string[]>>({})
 
 const unseatedPartiesList = computed(() => {
   const map = new Map<string, SeatingGuestRecord[]>()
@@ -794,11 +860,44 @@ function openAutoSortModal(targetGroupId: string | null = null) {
     return
   }
   autoSortTargetGroupId.value = targetGroupId
-  autoDetectAllotments()
+  // Saved allotments are the host's choices. Suggestions are only shown, and saved once the host acts on them.
+  const hasSavedAllotments = Object.values(groupAllotments.value).some((names) => names.length > 0)
+  if (!hasSavedAllotments) groupAllotments.value = detectAllotments()
   isAutoSortModalOpen.value = true
 }
 
+// Each click in the dialog would be a write, so save once the host has stopped clicking.
+const ALLOTMENT_SAVE_DELAY_MS = 400
+let allotmentSaveTimer: ReturnType<typeof setTimeout> | undefined
+
+function allotmentsPayload() {
+  const groupIds = new Set(tableGroups.value.map((group) => group.id))
+  return Object.fromEntries(
+    Object.entries(groupAllotments.value)
+      .filter(([groupId, names]) => groupIds.has(groupId) && names.length > 0)
+      .map(([groupId, names]) => [groupId, [...new Set(names)]]),
+  )
+}
+
+function flushAllotmentSave() {
+  clearTimeout(allotmentSaveTimer)
+  allotmentSaveTimer = undefined
+  return queueSave('Could not save party allotments', async () => {
+    gathering.value = await seating.savePartyAllotments(gatheringId.value, allotmentsPayload())
+  })
+}
+
+function saveAllotments() {
+  clearTimeout(allotmentSaveTimer)
+  allotmentSaveTimer = setTimeout(flushAllotmentSave, ALLOTMENT_SAVE_DELAY_MS)
+}
+
 function autoDetectAllotments() {
+  groupAllotments.value = detectAllotments()
+  saveAllotments()
+}
+
+function detectAllotments() {
   const allotments: Record<string, string[]> = {}
   for (const g of tableGroups.value) {
     allotments[g.id] = []
@@ -812,7 +911,7 @@ function autoDetectAllotments() {
       const gNameLower = g.name.toLowerCase()
       const words = gNameLower.split(/[\s/&,]+/).filter((w) => w.length > 2)
       if (words.some((w) => nameLower.includes(w)) || nameLower.includes(gNameLower)) {
-        allotments[g.id].push(p.partyName)
+        allotments[g.id]?.push(p.partyName)
         assigned = true
         break
       }
@@ -823,7 +922,7 @@ function autoDetectAllotments() {
     }
   }
 
-  groupAllotments.value = allotments
+  return allotments
 }
 
 function clearAllotments() {
@@ -832,9 +931,11 @@ function clearAllotments() {
     allotments[g.id] = []
   }
   groupAllotments.value = allotments
+  saveAllotments()
 }
 
 function togglePartyInGroup(groupId: string, partyName: string) {
+  if (!groupId) return
   if (!groupAllotments.value[groupId]) {
     groupAllotments.value[groupId] = []
   }
@@ -850,6 +951,7 @@ function togglePartyInGroup(groupId: string, partyName: string) {
     }
     groupAllotments.value[groupId].push(partyName)
   }
+  saveAllotments()
 }
 
 function getAllottedGuestsCount(groupId: string): number {
@@ -877,6 +979,8 @@ function getGroupOpenSeatsCount(groupId: string): number {
 
 async function executeGroupAutoSort() {
   if (!gathering.value) return
+  // Keeps the allotments the host sorted with, including suggestions they didn't change.
+  flushAllotmentSave()
   saving.value = true
 
   try {
@@ -1015,6 +1119,10 @@ function removeTable(tableId: string) {
 
   const remaining = gathering.value.tables.filter((t) => t._id !== tableId)
   gathering.value.tables = remaining
+  // The server drops the table's group in the same write.
+  tableGroupAssignments.value = Object.fromEntries(
+    Object.entries(tableGroupAssignments.value).filter(([id]) => id !== tableId),
+  )
 
   return queueSave('Could not delete table', async () => {
     saving.value = true
@@ -1919,6 +2027,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             <UInput
               v-model="groupFormName"
               placeholder="e.g. VIP / Presidential, Bride's Family, Entourage"
+              :maxlength="MAX_GROUP_NAME_LENGTH"
               size="md"
               class="w-full"
               autofocus
@@ -1939,7 +2048,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 :class="groupFormColor === colorKey
                   ? 'border-toast-600 bg-toast-100/80 font-bold ring-2 ring-toast-400'
                   : 'border-bread-200 bg-white hover:bg-toast-50'"
-                @click="groupFormColor = colorKey as TableGroupMeta['color']"
+                @click="groupFormColor = colorKey as TableGroupRecord['color']"
               >
                 <span class="size-2.5 rounded-full" :class="theme.dot" />
                 <span class="capitalize">{{ colorKey }}</span>
