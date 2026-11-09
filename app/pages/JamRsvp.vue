@@ -32,7 +32,6 @@ const resultMessage = ref('')
 const attendPath = ref('')
 const errorMessage = ref('')
 const saving = ref(false)
-const seatPicker = ref<{ reload: () => Promise<void> } | null>(null)
 
 // Someone who isn't coming isn't asked things like a meal choice.
 const visibleQuestions = computed(() => (attendanceStatus.value === 'GOING' ? questions.value : []))
@@ -121,11 +120,6 @@ async function sendReply() {
       </p>
       <template v-if="attendPath">
         <JamCompanionForm
-          :token="token"
-          @changed="seatPicker?.reload()"
-        />
-        <JamSeatPicker
-          ref="seatPicker"
           :token="token"
         />
         <NuxtLink

@@ -3,6 +3,12 @@ const route = useRoute()
 const router = useRouter()
 const { startPageTransition } = usePageTransition()
 
+const isMobileMenuOpen = ref(false)
+
+watch(() => route.path, () => {
+  isMobileMenuOpen.value = false
+})
+
 const gatheringId = computed(() => {
   const param = route.params.gatheringId
   if (typeof param === 'string' && param) return param
@@ -34,6 +40,8 @@ const titleThemeClass = computed(() => {
     'bg-slate-50': 'text-slate-600',
     'bg-rose-50': 'text-rose-600',
     'bg-amber-50': 'text-amber-600',
+    'bg-red-50': 'text-red-600',
+    'bg-yellow-50': 'text-yellow-700',
   }
   return colorMap[bgClass] || 'text-toast-700'
 })
@@ -78,7 +86,7 @@ const titleThemeClass = computed(() => {
               color="warning"
               variant="solid"
               size="xs"
-              class="text-[10px] sm:text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-full text-black bg-amber-400 border border-amber-300"
+              class="hidden min-[420px]:inline-flex text-[10px] sm:text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-full text-black bg-amber-400 border border-amber-300"
             >
               Jam Seating
             </UBadge>
@@ -88,7 +96,7 @@ const titleThemeClass = computed(() => {
 
           <!-- Page Title -->
           <div
-            class="font-serif text-base sm:text-lg lg:text-xl font-bold truncate max-w-[min(100%,22rem)] transition-colors"
+            class="font-serif text-base sm:text-lg lg:text-xl font-bold truncate max-w-[min(100%,14rem)] sm:max-w-[min(100%,22rem)] transition-colors"
             :class="titleThemeClass"
           >
             <slot name="title">
@@ -98,13 +106,79 @@ const titleThemeClass = computed(() => {
         </div>
       </template>
 
-      <!-- RIGHT SIDE: Actions Teleported from Subpages -->
+      <!-- RIGHT SIDE: Actions Teleported from Subpages (Desktop) & Hamburger Menu (Mobile) -->
       <template #right>
         <slot name="action">
-          <div id="navbar-actions" class="flex items-center gap-2"></div>
+          <div id="navbar-actions" class="hidden sm:flex items-center gap-2"></div>
         </slot>
+
+        <!-- Mobile Actions Toggle Button on Right Side -->
+        <div class="sm:hidden flex items-center -mr-1 shrink-0">
+          <UButton
+            :icon="isMobileMenuOpen ? 'i-lucide-x' : 'i-lucide-menu'"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="text-toast-800 hover:bg-bread-100/60 cursor-pointer"
+            aria-label="Toggle actions menu"
+            @click="isMobileMenuOpen = !isMobileMenuOpen"
+          />
+        </div>
       </template>
     </UDashboardNavbar>
+
+    <!-- Mobile Actions Dropdown / Sheet (v-show keeps Teleport target in DOM) -->
+    <Transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 -translate-y-2 scale-95"
+      enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100 translate-y-0 scale-100"
+      leave-to-class="opacity-0 -translate-y-2 scale-95"
+    >
+      <div
+        v-show="isMobileMenuOpen"
+        class="sm:hidden fixed inset-0 z-50 pointer-events-auto"
+      >
+        <!-- Backdrop overlay -->
+        <div
+          class="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+          @click="isMobileMenuOpen = false"
+        />
+
+        <!-- Floating action drawer anchored right below navbar top-left -->
+        <div
+          class="absolute top-14 left-3 right-3 bg-white rounded-2xl shadow-2xl border border-bread-200/90 p-4 space-y-3 z-10 max-h-[calc(100vh-80px)] overflow-y-auto"
+        >
+          <div class="flex items-center justify-between border-b border-bread-100 pb-2">
+            <div class="flex items-center gap-2">
+              <div class="size-6 rounded-lg bg-toast-100 flex items-center justify-center text-toast-800">
+                <UIcon name="i-lucide-sparkles" class="size-3.5" />
+              </div>
+              <span class="font-serif font-bold text-sm text-toast-900">Page Actions</span>
+            </div>
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="rounded-full size-6 p-0 text-muted hover:text-toast-900 cursor-pointer"
+              aria-label="Close menu"
+              @click="isMobileMenuOpen = false"
+            />
+          </div>
+
+          <!-- Mobile Actions Teleport Destination -->
+          <div
+            id="navbar-mobile-actions"
+            class="flex flex-col gap-2 [&>*]:w-full [&>*]:justify-start"
+            @click="isMobileMenuOpen = false"
+          >
+            <!-- Subpages teleport actions here -->
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Page Content Slot -->
     <slot />

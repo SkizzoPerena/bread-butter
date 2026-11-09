@@ -902,7 +902,7 @@ function openUpgradePage() {
   navigateTo({ path: '/event/upgrade', query: { eventId: id } })
 }
 
-const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
+const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'colorsDressCode', 'schedules']
 const isDesktopOnlyModalOpen = ref(false)
 const selectedDesktopOnlyFeature = ref<QuickNavItem | null>(null)
 const activeMobileTab = ref<'launcher' | 'overview'>('launcher')
@@ -1617,6 +1617,18 @@ const displayedImportantTasks = computed(() => {
 })
 
 function onPriorityTaskClick(task: PriorityDashboardTask) {
+  if (isMobileViewport() && DESKTOP_ONLY_ACTIONS.includes(task.action)) {
+    const quickNav = QUICK_NAV_ITEMS.find((item) => item.action === task.action)
+    selectedDesktopOnlyFeature.value = quickNav || ({
+      label: task.title,
+      icon: 'i-lucide-monitor',
+      action: task.action,
+      category: 'Core Planning',
+    } as any)
+    isDesktopOnlyModalOpen.value = true
+    return
+  }
+
   switch (task.action) {
     case 'payments':
     case 'suppliers':
@@ -2153,18 +2165,17 @@ watch(eventId, () => {
               <!-- 3 Required Planning Health Indicators -->
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 py-1.5 flex-1 items-stretch w-full min-h-0">
                 <!-- 1. Overdue tasks -->
-                <div
-                  role="button"
-                  tabindex="0"
-                  title="Click to view tasks"
+                <div role="button" tabindex="0" title="Click to view tasks"
                   class="h-full flex flex-col justify-between p-2.5 sm:p-3 lg:p-2.5 xl:p-3.5 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/70 hover:border-bread-300 hover:shadow-sm cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 transition-all min-w-0"
-                  @click="openTasksDashboard"
-                  @keydown.enter="openTasksDashboard"
+                  @click="openTasksDashboard" @keydown.enter="openTasksDashboard"
                   @keydown.space.prevent="openTasksDashboard">
                   <div class="flex items-center justify-between gap-1 min-w-0">
                     <div class="flex items-center gap-1 min-w-0">
-                      <span class="dash-item-header font-semibold text-toast-700 font-sans truncate group-hover:text-primary-700 transition-colors">Overdue tasks</span>
-                      <UIcon name="i-lucide-chevron-right" class="size-3 text-toast-400 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
+                      <span
+                        class="dash-item-header font-semibold text-toast-700 font-sans truncate group-hover:text-primary-700 transition-colors">Overdue
+                        tasks</span>
+                      <UIcon name="i-lucide-chevron-right"
+                        class="size-3 text-toast-400 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
                     </div>
                     <UIcon :name="overdueTasksCount === 0 ? 'i-lucide-check-circle-2' : 'i-lucide-alert-triangle'"
                       :class="overdueTasksCount === 0 ? 'text-green-500' : 'text-red-500'"
@@ -2184,18 +2195,16 @@ watch(eventId, () => {
                 </div>
 
                 <!-- 2. Requirements completion -->
-                <div
-                  role="button"
-                  tabindex="0"
-                  title="Click to view church requirements"
+                <div role="button" tabindex="0" title="Click to view church requirements"
                   class="h-full flex flex-col justify-between p-2.5 sm:p-3 lg:p-2.5 xl:p-3.5 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/70 hover:border-bread-300 hover:shadow-sm cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 transition-all min-w-0"
-                  @click="openChurchRequirementsDashboard"
-                  @keydown.enter="openChurchRequirementsDashboard"
+                  @click="openChurchRequirementsDashboard" @keydown.enter="openChurchRequirementsDashboard"
                   @keydown.space.prevent="openChurchRequirementsDashboard">
                   <div class="flex items-center justify-between gap-1 min-w-0">
                     <div class="flex items-center gap-1 min-w-0">
-                      <span class="dash-item-header font-semibold text-toast-700 font-sans truncate group-hover:text-primary-700 transition-colors">Requirements</span>
-                      <UIcon name="i-lucide-chevron-right" class="size-3 text-toast-400 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
+                      <span
+                        class="dash-item-header font-semibold text-toast-700 font-sans truncate group-hover:text-primary-700 transition-colors">Requirements</span>
+                      <UIcon name="i-lucide-chevron-right"
+                        class="size-3 text-toast-400 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
                     </div>
                     <UIcon name="i-lucide-file-check-2" class="size-3.5 sm:size-4 text-teal-600 shrink-0" />
                   </div>
@@ -2212,18 +2221,16 @@ watch(eventId, () => {
                 </div>
 
                 <!-- 3. Guests without tables -->
-                <div
-                  role="button"
-                  tabindex="0"
-                  title="Click to view guest list & manage tables"
+                <div role="button" tabindex="0" title="Click to view guest list & manage tables"
                   class="h-full flex flex-col justify-between p-2.5 sm:p-3 lg:p-2.5 xl:p-3.5 rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/70 hover:border-bread-300 hover:shadow-sm cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 transition-all min-w-0"
-                  @click="openGuestList"
-                  @keydown.enter="openGuestList"
-                  @keydown.space.prevent="openGuestList">
+                  @click="openGuestList" @keydown.enter="openGuestList" @keydown.space.prevent="openGuestList">
                   <div class="flex items-center justify-between gap-1 min-w-0">
                     <div class="flex items-center gap-1 min-w-0">
-                      <span class="dash-item-header font-semibold text-toast-700 font-sans truncate group-hover:text-primary-700 transition-colors">Without tables</span>
-                      <UIcon name="i-lucide-chevron-right" class="size-3 text-toast-400 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
+                      <span
+                        class="dash-item-header font-semibold text-toast-700 font-sans truncate group-hover:text-primary-700 transition-colors">Without
+                        tables</span>
+                      <UIcon name="i-lucide-chevron-right"
+                        class="size-3 text-toast-400 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
                     </div>
                     <UIcon name="i-lucide-users" class="size-3.5 sm:size-4 text-red-600 shrink-0" />
                   </div>
@@ -2264,7 +2271,8 @@ watch(eventId, () => {
           </div>
 
           <!-- 3-Column App Launcher Grid -->
-          <div class="grid grid-cols-3 gap-3 sm:gap-3.5 xl:gap-4 w-full max-w-60 sm:max-w-65 lg:max-w-62.5 xl:max-w-70 mx-auto">
+          <div
+            class="grid grid-cols-3 gap-3 sm:gap-3.5 xl:gap-4 w-full max-w-60 sm:max-w-65 lg:max-w-62.5 xl:max-w-70 mx-auto">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
               class="group relative flex flex-col items-center justify-center w-full aspect-square p-1 sm:p-1.5 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
@@ -2334,25 +2342,23 @@ watch(eventId, () => {
                     ? 'Visual website editor, theme customizer & live canvas'
                     : selectedDesktopOnlyFeature?.action === 'invitation'
                       ? 'Card layout designer, typography controls & preview'
-                      : 'Comprehensive guest seating arrangement & group tables'
+                      : selectedDesktopOnlyFeature?.action === 'colorsDressCode'
+                        ? 'Color palette customizer, mood board & dress code guidelines'
+                        : selectedDesktopOnlyFeature?.action === 'schedules'
+                          ? 'Detailed day-of timeline, ceremony itineraries & run-of-show'
+                          : 'Desktop view required for optimal management'
                 }}
               </div>
             </div>
           </div>
 
           <!-- Actions -->
-          <div class="space-y-2 pt-1">
+          <div class="pt-1">
             <UButton block color="primary" size="md"
               class="font-bold shadow-sm bg-toast-600 hover:bg-toast-700 text-white cursor-pointer"
               @click="isDesktopOnlyModalOpen = false">
               Understood
             </UButton>
-            <div class="text-center">
-              <button type="button" class="text-[11px] text-toast-700/70 hover:text-toast-900 underline cursor-pointer"
-                @click="isDesktopOnlyModalOpen = false; navigateFromModal(selectedDesktopOnlyFeature)">
-                Continue anyway on mobile
-              </button>
-            </div>
           </div>
         </div>
       </template>

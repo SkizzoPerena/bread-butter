@@ -3,7 +3,7 @@ import type { JamPackageRecord } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import { EVENT_TYPE_OPTIONS } from '~/types/event'
 
-definePageMeta({ layout: 'signed-in-navbar' })
+definePageMeta({ layout: false })
 useHead({ title: 'New seating plan - Bread + Butter' })
 
 type ViewStep = 'packages' | 'details'
@@ -29,19 +29,37 @@ const saving = ref(false)
 const editingId = computed(() => String(route.query.gatheringId || ''))
 const selected = computed(() => packages.value.find((item) => item._id === selectedId.value) || null)
 
-const plans = computed(() => packages.value.map((jamPackage) => ({
-  id: jamPackage._id,
-  title: jamPackage.name,
-  description: `Up to ${jamPackage.maxGuests} guests.`,
-  price: `₱${jamPackage.pricePhp.toLocaleString()}`,
-  button: {
-    label: `Select ${jamPackage.name}`,
-    color: 'primary' as const,
-    size: 'md' as const,
-    class: 'font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md',
-    onClick: () => choosePackage(jamPackage._id),
-  },
-})))
+const sortedPackages = computed(() => {
+  return [...packages.value].sort((a, b) => a.pricePhp - b.pricePhp)
+})
+
+function formatPlan(jamPackage: JamPackageRecord) {
+  const originalPrice = jamPackage.pricePhp * 2
+  return {
+    id: jamPackage._id,
+    title: jamPackage.name,
+    maxGuests: jamPackage.maxGuests,
+    price: `₱${originalPrice.toLocaleString()}`,
+    discount: `₱${jamPackage.pricePhp.toLocaleString()}`,
+    button: {
+      label: `Select ${jamPackage.name}`,
+      color: 'primary' as const,
+      size: 'xs' as const,
+      class: 'w-full font-bold text-white bg-toast-700 hover:bg-toast-800 active:bg-toast-900 py-1.5 px-3 text-xs rounded-xl shadow-xs cursor-pointer justify-center transition-all',
+      onClick: () => choosePackage(jamPackage._id),
+    },
+  }
+}
+
+const lowerPlans = computed(() => {
+  return sortedPackages.value.slice(0, 3).map(formatPlan)
+})
+
+const higherPlans = computed(() => {
+  return sortedPackages.value.slice(3, 5).map(formatPlan)
+})
+
+const plans = computed(() => sortedPackages.value.map(formatPlan))
 
 function toDateInput(value: string) {
   const date = new Date(value)
@@ -130,189 +148,280 @@ async function submit() {
 </script>
 
 <template>
-  <div class="bg-toast-700 min-h-screen pt-24 sm:pt-28 pb-10">
-    <UContainer class="py-4 sm:py-6 space-y-4 max-w-6xl">
+  <div class="bg-toast-700 h-screen max-h-screen flex flex-col justify-between py-2 sm:py-3 px-3 sm:px-6 overflow-y-auto lg:overflow-hidden select-none">
+    <!-- Top Header & Navigation Bar (Compact, No Navbar) -->
+    <header class="w-full max-w-6xl mx-auto flex items-center justify-between pb-1.5 border-b border-white/10 shrink-0">
+      <div class="flex items-center gap-2">
+        <UButton
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-arrow-left"
+          class="text-bread-200 hover:text-white cursor-pointer font-medium text-xs px-2 py-1"
+          @click.prevent="startPageTransition('/event/dashboard-butter')"
+        >
+          Dashboard
+        </UButton>
+      </div>
+
+      <!-- Step Navigation Toggle -->
+      <div class="inline-flex items-center gap-1.5 bg-toast-900/60 p-0.5 rounded-full border border-toast-600/40">
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer"
+          :class="currentView === 'packages' ? 'bg-bread-400 text-toast-950 shadow-xs' : 'text-bread-200 hover:text-white'"
+          @click="switchView('packages')"
+        >
+          1. Select package
+        </button>
+        <span class="text-bread-400/30 text-[10px]">•</span>
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer"
+          :class="currentView === 'details' ? 'bg-bread-400 text-toast-950 shadow-xs' : 'text-bread-200 hover:text-white'"
+          @click="switchView('details')"
+        >
+          2. Gathering details
+        </button>
+      </div>
+
+      <!-- Plan Step Counter -->
+      <div class="text-right">
+        <span class="text-[11px] font-semibold text-bread-300 font-mono">
+          Step {{ currentView === 'packages' ? '1' : '2' }}/2
+        </span>
+      </div>
+    </header>
+
+    <!-- Main Content Area: Centered and strictly fitting within 100vh -->
+    <main class="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 py-1.5">
       <div
         v-if="!loading && !seatingPlansEnabled"
-        class="white-bread-container p-6 text-center space-y-2"
+        class="white-bread-container p-5 text-center space-y-2 max-w-md mx-auto"
       >
-        <h1 class="text-2xl font-bold font-serif">
+        <h1 class="text-xl font-bold font-serif text-toast-900">
           Seating is not available right now
         </h1>
-        <p class="text-sm">
-          You can still create an event.
+        <p class="text-xs text-toast-700">
+          You can still create and manage your event.
         </p>
       </div>
+
       <template v-else>
-      <div class="text-center space-y-1.5 max-w-2xl mx-auto">
-        <UBadge
-          color="bread"
-          variant="soft"
-          size="md"
-          class="px-3 py-0.5 font-semibold rounded-full text-toast-900 bg-bread-400"
+        <!-- View 1: Packages Selection (2 Rows, 3-col & 2-col, Compact) -->
+        <div
+          v-if="currentView === 'packages'"
+          class="w-full flex flex-col justify-center gap-2 sm:gap-2.5 my-auto"
         >
-          Step {{ currentView === 'packages' ? '1' : '2' }} of 2
-        </UBadge>
-        <h1 class="text-2xl sm:text-3xl font-bold font-serif text-bread-400">
-          {{ currentView === 'packages' ? 'Pick a jam plan' : 'Set up the gathering' }}
-        </h1>
-        <p class="text-xs sm:text-sm text-white/90">
-          {{ currentView === 'packages'
-            ? 'Every plan includes a seat plan, an invitation and RSVP, and an attendance QR. Choose a guest cap and price.'
-            : 'Add the name, venue, and date. You can change the plan before you pay.' }}
-        </p>
-        <div class="flex justify-center items-center gap-2 pt-1">
-          <button
-            type="button"
-            class="px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer"
-            :class="currentView === 'packages' ? 'bg-bread-400 text-toast-900 shadow-sm' : 'bg-toast-800/80 text-bread-200 hover:bg-toast-600'"
-            @click="switchView('packages')"
-          >
-            1. Select package
-          </button>
-          <span class="text-bread-400/50 text-xs">•</span>
-          <button
-            type="button"
-            class="px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer"
-            :class="currentView === 'details' ? 'bg-bread-400 text-toast-900 shadow-sm' : 'bg-toast-800/80 text-bread-200 hover:bg-toast-600'"
-            @click="switchView('details')"
-          >
-            2. Gathering details
-          </button>
-        </div>
-      </div>
-
-      <div
-        v-if="loading"
-        class="text-center text-white"
-      >
-        Loading packages...
-      </div>
-      <div
-        v-else-if="packages.length === 0"
-        class="white-bread-container p-6 text-center"
-      >
-        No jam packages are available yet.
-      </div>
-      <UPricingPlans
-        v-else-if="currentView === 'packages'"
-        class="gap-4"
-      >
-        <UPricingPlan
-          v-for="plan in plans"
-          :key="plan.id"
-          v-bind="plan"
-          class="text-left bread-container transition-all duration-300"
-          :class="selectedId === plan.id ? 'ring-3 ring-toast-600/30' : ''"
-          :ui="{
-            title: 'font-serif font-bold text-base sm:text-lg',
-            description: 'text-xs text-toast-800 min-h-0',
-            price: 'text-base font-bold',
-          }"
-        />
-      </UPricingPlans>
-
-      <div
-        v-else
-        class="max-w-2xl mx-auto"
-      >
-        <div class="bread-container bg-bread-400 text-toast-900 p-6 sm:p-8 space-y-6">
-          <div class="flex items-center justify-between bg-white/80 p-4 rounded-xl border border-toast-600/20">
-            <div>
-              <span class="text-xs text-toast-600 uppercase font-bold tracking-wider">Selected plan:</span>
-              <h3 class="text-lg font-bold font-serif text-toast-900">
-                {{ selected?.name }}
-              </h3>
-              <p class="text-sm">
-                Up to {{ selected?.maxGuests }} guests · ₱{{ selected?.pricePhp.toLocaleString() }}
-              </p>
-            </div>
-            <UButton
-              variant="outline"
-              color="primary"
-              size="xs"
-              icon="i-lucide-arrow-left"
-              @click="switchView('packages')"
-            >
-              Change package
-            </UButton>
+          <!-- Section Title Row (Concise & Tight) -->
+          <div class="text-center space-y-0.5 shrink-0">
+            <h1 class="text-xl sm:text-2xl font-bold font-serif text-bread-400 leading-tight">
+              Pick a Jam Plan
+            </h1>
+            <p class="text-xs text-white/80 max-w-lg mx-auto line-clamp-1">
+              Every plan includes seating arrangements, stationery invitations, and live RSVP check-in.
+            </p>
           </div>
 
-          <form
-            class="space-y-5"
-            @submit.prevent="submit"
+          <div
+            v-if="loading"
+            class="text-center text-white py-8"
           >
-            <UFormField
-              label="Gathering name"
-              required
-            >
-              <UInput
-                v-model="name"
-                placeholder="Santos reunion"
-                size="lg"
-                class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
-              />
-            </UFormField>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <UFormField
-                label="Event Type"
-                required
+            Loading packages...
+          </div>
+          <div
+            v-else-if="packages.length === 0"
+            class="white-bread-container p-6 text-center max-w-md mx-auto"
+          >
+            No jam packages are available yet.
+          </div>
+          <div
+            v-else
+            class="space-y-2 sm:space-y-2.5 w-full flex-1 flex flex-col justify-center min-h-0"
+          >
+            <!-- Row 1: 3-column grid featuring the 3 lower value packages -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3 w-full">
+              <UPricingPlan
+                v-for="plan in lowerPlans"
+                :key="plan.id"
+                v-bind="plan"
+                class="text-left bread-container transition-all duration-200 flex flex-col justify-between"
+                :class="selectedId === plan.id ? 'ring-2 ring-bread-400 shadow-sm' : ''"
+                :ui="{
+                  root: 'p-3 sm:p-3.5 gap-1.5 rounded-2xl flex flex-col justify-between shadow-xs',
+                  body: 'flex flex-col min-w-0 justify-between gap-1',
+                  titleWrapper: 'flex items-center justify-between gap-1',
+                  title: 'font-serif font-bold text-base sm:text-lg text-toast-900 leading-tight',
+                  priceWrapper: 'flex items-baseline gap-1.5 pt-1.5 border-t border-bread-200/60 mt-1',
+                  discount: 'text-xs text-stone-400 line-through font-mono',
+                  price: 'text-sm sm:text-base font-bold font-serif text-toast-900',
+                  footer: 'mt-1.5 pt-0',
+                }"
               >
-                <USelect
-                  v-model="eventType"
-                  :items="eventTypeOptions"
-                  size="lg"
-                  class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
-                />
-              </UFormField>
+                <!-- Highlighted Guest Cap (Clean Typography Hierarchy, No Pill) -->
+                <template #description>
+                  <div class="my-0.5 sm:my-1">
+                    <span class="text-[9px] text-muted block uppercase font-bold tracking-wider">Capacity</span>
+                    <p class="font-serif font-bold text-xl sm:text-2xl text-toast-900 leading-none py-0.5">
+                      Up to {{ plan.maxGuests }} guests
+                    </p>
+                    <p class="text-[10.5px] text-toast-700/80 font-medium">
+                      Seating, check-in & RSVP
+                    </p>
+                  </div>
+                </template>
+              </UPricingPlan>
+            </div>
+
+            <!-- Row 2: 2-column grid featuring the highest 2 packages -->
+            <div
+              v-if="higherPlans.length > 0"
+              class="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3 w-full max-w-3xl mx-auto"
+            >
+              <UPricingPlan
+                v-for="plan in higherPlans"
+                :key="plan.id"
+                v-bind="plan"
+                class="text-left bread-container transition-all duration-200 flex flex-col justify-between"
+                :class="selectedId === plan.id ? 'ring-2 ring-bread-400 shadow-sm' : ''"
+                :ui="{
+                  root: 'p-3 sm:p-3.5 gap-1.5 rounded-2xl flex flex-col justify-between shadow-xs',
+                  body: 'flex flex-col min-w-0 justify-between gap-1',
+                  titleWrapper: 'flex items-center justify-between gap-1',
+                  title: 'font-serif font-bold text-base sm:text-lg text-toast-900 leading-tight',
+                  priceWrapper: 'flex items-baseline gap-1.5 pt-1.5 border-t border-bread-200/60 mt-1',
+                  discount: 'text-xs text-stone-400 line-through font-mono',
+                  price: 'text-sm sm:text-base font-bold font-serif text-toast-900',
+                  footer: 'mt-1.5 pt-0',
+                }"
+              >
+                <!-- Highlighted Guest Cap (Clean Typography Hierarchy, No Pill) -->
+                <template #description>
+                  <div class="my-0.5 sm:my-1">
+                    <span class="text-[9px] text-muted block uppercase font-bold tracking-wider">Capacity</span>
+                    <p class="font-serif font-bold text-xl sm:text-2xl text-toast-900 leading-none py-0.5">
+                      Up to {{ plan.maxGuests }} guests
+                    </p>
+                    <p class="text-[10.5px] text-toast-700/80 font-medium">
+                      Seating, check-in & RSVP
+                    </p>
+                  </div>
+                </template>
+              </UPricingPlan>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Gathering Details Form (Compact & Fits 100vh) -->
+        <div
+          v-else
+          class="max-w-xl w-full mx-auto my-auto"
+        >
+          <div class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-5 rounded-2xl space-y-3.5 shadow-md">
+            <div class="flex items-center justify-between bg-white/85 p-3 rounded-xl border border-toast-600/20">
+              <div>
+                <span class="text-[10px] text-toast-600 uppercase font-bold tracking-wider">Selected plan:</span>
+                <h3 class="text-base font-bold font-serif text-toast-900">
+                  {{ selected?.name }}
+                </h3>
+                <p class="text-xs text-toast-700">
+                  Up to {{ selected?.maxGuests }} guests · ₱{{ selected?.pricePhp.toLocaleString() }}
+                </p>
+              </div>
+              <UButton
+                variant="outline"
+                color="primary"
+                size="xs"
+                icon="i-lucide-arrow-left"
+                class="cursor-pointer"
+                @click="switchView('packages')"
+              >
+                Change package
+              </UButton>
+            </div>
+
+            <form
+              class="space-y-3"
+              @submit.prevent="submit"
+            >
               <UFormField
-                label="Date"
+                label="Gathering name"
                 required
               >
                 <UInput
-                  v-model="eventDate"
-                  type="date"
-                  size="lg"
+                  v-model="name"
+                  placeholder="Santos reunion"
+                  size="md"
                   class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
                 />
               </UFormField>
-            </div>
-            <UFormField
-              label="Venue"
-              required
-            >
-              <UInput
-                v-model="venue"
-                placeholder="The garden hall"
-                size="lg"
-                class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
-              />
-            </UFormField>
-            <div class="pt-4 flex gap-4">
-              <UButton
-                type="button"
-                variant="soft"
-                color="neutral"
-                size="lg"
-                class="w-1/3"
-                @click="switchView('packages')"
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <UFormField
+                  label="Event Type"
+                  required
+                >
+                  <USelect
+                    v-model="eventType"
+                    :items="eventTypeOptions"
+                    size="md"
+                    class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                  />
+                </UFormField>
+                <UFormField
+                  label="Date"
+                  required
+                >
+                  <UInput
+                    v-model="eventDate"
+                    type="date"
+                    size="md"
+                    class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                  />
+                </UFormField>
+              </div>
+              <UFormField
+                label="Venue"
+                required
               >
-                Back
-              </UButton>
-              <UButton
-                type="submit"
-                color="primary"
-                size="lg"
-                class="w-2/3 font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md"
-                :loading="saving"
-              >
-                Continue to payment
-              </UButton>
-            </div>
-          </form>
+                <UInput
+                  v-model="venue"
+                  placeholder="The garden hall"
+                  size="md"
+                  class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                />
+              </UFormField>
+              <div class="pt-2 flex gap-3">
+                <UButton
+                  type="button"
+                  variant="soft"
+                  color="neutral"
+                  size="md"
+                  class="w-1/3 justify-center font-semibold cursor-pointer"
+                  @click="switchView('packages')"
+                >
+                  Back
+                </UButton>
+                <UButton
+                  type="submit"
+                  color="primary"
+                  size="md"
+                  class="w-2/3 font-bold text-white bg-toast-700 hover:bg-toast-800 active:bg-toast-900 shadow-sm justify-center cursor-pointer"
+                  :loading="saving"
+                >
+                  Continue to payment
+                </UButton>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
       </template>
-    </UContainer>
+    </main>
+
+    <!-- Bottom Footer (Minimal) -->
+    <footer class="w-full max-w-6xl mx-auto py-1 text-center shrink-0 border-t border-white/10">
+      <p class="text-[10px] text-white/50">
+        Bread + Butter Jam Planning · Guaranteed to fit your occasion
+      </p>
+    </footer>
   </div>
 </template>

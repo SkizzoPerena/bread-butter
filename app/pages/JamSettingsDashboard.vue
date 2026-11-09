@@ -7,7 +7,7 @@ definePageMeta({
   layout: 'jam-sub-navbar',
   middleware: 'seating-enabled',
   title: 'Jam Settings & Plan',
-  bgClass: 'bg-slate-50',
+  bgClass: 'bg-orange-50',
 })
 
 const route = useRoute()
@@ -119,6 +119,7 @@ async function saveAllSettings() {
   <div class="jam-subpage-root min-h-screen bg-toast-50/20 pb-16">
     <!-- Subpage Top Banner -->
     <ClientOnly>
+      <!-- Desktop Navbar Actions (Right Side) -->
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
           <UButton
@@ -129,6 +130,23 @@ async function saveAllSettings() {
             icon="i-lucide-sparkles"
             class="cursor-pointer"
             @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
+          >
+            Upgrade Plan
+          </UButton>
+        </div>
+      </Teleport>
+
+      <!-- Mobile Navbar Actions (Left Toggle Button Menu) -->
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            color="primary"
+            variant="solid"
+            size="md"
+            block
+            icon="i-lucide-sparkles"
+            class="w-full justify-center font-bold shadow-xs cursor-pointer"
+            @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
           >
             Upgrade Plan
           </UButton>
@@ -291,21 +309,6 @@ async function saveAllSettings() {
             <p class="text-[11px] text-muted mt-1">
               Leave blank if you do not want to require guests to enter a passcode to view the invitation.
             </p>
-          </div>
-
-          <div class="flex items-start gap-2.5 pt-2 border-t border-bread-200/60">
-            <input
-              id="lockSeatSelection"
-              v-model="form.seatSelectionLocked"
-              type="checkbox"
-              class="size-4 text-toast-600 rounded cursor-pointer mt-0.5"
-            />
-            <label for="lockSeatSelection" class="text-xs text-toast-900 cursor-pointer">
-              <strong class="block font-semibold">Lock Guest Seat Selection</strong>
-              <span class="text-muted block text-[11px]">
-                When locked, guests cannot pick or change their own seats from their personal passes; only the host can arrange seats.
-              </span>
-            </label>
           </div>
 
           <div class="flex items-center justify-between gap-3 pt-2 border-t border-bread-200/60">

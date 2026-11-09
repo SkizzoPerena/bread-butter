@@ -56,6 +56,7 @@ export const editGuestSchema = z.object({
   mailingAddress: z.string().optional(),
   contactNumber: z.string().optional(),
   envelopeName: z.string().optional(),
+  pax: z.number().int().min(1).max(20).optional(),
 })
 
 export type AddGuestSchema = z.output<typeof addGuestSchema>

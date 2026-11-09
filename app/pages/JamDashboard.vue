@@ -92,6 +92,23 @@ const hasInvitation = computed(() => {
   return Boolean(d.headline || d.requestLine || d.imageUrl || gathering.value?.invitationMessage)
 })
 
+const repliedGuests = computed(() => {
+  return guests.value.filter((g) => g.rsvpStatus === 'GOING' || g.rsvpStatus === 'NOT_GOING')
+})
+
+const hasRsvpQuestions = computed(() => {
+  return Boolean(gathering.value?.questions && gathering.value.questions.length > 0)
+})
+
+const invitationStatusText = computed(() => {
+  return hasInvitation.value ? 'Invitation is live' : 'No saved invitation yet'
+})
+
+const rsvpQuestionsStatusText = computed(() => {
+  return hasRsvpQuestions.value ? 'RSVP questions live' : 'No saved RSVP questions yet'
+})
+
+
 const hasTables = computed(() => {
   return Boolean(gathering.value?.tables && gathering.value.tables.length > 0)
 })
@@ -102,7 +119,7 @@ const emailCreditsRemaining = computed(() => {
 })
 
 interface QuickNavItem {
-  id: 'guests' | 'invite' | 'tables' | 'checkin' | 'settings' | 'view_pass' | 'export_csv' | 'upgrade'
+  id: 'guests' | 'invite' | 'rsvp' | 'tables' | 'checkin' | 'settings' | 'view_pass' | 'export_csv' | 'upgrade'
   label: string
   icon: string
   bgClass: string
@@ -118,30 +135,30 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
     id: 'guests',
     label: 'Guest List',
     icon: 'i-lucide-users',
-    bgClass: 'bg-orange-500/10',
-    hoverClass: 'hover:bg-orange-500/20',
-    ringClass: 'ring-1 ring-inset ring-orange-500/25',
-    textClass: 'text-orange-600',
+    bgClass: 'bg-red-500/10',
+    hoverClass: 'hover:bg-red-500/20',
+    ringClass: 'ring-1 ring-inset ring-red-500/25',
+    textClass: 'text-red-600',
     badge: guests.value.length ? String(guests.value.length) : undefined,
   },
   {
     id: 'invite',
     label: 'Invitation',
     icon: 'i-lucide-mail',
-    bgClass: 'bg-violet-500/10',
-    hoverClass: 'hover:bg-violet-500/20',
-    ringClass: 'ring-1 ring-inset ring-violet-500/25',
-    textClass: 'text-violet-600',
+    bgClass: 'bg-blue-500/10',
+    hoverClass: 'hover:bg-blue-500/20',
+    ringClass: 'ring-1 ring-inset ring-blue-500/25',
+    textClass: 'text-blue-600',
     badge: pendingCount.value ? `${pendingCount.value} pend` : undefined,
   },
   {
     id: 'rsvp',
     label: 'RSVP',
     icon: 'i-lucide-clipboard-check',
-    bgClass: 'bg-teal-500/10',
-    hoverClass: 'hover:bg-teal-500/20',
-    ringClass: 'ring-1 ring-inset ring-teal-500/25',
-    textClass: 'text-teal-600',
+    bgClass: 'bg-yellow-500/15',
+    hoverClass: 'hover:bg-yellow-500/25',
+    ringClass: 'ring-1 ring-inset ring-yellow-500/30',
+    textClass: 'text-yellow-700',
     badge: goingCount.value ? `${goingCount.value} going` : undefined,
   },
   {
@@ -168,20 +185,20 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
     id: 'settings',
     label: 'Jam Settings & Plan',
     icon: 'i-lucide-settings',
-    bgClass: 'bg-slate-500/10',
-    hoverClass: 'hover:bg-slate-500/20',
-    ringClass: 'ring-1 ring-inset ring-slate-500/25',
-    textClass: 'text-slate-600',
+    bgClass: 'bg-orange-500/10',
+    hoverClass: 'hover:bg-orange-500/20',
+    ringClass: 'ring-1 ring-inset ring-orange-500/25',
+    textClass: 'text-orange-600',
     badge: gathering.value?.packageName,
   },
   {
     id: 'view_pass',
     label: 'Guest View',
     icon: 'i-lucide-external-link',
-    bgClass: 'bg-blue-500/10',
-    hoverClass: 'hover:bg-blue-500/20',
-    ringClass: 'ring-1 ring-inset ring-blue-500/25',
-    textClass: 'text-blue-600',
+    bgClass: 'bg-teal-500/10',
+    hoverClass: 'hover:bg-teal-500/20',
+    ringClass: 'ring-1 ring-inset ring-teal-500/25',
+    textClass: 'text-teal-600',
   },
   {
     id: 'export_csv',
@@ -194,41 +211,87 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
   },
 ])
 
-function onQuickNavItemClick(item: QuickNavItem) {
-  if (item.id === 'guests') {
+const DESKTOP_ONLY_ITEMS = ['tables', 'invite']
+const isDesktopOnlyModalOpen = ref(false)
+const selectedDesktopOnlyFeature = ref<QuickNavItem | null>(null)
+
+function isMobileViewport(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth < 768
+}
+
+function navigateToFeature(id: string) {
+  if (id === 'guests') {
     startPageTransition(`/jam/guests/${gatheringId.value}`)
-    return
-  }
-  if (item.id === 'invite') {
+  } else if (id === 'invite') {
     startPageTransition(`/jam/invitation/${gatheringId.value}`)
-    return
-  }
-  if (item.id === 'rsvp') {
+  } else if (id === 'rsvp') {
     startPageTransition(`/jam/rsvps/${gatheringId.value}`)
-    return
-  }
-  if (item.id === 'tables') {
+  } else if (id === 'tables') {
     startPageTransition(`/jam/tables/${gatheringId.value}`)
-    return
-  }
-  if (item.id === 'checkin') {
+  } else if (id === 'checkin') {
     startPageTransition(`/jam/checkin/${gatheringId.value}`)
-    return
-  }
-  if (item.id === 'settings') {
+  } else if (id === 'settings') {
     startPageTransition(`/jam/settings/${gatheringId.value}`)
-    return
-  }
-  if (item.id === 'view_pass') {
+  } else if (id === 'view_pass') {
     if (lookupUrl.value) {
       window.open(lookupUrl.value, '_blank')
     }
-    return
-  }
-  if (item.id === 'export_csv') {
+  } else if (id === 'export_csv') {
     downloadGuests()
+  }
+}
+
+function handleFeatureAccess(id: 'tables' | 'invite') {
+  if (isMobileViewport()) {
+    const item = QUICK_NAV_ITEMS.value.find((i) => i.id === id) || ({
+      id,
+      label: id === 'tables' ? 'Tables & Seats' : 'Invitation',
+      icon: id === 'tables' ? 'i-lucide-layout-grid' : 'i-lucide-mail',
+      bgClass: '',
+      hoverClass: '',
+      ringClass: '',
+      textClass: '',
+    } as QuickNavItem)
+    selectedDesktopOnlyFeature.value = item
+    isDesktopOnlyModalOpen.value = true
     return
   }
+  navigateToFeature(id)
+}
+
+function onQuickNavItemClick(item: QuickNavItem) {
+  if (isMobileViewport() && DESKTOP_ONLY_ITEMS.includes(item.id)) {
+    selectedDesktopOnlyFeature.value = item
+    isDesktopOnlyModalOpen.value = true
+    return
+  }
+
+  navigateToFeature(item.id)
+}
+
+function navigateFromModal(item: QuickNavItem | null) {
+  if (!item) return
+  navigateToFeature(item.id)
+}
+
+// Mobile View Switcher Tab (Quick Launch vs Jam Overview, matching EventDashboard v2)
+const activeMobileTab = ref<'launcher' | 'overview'>('launcher')
+
+function getQuickNavSolidBgClass(item: QuickNavItem): string {
+  const map: Record<string, string> = {
+    'Guest List': 'bg-red-500',
+    Invitation: 'bg-blue-500',
+    Invitations: 'bg-blue-500',
+    RSVP: 'bg-yellow-500',
+    'RSVP & Questions': 'bg-yellow-500',
+    'Tables & Seats': 'bg-emerald-500',
+    'Check-in & QR': 'bg-purple-500',
+    'Jam Settings & Plan': 'bg-orange-500',
+    'Guest View': 'bg-teal-500',
+    'Export Seat Plan': 'bg-amber-600',
+  }
+  return map[item.label] || 'bg-toast-600'
 }
 
 async function load() {
@@ -331,7 +394,7 @@ async function downloadGuests() {
 </script>
 
 <template>
-  <div class="jam-dashboard-root h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] flex flex-col w-full bg-bread-100 overflow-hidden select-none">
+  <div class="jam-dashboard-root h-[calc(100vh-64px)] flex flex-col w-full max-w-full overflow-x-hidden bg-bread-100 overflow-y-auto lg:overflow-hidden select-none">
     <!-- Top Teleport Header in Event Navbar -->
     <ClientOnly>
       <Teleport to="#event-navbar-center">
@@ -354,22 +417,81 @@ async function downloadGuests() {
       </div>
     </div>
 
-    <!-- Main Page Grid Layout: 3:1 split matching EventDashboard v2 (Workspace on LEFT, Quick Nav on RIGHT) -->
-    <UPageGrid
-      v-else-if="gathering"
-      class="grid-cols-1 lg:grid-cols-4 gap-0 w-full flex-1 h-full max-h-[calc(100vh-64px)] min-h-0 overflow-hidden items-stretch"
-    >
+    <template v-else-if="gathering">
+      <!-- ================= MOBILE SUB-NAV (< md / < 768px): Modeled after Event Dashboard v2 ================= -->
+      <div class="md:hidden px-4 pt-3 pb-1 flex items-center justify-between shrink-0 bg-bread-400">
+        <div
+          class="flex items-center gap-1.5 p-1 bg-white/70 backdrop-blur-xs rounded-xl w-full max-w-xs mx-auto border border-bread-300/40 shadow-xs"
+        >
+          <button
+            type="button"
+            class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer"
+            :class="activeMobileTab === 'launcher' ? 'bg-toast-500 text-white shadow-xs' : 'text-toast-800 hover:text-toast-950'"
+            @click="activeMobileTab = 'launcher'"
+          >
+            Quick Launch
+          </button>
+          <button
+            type="button"
+            class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer"
+            :class="activeMobileTab === 'overview' ? 'bg-toast-500 text-white shadow-xs' : 'text-toast-800 hover:text-toast-950'"
+            @click="activeMobileTab = 'overview'"
+          >
+            Jam Overview
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= MOBILE LAUNCHER (< md when tab is launcher): Circular Icon Grid ================= -->
+      <div
+        v-if="activeMobileTab === 'launcher'"
+        class="md:hidden white-bread-container h-full flex flex-col flex-1 overflow-hidden m-3 mt-1.5 shadow-sm"
+        style="border-radius: 1.25rem;"
+      >
+        <div class="flex flex-1 items-center justify-center min-h-0 py-6 px-4 w-full">
+          <div
+            class="grid grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-7 sm:gap-y-8 max-w-76 sm:max-w-88 mx-auto w-full items-center justify-items-center"
+          >
+            <div
+              v-for="item in QUICK_NAV_ITEMS"
+              :key="item.id"
+              role="button"
+              :tabindex="0"
+              class="group flex flex-col items-center justify-center mx-auto w-full p-1 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+              @click="onQuickNavItemClick(item)"
+            >
+              <div class="relative flex items-center justify-center w-fit mx-auto">
+                <div
+                  class="size-15 sm:size-17 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-md group-hover:scale-105 group-active:scale-95"
+                  :class="getQuickNavSolidBgClass(item)"
+                >
+                  <UIcon :name="item.icon" class="size-7.5 sm:size-8.5 text-white shrink-0" />
+                </div>
+              </div>
+              <div class="font-semibold mt-2 text-center text-xs sm:text-sm text-toast-900 leading-tight max-w-24 sm:max-w-28 truncate">
+                {{ item.label }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Page Grid Layout: 3:1 split matching EventDashboard v2 (Workspace on LEFT, Quick Nav on RIGHT) -->
+      <UPageGrid
+        class="grid-cols-1 lg:grid-cols-4 gap-0 w-full max-w-full min-w-0 flex-1 lg:h-full lg:overflow-hidden items-stretch"
+        :class="activeMobileTab === 'launcher' ? 'hidden md:grid' : 'grid'"
+      >
       <!-- ================= LEFT DIVISION: col-span-3 (Workspace Area: Overview & 2x2 Grid) ================= -->
       <section
-        class="lg:col-span-3 p-2.5 sm:p-3 lg:p-3.5 flex flex-col gap-2.5 sm:gap-3 bg-toast-50/20 h-full max-h-[calc(100vh-64px)] min-h-0 overflow-y-auto lg:overflow-hidden justify-between"
+        class="lg:col-span-3 p-2.5 sm:p-3 lg:p-3.5 pb-8 sm:pb-6 lg:pb-3.5 flex flex-col gap-2.5 sm:gap-3 bg-toast-50/20 w-full max-w-full min-w-0 h-full overflow-y-auto lg:overflow-hidden lg:justify-between"
       >
         <!-- 1. Topmost Container: 3 Metric Groups (Days, Confirmed Guests, Seating Assignment) -->
-        <div class="white-bread-container p-2.5 sm:p-3 shadow-xs rounded-xl shrink-0">
+        <div class="white-bread-container p-2.5 sm:p-3 shadow-xs rounded-xl shrink-0 w-full max-w-full min-w-0 overflow-hidden">
           <div
-            class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-bread-200/60"
+            class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 sm:divide-x divide-bread-200/60 w-full min-w-0"
           >
             <!-- Column 1: Days to Gathering -->
-            <div class="space-y-0.5 pt-1 sm:pt-0 sm:pr-2.5 min-w-0">
+            <div class="space-y-0.5 pt-1 sm:pt-0 sm:pr-2.5 min-w-0 overflow-hidden">
               <div class="dash-item-header flex items-center gap-1.5 text-toast-700 font-semibold min-w-0">
                 <span class="truncate">Days to Gathering</span>
                 <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-red-500 shrink-0" />
@@ -383,7 +505,7 @@ async function downloadGuests() {
             </div>
 
             <!-- Column 2: Confirmed Guests -->
-            <div class="space-y-0.5 pt-1 sm:pt-0 sm:px-2.5 min-w-0">
+            <div class="space-y-0.5 pt-1 sm:pt-0 pl-2 sm:pl-0 sm:px-2.5 border-l sm:border-l-0 border-bread-200/60 min-w-0 overflow-hidden">
               <div class="dash-item-header flex items-center gap-1.5 text-toast-700 font-semibold min-w-0">
                 <span class="truncate">Confirmed Guests</span>
                 <UIcon name="i-lucide-users" class="size-3.5 text-teal-500 shrink-0" />
@@ -397,7 +519,7 @@ async function downloadGuests() {
             </div>
 
             <!-- Column 3: Seating Completion (col-span-2) -->
-            <div class="space-y-0.5 pt-1 sm:pt-0 sm:pl-2.5 col-span-2 flex flex-col justify-between min-w-0">
+            <div class="space-y-0.5 pt-2 sm:pt-0 sm:pl-2.5 col-span-2 border-t sm:border-t-0 border-bread-200/60 flex flex-col justify-between min-w-0 overflow-hidden">
               <div class="dash-item-header flex items-center gap-1.5 text-toast-700 font-semibold min-w-0">
                 <span class="truncate">Seats Assigned</span>
                 <UIcon name="i-lucide-layout-grid" class="size-3.5 text-green-500 shrink-0" />
@@ -420,7 +542,7 @@ async function downloadGuests() {
         <!-- Inactive Plan Notice if not yet paid -->
         <div
           v-if="!active"
-          class="white-bread-container p-5 text-center space-y-3 max-w-lg mx-auto my-auto shadow-sm border border-amber-200/80 bg-amber-50/40 shrink-0 rounded-xl"
+          class="white-bread-container p-5 text-center space-y-3 w-full max-w-lg mx-auto my-auto shadow-sm border border-amber-200/80 bg-amber-50/40 shrink-0 rounded-xl overflow-hidden"
         >
           <div class="size-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
             <UIcon name="i-lucide-lock" class="size-6" />
@@ -444,374 +566,462 @@ async function downloadGuests() {
           </UButton>
         </div>
 
-        <!-- ================= 2x2 NAVIGATION & WORKSPACE GRID (COMPACT & FITS 100VH) ================= -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3 w-full flex-1 min-h-0">
-          <!-- ---------------- ROW 1 COL 1: GUEST LIST ---------------- -->
-          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
+                <!-- ================= 3-COLUMN WORKSPACE GRID (ROW 1: GUESTS (COLSPAN 2), ROW 2: TABLES (COLSPAN 2), COL 3: INVITE & SETTINGS) ================= -->
+        <div v-else class="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-2.5 sm:gap-3 w-full max-w-full min-w-0 lg:flex-1 lg:min-h-0 items-stretch">
+          <!-- ---------------- ROW 1, COL 1-2: GUEST LIST (COLSPAN 2) ---------------- -->
+          <div class="white-bread-container p-3 sm:p-3.5 flex flex-col justify-between shadow-xs border border-bread-200/90 rounded-2xl col-span-1 lg:col-span-2 lg:row-start-1 w-full max-w-full min-w-0 overflow-hidden h-auto lg:h-full lg:min-h-0">
             <!-- Header -->
-            <div class="space-y-1.5 min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
-                <div class="flex items-center gap-2">
-                  <div class="size-7 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-users" class="size-4" />
-                  </div>
-                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Guest List</h3>
+            <div class="flex items-center justify-between border-b border-bread-200/60 pb-2 mb-2.5 shrink-0 min-w-0">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="size-7.5 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shadow-2xs shrink-0">
+                  <UIcon name="i-lucide-users" class="size-4" />
                 </div>
-                <UBadge color="primary" variant="subtle" size="xs" class="font-semibold px-2 py-0.5">
-                  {{ guests.length }} / {{ gathering.maxGuests }}
-                </UBadge>
-              </div>
-
-              <!-- Guest List Parameters & Stats -->
-              <div class="grid grid-cols-2 gap-1.5 text-xs">
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
-                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Attending / Going</span>
-                  <span class="font-bold font-serif text-sm sm:text-base text-emerald-600">{{ goingCount }}</span>
-                </div>
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
-                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Awaiting RSVP</span>
-                  <span class="font-bold font-serif text-sm sm:text-base text-amber-600">{{ pendingCount }}</span>
-                </div>
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
-                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Declined</span>
-                  <span class="font-bold font-serif text-sm sm:text-base text-rose-600">{{ notGoingCount }}</span>
-                </div>
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
-                  <span class="text-[9.5px] text-muted block uppercase font-semibold">Seats Assigned</span>
-                  <span class="font-bold font-serif text-sm sm:text-base text-blue-600">{{ seatedCount }}</span>
+                <div class="min-w-0">
+                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900 leading-tight truncate">Guest List</h3>
+                  <p class="text-[10.5px] text-muted truncate">Attendance & headcount</p>
                 </div>
               </div>
+              <UBadge color="primary" variant="subtle" size="xs" class="font-semibold px-2 py-0.5 shrink-0">
+                {{ guests.length }} / {{ gathering.maxGuests }}
+              </UBadge>
             </div>
 
-            <!-- Action Buttons: High Contrast Toast Styling -->
-            <div class="space-y-1.5 pt-1.5 border-t border-bread-200/60">
-              <div class="grid grid-cols-2 gap-1.5">
-                <UButton
-                  color="toast"
-                  variant="soft"
-                  size="xs"
-                  icon="i-lucide-user-plus"
-                  block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                  @click="isAddGuestModalOpen = true"
-                >
-                  Add new guest
-                </UButton>
-                <UButton
-                  color="toast"
-                  variant="soft"
-                  size="xs"
-                  icon="i-lucide-mail"
-                  block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                  @click="isBulkInviteModalOpen = true"
-                >
-                  Bulk Invite
-                </UButton>
-              </div>
-              <UButton
-                :to="`/jam/guests/${gatheringId}`"
-                color="toast"
-                variant="solid"
-                size="xs"
-                icon="i-lucide-arrow-right"
-                trailing
-                block
-                class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                @click="followLink($event, `/jam/guests/${gatheringId}`)"
-              >
-                Open Guest List
-              </UButton>
-            </div>
-          </div>
-
-          <!-- ---------------- ROW 1 COL 2: INVITATION ---------------- -->
-          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
-            <!-- Header -->
-            <div class="space-y-1.5 min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
-                <div class="flex items-center gap-2">
-                  <div class="size-7 rounded-lg bg-violet-500/10 text-violet-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-mail" class="size-4" />
+            <!-- 2-Column Content: Col 1 = 4 Statuses & Buttons, Col 2 = Recent Guest Replies -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 lg:min-h-0 items-stretch w-full min-w-0">
+              <!-- COLUMN 1: 4 Guest Statuses (2x2 Grid) & Container Buttons -->
+              <div class="flex flex-col justify-between h-auto lg:h-full lg:min-h-0 space-y-2 w-full min-w-0">
+                <!-- 4 Guest Statuses (2x2 Grid) -->
+                <div class="grid grid-cols-2 gap-1.5 text-xs w-full min-w-0">
+                  <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 min-w-0 overflow-hidden">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold truncate">Attending / Going</span>
+                    <span class="font-bold font-serif text-base text-emerald-600 truncate block">{{ goingCount }}</span>
                   </div>
-                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Invitation</h3>
+                  <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 min-w-0 overflow-hidden">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold truncate">Awaiting RSVP</span>
+                    <span class="font-bold font-serif text-base text-amber-600 truncate block">{{ pendingCount }}</span>
+                  </div>
+                  <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 min-w-0 overflow-hidden">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold truncate">Declined</span>
+                    <span class="font-bold font-serif text-base text-rose-600 truncate block">{{ notGoingCount }}</span>
+                  </div>
+                  <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 min-w-0 overflow-hidden">
+                    <span class="text-[9.5px] text-muted block uppercase font-semibold truncate">Seats Assigned</span>
+                    <span class="font-bold font-serif text-base text-blue-600 truncate block">{{ seatedCount }}</span>
+                  </div>
                 </div>
-                <UBadge
-                  :color="hasInvitation ? 'success' : 'neutral'"
-                  variant="subtle"
-                  size="xs"
-                  class="font-semibold px-2 py-0.5"
-                >
-                  {{ hasInvitation ? 'Invitation created' : 'No invitation yet' }}
-                </UBadge>
-              </div>
 
-              <!-- Status Display -->
-              <!-- State A: Invitation NOT created yet -->
-              <div v-if="!hasInvitation" class="space-y-2 py-1">
-                <p class="text-xs text-toast-700 leading-relaxed font-medium">
-                  You don't have an invitation design yet. Choose how you want to create your invitation:
-                </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <!-- Column 1 Buttons: Base Nuxt UI UButton with toast color & variants -->
+                <div class="space-y-1.5 pt-1 border-t border-bread-200/60 shrink-0 w-full min-w-0">
+                  <div class="grid grid-cols-2 gap-1.5 w-full min-w-0">
+                    <UButton
+                      color="toast"
+                      variant="soft"
+                      size="xs"
+                      icon="i-lucide-user-plus"
+                      block
+                      @click="isAddGuestModalOpen = true"
+                    >
+                      Add Guest
+                    </UButton>
+                    <UButton
+                      color="toast"
+                      variant="outline"
+                      size="xs"
+                      icon="i-lucide-mail"
+                      block
+                      @click="isBulkInviteModalOpen = true"
+                    >
+                      Bulk Invite
+                    </UButton>
+                  </div>
                   <UButton
                     :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
                     variant="solid"
                     size="xs"
-                    icon="i-lucide-palette"
+                    icon="i-lucide-arrow-right"
+                    trailing
                     block
-                    class="w-full bg-toast-800 hover:bg-toast-900 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                    @click="followLink($event, `/jam/invitation/${gatheringId}`)"
+                    @click.prevent="startPageTransition(`/jam/guests/${gatheringId}`)"
                   >
-                    Invitation Maker
+                    Open Guest List
                   </UButton>
+                </div>
+              </div>
+
+              <!-- COLUMN 2: Recent Guest Replies Only -->
+              <div class="flex flex-col justify-between h-auto lg:h-full lg:min-h-0 bg-toast-50/40 p-2 sm:p-2.5 rounded-xl border border-bread-200/60 space-y-2 w-full min-w-0 overflow-hidden">
+                <div class="flex items-center justify-between text-[11px] font-semibold text-toast-700 pb-0.5 border-b border-bread-200/50 shrink-0 min-w-0">
+                  <span class="flex items-center gap-1.5 min-w-0 truncate">
+                    <UIcon name="i-lucide-message-square-check" class="size-3.5 text-emerald-600 shrink-0" />
+                    <span class="truncate">Recent Guest Replies</span>
+                  </span>
+                  <span class="text-[10px] text-muted font-normal shrink-0 pl-1">
+                    {{ repliedGuests.length }} of {{ guests.length }} ({{ rsvpResponseRate }}%)
+                  </span>
+                </div>
+
+                <!-- Replied Guests Display (Without ScrollArea - fits container) -->
+                <div v-if="repliedGuests.length" class="flex flex-col gap-1.5 flex-1 lg:min-h-0 justify-around w-full min-w-0">
+                  <div
+                    v-for="guest in repliedGuests.slice(0, 2)"
+                    :key="guest._id"
+                    class="p-2 bg-white/90 hover:bg-white rounded-lg border border-bread-200/70 flex flex-col justify-between shadow-2xs transition-colors w-full min-w-0 overflow-hidden"
+                  >
+                    <div class="flex items-center justify-between gap-1 mb-0.5 min-w-0">
+                      <span class="font-bold text-xs text-toast-900 truncate flex-1 min-w-0">
+                        {{ guest.firstName }} {{ guest.lastName }}
+                      </span>
+                      <UBadge
+                        :color="guest.rsvpStatus === 'GOING' ? 'success' : 'error'"
+                        variant="subtle"
+                        size="xs"
+                        class="font-semibold text-[9.5px] uppercase shrink-0 px-1.5 py-0.2"
+                      >
+                        {{ guest.rsvpStatus === 'GOING' ? 'Going' : 'Declined' }}
+                      </UBadge>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-muted pt-0.5 border-t border-bread-100 min-w-0 gap-1">
+                      <span class="truncate pr-1 flex-1 min-w-0">{{ guest.partyName || guest.email || 'Guest' }}</span>
+                      <span v-if="(guest as any).tableLabel" class="font-mono text-toast-800 font-semibold shrink-0">
+                        {{ (guest as any).tableLabel }}
+                      </span>
+                      <span v-else-if="guest.rsvpStatus === 'GOING'" class="text-amber-600 font-medium shrink-0">
+                        Unassigned
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="flex-1 flex flex-col items-center justify-center p-3 text-center bg-white/50 rounded-lg border border-dashed border-bread-200/60 w-full min-w-0">
+                  <UIcon name="i-lucide-inbox" class="size-4 text-toast-400 mb-1 shrink-0" />
+                  <span class="text-xs text-toast-700 font-medium truncate block w-full">No guest RSVP replies yet</span>
+                  <span class="text-[10px] text-muted truncate block w-full">Replies will appear here once guests confirm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------------- ROW 2, COL 1-2: TABLES & SEATS (COLSPAN 2) ---------------- -->
+          <div class="white-bread-container p-3 sm:p-3.5 flex flex-col justify-between shadow-xs border border-bread-200/90 rounded-2xl col-span-1 lg:col-span-2 lg:row-start-2 w-full max-w-full min-w-0 overflow-hidden h-auto lg:h-full lg:min-h-0">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-bread-200/60 pb-2 mb-2.5 shrink-0 min-w-0">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="size-7.5 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-2xs shrink-0">
+                  <UIcon name="i-lucide-layout-grid" class="size-4" />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900 leading-tight truncate">Tables & Seats</h3>
+                  <p class="text-[10.5px] text-muted truncate">Seating layout & placement</p>
+                </div>
+              </div>
+              <UBadge
+                :color="hasTables ? 'success' : 'neutral'"
+                variant="subtle"
+                size="xs"
+                class="font-semibold px-2 py-0.5 shrink-0"
+              >
+                {{ hasTables ? `${gathering.tables.length} tables` : 'No tables' }}
+              </UBadge>
+            </div>
+
+            <!-- 2-Column Content: Col 1 = All Details & Buttons, Col 2 = Table Layout Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 lg:min-h-0 items-stretch w-full min-w-0">
+              <!-- COLUMN 1: All Details (Capacity, Seating Progress, Buttons) -->
+              <div class="flex flex-col justify-between h-auto lg:h-full lg:min-h-0 space-y-2 w-full min-w-0">
+                <!-- Seating Metrics (2x2 Grid) -->
+                <div class="space-y-1.5 w-full min-w-0">
+                  <div class="grid grid-cols-2 gap-1.5 text-xs w-full min-w-0">
+                    <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 min-w-0 overflow-hidden">
+                      <span class="text-[9.5px] text-muted block uppercase font-semibold truncate">Configured Tables</span>
+                      <span class="font-bold font-serif text-base text-toast-900 truncate block">{{ gathering.tables?.length || 0 }}</span>
+                    </div>
+                    <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 min-w-0 overflow-hidden">
+                      <span class="text-[9.5px] text-muted block uppercase font-semibold truncate">Total Capacity</span>
+                      <span class="font-bold font-serif text-base text-toast-900 truncate block">{{ totalSeatsCapacity }} Seats</span>
+                    </div>
+                  </div>
+
+                  <!-- Seating Completion Progress -->
+                  <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 space-y-1 w-full min-w-0 overflow-hidden">
+                    <div class="flex items-center justify-between text-xs min-w-0 gap-1">
+                      <span class="text-[9.5px] text-muted uppercase font-semibold truncate">Seated Attendance</span>
+                      <span class="font-mono font-bold text-[11px] text-toast-900 shrink-0">
+                        {{ seatedCount }} / {{ attendingGuests.length }} ({{ seatedPercent }}%)
+                      </span>
+                    </div>
+                    <UProgress :model-value="seatedPercent" color="success" size="xs" class="w-full" />
+                  </div>
+                </div>
+
+                <!-- Column 1 Button: Base Nuxt UI UButton with toast color & variants -->
+                <div class="pt-1 border-t border-bread-200/60 shrink-0 w-full min-w-0">
                   <UButton
                     :to="`/jam/invitation/${gatheringId}`"
                     color="toast"
-                    variant="soft"
+                    variant="solid"
                     size="xs"
-                    icon="i-lucide-upload"
+                    icon="i-lucide-arrow-right"
+                    trailing
                     block
-                    class="w-full bg-toast-100 hover:bg-toast-200 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                    @click="followLink($event, `/jam/invitation/${gatheringId}`)"
+                    @click.prevent="handleFeatureAccess('tables')"
                   >
-                    Upload Invitation
+                    {{ hasTables ? 'Open Table & Seat Manager' : 'Setup Tables & Seats' }}
                   </UButton>
                 </div>
               </div>
 
-              <!-- State B: Invitation created -->
-              <div v-else class="space-y-1.5 pt-0.5">
-                <div class="bg-toast-50/70 p-2 sm:p-2.5 rounded-lg border border-bread-200/60 space-y-1">
-                  <div class="flex items-center justify-between text-xs sm:text-sm">
-                    <span class="font-bold text-toast-800">Invitations Sent</span>
-                    <span class="font-bold text-toast-900 font-mono">
-                      {{ invitationsSentCount }} / {{ guests.length }}
-                    </span>
+              <!-- COLUMN 2: Table Layout Overview Only -->
+              <div class="flex flex-col justify-between h-auto lg:h-full lg:min-h-0 bg-toast-50/40 p-2 sm:p-2.5 rounded-xl border border-bread-200/60 space-y-2 w-full min-w-0 overflow-hidden">
+                <div class="flex items-center justify-between text-[11px] font-semibold text-toast-700 pb-0.5 border-b border-bread-200/50 shrink-0 min-w-0">
+                  <span class="flex items-center gap-1.5 min-w-0 truncate">
+                    <UIcon name="i-lucide-armchair" class="size-3.5 text-toast-600 shrink-0" />
+                    <span class="truncate">Table Layout Overview</span>
+                  </span>
+                  <span class="text-[10px] text-muted font-normal shrink-0 pl-1">
+                    {{ gathering.tables?.length || 0 }} {{ (gathering.tables?.length === 1) ? 'table' : 'tables' }}
+                  </span>
+                </div>
+
+                <!-- Existing Tables Grid (Without ScrollArea - fits container) -->
+                <div v-if="hasTables" class="grid grid-cols-2 gap-1.5 flex-1 lg:min-h-0 content-start w-full min-w-0">
+                  <div
+                    v-for="table in gathering.tables.slice(0, 4)"
+                    :key="table.id"
+                    class="p-2 bg-white/90 hover:bg-white rounded-lg border border-bread-200/70 flex flex-col justify-between shadow-2xs transition-colors w-full min-w-0 overflow-hidden"
+                  >
+                    <div class="flex items-center justify-between gap-1 mb-0.5 min-w-0">
+                      <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                        <UIcon
+                          :name="table.shape === 'ROUND' ? 'i-lucide-circle' : 'i-lucide-square'"
+                          class="size-3 text-toast-500 shrink-0"
+                        />
+                        <span class="font-bold text-xs text-toast-900 truncate flex-1 min-w-0">
+                          {{ table.label || `Table ${table.sortOrder + 1}` }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-muted pt-0.5 border-t border-bread-100 min-w-0 gap-1">
+                      <span class="truncate">Occupancy</span>
+                      <span class="font-mono text-toast-800 font-bold shrink-0">
+                        {{ (table.seats || []).filter(s => s.guest).length }} / {{ table.capacity }}
+                      </span>
+                    </div>
                   </div>
-                  <UProgress
-                    :model-value="guests.length ? (invitationsSentCount / guests.length) * 100 : 0"
-                    color="primary"
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="flex-1 flex flex-col items-center justify-center p-3 text-center bg-white/50 rounded-lg border border-dashed border-bread-200/60 w-full min-w-0">
+                  <UIcon name="i-lucide-layout-grid" class="size-4 text-toast-400 mb-1 shrink-0" />
+                  <span class="text-xs text-toast-700 font-medium truncate block w-full">No tables arranged yet</span>
+                  <span class="text-[10px] text-muted truncate block w-full">Configure table shapes and capacities for seating</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------------- COLUMN 3: INVITATIONS + JAM SETTINGS & PLAN (SHARED COLUMN) ---------------- -->
+          <div class="col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-2 flex flex-col gap-2.5 sm:gap-3 w-full max-w-full min-w-0 h-auto lg:h-full lg:min-h-0 lg:justify-between">
+            <!-- 3A: INVITATION CONTAINER -->
+            <div class="white-bread-container p-3 sm:p-3.5 flex flex-col justify-between shadow-xs border border-bread-200/90 rounded-2xl w-full max-w-full min-w-0 overflow-hidden h-auto lg:h-full lg:flex-1 lg:min-h-0">
+              <div class="space-y-2 lg:min-h-0 flex-1 flex flex-col justify-between w-full min-w-0">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5 min-w-0">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <div class="size-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shadow-2xs shrink-0">
+                      <UIcon name="i-lucide-mail" class="size-4" />
+                    </div>
+                    <div class="min-w-0">
+                      <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900 leading-tight truncate">Invitation</h3>
+                      <p class="text-[10px] text-muted truncate">Stationery & RSVP</p>
+                    </div>
+                  </div>
+                  <UBadge
+                    :color="hasInvitation ? 'success' : 'neutral'"
+                    variant="subtle"
                     size="xs"
-                  />
-                  <span class="text-[10.5px] text-muted block font-medium">
-                    {{ invitationsSentCount }} sent to registered guests
-                  </span>
+                    class="font-semibold px-2 py-0.5 shrink-0"
+                  >
+                    {{ hasInvitation ? 'Live' : 'Draft' }}
+                  </UBadge>
+                </div>
+
+                <!-- Metrics: Invitation Status & RSVP Questions Status & Sent -->
+                <div class="space-y-1.5 w-full min-w-0">
+                  <!-- 1. Invitation Status -->
+                  <div class="p-2 rounded-xl border border-bread-200/60 bg-toast-50/80 flex items-center justify-between text-xs min-w-0 gap-1 overflow-hidden">
+                    <span class="text-[10px] text-muted uppercase font-semibold truncate">Invitation</span>
+                    <div class="flex items-center gap-1.5 font-bold text-[11px] shrink-0" :class="hasInvitation ? 'text-emerald-700' : 'text-amber-700'">
+                      <UIcon :name="hasInvitation ? 'i-lucide-check-circle' : 'i-lucide-clock'" class="size-3.5 shrink-0" />
+                      <span class="truncate">{{ invitationStatusText }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 2. RSVP Questions Status -->
+                  <div class="p-2 rounded-xl border border-bread-200/60 bg-toast-50/80 flex items-center justify-between text-xs min-w-0 gap-1 overflow-hidden">
+                    <span class="text-[10px] text-muted uppercase font-semibold truncate">RSVP Questions</span>
+                    <div class="flex items-center gap-1.5 font-bold text-[11px] shrink-0" :class="hasRsvpQuestions ? 'text-emerald-700' : 'text-amber-700'">
+                      <UIcon :name="hasRsvpQuestions ? 'i-lucide-check-circle' : 'i-lucide-help-circle'" class="size-3.5 shrink-0" />
+                      <span class="truncate">{{ rsvpQuestionsStatusText }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 3. Sent Progress Bar -->
+                  <div class="p-2 rounded-xl border border-bread-200/60 bg-toast-50/80 space-y-1 w-full min-w-0 overflow-hidden">
+                    <div class="flex items-center justify-between text-xs min-w-0 gap-1">
+                      <span class="text-[10px] text-muted uppercase font-semibold truncate">Sent to Guests</span>
+                      <span class="font-bold text-toast-900 font-mono text-[11px] shrink-0">
+                        {{ invitationsSentCount }} / {{ guests.length }}
+                      </span>
+                    </div>
+                    <UProgress
+                      :model-value="guests.length ? (invitationsSentCount / guests.length) * 100 : 0"
+                      color="primary"
+                      size="xs"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+
+                <!-- Action Buttons: Base Nuxt UI UButton with toast color & variants -->
+                <div class="space-y-1.5 pt-1.5 border-t border-bread-200/60 shrink-0 w-full min-w-0">
+                  <UButton
+                    color="toast"
+                    variant="solid"
+                    size="xs"
+                    icon="i-lucide-clipboard-check"
+                    block
+                    @click.prevent="startPageTransition(`/jam/rsvps/${gatheringId}`)"
+                  >
+                    Check Responses
+                  </UButton>
+                  <div class="grid grid-cols-2 gap-1.5 w-full min-w-0">
+                    <UButton
+                      color="toast"
+                      variant="soft"
+                      size="xs"
+                      icon="i-lucide-pencil"
+                      block
+                      @click.prevent="handleFeatureAccess('invite')"
+                    >
+                      {{ hasInvitation ? 'Edit Design' : 'Create Design' }}
+                    </UButton>
+                    <UButton
+                      color="toast"
+                      variant="outline"
+                      size="xs"
+                      icon="i-lucide-send"
+                      block
+                      @click="isBulkInviteModalOpen = true"
+                    >
+                      Mass Invite
+                    </UButton>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Action Buttons for Created State: High Contrast Toast -->
-            <div v-if="hasInvitation" class="pt-1.5 border-t border-bread-200/60">
-              <div class="grid grid-cols-2 gap-1.5">
-                <UButton
-                  :to="`/jam/invitation/${gatheringId}`"
-                  color="toast"
-                  variant="soft"
-                  size="xs"
-                  icon="i-lucide-pencil"
-                  block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                  @click="followLink($event, `/jam/invitation/${gatheringId}`)"
-                >
-                  Edit invitation
-                </UButton>
-                <UButton
-                  color="toast"
-                  variant="solid"
-                  size="xs"
-                  icon="i-lucide-send"
-                  block
-                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                  @click="isBulkInviteModalOpen = true"
-                >
-                  Mass invite
-                </UButton>
-              </div>
-            </div>
-          </div>
-
-          <!-- ---------------- ROW 2 COL 1: TABLES & SEATS ---------------- -->
-          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
-            <!-- Header -->
-            <div class="space-y-1.5 min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
-                <div class="flex items-center gap-2">
-                  <div class="size-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-layout-grid" class="size-4" />
+            <!-- 3B: JAM SETTINGS & PLAN CONTAINER -->
+            <div class="white-bread-container p-3 sm:p-3.5 flex flex-col justify-between shadow-xs border border-bread-200/90 rounded-2xl w-full max-w-full min-w-0 overflow-hidden h-auto lg:h-full lg:flex-1 lg:min-h-0">
+              <div class="space-y-2 lg:min-h-0 flex-1 flex flex-col justify-between w-full min-w-0">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5 min-w-0">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <div class="size-7 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center shadow-2xs shrink-0">
+                      <UIcon name="i-lucide-settings" class="size-4" />
+                    </div>
+                    <div class="min-w-0">
+                      <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900 leading-tight truncate">Jam Settings & Plan</h3>
+                      <p class="text-[10px] text-muted truncate">Passcode, capacity & plan</p>
+                    </div>
                   </div>
-                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Tables & Seats</h3>
-                </div>
-                <UBadge
-                  :color="hasTables ? 'success' : 'neutral'"
-                  variant="subtle"
-                  size="xs"
-                  class="font-semibold px-2 py-0.5"
-                >
-                  {{ hasTables ? `${gathering.tables.length} tables` : 'No tables yet' }}
-                </UBadge>
-              </div>
-
-              <!-- State A: No tables arranged yet -->
-              <div v-if="!hasTables" class="py-1.5 text-center space-y-2">
-                <p class="text-xs text-toast-700 leading-relaxed font-medium">
-                  No tables or seat arrangements set up yet. Configure your venue layout to seat attending guests.
-                </p>
-                <UButton
-                  :to="`/jam/tables/${gatheringId}`"
-                  color="toast"
-                  variant="solid"
-                  size="xs"
-                  icon="i-lucide-plus"
-                  block
-                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                  @click="followLink($event, `/jam/tables/${gatheringId}`)"
-                >
-                  Setup tables and seats
-                </UButton>
-              </div>
-
-              <!-- State B: Existing tables instance -->
-              <div v-else class="space-y-1.5 pt-0.5 text-xs">
-                <div class="grid grid-cols-2 gap-1.5">
-                  <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
-                    <span class="text-[9.5px] text-muted block uppercase font-semibold">Tables Configured</span>
-                    <span class="font-bold font-serif text-sm sm:text-base text-toast-900">{{ gathering.tables.length }}</span>
-                  </div>
-                  <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60">
-                    <span class="text-[9.5px] text-muted block uppercase font-semibold">Total Capacity</span>
-                    <span class="font-bold font-serif text-sm sm:text-base text-toast-900">{{ totalSeatsCapacity }} Seats</span>
-                  </div>
-                </div>
-
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 space-y-1">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="text-toast-800 font-semibold">Seating Completion</span>
-                    <span class="font-bold text-toast-900 font-mono">{{ seatedPercent }}%</span>
-                  </div>
-                  <UProgress :model-value="seatedPercent" color="success" size="xs" />
-                  <span class="text-[10px] text-muted block truncate font-medium">
-                    {{ seatedCount }} of {{ attendingGuests.length }} attending seated · {{ unseatedGuestsCount }} unassigned
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Button: High Contrast Toast -->
-            <div v-if="hasTables" class="pt-1.5 border-t border-bread-200/60">
-              <UButton
-                :to="`/jam/tables/${gatheringId}`"
-                color="toast"
-                variant="solid"
-                size="xs"
-                icon="i-lucide-arrow-right"
-                trailing
-                block
-                class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-3 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                @click="followLink($event, `/jam/tables/${gatheringId}`)"
-              >
-                Open table & seat manager
-              </UButton>
-            </div>
-          </div>
-
-          <!-- ---------------- ROW 2 COL 2: JAM SETTINGS ---------------- -->
-          <div class="white-bread-container p-2.5 sm:p-3 lg:p-3.5 flex flex-col justify-between shadow-xs space-y-2 border border-bread-200/90 rounded-xl h-full min-h-0">
-            <!-- Header & Info -->
-            <div class="space-y-1.5 min-h-0">
-              <div class="flex items-center justify-between border-b border-bread-200/60 pb-1.5">
-                <div class="flex items-center gap-2">
-                  <div class="size-7 rounded-lg bg-slate-500/10 text-slate-600 flex items-center justify-center shadow-2xs">
-                    <UIcon name="i-lucide-settings" class="size-4" />
-                  </div>
-                  <h3 class="font-serif font-bold text-sm sm:text-base text-toast-900">Jam Settings & Plan</h3>
-                </div>
-                <UBadge color="warning" variant="solid" size="xs" class="text-black font-semibold px-2 py-0.5">
-                  {{ gathering.packageName }}
-                </UBadge>
-              </div>
-
-              <!-- Package Tier & Passcode Split -->
-              <div class="grid grid-cols-2 gap-1.5 text-xs">
-                <!-- Package Tier Info -->
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 space-y-0.5">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[9.5px] text-muted uppercase font-semibold">Package Tier</span>
-                    <span class="text-[9.5px] text-toast-700 font-bold">{{ gathering.maxGuests }} Max</span>
-                  </div>
-                  <div class="font-serif font-bold text-xs sm:text-sm text-toast-900 truncate">
+                  <UBadge color="warning" variant="solid" size="xs" class="text-black font-semibold px-2 py-0.5 shrink-0">
                     {{ gathering.packageName }}
+                  </UBadge>
+                </div>
+
+                <!-- Seating Capacity, Passcode & Email Credits -->
+                <div class="space-y-1.5 w-full min-w-0">
+                  <!-- Seating Capacity & Passcode in 2 columns -->
+                  <div class="grid grid-cols-2 gap-1.5 text-xs w-full min-w-0">
+                    <!-- 1. Seating Capacity -->
+                    <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 space-y-0.5 min-w-0 overflow-hidden">
+                      <span class="text-[9px] text-muted block uppercase font-semibold truncate">Seating Capacity</span>
+                      <div class="flex items-baseline justify-between min-w-0 gap-1">
+                        <span class="font-serif font-bold text-sm text-toast-900 truncate">
+                          {{ totalSeatsCapacity }} Seats
+                        </span>
+                        <span class="text-[9.5px] text-toast-600 font-medium font-mono shrink-0">
+                          {{ gathering.tables?.length || 0 }} tbls
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- 2. Passcode with Copy -->
+                    <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 flex items-center justify-between gap-1 min-w-0 overflow-hidden">
+                      <div class="min-w-0 flex-1">
+                        <span class="text-[9px] text-muted block uppercase font-semibold truncate">Passcode</span>
+                        <span class="font-mono font-bold text-xs text-toast-900 truncate block">
+                          {{ gathering.passcode || 'Not set' }}
+                        </span>
+                      </div>
+                      <UButton
+                        size="xs"
+                        color="toast"
+                        variant="outline"
+                        :icon="isCopiedPasscode ? 'i-lucide-check' : 'i-lucide-copy'"
+                        class="shrink-0 text-[10px] px-1.5 py-0.5"
+                        :title="isCopiedPasscode ? 'Copied' : 'Copy passcode'"
+                        @click="copyPasscode"
+                      >
+                        {{ isCopiedPasscode ? 'Copied' : 'Copy' }}
+                      </UButton>
+                    </div>
+                  </div>
+
+                  <!-- 3. Email Credits Meter -->
+                  <div class="bg-toast-50/80 p-2 rounded-xl border border-bread-200/60 space-y-0.5 w-full min-w-0 overflow-hidden">
+                    <div class="flex items-center justify-between text-xs min-w-0 gap-1">
+                      <span class="text-[9px] text-muted uppercase font-semibold truncate">Email Credits</span>
+                      <span class="font-mono font-bold text-[11px] text-toast-900 shrink-0">
+                        {{ emailCreditsRemaining }} / {{ gathering.maxGuests }} Left
+                      </span>
+                    </div>
+                    <UProgress
+                      :model-value="gathering.maxGuests ? (emailCreditsRemaining / gathering.maxGuests) * 100 : 0"
+                      color="warning"
+                      size="xs"
+                      class="w-full"
+                    />
                   </div>
                 </div>
 
-                <!-- Passcode Info with High-Contrast Copy Button -->
-                <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 flex items-center justify-between gap-1">
-                  <div class="min-w-0">
-                    <span class="text-[9.5px] text-muted block uppercase font-semibold">Passcode</span>
-                    <span class="font-mono font-bold text-xs text-toast-900 truncate block">
-                      {{ gathering.passcode || 'Not set' }}
-                    </span>
+                <!-- Actions: Base Nuxt UI UButton with toast color & variants -->
+                <div class="pt-1.5 border-t border-bread-200/60 shrink-0 w-full min-w-0">
+                  <div class="grid grid-cols-2 gap-1.5 w-full min-w-0">
+                    <UButton
+                      color="toast"
+                      variant="solid"
+                      size="xs"
+                      icon="i-lucide-settings"
+                      block
+                      @click.prevent="startPageTransition(`/jam/settings/${gatheringId}`)"
+                    >
+                      Settings
+                    </UButton>
+                    <UButton
+                      color="toast"
+                      variant="soft"
+                      size="xs"
+                      icon="i-lucide-arrow-up-circle"
+                      block
+                      @click.prevent="startPageTransition(`/user/jam-upgrade/${gatheringId}`)"
+                    >
+                      Upgrade
+                    </UButton>
                   </div>
-                  <UButton
-                    size="xs"
-                    color="toast"
-                    variant="solid"
-                    icon="i-lucide-copy"
-                    class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer shrink-0 rounded-lg shadow-2xs py-1 px-2 text-[11px]"
-                    title="Copy passcode"
-                    @click="copyPasscode"
-                  >
-                    {{ isCopiedPasscode ? 'Copied' : 'Copy' }}
-                  </UButton>
                 </div>
-              </div>
-
-              <!-- Email Credits Display -->
-              <div class="bg-toast-50/70 p-1.5 sm:p-2 rounded-lg border border-bread-200/60 space-y-1">
-                <div class="flex items-center justify-between text-xs sm:text-sm">
-                  <span class="font-bold text-toast-800 text-xs">Email Credits</span>
-                  <span class="font-bold font-mono text-toast-900 text-xs">
-                    {{ emailCreditsRemaining }} Left
-                  </span>
-                </div>
-                <UProgress
-                  :model-value="gathering.maxGuests ? (emailCreditsRemaining / gathering.maxGuests) * 100 : 0"
-                  color="warning"
-                  size="xs"
-                />
-                <span class="text-[10px] text-muted block truncate font-medium">
-                  {{ guests.length }} used of {{ gathering.maxGuests }} plan capacity
-                </span>
-              </div>
-            </div>
-
-            <!-- Action Buttons: Jam settings & Plan details (High Contrast Toast) -->
-            <div class="pt-1.5 border-t border-bread-200/60">
-              <div class="grid grid-cols-2 gap-1.5">
-                <UButton
-                  :to="`/jam/settings/${gatheringId}`"
-                  color="toast"
-                  variant="solid"
-                  size="xs"
-                  icon="i-lucide-settings"
-                  block
-                  class="w-full bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-bold py-1 px-2 text-xs rounded-lg shadow-sm cursor-pointer justify-center transition-all"
-                  @click="followLink($event, `/jam/settings/${gatheringId}`)"
-                >
-                  Settings & Plan
-                </UButton>
-                <UButton
-                  :to="`/user/jam-upgrade/${gatheringId}`"
-                  color="toast"
-                  variant="soft"
-                  size="xs"
-                  icon="i-lucide-arrow-up-circle"
-                  block
-                  class="w-full bg-toast-100 hover:bg-toast-200 active:bg-toast-300 text-toast-950 border border-toast-300/80 font-bold py-1 px-2 text-xs rounded-lg shadow-2xs cursor-pointer justify-center transition-all"
-                  @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
-                >
-                  Upgrade Plan
-                </UButton>
               </div>
             </div>
           </div>
@@ -833,12 +1043,12 @@ async function downloadGuests() {
           </div>
 
           <!-- 2-Column App Launcher Grid Styled after Event Dashboard -->
-          <div class="grid grid-cols-2 gap-2.5 sm:gap-3 py-3 w-full max-w-56 sm:max-w-64 mx-auto">
+          <div class="grid grid-cols-2 gap-2.5 sm:gap-3.5 py-3 w-full max-w-60 sm:max-w-68 mx-auto">
             <UButton
               v-for="item in QUICK_NAV_ITEMS"
               :key="item.id"
               variant="ghost"
-              class="group relative flex flex-col items-center justify-center w-full aspect-square p-2 sm:p-2.5 rounded-xl shadow-xs transition-all duration-200 active:scale-95 cursor-pointer select-none hover:shadow-sm hover:-translate-y-0.5"
+              class="group relative flex flex-col items-center justify-center w-full aspect-square p-2.5 sm:p-3 rounded-xl shadow-xs transition-all duration-200 active:scale-95 cursor-pointer select-none hover:shadow-sm hover:-translate-y-0.5"
               :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
               @click="onQuickNavItemClick(item)"
             >
@@ -850,10 +1060,10 @@ async function downloadGuests() {
               </span>
               <UIcon
                 :name="item.icon"
-                class="size-5.5 sm:size-6 shrink-0 mb-1 transition-transform duration-200 group-hover:scale-110"
+                class="size-6 sm:size-6.5 shrink-0 mb-1 transition-transform duration-200 group-hover:scale-110"
               />
               <span
-                class="text-[10.5px] sm:text-[11.5px] font-semibold leading-tight text-center wrap-break-word line-clamp-2 px-0.5 tracking-tight"
+                class="text-[11px] sm:text-xs font-semibold leading-tight text-center wrap-break-word line-clamp-2 px-0.5 tracking-tight"
               >
                 {{ item.label }}
               </span>
@@ -862,6 +1072,7 @@ async function downloadGuests() {
         </div>
       </UDashboardPanel>
     </UPageGrid>
+    </template>
 
     <!-- Quick Add Guest Modal -->
     <UModal v-model:open="isAddGuestModalOpen" title="Add New Guest">
@@ -944,15 +1155,101 @@ async function downloadGuests() {
         </div>
       </template>
     </UModal>
+
+    <!-- Desktop Only Feature Notice Modal (Mobile View - Inherited from EventDashboard v2.vue) -->
+    <UModal
+      v-model:open="isDesktopOnlyModalOpen"
+      :ui="{
+        content: 'bread-container max-w-md p-6 space-y-5',
+        overlay: 'bg-toast-950/40 backdrop-blur-xs',
+      }"
+    >
+      <template #content>
+        <div class="space-y-5 text-toast-900">
+          <!-- Header -->
+          <div class="space-y-3 text-center">
+            <div class="flex justify-between items-start">
+              <div class="w-8" />
+              <div
+                class="w-14 h-14 rounded-full bg-toast-600/10 text-toast-700 flex items-center justify-center mx-auto shadow-xs"
+              >
+                <UIcon name="i-lucide-monitor" class="size-7 text-toast-700" />
+              </div>
+              <div class="w-8 flex justify-end">
+                <UButton
+                  icon="i-lucide-x"
+                  variant="link"
+                  color="neutral"
+                  class="cursor-pointer"
+                  @click="isDesktopOnlyModalOpen = false"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <h3 class="text-xl font-bold font-serif text-toast-900">
+                Desktop View Required
+              </h3>
+              <p class="text-xs sm:text-sm text-toast-800/80 max-w-xs mx-auto leading-relaxed">
+                The <span class="font-bold text-toast-900">{{ selectedDesktopOnlyFeature?.label }}</span> feature
+                requires a desktop or laptop display due to extensive layouts, design canvases, and data tables that
+                cannot be comfortably navigated on mobile screens.
+              </p>
+            </div>
+          </div>
+
+          <!-- Feature Highlight Card -->
+          <div class="bg-white/80 border border-toast-300/40 rounded-xl p-3.5 flex items-center gap-3">
+            <div
+              class="size-10 rounded-full flex items-center justify-center shrink-0 shadow-xs"
+              :class="getQuickNavSolidBgClass(selectedDesktopOnlyFeature || { label: '' } as any)"
+            >
+              <UIcon :name="selectedDesktopOnlyFeature?.icon || 'i-lucide-sparkles'" class="size-5 text-white" />
+            </div>
+            <div class="text-left flex-1 min-w-0">
+              <div class="font-semibold text-sm text-toast-900 truncate">{{ selectedDesktopOnlyFeature?.label }}</div>
+              <div class="text-xs text-toast-700/80 leading-tight mt-0.5">
+                {{
+                  selectedDesktopOnlyFeature?.id === 'invite'
+                    ? 'Card layout designer, typography controls & preview'
+                    : 'Comprehensive table arrangement, drag-and-drop floor plans & seating matrix'
+                }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="pt-1">
+            <UButton
+              block
+              color="primary"
+              size="md"
+              class="font-bold shadow-sm bg-toast-600 hover:bg-toast-700 text-white cursor-pointer"
+              @click="isDesktopOnlyModalOpen = false"
+            >
+              Understood
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <style scoped>
 .jam-dashboard-root {
   height: calc(100vh - 64px);
-  max-height: calc(100vh - 64px);
-  overflow: hidden;
   overscroll-behavior: none;
+}
+
+@media (min-width: 1024px) {
+  .jam-dashboard-root {
+    max-height: calc(100vh - 64px);
+    overflow: hidden;
+  }
+}
+
+.jam-dashboard-root {
   --dash-font-container-header: clamp(1.1rem, 0.95rem + 0.5vw, 1.55rem);
   --dash-font-item-header: clamp(0.65rem, 0.58rem + 0.2vw, 0.85rem);
   --dash-font-top-value: clamp(1.05rem, 0.95rem + 0.45vw, 1.45rem);

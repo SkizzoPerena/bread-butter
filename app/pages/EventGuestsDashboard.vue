@@ -1244,7 +1244,7 @@ watch(eventId, () => {
         <!-- Sticky Floating Action Bar for Selected Items -->
         <div
           v-if="showGuestListActionBar || showTablesActionBar || showGroupsActionBar"
-          class="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg dark:border-orange-800 dark:bg-neutral-900"
+          class="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg"
         >
           <div class="space-y-0.5">
             <span class="text-sm font-semibold text-highlighted">

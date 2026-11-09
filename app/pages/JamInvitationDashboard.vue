@@ -10,6 +10,13 @@ import {
   type TypographySet,
 } from '~/utils/websiteTheme'
 import { formatDateWithWeekday, formatTime } from '~/utils/invitationDisplay'
+import {
+  INVITATION_TEMPLATES,
+  getTemplateForEventType,
+  getTemplateById,
+  type InvitationTemplatePreset,
+} from '~/utils/invitationTemplates'
+import JamInvitationCard from '~/components/JamInvitationCard.vue'
 import { getApiErrorMessage } from '~/types/auth'
 import { currentOriginPath } from '~/utils/seatingQr'
 
@@ -18,7 +25,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Invitation Maker',
-  bgClass: 'bg-violet-50',
+  bgClass: 'bg-blue-50',
   middleware: 'seating-enabled',
 })
 
@@ -28,6 +35,7 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
@@ -44,8 +52,8 @@ const isCopiedRsvpLink = ref(false)
 // Steps matching InvitationMaker.vue
 const currentStep = ref(0)
 const steps = [
-  { id: 'core-details', label: '1. Event Details', description: 'Names, headline, date, time, and venue' },
-  { id: 'rsvp-deadline', label: '2. RSVP & Access', description: 'RSVP deadline, passcode, and open invite link' },
+  { id: 'core-details', label: '1. Event Details', description: 'Template, names, headline, schedule, and venue' },
+  { id: 'rsvp-deadline', label: '2. RSVP & Access', description: 'RSVP deadline, button label, passcode, and open invite link' },
   { id: 'banner-image', label: '3. Stationery & Banner', description: 'Upload a panoramic banner or your own invitation image' },
   { id: 'style-cohesion', label: '4. Colors & Fonts', description: 'Choose color palettes, typography, and accent colors' },
 ]
@@ -56,15 +64,28 @@ const previewMode = ref<'stationery' | 'email'>('stationery')
 
 // Editor Form State
 const rsvpData = reactive({
-  requestLine: 'Together with their families',
+  templateId: 'wedding',
+  headerLabel: 'WEDDING INVITATION',
   headline: '',
+  hostName: '',
+  requestLine: 'Together with their families,',
+  primaryName: '',
+  personalMessage: 'request the honor of your presence as they celebrate their marriage.',
   eventDate: '',
   eventTime: '18:00',
   eventVenue: '',
-  deadlineText: 'Kindly reply by the deadline so we can prepare your table and seat.',
+  scheduleType: 'dual' as 'single' | 'dual',
+  ceremonyTitle: 'Ceremony',
+  ceremonyTime: '2:00 PM',
+  ceremonyVenue: '',
+  receptionTitle: 'Reception',
+  receptionTime: '5:00 PM',
+  receptionVenue: '',
+  celebrationTitle: 'Celebration',
+  deadlineText: 'Kindly confirm your attendance by [RSVP Deadline].',
+  ctaText: 'Confirm Attendance',
   passcode: '',
   emailSubject: 'You are warmly invited to celebrate with us!',
-  personalMessage: '',
 })
 
 // Design Mode & Theme
@@ -116,6 +137,33 @@ const guestRsvpSampleUrl = computed(() => {
   return publicInvitationUrl.value
 })
 
+const activeTemplatePreset = computed<InvitationTemplatePreset>(() => {
+  return getTemplateForEventType(gathering.value?.eventType)
+})
+
+function applyTemplate(templateId: string, force = false) {
+  const tmpl = getTemplateById(templateId)
+  rsvpData.templateId = tmpl.id
+  if (force || !rsvpData.headerLabel) rsvpData.headerLabel = tmpl.headerLabel
+  if (force || !rsvpData.headline) rsvpData.headline = tmpl.headline
+  if (force || !rsvpData.hostName) rsvpData.hostName = tmpl.defaultHostName || ''
+  if (force || !rsvpData.requestLine) rsvpData.requestLine = tmpl.requestLine
+  if (force || !rsvpData.personalMessage) rsvpData.personalMessage = tmpl.defaultMessage
+  if (force || !rsvpData.scheduleType) rsvpData.scheduleType = tmpl.scheduleType
+  if (force || !rsvpData.ceremonyTitle) rsvpData.ceremonyTitle = tmpl.ceremonyTitle || 'Ceremony'
+  if (force || !rsvpData.ceremonyTime) rsvpData.ceremonyTime = tmpl.ceremonyTime || '2:00 PM'
+  if (force || !rsvpData.ceremonyVenue) rsvpData.ceremonyVenue = tmpl.ceremonyVenue || rsvpData.eventVenue || ''
+  if (force || !rsvpData.receptionTitle) rsvpData.receptionTitle = tmpl.receptionTitle || 'Reception'
+  if (force || !rsvpData.receptionTime) rsvpData.receptionTime = tmpl.receptionTime || '5:00 PM'
+  if (force || !rsvpData.receptionVenue) rsvpData.receptionVenue = tmpl.receptionVenue || rsvpData.eventVenue || ''
+  if (force || !rsvpData.celebrationTitle) rsvpData.celebrationTitle = tmpl.celebrationTitle || 'Celebration'
+  if (force || !rsvpData.deadlineText) rsvpData.deadlineText = tmpl.deadlineText
+  if (force || !rsvpData.ctaText) rsvpData.ctaText = tmpl.ctaButtonText
+  if (force) {
+    toast.add({ title: `${tmpl.name} template applied`, color: 'success' })
+  }
+}
+
 async function load() {
   if (!gatheringId.value) return
   isLoading.value = true
@@ -127,19 +175,34 @@ async function load() {
     gathering.value = gatheringData
     guests.value = guestsData.guests
 
-    // Populate editor fields
-    rsvpData.headline = gatheringData.invitationDesign?.headline || gatheringData.name || ''
-    rsvpData.requestLine = gatheringData.invitationDesign?.requestLine || 'Together with their families'
+    // Template is constant depending on the event type
+    const defaultTemplate = getTemplateForEventType(gatheringData.eventType)
+    const d = gatheringData.invitationDesign
+
+    rsvpData.templateId = defaultTemplate.id
+    rsvpData.headerLabel = d?.headerLabel ?? defaultTemplate.headerLabel
+    rsvpData.headline = d?.headline ?? defaultTemplate.headline
+    rsvpData.hostName = d?.hostName ?? defaultTemplate.defaultHostName ?? ''
+    rsvpData.requestLine = d?.requestLine ?? defaultTemplate.requestLine
+    rsvpData.primaryName = d?.primaryName ?? gatheringData.name ?? ''
+    rsvpData.personalMessage = gatheringData.invitationMessage || defaultTemplate.defaultMessage
     rsvpData.eventVenue = gatheringData.venue || ''
     rsvpData.eventDate = gatheringData.eventDate ? gatheringData.eventDate.slice(0, 10) : ''
-    rsvpData.eventTime = gatheringData.invitationDesign?.eventTime || '18:00'
-    rsvpData.deadlineText = gatheringData.invitationDesign?.deadlineText || 'Kindly reply by the deadline so we can prepare your table and seat.'
+    rsvpData.eventTime = d?.eventTime || defaultTemplate.eventTime || '18:00'
+    rsvpData.scheduleType = d?.scheduleType || defaultTemplate.scheduleType
+    rsvpData.ceremonyTitle = d?.ceremonyTitle || defaultTemplate.ceremonyTitle || 'Ceremony'
+    rsvpData.ceremonyTime = d?.ceremonyTime || defaultTemplate.ceremonyTime || '2:00 PM'
+    rsvpData.ceremonyVenue = d?.ceremonyVenue || gatheringData.venue || defaultTemplate.ceremonyVenue || ''
+    rsvpData.receptionTitle = d?.receptionTitle || defaultTemplate.receptionTitle || 'Reception'
+    rsvpData.receptionTime = d?.receptionTime || defaultTemplate.receptionTime || '5:00 PM'
+    rsvpData.receptionVenue = d?.receptionVenue || gatheringData.venue || defaultTemplate.receptionVenue || ''
+    rsvpData.celebrationTitle = d?.celebrationTitle || defaultTemplate.celebrationTitle || 'Celebration'
+    rsvpData.deadlineText = d?.deadlineText || defaultTemplate.deadlineText
+    rsvpData.ctaText = d?.ctaText || defaultTemplate.ctaButtonText
     rsvpData.passcode = gatheringData.passcode || ''
     rsvpData.emailSubject = gatheringData.invitationSubject || `You are warmly invited to ${gatheringData.name}!`
-    rsvpData.personalMessage = gatheringData.invitationMessage || ''
 
-    if (gatheringData.invitationDesign) {
-      const d = gatheringData.invitationDesign
+    if (d) {
       designMode.value = d.mode || 'MAKER'
       ownImageUrl.value = d.imageUrl || ''
       bannerImageUrl.value = d.bannerImageUrl || ''
@@ -149,8 +212,9 @@ async function load() {
     }
 
     isPublished.value = Boolean(
-      gatheringData.invitationDesign?.headline ||
-      gatheringData.invitationDesign?.imageUrl ||
+      d?.headline ||
+      d?.imageUrl ||
+      d?.primaryName ||
       gatheringData.invitationMessage
     )
 
@@ -168,6 +232,7 @@ async function load() {
     toast.add({ title: 'Could not load invitation', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     isLoading.value = false
+    finishPageTransition()
   }
 }
 
@@ -261,20 +326,36 @@ async function saveInvitation() {
   isSaving.value = true
   try {
     const updated = await seating.saveInvitation(gatheringId.value, {
-      passcode: rsvpData.passcode.trim(),
-      invitationSubject: rsvpData.emailSubject.trim(),
-      invitationMessage: rsvpData.personalMessage.trim(),
+      passcode: rsvpData.passcode.trim() || undefined,
+      invitationSubject: rsvpData.emailSubject.trim() || undefined,
+      invitationMessage: rsvpData.personalMessage.trim() || undefined,
+      venue: rsvpData.eventVenue.trim() || undefined,
+      eventDate: rsvpData.eventDate.trim() || undefined,
       invitationDesign: {
         mode: designMode.value,
         imageUrl: ownImageUrl.value,
         bannerImageUrl: bannerImageUrl.value,
-        headline: rsvpData.headline.trim() || undefined,
-        requestLine: rsvpData.requestLine.trim() || undefined,
-        eventTime: rsvpData.eventTime.trim() || undefined,
-        deadlineText: rsvpData.deadlineText.trim() || undefined,
         paletteName: customPaletteName.value,
         typographyName: customTypographyName.value,
         accentColor: savedAccentColor(),
+        templateId: activeTemplatePreset.value.id,
+        // An empty field is sent as '' so the server clears it. Leaving it out would keep the old text in the email.
+        headerLabel: rsvpData.headerLabel.trim(),
+        headline: rsvpData.headline.trim(),
+        hostName: rsvpData.hostName.trim(),
+        requestLine: rsvpData.requestLine.trim(),
+        primaryName: rsvpData.primaryName.trim(),
+        scheduleType: rsvpData.scheduleType,
+        ceremonyTitle: rsvpData.ceremonyTitle.trim(),
+        ceremonyTime: rsvpData.ceremonyTime.trim(),
+        ceremonyVenue: rsvpData.ceremonyVenue.trim(),
+        receptionTitle: rsvpData.receptionTitle.trim(),
+        receptionTime: rsvpData.receptionTime.trim(),
+        receptionVenue: rsvpData.receptionVenue.trim(),
+        celebrationTitle: rsvpData.celebrationTitle.trim(),
+        eventTime: rsvpData.eventTime.trim(),
+        deadlineText: rsvpData.deadlineText.trim(),
+        ctaText: rsvpData.ctaText.trim(),
       },
     })
     gathering.value = updated
@@ -346,15 +427,6 @@ async function copyRsvpLink() {
   }
 }
 
-async function updateOpenInvite(enabled: boolean) {
-  if (!gatheringId.value) return
-  try {
-    gathering.value = await seating.setOpenInvite(gatheringId.value, { enabled })
-    toast.add({ title: enabled ? 'Open invite enabled' : 'Open invite disabled', color: 'success' })
-  } catch (error) {
-    toast.add({ title: 'Could not update open invite', description: getApiErrorMessage(error), color: 'error' })
-  }
-}
 
 // A link that reached the wrong people can only be stopped by replacing it.
 async function replaceOpenInvite() {
@@ -367,30 +439,41 @@ async function replaceOpenInvite() {
     toast.add({ title: 'Could not replace the link', description: getApiErrorMessage(error), color: 'error' })
   }
 }
+
+async function updateOpenInvite(enabled: boolean) {
+  if (!gatheringId.value) return
+  try {
+    gathering.value = await seating.setOpenInvite(gatheringId.value, { enabled })
+    toast.add({ title: enabled ? 'Open invite enabled' : 'Open invite disabled', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not update open invite', description: getApiErrorMessage(error), color: 'error' })
+  }
+}
 </script>
 
 <template>
   <div>
-    <!-- Navbar Actions Teleport matching InvitationMaker.vue -->
+    <!-- Navbar Actions Teleport -->
     <ClientOnly>
+      <!-- Desktop Navbar Actions (Right Side) -->
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
           <!-- Cohesion Status Badge -->
           <div
-            class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-violet-50 text-violet-800 border-violet-200"
+            class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-800 border-blue-200"
           >
-            <UIcon name="i-lucide-palette" class="w-3.5 h-3.5 text-violet-600" />
+            <UIcon name="i-lucide-palette" class="w-3.5 h-3.5 text-blue-600" />
             <span>{{ designMode === 'IMAGE' ? 'Custom Stationery' : effectivePalette.name }}</span>
           </div>
 
-          <div v-if="isPublished" class="text-xs md:text-sm font-medium text-violet-600">
+          <div v-if="isPublished" class="text-xs md:text-sm font-medium text-blue-600">
             ✨ Your invitation is live!
           </div>
 
           <UButton
             v-if="isPublished && (openInviteUrl || publicInvitationUrl)"
             icon="i-lucide-copy"
-            color="violet"
+            color="blue"
             variant="outline"
             size="sm"
             @click="copyRsvpLink"
@@ -401,7 +484,7 @@ async function replaceOpenInvite() {
           <UButton
             v-if="isPublished && publicInvitationUrl"
             icon="i-lucide-external-link"
-            color="violet"
+            color="blue"
             variant="soft"
             size="sm"
             :to="publicInvitationUrl"
@@ -413,7 +496,7 @@ async function replaceOpenInvite() {
           <UButton
             v-if="!isPublished"
             icon="i-lucide-save"
-            color="violet"
+            color="blue"
             variant="outline"
             size="sm"
             :loading="isSaving"
@@ -424,7 +507,7 @@ async function replaceOpenInvite() {
 
           <UButton
             :icon="isPublished ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
-            color="violet"
+            color="blue"
             size="sm"
             :loading="isSaving"
             @click="togglePublish"
@@ -433,12 +516,70 @@ async function replaceOpenInvite() {
           </UButton>
         </div>
       </Teleport>
+
+      <!-- Mobile Navbar Actions (Left Toggle Button Menu) -->
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <div v-if="isPublished" class="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200/80 rounded-xl p-2.5 text-center">
+            ✨ Your invitation is live!
+          </div>
+          <UButton
+            :icon="isPublished ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
+            color="blue"
+            size="md"
+            block
+            :loading="isSaving"
+            class="w-full justify-center font-bold shadow-xs cursor-pointer"
+            @click="togglePublish"
+          >
+            {{ isPublished ? 'Edit Invitation' : 'Save & Publish' }}
+          </UButton>
+          <UButton
+            v-if="!isPublished"
+            icon="i-lucide-save"
+            color="blue"
+            variant="outline"
+            size="sm"
+            block
+            :loading="isSaving"
+            class="w-full justify-center cursor-pointer"
+            @click="saveInvitation"
+          >
+            Save Draft
+          </UButton>
+          <UButton
+            v-if="isPublished && publicInvitationUrl"
+            icon="i-lucide-external-link"
+            color="blue"
+            variant="soft"
+            size="sm"
+            block
+            :to="publicInvitationUrl"
+            target="_blank"
+            class="w-full justify-center cursor-pointer"
+          >
+            View Live Invitation
+          </UButton>
+          <UButton
+            v-if="isPublished && (openInviteUrl || publicInvitationUrl)"
+            icon="i-lucide-copy"
+            color="blue"
+            variant="outline"
+            size="sm"
+            block
+            class="w-full justify-center cursor-pointer"
+            @click="copyRsvpLink"
+          >
+            Copy RSVP Link
+          </UButton>
+        </div>
+      </Teleport>
     </ClientOnly>
 
-    <!-- Main Content Container matching InvitationMaker.vue layout -->
+    <!-- Main Content Container -->
     <UContainer class="py-6">
       <div v-if="isLoading" class="flex items-center justify-center py-20 text-muted">
-        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-violet-600" />
+        <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-blue-600" />
         <span class="ml-2 text-sm font-medium">Loading invitation maker...</span>
       </div>
 
@@ -451,11 +592,11 @@ async function replaceOpenInvite() {
         <!-- LEFT SIDE: Content Blocks & Theme Form (col-span-1) -->
         <UPageCard
           v-if="!isPublished"
-          class="bread-container col-span-1 p-0 sm:p-0 overflow-hidden flex flex-col max-h-[calc(100vh-125px)] border border-violet-200/80 shadow-sm"
+          class="bread-container col-span-1 p-0 sm:p-0 overflow-hidden flex flex-col max-h-[calc(100vh-125px)] border border-blue-200/80 shadow-sm"
           :ui="{ container: 'p-0 sm:p-0 lg:p-0 flex flex-col w-full min-h-0 gap-0' }"
         >
           <!-- Static Header with Step Indicator -->
-          <div class="px-6 pt-5 pb-4 shrink-0 border-b border-violet-100">
+          <div class="px-6 pt-5 pb-4 shrink-0 border-b border-blue-100">
             <div class="relative flex justify-center items-center text-lg font-semibold mb-1 text-toast-900">
               <UButton
                 v-if="currentStep > 0"
@@ -477,44 +618,181 @@ async function replaceOpenInvite() {
           <!-- Step Scroll Body -->
           <UScrollArea class="w-full shrink min-h-0 my-0 py-0">
             <div class="px-6 py-4">
-              <!-- Step 1: Core Details -->
+              <!-- Step 1: Core Details & Templates -->
               <div v-if="currentStepData?.id === 'core-details'" class="flex flex-col gap-4">
-                <UFormField label="Introductory Line">
-                  <UInput v-model="rsvpData.requestLine" placeholder="e.g., Together with their families" class="w-full" />
-                </UFormField>
-                <UFormField label="Event Headline">
-                  <UInput v-model="rsvpData.headline" placeholder="e.g., Sarah & Michael are getting married!" size="lg" class="w-full" />
-                </UFormField>
-                <div class="grid grid-cols-2 gap-4">
-                  <UFormField label="Event Date">
-                    <UInput type="date" v-model="rsvpData.eventDate" icon="i-lucide-calendar" class="w-full" />
-                  </UFormField>
-                  <UFormField label="Event Time">
-                    <UInput type="text" v-model="rsvpData.eventTime" placeholder="6:00 PM" icon="i-lucide-clock" class="w-full" />
-                  </UFormField>
+                <!-- Constant Event Template Indicator -->
+                <div class="rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 flex items-center justify-between">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="size-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                      <UIcon :name="activeTemplatePreset.icon" class="w-4 h-4 text-blue-700" />
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-xs font-bold text-blue-950 truncate">{{ activeTemplatePreset.name }} Template</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-200/80 text-blue-900 font-semibold">{{ gathering?.eventType || activeTemplatePreset.name }}</span>
+                      </div>
+                      <p class="text-[11px] text-blue-700 truncate">
+                        Template is fixed based on your event type
+                      </p>
+                    </div>
+                  </div>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    color="blue"
+                    icon="i-lucide-rotate-ccw"
+                    @click="applyTemplate(activeTemplatePreset.id, true)"
+                  >
+                    Reset Defaults
+                  </UButton>
                 </div>
-                <UFormField label="Venue / Location">
-                  <UInput v-model="rsvpData.eventVenue" placeholder="e.g., The Grand Ballroom, Manila" icon="i-lucide-map-pin" class="w-full" />
+
+                <!-- Header Label -->
+                <UFormField label="Header Tagline" help="Top uppercase label (e.g. WEDDING INVITATION, 18TH BIRTHDAY INVITATION)">
+                  <UInput v-model="rsvpData.headerLabel" placeholder="e.g. WEDDING INVITATION" class="w-full uppercase text-xs" />
                 </UFormField>
+
+                <!-- Headline -->
+                <UFormField label="Event Headline" help="E.g. A Night to Remember, A Blessed Celebration, Let's Celebrate!, You're Invited!">
+                  <UInput v-model="rsvpData.headline" placeholder="e.g. You're Invited!" class="w-full font-bold" />
+                </UFormField>
+
+                <!-- Host / Company / Organization Name (prominent for Corporate Events) -->
+                <UFormField
+                  v-if="activeTemplatePreset.id === 'corporate-event' || rsvpData.hostName"
+                  label="Company / Organization Name"
+                  help="Host presenting the invitation (e.g. [Company / Organization Name])"
+                >
+                  <UInput v-model="rsvpData.hostName" placeholder="e.g. [Company / Organization Name]" class="w-full font-bold" />
+                </UFormField>
+
+                <!-- Introductory Request Line -->
+                <UFormField label="Introductory Request Line" help="Opening invitation text">
+                  <UTextarea v-model="rsvpData.requestLine" :rows="2" placeholder="e.g. Together with their families," class="w-full" />
+                </UFormField>
+
+                <!-- Primary Name(s) -->
+                <UFormField label="Celebrant / Couple / Honoree Names" help="The primary focal name(s)">
+                  <UInput v-model="rsvpData.primaryName" placeholder="e.g. Sarah & Michael or Chloe" size="lg" class="w-full font-bold" />
+                </UFormField>
+
+                <!-- Personal / Narrative Message -->
+                <UFormField label="Invitation Message" help="Narrative invitation text">
+                  <UTextarea v-model="rsvpData.personalMessage" :rows="3" placeholder="e.g. request the honor of your presence as they celebrate their marriage." class="w-full" />
+                </UFormField>
+
+                <!-- Event Date -->
+                <UFormField label="Event Date">
+                  <UInput type="date" v-model="rsvpData.eventDate" icon="i-lucide-calendar" class="w-full" />
+                </UFormField>
+
+                <!-- Schedule & Venue Arrangement -->
+                <div class="space-y-3 pt-2 border-t border-stone-200">
+                  <div class="flex items-center justify-between">
+                    <label class="text-xs font-semibold uppercase tracking-wider text-stone-600">
+                      Schedule & Location
+                    </label>
+                    <div class="inline-flex rounded-lg border border-stone-200 p-0.5 bg-stone-100 text-xs">
+                      <button
+                        type="button"
+                        class="px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors"
+                        :class="rsvpData.scheduleType === 'single' ? 'bg-white shadow-2xs text-stone-900 font-semibold' : 'text-stone-500 hover:text-stone-800'"
+                        @click="rsvpData.scheduleType = 'single'"
+                      >
+                        Single Location
+                      </button>
+                      <button
+                        type="button"
+                        class="px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors"
+                        :class="rsvpData.scheduleType === 'dual' ? 'bg-white shadow-2xs text-stone-900 font-semibold' : 'text-stone-500 hover:text-stone-800'"
+                        @click="rsvpData.scheduleType = 'dual'"
+                      >
+                        Ceremony + Reception
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Dual Schedule (Ceremony & Reception) -->
+                  <div v-if="rsvpData.scheduleType === 'dual'" class="space-y-3">
+                    <div class="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
+                      <div class="font-bold text-xs text-stone-800 flex items-center gap-1.5">
+                        <UIcon name="i-lucide-church" class="w-3.5 h-3.5 text-blue-600" />
+                        <span>Ceremony Details</span>
+                      </div>
+                      <UFormField label="Ceremony Section Title">
+                        <UInput v-model="rsvpData.ceremonyTitle" placeholder="Section Title (e.g. Ceremony)" class="w-full" />
+                      </UFormField>
+                      <div class="grid grid-cols-2 gap-2">
+                        <UFormField label="Ceremony Time">
+                          <UInput v-model="rsvpData.ceremonyTime" placeholder="e.g. 2:00 PM" icon="i-lucide-clock" class="w-full" />
+                        </UFormField>
+                        <UFormField label="Ceremony Venue">
+                          <UInput v-model="rsvpData.ceremonyVenue" placeholder="Ceremony Venue / Church" icon="i-lucide-map-pin" class="w-full" />
+                        </UFormField>
+                      </div>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
+                      <div class="font-bold text-xs text-stone-800 flex items-center gap-1.5">
+                        <UIcon name="i-lucide-party-popper" class="w-3.5 h-3.5 text-blue-600" />
+                        <span>Reception Details</span>
+                      </div>
+                      <UFormField label="Reception Section Title">
+                        <UInput v-model="rsvpData.receptionTitle" placeholder="Section Title (e.g. Reception)" class="w-full" />
+                      </UFormField>
+                      <div class="grid grid-cols-2 gap-2">
+                        <UFormField label="Reception Time">
+                          <UInput v-model="rsvpData.receptionTime" placeholder="e.g. 5:00 PM" icon="i-lucide-clock" class="w-full" />
+                        </UFormField>
+                        <UFormField label="Reception Venue">
+                          <UInput v-model="rsvpData.receptionVenue" placeholder="Reception Venue / Ballroom" icon="i-lucide-map-pin" class="w-full" />
+                        </UFormField>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Single Schedule (Celebration) -->
+                  <div v-else class="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
+                    <div class="font-bold text-xs text-stone-800 flex items-center gap-1.5">
+                      <UIcon name="i-lucide-calendar-clock" class="w-3.5 h-3.5 text-blue-600" />
+                      <span>Celebration Details</span>
+                    </div>
+                    <UFormField label="Celebration Section Title">
+                      <UInput v-model="rsvpData.celebrationTitle" placeholder="Section Title (e.g. Celebration)" class="w-full" />
+                    </UFormField>
+                    <div class="grid grid-cols-2 gap-2">
+                      <UFormField label="Event Time">
+                        <UInput v-model="rsvpData.eventTime" placeholder="e.g. 6:00 PM" icon="i-lucide-clock" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Venue / Location">
+                        <UInput v-model="rsvpData.eventVenue" placeholder="Event Venue / Location" icon="i-lucide-map-pin" class="w-full" />
+                      </UFormField>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <!-- Step 2: RSVP & Deadline -->
+              <!-- Step 2: RSVP & Access -->
               <div v-else-if="currentStepData?.id === 'rsvp-deadline'" class="flex flex-col gap-4">
+                <UFormField label="RSVP Button Label">
+                  <UInput v-model="rsvpData.ctaText" placeholder="Confirm Attendance" class="w-full" />
+                </UFormField>
+
                 <UFormField label="RSVP Deadline Message">
-                  <UTextarea v-model="rsvpData.deadlineText" placeholder="e.g., Kindly reply by March 1 so we can prepare your table and seat." class="w-full" />
+                  <UTextarea v-model="rsvpData.deadlineText" placeholder="e.g., Kindly confirm your attendance by [RSVP Deadline]." class="w-full" />
                 </UFormField>
 
                 <!-- Passcode Protection -->
                 <div class="rounded-xl p-4 border border-stone-200 bg-stone-50/70 space-y-2">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5 font-semibold text-xs text-stone-800">
-                      <UIcon name="i-lucide-key-round" class="w-4 h-4 text-violet-600" />
+                      <UIcon name="i-lucide-key-round" class="w-4 h-4 text-blue-600" />
                       <span>Passcode Protection</span>
                     </div>
                     <UButton
                       v-if="rsvpData.passcode"
                       size="xs"
-                      color="violet"
+                      color="blue"
                       variant="ghost"
                       @click="copyPasscode"
                     >
@@ -531,13 +809,13 @@ async function replaceOpenInvite() {
                 <div class="rounded-xl p-4 border border-stone-200 bg-stone-50/70 space-y-2.5">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5 font-semibold text-xs text-stone-800">
-                      <UIcon name="i-lucide-link" class="w-4 h-4 text-violet-600" />
+                      <UIcon name="i-lucide-link" class="w-4 h-4 text-blue-600" />
                       <span>Public Open Invite Link</span>
                     </div>
                     <UButton
                       v-if="gathering?.openInvite?.enabled"
                       size="xs"
-                      color="violet"
+                      color="blue"
                       variant="ghost"
                       @click="copyOpenInvite"
                     >
@@ -551,7 +829,7 @@ async function replaceOpenInvite() {
                     <span class="text-xs font-medium text-stone-700">Open Registration:</span>
                     <USwitch
                       :model-value="Boolean(gathering?.openInvite?.enabled)"
-                      color="violet"
+                      color="blue"
                       aria-label="Open Registration"
                       @update:model-value="updateOpenInvite($event)"
                     />
@@ -578,16 +856,16 @@ async function replaceOpenInvite() {
                       type="button"
                       class="p-3 rounded-xl border text-left cursor-pointer transition-all"
                       :class="designMode === 'MAKER'
-                        ? 'bg-violet-50 border-violet-400 ring-2 ring-violet-500/20'
+                        ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-500/20'
                         : 'bg-white border-stone-200 hover:border-stone-300'"
                       @click="designMode = 'MAKER'"
                     >
                       <div class="flex items-center justify-between mb-1">
                         <span class="font-semibold text-xs text-stone-900">Built-in Maker</span>
-                        <span v-if="designMode === 'MAKER'" class="w-2 h-2 rounded-full bg-violet-600"></span>
+                        <span v-if="designMode === 'MAKER'" class="w-2 h-2 rounded-full bg-blue-600"></span>
                       </div>
                       <p class="text-[10.5px] text-stone-500">
-                        Styled typography and optional 1:5 banner.
+                        Styled stationery templates and optional 1:5 banner.
                       </p>
                     </button>
 
@@ -595,13 +873,13 @@ async function replaceOpenInvite() {
                       type="button"
                       class="p-3 rounded-xl border text-left cursor-pointer transition-all"
                       :class="designMode === 'IMAGE'
-                        ? 'bg-violet-50 border-violet-400 ring-2 ring-violet-500/20'
+                        ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-500/20'
                         : 'bg-white border-stone-200 hover:border-stone-300'"
                       @click="designMode = 'IMAGE'"
                     >
                       <div class="flex items-center justify-between mb-1">
                         <span class="font-semibold text-xs text-stone-900">Custom Image</span>
-                        <span v-if="designMode === 'IMAGE'" class="w-2 h-2 rounded-full bg-violet-600"></span>
+                        <span v-if="designMode === 'IMAGE'" class="w-2 h-2 rounded-full bg-blue-600"></span>
                       </div>
                       <p class="text-[10.5px] text-stone-500">
                         Upload your full bespoke stationery artwork.
@@ -622,7 +900,7 @@ async function replaceOpenInvite() {
 
                   <div class="flex items-center justify-between text-xs font-semibold text-stone-700">
                     <span>1:5 Header Banner Image (Optional)</span>
-                    <span v-if="bannerImageUrl" class="text-violet-600 font-medium">Active</span>
+                    <span v-if="bannerImageUrl" class="text-blue-600 font-medium">Active</span>
                   </div>
 
                   <div v-if="bannerImageUrl" class="space-y-2">
@@ -641,10 +919,10 @@ async function replaceOpenInvite() {
 
                   <div
                     v-else
-                    class="p-5 rounded-xl border-2 border-dashed border-stone-300 hover:border-violet-400 transition-colors text-center cursor-pointer space-y-1.5 bg-stone-50/50"
+                    class="p-5 rounded-xl border-2 border-dashed border-stone-300 hover:border-blue-400 transition-colors text-center cursor-pointer space-y-1.5 bg-stone-50/50"
                     @click="bannerFileInputRef?.click()"
                   >
-                    <UIcon name="i-lucide-upload" class="w-6 h-6 text-violet-600 mx-auto" />
+                    <UIcon name="i-lucide-upload" class="w-6 h-6 text-blue-600 mx-auto" />
                     <p class="text-xs font-semibold text-stone-800">Upload 1:5 Panoramic Banner</p>
                     <p class="text-[11px] text-stone-500">PNG, JPG or WEBP (Wide horizontal)</p>
                   </div>
@@ -662,7 +940,7 @@ async function replaceOpenInvite() {
 
                   <div class="flex items-center justify-between text-xs font-semibold text-stone-700">
                     <span>Full Invitation Graphic</span>
-                    <span v-if="ownImageUrl" class="text-violet-600 font-medium">Active</span>
+                    <span v-if="ownImageUrl" class="text-blue-600 font-medium">Active</span>
                   </div>
 
                   <div v-if="ownImageUrl" class="space-y-2">
@@ -681,10 +959,10 @@ async function replaceOpenInvite() {
 
                   <div
                     v-else
-                    class="p-6 rounded-xl border-2 border-dashed border-stone-300 hover:border-violet-400 transition-colors text-center cursor-pointer space-y-2 bg-stone-50/50"
+                    class="p-6 rounded-xl border-2 border-dashed border-stone-300 hover:border-blue-400 transition-colors text-center cursor-pointer space-y-2 bg-stone-50/50"
                     @click="fileInputRef?.click()"
                   >
-                    <UIcon name="i-lucide-image-up" class="w-7 h-7 text-violet-600 mx-auto" />
+                    <UIcon name="i-lucide-image-up" class="w-7 h-7 text-blue-600 mx-auto" />
                     <p class="text-xs font-semibold text-stone-800">Upload Invitation Graphic</p>
                     <p class="text-[11px] text-stone-500">JPG or PNG of your complete invitation design</p>
                   </div>
@@ -705,7 +983,7 @@ async function replaceOpenInvite() {
                       type="button"
                       class="p-2.5 rounded-xl border text-left cursor-pointer transition-all"
                       :class="customPaletteName === palette.name
-                        ? 'border-violet-500 bg-violet-50/60 ring-2 ring-violet-500/20'
+                        ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-500/20'
                         : 'border-stone-200 bg-white hover:border-stone-300'"
                       @click="choosePalette(palette.name)"
                     >
@@ -734,7 +1012,7 @@ async function replaceOpenInvite() {
                       type="button"
                       class="p-3 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between"
                       :class="customTypographyName === typo.name
-                        ? 'border-violet-500 bg-violet-50/60 ring-2 ring-violet-500/20'
+                        ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-500/20'
                         : 'border-stone-200 bg-white hover:border-stone-300'"
                       @click="customTypographyName = typo.name"
                     >
@@ -766,7 +1044,7 @@ async function replaceOpenInvite() {
           </UScrollArea>
 
           <!-- Step Navigation Footer -->
-          <div class="px-6 py-4 shrink-0 border-t border-violet-100 bg-stone-50/50 flex items-center justify-between">
+          <div class="px-6 py-4 shrink-0 border-t border-blue-100 bg-stone-50/50 flex items-center justify-between">
             <UButton
               v-if="currentStep > 0"
               variant="outline"
@@ -782,7 +1060,7 @@ async function replaceOpenInvite() {
               <UButton
                 v-if="currentStep < steps.length - 1"
                 icon="i-lucide-arrow-right"
-                color="violet"
+                color="blue"
                 size="sm"
                 @click="currentStep++"
               >
@@ -791,7 +1069,7 @@ async function replaceOpenInvite() {
               <UButton
                 v-else
                 icon="i-lucide-check-circle"
-                color="violet"
+                color="blue"
                 size="sm"
                 :loading="isSaving"
                 @click="saveInvitation"
@@ -802,7 +1080,7 @@ async function replaceOpenInvite() {
           </div>
         </UPageCard>
 
-        <!-- RIGHT SIDE: Live Preview (col-span-2) matching InvitationMaker.vue -->
+        <!-- RIGHT SIDE: Live Preview (col-span-2) -->
         <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-4">
           <!-- Preview Switcher -->
           <div class="flex items-center justify-end px-1">
@@ -811,7 +1089,7 @@ async function replaceOpenInvite() {
                 type="button"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
                 :class="previewMode === 'stationery'
-                  ? 'bg-white text-violet-700 shadow-xs'
+                  ? 'bg-white text-blue-700 shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'"
                 @click="previewMode = 'stationery'"
               >
@@ -822,11 +1100,11 @@ async function replaceOpenInvite() {
                 type="button"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
                 :class="previewMode === 'email'
-                  ? 'bg-white text-violet-700 shadow-xs'
+                  ? 'bg-white text-blue-700 shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'"
                 @click="previewMode = 'email'"
               >
-                <UIcon name="i-lucide-mail" class="w-3.5 h-3.5 text-violet-600" />
+                <UIcon name="i-lucide-mail" class="w-3.5 h-3.5 text-blue-600" />
                 <span>Email Client Preview</span>
               </button>
             </div>
@@ -835,179 +1113,42 @@ async function replaceOpenInvite() {
           <!-- 1. Luxury Stationery Invitation Card (Web View) -->
           <div
             v-if="previewMode === 'stationery'"
-            class="relative rounded-2xl transition-all duration-300 shadow-xl overflow-hidden"
-            :class="[
-              isPublished ? 'max-w-2xl mx-auto w-full my-4' : 'w-full',
-              bannerImageUrl ? '' : 'p-8 sm:p-12'
-            ]"
-            :style="{
-              backgroundColor: effectivePalette.colors.primary,
-              borderColor: effectivePalette.colors.secondary,
-              borderWidth: '2px',
-              borderStyle: 'solid'
-            }"
+            class="w-full transition-all duration-300"
+            :class="isPublished ? 'max-w-xl mx-auto my-4' : 'w-full'"
           >
-            <!-- Mode A: Custom Stationery Image Uploaded -->
-            <div v-if="designMode === 'IMAGE' && ownImageUrl" class="p-4 sm:p-6 text-center space-y-4">
-              <img :src="ownImageUrl" alt="Stationery" class="max-w-full h-auto rounded-xl shadow-md mx-auto" />
-              <div class="pt-2">
-                <a
-                  :href="openInviteUrl || publicInvitationUrl || '#'"
-                  target="_blank"
-                  class="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full font-semibold text-sm transition-all shadow-md hover:scale-[1.02] cursor-pointer"
-                  :style="{
-                    backgroundColor: effectivePalette.colors.secondary,
-                    color: effectivePalette.colors.secondary_text_color,
-                    fontFamily: effectiveTypography.subheaderFont
-                  }"
-                >
-                  <span>RSVP Here</span>
-                  <UIcon name="i-lucide-arrow-right" class="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-
-            <!-- Mode B: Built-in Maker Canvas -->
-            <div v-else>
-              <!-- 1:5 Header Banner Image (Flush Top & Sides) -->
-              <div
-                v-if="bannerImageUrl"
-                class="w-full overflow-hidden border-b"
-                :style="{ borderColor: `${effectivePalette.colors.secondary}40` }"
-              >
-                <img
-                  :src="bannerImageUrl"
-                  alt="Invitation Header Banner"
-                  class="w-full aspect-5/1 object-cover object-center block"
-                />
-              </div>
-
-              <!-- Card Content Wrapper with Double Border Frame -->
-              <div
-                class="relative"
-                :class="bannerImageUrl ? 'p-6 sm:p-10' : ''"
-              >
-                <div
-                  class="absolute inset-3 sm:inset-4 rounded-xl pointer-events-none"
-                  :style="{
-                    borderColor: `${effectivePalette.colors.secondary}45`,
-                    borderWidth: '1px',
-                    borderStyle: 'solid'
-                  }"
-                />
-
-                <div class="relative z-10 flex flex-col gap-6 text-center py-4 px-2 sm:px-6">
-                  <!-- Header Area -->
-                  <div class="space-y-3">
-                    <p
-                      class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em]"
-                      :style="{
-                        color: effectivePalette.colors.secondary_text_color,
-                        fontFamily: effectiveTypography.subheaderFont
-                      }"
-                    >
-                      {{ rsvpData.requestLine || 'Together with their families' }}
-                    </p>
-
-                    <h1
-                      class="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight"
-                      :style="{
-                        color: effectivePalette.colors.text_color,
-                        fontFamily: effectiveTypography.headerFont
-                      }"
-                    >
-                      {{ rsvpData.headline || gathering?.name || 'Celebration' }}
-                    </h1>
-
-                    <!-- Date, Time, Venue -->
-                    <div class="mt-4 flex flex-col items-center gap-1">
-                      <div
-                        class="text-sm sm:text-base font-semibold uppercase tracking-wider"
-                        :style="{
-                          color: effectivePalette.colors.text_color,
-                          fontFamily: effectiveTypography.subheaderFont
-                        }"
-                      >
-                        {{ formatDateWithWeekday(rsvpData.eventDate) || 'Saturday, October 24, 2026' }}
-                      </div>
-
-                      <div
-                        v-if="rsvpData.eventTime"
-                        class="text-xs sm:text-sm"
-                        :style="{
-                          color: effectivePalette.colors.secondary_text_color,
-                          fontFamily: effectiveTypography.bodyFont
-                        }"
-                      >
-                        {{ formatTime(rsvpData.eventTime) || rsvpData.eventTime }}
-                      </div>
-
-                      <div
-                        v-if="rsvpData.eventVenue"
-                        class="flex items-center text-xs sm:text-sm font-medium pt-1"
-                        :style="{
-                          color: effectivePalette.colors.text_color,
-                          fontFamily: effectiveTypography.subheaderFont
-                        }"
-                      >
-                        <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5 mr-1 opacity-70" />
-                        {{ rsvpData.eventVenue }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Decorative Divider -->
-                  <div class="flex items-center justify-center my-0.5">
-                    <div
-                      class="w-14 h-[1px]"
-                      :style="{ backgroundColor: `${effectivePalette.colors.secondary}70` }"
-                    />
-                    <span class="mx-3 text-xs" :style="{ color: effectivePalette.colors.secondary }">✦</span>
-                    <div
-                      class="w-14 h-[1px]"
-                      :style="{ backgroundColor: `${effectivePalette.colors.secondary}70` }"
-                    />
-                  </div>
-
-                  <!-- Prominent "RSVP Here" CTA Button -->
-                  <div class="my-2 flex flex-col items-center justify-center gap-2">
-                    <a
-                      :href="openInviteUrl || publicInvitationUrl || '#'"
-                      target="_blank"
-                      class="group relative inline-flex items-center justify-center gap-2.5 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] cursor-pointer"
-                      :style="{
-                        backgroundColor: effectivePalette.colors.secondary,
-                        color: effectivePalette.colors.secondary_text_color,
-                        fontFamily: effectiveTypography.subheaderFont
-                      }"
-                    >
-                      <span>RSVP Here</span>
-                      <UIcon name="i-lucide-arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                    </a>
-                  </div>
-
-                  <!-- Deadline & Security Info -->
-                  <div class="space-y-1">
-                    <p
-                      class="text-xs max-w-md mx-auto leading-relaxed"
-                      :style="{
-                        color: effectivePalette.colors.secondary_text_color,
-                        fontFamily: effectiveTypography.bodyFont
-                      }"
-                    >
-                      {{ rsvpData.deadlineText }}
-                    </p>
-                    <p
-                      v-if="rsvpData.passcode"
-                      class="text-[11px] font-mono font-semibold"
-                      :style="{ color: effectivePalette.colors.secondary_text_color }"
-                    >
-                      Passcode: {{ rsvpData.passcode }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <JamInvitationCard
+              :gathering-name="gathering?.name || 'Gathering'"
+              :venue="rsvpData.eventVenue || gathering?.venue || ''"
+              :event-date="rsvpData.eventDate"
+              :message="rsvpData.personalMessage"
+              :design="{
+                mode: designMode,
+                imageUrl: ownImageUrl,
+                bannerImageUrl: bannerImageUrl,
+                paletteName: customPaletteName,
+                typographyName: customTypographyName,
+                accentColor: customAccentColor,
+                templateId: activeTemplatePreset.id,
+                headerLabel: rsvpData.headerLabel,
+                headline: rsvpData.headline,
+                hostName: rsvpData.hostName,
+                requestLine: rsvpData.requestLine,
+                primaryName: rsvpData.primaryName,
+                scheduleType: rsvpData.scheduleType,
+                ceremonyTitle: rsvpData.ceremonyTitle,
+                ceremonyTime: rsvpData.ceremonyTime,
+                ceremonyVenue: rsvpData.ceremonyVenue,
+                receptionTitle: rsvpData.receptionTitle,
+                receptionTime: rsvpData.receptionTime,
+                receptionVenue: rsvpData.receptionVenue,
+                celebrationTitle: rsvpData.celebrationTitle,
+                eventTime: rsvpData.eventTime,
+                deadlineText: rsvpData.deadlineText,
+                ctaText: rsvpData.ctaText,
+              }"
+              :cta-href="openInviteUrl || publicInvitationUrl || '#'"
+              :show-cta="true"
+            />
           </div>
 
           <!-- 2. Email Client Preview (Email View) -->
@@ -1037,21 +1178,36 @@ async function replaceOpenInvite() {
               </div>
 
               <div class="space-y-2 text-center py-2">
-                <p class="text-xs text-muted uppercase tracking-wider font-semibold">You're Invited to</p>
+                <p v-if="rsvpData.headerLabel" class="text-xs text-muted uppercase tracking-wider font-semibold">
+                  {{ rsvpData.headerLabel }}
+                </p>
                 <h2 class="font-serif font-bold text-2xl text-toast-900">
-                  {{ rsvpData.headline || gathering?.name }}
+                  {{ rsvpData.headline || rsvpData.primaryName || gathering?.name }}
                 </h2>
-                <p class="text-xs text-toast-700">
-                  {{ formatDateWithWeekday(rsvpData.eventDate) }} · {{ formatTime(rsvpData.eventTime) }}
+                <p v-if="rsvpData.hostName" class="font-bold text-sm text-toast-800">
+                  {{ rsvpData.hostName }}
                 </p>
-                <p v-if="rsvpData.eventVenue" class="text-xs text-muted">
-                  {{ rsvpData.eventVenue }}
+                <p v-if="rsvpData.requestLine" class="text-xs text-stone-600 whitespace-pre-line">
+                  {{ rsvpData.requestLine }}
                 </p>
+                <p v-if="rsvpData.headline && rsvpData.primaryName" class="font-bold text-lg text-toast-900">
+                  {{ rsvpData.primaryName }}
+                </p>
+                <p class="text-xs text-toast-700 font-semibold pt-1">
+                  {{ formatDateWithWeekday(rsvpData.eventDate) || 'Event Date' }}
+                </p>
+                <div v-if="rsvpData.scheduleType === 'dual'" class="text-xs text-stone-600 space-y-1">
+                  <p><strong>{{ rsvpData.ceremonyTitle }}:</strong> {{ rsvpData.ceremonyTime }} · {{ rsvpData.ceremonyVenue }}</p>
+                  <p><strong>{{ rsvpData.receptionTitle }}:</strong> {{ rsvpData.receptionTime }} · {{ rsvpData.receptionVenue }}</p>
+                </div>
+                <div v-else class="text-xs text-stone-600">
+                  <p>{{ formatTime(rsvpData.eventTime) || rsvpData.eventTime }} <span v-if="rsvpData.eventVenue">· {{ rsvpData.eventVenue }}</span></p>
+                </div>
               </div>
 
               <div
                 v-if="rsvpData.personalMessage"
-                class="bg-toast-50/70 p-3.5 rounded-xl border border-bread-200/60 text-xs text-toast-800 leading-relaxed"
+                class="bg-toast-50/70 p-3.5 rounded-xl border border-bread-200/60 text-xs text-toast-800 leading-relaxed text-center"
               >
                 {{ rsvpData.personalMessage }}
               </div>
@@ -1062,10 +1218,10 @@ async function replaceOpenInvite() {
                   target="_blank"
                   class="inline-block bg-toast-800 hover:bg-toast-900 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-sm transition-all"
                 >
-                  RSVP & View Invitation
+                  {{ rsvpData.ctaText || 'Confirm Attendance' }}
                 </a>
-                <p class="text-[10.5px] text-muted mt-2">
-                  Clicking the button opens your personalized guest invitation and RSVP questionnaire.
+                <p v-if="rsvpData.deadlineText" class="text-[10.5px] text-muted mt-2">
+                  {{ rsvpData.deadlineText }}
                 </p>
               </div>
             </div>

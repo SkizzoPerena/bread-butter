@@ -19,7 +19,7 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'RSVP',
-  bgClass: 'bg-teal-50',
+  bgClass: 'bg-yellow-50',
   middleware: 'seating-enabled',
 })
 
@@ -189,8 +189,8 @@ function questionTypeLabel(type: string): string {
   return QUESTION_TYPE_LABELS[type] ?? type
 }
 
-function questionTypeColor(type: string): 'teal' | 'secondary' | 'info' {
-  if (type === 'TEXT') return 'teal'
+function questionTypeColor(type: string): 'yellow' | 'secondary' | 'info' {
+  if (type === 'TEXT') return 'yellow'
   if (type === 'OPTIONS') return 'info'
   return 'secondary'
 }
@@ -388,6 +388,7 @@ watch(gatheringId, () => {
   >
     <!-- Navbar Teleport Actions -->
     <ClientOnly>
+      <!-- Desktop Navbar Actions (Right Side) -->
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
           <UButton
@@ -402,7 +403,7 @@ watch(gatheringId, () => {
           </UButton>
           <UButton
             icon="i-lucide-pencil"
-            color="teal"
+            color="yellow"
             size="sm"
             @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
           >
@@ -410,11 +411,53 @@ watch(gatheringId, () => {
           </UButton>
         </div>
       </Teleport>
+
+      <!-- Mobile Navbar Actions (Left Toggle Button Menu) -->
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            icon="i-lucide-pencil"
+            color="yellow"
+            size="md"
+            block
+            class="w-full justify-center font-bold shadow-xs cursor-pointer"
+            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
+          >
+            Edit Questions
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            block
+            :loading="isExporting"
+            class="w-full justify-center cursor-pointer"
+            @click="exportRsvpsCsv"
+          >
+            Export CSV
+          </UButton>
+          <div class="grid grid-cols-3 gap-1.5 pt-1 text-center">
+            <div class="p-2 bg-emerald-50 border border-emerald-200/60 rounded-xl">
+              <span class="text-[10px] uppercase font-bold text-emerald-700 block">Going</span>
+              <span class="text-base font-bold font-serif text-emerald-900">{{ goingCount }}</span>
+            </div>
+            <div class="p-2 bg-amber-50 border border-amber-200/60 rounded-xl">
+              <span class="text-[10px] uppercase font-bold text-amber-700 block">Pending</span>
+              <span class="text-base font-bold font-serif text-amber-900">{{ pendingCount }}</span>
+            </div>
+            <div class="p-2 bg-rose-50 border border-rose-200/60 rounded-xl">
+              <span class="text-[10px] uppercase font-bold text-rose-700 block">Declined</span>
+              <span class="text-base font-bold font-serif text-rose-900">{{ notGoingCount }}</span>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </ClientOnly>
 
-    <!-- ================= LEFT DIVISION (col-span-1): RSVP Overview & Metrics Sidebar ================= -->
+    <!-- ================= LEFT DIVISION (col-span-1): RSVP Overview & Metrics Sidebar (Hidden on Mobile) ================= -->
     <aside
-      class="col-span-1 lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6"
+      class="hidden lg:flex lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6"
     >
       <div class="space-y-6">
         <!-- RSVP Overview -->
@@ -510,7 +553,7 @@ watch(gatheringId, () => {
               <span class="font-semibold text-toast-800">Response Rate</span>
               <span class="font-bold font-serif text-black text-sm">{{ responseRate }}%</span>
             </div>
-            <UProgress :model-value="responseRate" color="teal" size="xs" />
+            <UProgress :model-value="responseRate" color="yellow" size="xs" />
             <div class="flex items-center justify-between text-[11px] text-muted font-sans pt-0.5">
               <span>{{ respondedCount }} of {{ totalSentCount }} responded</span>
               <span v-if="goingCount > 0" class="text-emerald-700 font-semibold">
@@ -525,7 +568,7 @@ watch(gatheringId, () => {
       <div class="pt-4 space-y-2">
         <UButton
           icon="i-lucide-pencil"
-          color="teal"
+          color="yellow"
           size="md"
           block
           class="w-full font-semibold shadow-xs justify-center py-2.5 transition-all hover:shadow hover:brightness-105 active:scale-[0.99] cursor-pointer"
@@ -550,7 +593,7 @@ watch(gatheringId, () => {
             v-model="activeTab"
             :items="tabItems"
             value-key="value"
-            color="teal"
+            color="yellow"
             :content="false"
             class="w-full"
             :ui="{ list: 'w-full' }"
@@ -585,7 +628,7 @@ watch(gatheringId, () => {
             color="neutral"
             variant="ghost"
             size="sm"
-            class="font-sans cursor-pointer text-teal-600 hover:text-teal-700 hover:bg-teal-50 shrink-0"
+            class="font-sans cursor-pointer text-yellow-700 hover:text-yellow-800 hover:bg-yellow-50 shrink-0"
             @click="clearFilters"
           >
             Clear
@@ -607,7 +650,7 @@ watch(gatheringId, () => {
             v-if="!questions.length"
             class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs"
           >
-            <div class="size-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 mb-3">
+            <div class="size-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-700 mb-3">
               <UIcon name="i-lucide-message-square-text" class="size-6" />
             </div>
             <h3 class="text-base font-semibold text-highlighted">No questions yet</h3>
@@ -616,7 +659,7 @@ watch(gatheringId, () => {
             </p>
             <UButton
               class="mt-5"
-              color="teal"
+              color="yellow"
               icon="i-lucide-pencil"
               size="sm"
               @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
@@ -631,7 +674,7 @@ watch(gatheringId, () => {
           >
             <UIcon name="i-lucide-search-x" class="size-8 text-muted mb-2" />
             <p class="text-sm font-medium text-highlighted">No questions match your search</p>
-            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-teal-600" @click="clearFilters">
+            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-yellow-700" @click="clearFilters">
               Clear search
             </UButton>
           </div>
@@ -674,7 +717,7 @@ watch(gatheringId, () => {
             v-if="!guests.length"
             class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs"
           >
-            <div class="size-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 mb-3">
+            <div class="size-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-700 mb-3">
               <UIcon name="i-lucide-inbox" class="size-6" />
             </div>
             <h3 class="text-base font-semibold text-highlighted">No RSVP responses yet</h3>
@@ -689,7 +732,7 @@ watch(gatheringId, () => {
           >
             <UIcon name="i-lucide-search-x" class="size-8 text-muted mb-2" />
             <p class="text-sm font-medium text-highlighted">No responses match your search or filter</p>
-            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-teal-600" @click="clearFilters">
+            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-yellow-700" @click="clearFilters">
               Clear filters
             </UButton>
           </div>
@@ -799,7 +842,7 @@ watch(gatheringId, () => {
                 <h4 class="font-semibold text-highlighted">Questions for Guests</h4>
                 <p class="text-xs text-muted">These questions will appear on the RSVP form when guests respond.</p>
               </div>
-              <UButton icon="i-lucide-plus" color="teal" size="sm" class="cursor-pointer" @click="addDraftQuestion">
+              <UButton icon="i-lucide-plus" color="yellow" size="sm" class="cursor-pointer" @click="addDraftQuestion">
                 Add Question
               </UButton>
             </div>
@@ -863,10 +906,10 @@ watch(gatheringId, () => {
                     <span class="text-xs font-bold text-toast-900 font-sans">Choices</span>
                     <UButton
                       icon="i-lucide-plus"
-                      color="teal"
+                      color="yellow"
                       variant="ghost"
                       size="xs"
-                      class="cursor-pointer text-teal-700 hover:text-teal-800 hover:bg-teal-50 font-semibold"
+                      class="cursor-pointer text-yellow-800 hover:text-yellow-900 hover:bg-yellow-50 font-semibold"
                       @click="addOption(index)"
                     >
                       Add Option
@@ -907,7 +950,7 @@ watch(gatheringId, () => {
                 Cancel
               </UButton>
               <UButton
-                color="teal"
+                color="yellow"
                 size="sm"
                 :loading="isSubmittingQuestions"
                 class="cursor-pointer font-semibold"
