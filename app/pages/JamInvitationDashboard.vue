@@ -326,9 +326,9 @@ async function saveInvitation() {
   isSaving.value = true
   try {
     const updated = await seating.saveInvitation(gatheringId.value, {
-      passcode: rsvpData.passcode.trim() || undefined,
-      invitationSubject: rsvpData.emailSubject.trim() || undefined,
-      invitationMessage: rsvpData.personalMessage.trim() || undefined,
+      passcode: rsvpData.passcode.trim(),
+      invitationSubject: rsvpData.emailSubject.trim(),
+      invitationMessage: rsvpData.personalMessage.trim(),
       venue: rsvpData.eventVenue.trim() || undefined,
       eventDate: rsvpData.eventDate.trim() || undefined,
       invitationDesign: {
