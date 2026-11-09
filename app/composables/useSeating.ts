@@ -28,6 +28,7 @@ import type {
   SeatingGuestRecord,
   SeatingPaymentRecord,
   SeatingTable,
+  TableGroupRecord,
 } from '~/types/seating'
 
 interface GatheringResponse {
@@ -423,6 +424,47 @@ export function useSeating() {
     const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/tables/swap`, {
       method: 'POST',
       body: { tableId, withTableId },
+    })
+    return response.gathering
+  }
+
+  /** Replaces every table group and which group each table is in. */
+  async function saveTableGroups(
+    gatheringId: string,
+    body: { groups: TableGroupRecord[], assignments: Record<string, string> },
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      const kept = new Set(body.groups.map((group) => group.id))
+      gathering.tableGroups = body.groups.map((group) => ({ ...group }))
+      gathering.tableGroupAssignments = { ...body.assignments }
+      gathering.partyAllotments = Object.fromEntries(
+        Object.entries(gathering.partyAllotments ?? {}).filter(([groupId]) => kept.has(groupId)),
+      )
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/table-groups`, {
+      method: 'PUT',
+      body,
+    })
+    return response.gathering
+  }
+
+  /** Replaces which parties each table group should seat. */
+  async function savePartyAllotments(
+    gatheringId: string,
+    allotments: Record<string, string[]>,
+  ): Promise<GatheringRecord> {
+    if (isUiOnlyMode.value) {
+      const gathering = await getGathering(gatheringId)
+      gathering.partyAllotments = Object.fromEntries(
+        Object.entries(allotments).map(([groupId, names]) => [groupId, [...new Set(names)]]),
+      )
+      return gathering
+    }
+    const response = await apiRequest<GatheringResponse>(`/user/seating/gatherings/${gatheringId}/party-allotments`, {
+      method: 'PUT',
+      body: { allotments },
     })
     return response.gathering
   }
@@ -1368,6 +1410,8 @@ export function useSeating() {
     deleteGuest,
     replaceTables,
     swapTables,
+    saveTableGroups,
+    savePartyAllotments,
     updateTable,
     autoAssign,
     moveSeat,

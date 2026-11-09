@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
 import { GATHERING_ID, expect, test } from './helpers'
 import { openTablesPage, seatingTable } from './seating-fixtures'
 
@@ -73,7 +73,7 @@ test('swapping with a filter on swaps the tables that are shown', async ({ page 
     },
   })
 
-  await page.getByPlaceholder('Filter tables or search seated guest...').fill('Friends')
+  await page.getByPlaceholder('Filter tables, groups, or seated guests...').fill('Friends')
   await expect(tableCards(page)).toHaveCount(2)
   await tableHeader(page, 0).dragTo(tableCards(page).nth(1))
 
@@ -256,4 +256,132 @@ test('a host marks an empty seat unavailable', async ({ page }) => {
 
   await expect(seatCell(page, 0, 0)).toContainText('Unavailable')
   expect(calls.find(call => call.url.endsWith('/seats/1'))?.body).toEqual({ unavailable: true })
+})
+
+const GROUPS_URL = `/gatherings/${GATHERING_ID}/table-groups`
+const ALLOTMENTS_URL = `/gatherings/${GATHERING_ID}/party-allotments`
+const twoGroups = [
+  { id: 'grp_1', name: 'Bride Side', color: 'rose' },
+  { id: 'grp_2', name: 'Groom Side', color: 'blue' },
+]
+
+/** Answers a table-groups save with what was sent, as the server does. */
+const savedGroups = (tables: unknown[]) => (route: Route) => {
+  const body = route.request().postDataJSON()
+  return route.fulfill({
+    json: {
+      success: true,
+      status: 200,
+      gathering: {
+        _id: GATHERING_ID,
+        status: 'ACTIVE',
+        tables,
+        tableGroups: body.groups,
+        tableGroupAssignments: body.assignments,
+        partyAllotments: {},
+      },
+    },
+  })
+}
+
+const savedAllotments = (tables: unknown[], groups: object) => (route: Route) => route.fulfill({
+  json: {
+    success: true,
+    status: 200,
+    gathering: { _id: GATHERING_ID, status: 'ACTIVE', tables, ...groups, partyAllotments: route.request().postDataJSON().allotments },
+  },
+})
+
+test('table groups come from the plan, so they show on any device', async ({ page }) => {
+  const calls = await openTablesPage(page, {
+    tables: [table('t1', 1, 4, 'Family'), table('t2', 2)],
+    gathering: { tableGroups: [twoGroups[0]], tableGroupAssignments: { t1: 'grp_1' }, partyAllotments: {} },
+  })
+
+  await expect(page.getByText('Bride Side').first()).toBeVisible()
+  await expect(page.getByText('Ungrouped Tables')).toBeVisible()
+  expect(calls.some(call => call.url.endsWith(GROUPS_URL))).toBe(false)
+})
+
+test('creating a table group saves it and its tables to the plan', async ({ page }) => {
+  const tables = [table('t1', 1, 4, 'Family'), table('t2', 2)]
+  const calls = await openTablesPage(page, {
+    tables,
+    routes: { [`PUT ${GROUPS_URL}`]: savedGroups(tables) },
+  })
+
+  await page.getByRole('button', { name: 'Create Table Group' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByPlaceholder("e.g. VIP / Presidential, Bride's Family, Entourage").fill('Bride Side')
+  await dialog.getByRole('button', { name: /Family/ }).click()
+  await dialog.getByRole('button', { name: 'Create Group' }).click()
+
+  await expect.poll(() => calls.find(call => call.url.endsWith(GROUPS_URL))?.body).toBeTruthy()
+  const body = calls.find(call => call.url.endsWith(GROUPS_URL))?.body as {
+    groups: { id: string, name: string, color: string }[]
+    assignments: Record<string, string>
+  }
+  expect(body.groups).toEqual([{ id: expect.stringMatching(/^grp_\d+$/), name: 'Bride Side', color: 'blue' }])
+  expect(body.assignments).toEqual({ t1: body.groups[0]?.id })
+})
+
+test('allotting a party to a table group saves the allotment', async ({ page }) => {
+  const tables = [table('t1', 1, 4, 'Family')]
+  const groups = { tableGroups: twoGroups, tableGroupAssignments: { t1: 'grp_1' } }
+  const calls = await openTablesPage(page, {
+    tables,
+    guests: [{ partyName: 'Reyes Family' }],
+    gathering: { ...groups, partyAllotments: {} },
+    routes: { [`PUT ${ALLOTMENTS_URL}`]: savedAllotments(tables, groups) },
+  })
+
+  await page.getByRole('button', { name: 'Auto-Sort by Groups' }).first().click()
+  await page.getByRole('dialog').getByRole('button', { name: /Reyes Family/ }).click()
+
+  await expect.poll(() => calls.findLast(call => call.url.endsWith(ALLOTMENTS_URL))?.body)
+    .toEqual({ allotments: { grp_1: ['Reyes Family'] } })
+})
+
+test('the auto-sort dialog keeps saved allotments instead of guessing again', async ({ page }) => {
+  // "Reyes" would be guessed into the first group, so seeing it stay in the second proves the saved choice won.
+  const tables = [table('t1', 1, 4, 'Family')]
+  const groups = {
+    tableGroups: [{ id: 'grp_1', name: 'Reyes', color: 'rose' }, twoGroups[1]],
+    tableGroupAssignments: { t1: 'grp_1' },
+  }
+  const calls = await openTablesPage(page, {
+    tables,
+    guests: [{ partyName: 'Reyes Family' }],
+    gathering: { ...groups, partyAllotments: { grp_2: ['Reyes Family'] } },
+    routes: { [`PUT ${ALLOTMENTS_URL}`]: savedAllotments(tables, groups) },
+  })
+
+  await page.getByRole('button', { name: 'Auto-Sort by Groups' }).first().click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Execute Auto-Sort' }).click()
+
+  await expect.poll(() => calls.findLast(call => call.url.endsWith(ALLOTMENTS_URL))?.body)
+    .toEqual({ allotments: { grp_2: ['Reyes Family'] } })
+})
+
+test('groups saved only in this browser move to the plan once', async ({ page }) => {
+  const tables = [table('t1', 1, 4, 'Family'), table('t2', 2)]
+  await page.addInitScript((id) => {
+    localStorage.setItem(`jam_table_groups_${id}`, JSON.stringify([
+      { id: 'grp_1', name: 'Bride Side', color: 'rose' },
+      { id: 'brides-side', name: 'Old sample', color: 'rose' },
+    ]))
+    // t9 was deleted since, so it must not be sent.
+    localStorage.setItem(`jam_table_assignments_${id}`, JSON.stringify({ t1: 'grp_1', t9: 'grp_1' }))
+  }, GATHERING_ID)
+  const calls = await openTablesPage(page, {
+    tables,
+    routes: { [`PUT ${GROUPS_URL}`]: savedGroups(tables) },
+  })
+
+  await expect.poll(() => calls.find(call => call.url.endsWith(GROUPS_URL))?.body).toEqual({
+    groups: [{ id: 'grp_1', name: 'Bride Side', color: 'rose' }],
+    assignments: { t1: 'grp_1' },
+  })
+  await expect.poll(() => page.evaluate(id => localStorage.getItem(`jam_table_groups_${id}`), GATHERING_ID)).toBeNull()
+  expect(calls.filter(call => call.url.endsWith(GROUPS_URL))).toHaveLength(1)
 })
