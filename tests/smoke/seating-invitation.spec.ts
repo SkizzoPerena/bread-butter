@@ -128,6 +128,8 @@ test('a host designs the invitation with a live preview, and saves it', async ({
   })
 
   await page.getByLabel('Event Headline').fill('Ana turns 30')
+  // The default template has a ceremony and a reception. One time field shows for a single location.
+  await page.getByRole('button', { name: 'Single Location' }).click()
   await page.getByLabel('Event Time').fill('6:00 PM')
   await expect(page.getByRole('heading', { name: 'Ana turns 30' })).toBeVisible()
 
@@ -143,6 +145,8 @@ test('a host designs the invitation with a live preview, and saves it', async ({
 
   await page.getByRole('button', { name: 'Previous', exact: true }).click()
   await page.locator('input[type="file"]').setInputFiles(png(BLANK_PNG, 'banner.png'))
-  await expect(page.getByRole('img', { name: 'Banner', exact: true })).toHaveAttribute('src', design.bannerImageUrl)
+  // The form shows a thumbnail too, so this checks the invitation guests see.
+  await expect(page.getByTestId('jam-invitation-card').getByRole('img', { name: 'Banner', exact: true }))
+    .toHaveAttribute('src', design.bannerImageUrl)
   await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeVisible()
 })
