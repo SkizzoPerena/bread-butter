@@ -760,7 +760,7 @@ const dashboardItems = computed(() => {
   return [...unlocked, ...locked]
 })
 
-const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
+const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'colorsDressCode', 'schedules']
 const isDesktopOnlyModalOpen = ref(false)
 const selectedDesktopOnlyFeature = ref<DashboardItem | null>(null)
 
@@ -1193,7 +1193,11 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                     ? 'Visual website editor, theme customizer & live canvas'
                     : selectedDesktopOnlyFeature?.action === 'invitation'
                       ? 'Card layout designer, typography controls & preview'
-                      : 'Comprehensive guest seating arrangement & group tables'
+                      : selectedDesktopOnlyFeature?.action === 'colorsDressCode'
+                        ? 'Color palette customizer, mood board & dress code guidelines'
+                        : selectedDesktopOnlyFeature?.action === 'schedules'
+                          ? 'Detailed day-of timeline, ceremony itineraries & run-of-show'
+                          : 'Desktop view required for optimal management'
                 }}
               </div>
             </div>

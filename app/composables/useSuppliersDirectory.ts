@@ -164,15 +164,22 @@ export function useSuppliersDirectory() {
     try {
       const response = await apiRequest<DirectorySuppliersResponse>('/public/suppliers', { authenticated: false })
       const suppliers = Array.isArray(response?.suppliers) ? response.suppliers : null
-      suppliersData.value = suppliers
-        ? populateCategoriesFromFlatSuppliers(suppliers, emptyCategoryShells())
-        : normalizeSuppliersResponse(response)
+      if (suppliers && suppliers.length > 0) {
+        suppliersData.value = populateCategoriesFromFlatSuppliers(suppliers, cloneInitialDirectory())
+      } else if (response) {
+        const normalized = normalizeSuppliersResponse(response)
+        const hasVendors = normalized.some((c) => c.subcategories.some((s) => s.vendors.length > 0))
+        suppliersData.value = hasVendors ? normalized : cloneInitialDirectory()
+      } else {
+        suppliersData.value = cloneInitialDirectory()
+      }
       error.value = null
       isFetched.value = true
       return suppliersData.value
-    } catch (err) {
-      error.value = getApiErrorMessage(err, 'The supplier directory could not be loaded.')
-      suppliersData.value = emptyCategoryShells()
+    } catch {
+      // Gracefully fall back to local curated directory data when the public API endpoint is unavailable
+      suppliersData.value = cloneInitialDirectory()
+      error.value = null
       isFetched.value = true
       return suppliersData.value
     } finally {

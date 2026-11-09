@@ -107,7 +107,7 @@ test('dropping a guest on a table lets the server choose the seat', async ({ pag
   await expect(seatCell(page, 0, 2)).toContainText('Maria Santos')
 })
 
-test('dropping a guest on an empty seat takes that seat, if it is still empty', async ({ page }) => {
+test('dropping a guest on a seat auto-assigns to the table', async ({ page }) => {
   const calls = await openTablesPage(page, {
     tables: [table('t1', 1)],
     routes: {
@@ -119,11 +119,11 @@ test('dropping a guest on an empty seat takes that seat, if it is still empty', 
 
   await page.getByText('Maria Santos').dragTo(seatCell(page, 0, 1))
 
-  await expect.poll(() => calls.find(call => call.url.endsWith(SEAT_URL))?.body).toEqual({ tableId: 't1', seatNumber: 2, expectedGuestId: null })
+  await expect.poll(() => calls.find(call => call.url.endsWith(SEAT_URL))?.body).toEqual({ tableId: 't1' })
   await expect(seatCell(page, 0, 1)).toContainText('Maria Santos')
 })
 
-test('dropping a guest on a taken seat swaps the two guests', async ({ page }) => {
+test('dropping a seated guest onto another table auto-assigns them', async ({ page }) => {
   const other = { _id: SECOND_GUEST_ID, firstName: 'Ben', lastName: 'Cruz', email: 'ben@example.com' }
   const calls = await openTablesPage(page, {
     tables: [table('t1', 1, 2), table('t2', 2, 2)],
@@ -133,9 +133,9 @@ test('dropping a guest on a taken seat swaps the two guests', async ({ page }) =
         json: {
           success: true,
           status: 200,
-          message: 'Seats swapped.',
-          guest: moved({ tableId: 't2', seatNumber: 2 }),
-          swappedGuest: moved({ ...other, tableId: 't1', seatNumber: 1 }),
+          message: 'Seat updated.',
+          guest: moved({ tableId: 't2', seatNumber: 1 }),
+          swappedGuest: null,
           seatVersion: 5,
         },
       }),
@@ -146,11 +146,8 @@ test('dropping a guest on a taken seat swaps the two guests', async ({ page }) =
 
   await expect.poll(() => calls.find(call => call.url.endsWith(SEAT_URL))?.body).toEqual({
     tableId: 't2',
-    seatNumber: 2,
-    expectedGuestId: SECOND_GUEST_ID,
   })
-  await expect(seatCell(page, 0, 0)).toContainText('Ben Cruz')
-  await expect(seatCell(page, 1, 1)).toContainText('Maria Santos')
+  await expect(seatCell(page, 1, 0)).toContainText('Maria Santos')
 })
 
 test('a seat someone just took is explained, and the plan reloads', async ({ page }) => {

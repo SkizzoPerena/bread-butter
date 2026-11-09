@@ -86,6 +86,8 @@ const MOCK_PACKAGES: JamPackageRecord[] = [
   { _id: 'mock-apricot', name: 'Apricot', pricePhp: 1500, maxGuests: 20, isEnabled: true },
   { _id: 'mock-strawberry', name: 'Strawberry', pricePhp: 3500, maxGuests: 80, isEnabled: true },
   { _id: 'mock-fig', name: 'Fig', pricePhp: 6000, maxGuests: 150, isEnabled: true },
+  { _id: 'mock-blackberry', name: 'Blackberry', pricePhp: 9500, maxGuests: 250, isEnabled: true },
+  { _id: 'mock-raspberry', name: 'Raspberry', pricePhp: 14000, maxGuests: 400, isEnabled: true },
 ]
 
 function mockToken() {

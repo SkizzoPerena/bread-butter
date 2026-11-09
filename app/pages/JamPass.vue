@@ -14,7 +14,6 @@ const checkIn = computed(() => String(route.query.checkin || '') === '1')
 const pass = ref<PublicSeatDetail | null>(null)
 const errorMessage = ref('')
 const loading = ref(true)
-const seatPicker = ref<{ reload: () => Promise<void> } | null>(null)
 
 const isCompanionPass = computed(() => Boolean(pass.value?.isCompanion))
 
@@ -25,7 +24,7 @@ async function reloadPass() {
 }
 
 async function companionsChanged() {
-  await Promise.all([reloadPass(), seatPicker.value?.reload()])
+  await reloadPass()
 }
 
 useHead({ title: 'Your seat pass' })
@@ -114,12 +113,6 @@ onMounted(async () => {
           v-if="!checkIn && !isCompanionPass"
           :token="token"
           @changed="companionsChanged"
-        />
-        <JamSeatPicker
-          v-if="!checkIn && !isCompanionPass"
-          ref="seatPicker"
-          :token="token"
-          @changed="reloadPass"
         />
       </template>
     </div>

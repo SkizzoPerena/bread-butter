@@ -74,7 +74,8 @@ export function createDirectorySupplier(
   }
 }
 
-// Supplier categories and subcategories taxonomy with empty placeholder suppliers, ready for backend data transmission.
+// Curated suppliers directory categorized across our 8 core wedding planning verticals,
+// organized in the signature 3-tier hierarchy: Bread Basket, Loaf, and Slice.
 export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
   {
     id: 'food-beverage',
@@ -83,43 +84,120 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Catering Companies',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Bizu Catering Studio', 'loaf'),
+          createDirectorySupplier('Chef Jessie', 'loaf'),
+          createDirectorySupplier('Cibo D’ M Catering', 'loaf'),
+          createDirectorySupplier('Florabel', 'loaf'),
+          createDirectorySupplier('Via Mare', 'loaf')
+        ]
       },
       {
         title: 'Food Carts',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Ay Sauce Street Food', 'loaf'),
+          createDirectorySupplier('Berry’s Deli Hotdog Cart', 'loaf'),
+          createDirectorySupplier('Lil’ Orbits Mini Donuts', 'loaf'),
+          createDirectorySupplier('Lisa’s Bibingka', 'loaf'),
+          createDirectorySupplier('Mamang Sorbetero by Crystalyn Sorbetes Ice Cream', 'loaf'),
+          createDirectorySupplier('Mang Felix Taho', 'loaf'),
+          createDirectorySupplier('Potato Corner', 'loaf'),
+          createDirectorySupplier('Soy Bueno Taho', 'loaf'),
+          createDirectorySupplier('Tater’s', 'loaf'),
+          createDirectorySupplier('Tako Bar MNL', 'loaf'),
+          createDirectorySupplier('TYnapay by Adz', 'loaf'),
+          createDirectorySupplier('Uncle Mo’s Shawarma', 'loaf')
+        ]
       },
       {
         title: 'Food Stations',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('AP Grazing Table', 'loaf'),
+          createDirectorySupplier('Caviar Cake Manila', 'loaf'),
+          createDirectorySupplier('Cocktails Manila', 'loaf'),
+          createDirectorySupplier('Ealeatist Kitchen', 'loaf'),
+          createDirectorySupplier('La Casa Del Habano', 'loaf'),
+          createDirectorySupplier('La Petite Fromagerie', 'loaf'),
+          createDirectorySupplier('Raclette Manila', 'loaf')
+        ]
       },
       {
         title: 'Lechon & Alternatives',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Charlie’s Pritchon', 'loaf'),
+          createDirectorySupplier('Don Bakes Manila (Cochinillo)', 'loaf'),
+          createDirectorySupplier('Abub’s Cebuana Lechon', 'loaf'),
+          createDirectorySupplier('Elar’s Catering Services', 'loaf'),
+          createDirectorySupplier('Ellie’s Roasted Calf and Catering Service', 'loaf'),
+          createDirectorySupplier('Gatchalian', 'loaf'),
+          createDirectorySupplier('General’s Lechon', 'loaf'),
+          createDirectorySupplier('Pig Senyor', 'loaf'),
+          createDirectorySupplier('Sabroso Lechon', 'loaf'),
+          createDirectorySupplier('SSF Kurobuta Lechon', 'loaf'),
+          createDirectorySupplier('Ulcing’s', 'loaf')
+        ]
       },
       {
         title: 'Ice Cream & Gelato Station',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Aro Gelato', 'loaf'),
+          createDirectorySupplier('Caramia', 'loaf'),
+          createDirectorySupplier('Fruits in Ice Cream', 'loaf'),
+          createDirectorySupplier('Manila Creamery', 'loaf'),
+          createDirectorySupplier('Mang Bert’s Special Ice Cream', 'loaf'),
+          createDirectorySupplier('Sorbelato and Soyblessed', 'loaf'),
+          createDirectorySupplier('Sumilang Ice Cream', 'loaf')
+        ]
       },
       {
         title: 'Bar Service & Cocktails',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Hikaru Cocktail Bar', 'loaf'),
+          createDirectorySupplier('Manila Craft Mixes and Brews', 'loaf'),
+          createDirectorySupplier('Night Cap', 'loaf'),
+          createDirectorySupplier('Proudly Promdi', 'loaf'),
+          createDirectorySupplier('Rue Mobile Bar', 'loaf'),
+          createDirectorySupplier('The Black Box Mobile Bar', 'loaf')
+        ]
       },
       {
         title: 'Coffee Bar',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Au N’ Scene Coffee', 'loaf'),
+          createDirectorySupplier('Arcana Coffee PH', 'loaf'),
+          createDirectorySupplier('Brew + Bakes Café', 'loaf'),
+          createDirectorySupplier('Candid Coffee', 'loaf'),
+          createDirectorySupplier('Common Folk', 'loaf'),
+          createDirectorySupplier('Firefly Coffee', 'loaf'),
+          createDirectorySupplier('Pilgrim’s Coffee', 'loaf'),
+          createDirectorySupplier('WKND Coffee', 'loaf')
+        ]
       },
       {
         title: 'Wines & Spirits',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Bacchus', 'loaf'),
+          createDirectorySupplier('Booze Online', 'loaf'),
+          createDirectorySupplier('Manila Premiere Wines', 'loaf')
+        ]
       },
       {
         title: 'Bakers & Custom Cakes',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('AA’s Cake Design', 'loaf'),
+          createDirectorySupplier('Audrey’s Pastries', 'loaf'),
+          createDirectorySupplier('Cake by Mannix', 'loaf'),
+          createDirectorySupplier('Cakeshop by Sonja', 'loaf'),
+          createDirectorySupplier('Honey Glaze Cakes (Aileen Conde)', 'loaf'),
+          createDirectorySupplier('Joy Bakes (Joy San Gabriel)', 'loaf'),
+          createDirectorySupplier('Miss Joyce Bridal Cakes', 'loaf')
+        ]
       },
       {
         title: 'Crew Meals',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Packed Gourmet', 'loaf')
+        ]
       }
     ]
   },
@@ -130,19 +208,52 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Photographers',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Chestknots Studios', 'loaf'),
+          createDirectorySupplier('Jaja Lifestyle Photography', 'loaf'),
+          createDirectorySupplier('Ikigai Studio by Myio', 'loaf'),
+          createDirectorySupplier('Myio Okamoto', 'loaf'),
+          createDirectorySupplier('Miko Studios', 'loaf'),
+          createDirectorySupplier('Nice Print Photography', 'loaf'),
+          createDirectorySupplier('Nicolai Melicor Photography', 'loaf'),
+          createDirectorySupplier('NQ by Metrophoto', 'loaf'),
+          createDirectorySupplier('Oak St. Studios', 'loaf'),
+          createDirectorySupplier('Pat Dy Photography', 'loaf'),
+          createDirectorySupplier('Photography by Regina Roque', 'loaf'),
+          createDirectorySupplier('Proud Rad', 'loaf'),
+          createDirectorySupplier('Toto Villaruel Photography', 'loaf')
+        ]
       },
       {
         title: 'Editorial & Documentary Style Photography',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Aya Cabautan', 'loaf'),
+          createDirectorySupplier('Indiego.jpg', 'loaf'),
+          createDirectorySupplier('Colin Dancel', 'loaf'),
+          createDirectorySupplier('Joseph Pascual', 'loaf'),
+          createDirectorySupplier('Trasienne', 'loaf'),
+          createDirectorySupplier('Toto Villaruel Photography', 'loaf')
+        ]
       },
       {
         title: 'Videographers',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Bob Nicolas Wedding Film', 'loaf'),
+          createDirectorySupplier('Cinema Works', 'loaf'),
+          createDirectorySupplier('Ghe Consolacion', 'loaf'),
+          createDirectorySupplier('Ian Celis Videography', 'loaf'),
+          createDirectorySupplier('Notion In Motion', 'loaf'),
+          createDirectorySupplier('Spark Series', 'loaf'),
+          createDirectorySupplier('Treehouse Story', 'loaf')
+        ]
       },
       {
         title: 'Animated Designs & International Shoots',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Always In Motion', 'loaf'),
+          createDirectorySupplier('JustBees Digital', 'loaf'),
+          createDirectorySupplier('Sweet Escape', 'loaf')
+        ]
       }
     ]
   },
@@ -153,39 +264,114 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Choirs',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Mandaluyong Children’s Choir', 'loaf'),
+          createDirectorySupplier('92 AD', 'loaf'),
+          createDirectorySupplier('Ateneo Chamber Singers', 'loaf'),
+          createDirectorySupplier('Battig Orchestra', 'loaf'),
+          createDirectorySupplier('Bukas Palad Ministry', 'loaf'),
+          createDirectorySupplier('Hangad', 'loaf'),
+          createDirectorySupplier('Kammerchor Manila', 'loaf'),
+          createDirectorySupplier('Los Cantantes De Manila', 'loaf'),
+          createDirectorySupplier('Novo Concertante Manila', 'loaf'),
+          createDirectorySupplier('Philippine Madrigal Singers', 'loaf'),
+          createDirectorySupplier('UP Singing Ambassador', 'loaf')
+        ]
       },
       {
         title: 'String Ensembles',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Bernie Pasamba Music Consultancy', 'loaf'),
+          createDirectorySupplier('Da Capo Instrumentalists', 'loaf'),
+          createDirectorySupplier('Kadense Strings', 'loaf'),
+          createDirectorySupplier('Manila Philharmonic Orchestra', 'loaf'),
+          createDirectorySupplier('Manila String Machine', 'loaf')
+        ]
       },
       {
         title: 'Bands (Ceremony & Reception)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('3rd Avenue', 'loaf'),
+          createDirectorySupplier('Frigora Band', 'loaf'),
+          createDirectorySupplier('Soundswell', 'loaf')
+        ]
       },
       {
         title: 'Bands (Reception & After-Party)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('AMP Band', 'loaf'),
+          createDirectorySupplier('Brass Rosette', 'loaf'),
+          createDirectorySupplier('Naughty Panda', 'loaf'),
+          createDirectorySupplier('Power House', 'loaf'),
+          createDirectorySupplier('Route 70', 'loaf'),
+          createDirectorySupplier('The Bloomfields', 'loaf')
+        ]
       },
       {
         title: 'DJs & Percussion',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Christian Tiu', 'loaf'),
+          createDirectorySupplier('DJ Kat', 'loaf'),
+          createDirectorySupplier('Jazz Zamora', 'loaf'),
+          createDirectorySupplier('Javi Vargas', 'loaf'),
+          createDirectorySupplier('Rammy Bitong', 'loaf'),
+          createDirectorySupplier('Toons Canoy', 'loaf'),
+          createDirectorySupplier('Xavi Panlilio', 'loaf'),
+          createDirectorySupplier('Marcus Maguigad', 'loaf'),
+          createDirectorySupplier('Naughty Panda', 'loaf'),
+          createDirectorySupplier('Patikeros', 'loaf'),
+          createDirectorySupplier('Sunglass Music', 'loaf')
+        ]
       },
       {
         title: 'MCs & Hosts',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Atom Ungson', 'loaf'),
+          createDirectorySupplier('Chuck Araneta', 'loaf'),
+          createDirectorySupplier('Edroy Lim', 'loaf'),
+          createDirectorySupplier('Eri Neeman', 'loaf'),
+          createDirectorySupplier('Gino Quillamore', 'loaf'),
+          createDirectorySupplier('JC Alelis', 'loaf'),
+          createDirectorySupplier('Kevin Lapeña', 'loaf'),
+          createDirectorySupplier('Lia Guerrero', 'loaf'),
+          createDirectorySupplier('Marco Borromeo', 'loaf'),
+          createDirectorySupplier('RJ Ledesma', 'loaf'),
+          createDirectorySupplier('Sam YG', 'loaf'),
+          createDirectorySupplier('Shahein Abraham', 'loaf')
+        ]
       },
       {
         title: 'Chinese Speaking Hosts',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Jerome Go', 'loaf'),
+          createDirectorySupplier('Kimberly Tan', 'loaf'),
+          createDirectorySupplier('KV Golamco', 'loaf'),
+          createDirectorySupplier('Louie Ngo', 'loaf'),
+          createDirectorySupplier('Max Tiu', 'loaf'),
+          createDirectorySupplier('Stan Sy', 'loaf'),
+          createDirectorySupplier('Stuart Gan', 'loaf')
+        ]
       },
       {
         title: 'Dance Instructors',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Anna Rodalin Palma', 'loaf'),
+          createDirectorySupplier('East Side Dance Studio', 'loaf'),
+          createDirectorySupplier('Made to Dance', 'loaf'),
+          createDirectorySupplier('Reigh Sy', 'loaf')
+        ]
       },
       {
         title: 'Activities, Arcade & Lawn Games',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Fairy Play', 'loaf'),
+          createDirectorySupplier('AJ’s Arcade and Rental', 'loaf'),
+          createDirectorySupplier('Arcade Games PH', 'loaf'),
+          createDirectorySupplier('Fun Times Arcade', 'loaf'),
+          createDirectorySupplier('Play Pixel Rentals', 'loaf'),
+          createDirectorySupplier('Fifth House', 'loaf'),
+          createDirectorySupplier('Happy Party Stations', 'loaf')
+        ]
       }
     ]
   },
@@ -196,15 +382,35 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Event Stylists',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Dave Sandoval', 'loaf'),
+          createDirectorySupplier('Ginger Events Styling', 'loaf'),
+          createDirectorySupplier('Jacq’s Floral', 'loaf'),
+          createDirectorySupplier('Il Fiore', 'loaf'),
+          createDirectorySupplier('Michael Ruiz', 'loaf'),
+          createDirectorySupplier('Midle Mañalac', 'loaf'),
+          createDirectorySupplier('Robert Blancaflor', 'loaf'),
+          createDirectorySupplier('Spruce Floral Design', 'loaf'),
+          createDirectorySupplier('Teddy Manuel', 'loaf'),
+          createDirectorySupplier('Zenas Pineda', 'loaf')
+        ]
       },
       {
         title: 'Artistic Florists',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Paul Jatayna', 'loaf')
+        ]
       },
       {
         title: 'Sounds, Lights & LED Wall',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Beat Box', 'loaf'),
+          createDirectorySupplier('Crossmix', 'loaf'),
+          createDirectorySupplier('Forsc Inc.', 'loaf'),
+          createDirectorySupplier('High Impact', 'loaf'),
+          createDirectorySupplier('Sound Level', 'loaf'),
+          createDirectorySupplier('Metrotech', 'loaf')
+        ]
       }
     ]
   },
@@ -215,35 +421,138 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Bridal Couture (Ready to Wear)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Francis Libiran Bridal', 'loaf'),
+          createDirectorySupplier('Ivory and White Bridal', 'loaf'),
+          createDirectorySupplier('Mi Sueño Bridal Boutique', 'loaf'),
+          createDirectorySupplier('Rosa Clara', 'loaf'),
+          createDirectorySupplier('Pronovias PH', 'loaf'),
+          createDirectorySupplier('Studio Ceremonie', 'loaf'),
+          createDirectorySupplier('The Bridal Room', 'loaf'),
+          createDirectorySupplier('WearEasyPH', 'loaf'),
+          createDirectorySupplier('White Label Bridal', 'loaf'),
+          createDirectorySupplier('White Lily', 'loaf')
+        ]
       },
       {
         title: 'Bridal Couture (Made to Order)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Banggo Niu', 'loaf'),
+          createDirectorySupplier('Bianca Cordero', 'loaf'),
+          createDirectorySupplier('Boom Sason', 'loaf'),
+          createDirectorySupplier('Carla Guiao Yuson', 'loaf'),
+          createDirectorySupplier('Cecilio Abad Design Team', 'loaf'),
+          createDirectorySupplier('Francis Libiran Bridal', 'loaf'),
+          createDirectorySupplier('Franko Barrio', 'loaf'),
+          createDirectorySupplier('Hannah Kong', 'loaf'),
+          createDirectorySupplier('Jazel Sy Bridal', 'loaf'),
+          createDirectorySupplier('Julianne Syjuco', 'loaf'),
+          createDirectorySupplier('Mak Tumang', 'loaf'),
+          createDirectorySupplier('Martin Bautista', 'loaf'),
+          createDirectorySupplier('Mel Orlina Couture', 'loaf'),
+          createDirectorySupplier('Michael Leyva', 'loaf'),
+          createDirectorySupplier('Patricia Santos Yao', 'loaf'),
+          createDirectorySupplier('Rajo Laurel', 'loaf'),
+          createDirectorySupplier('Rosenthal Tee', 'loaf'),
+          createDirectorySupplier('Sasa Jimenez', 'loaf'),
+          createDirectorySupplier('Vania Romoff', 'loaf'),
+          createDirectorySupplier('Veluz', 'loaf'),
+          createDirectorySupplier('Zia Wycoco', 'loaf')
+        ]
       },
       {
         title: 'Entourage Couture (Made to Order & RTW)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Danie Baron Designs', 'loaf'),
+          createDirectorySupplier('Decino Dulce', 'loaf'),
+          createDirectorySupplier('Love C', 'loaf'),
+          createDirectorySupplier('Micah Lacap', 'loaf'),
+          createDirectorySupplier('Mich Araullo-Razon', 'loaf'),
+          createDirectorySupplier('Rosalyn Lagdameo', 'loaf'),
+          createDirectorySupplier('Karimandon', 'loaf'),
+          createDirectorySupplier('Tantease', 'loaf'),
+          createDirectorySupplier('WearEasyPH', 'loaf'),
+          createDirectorySupplier('Zoo Label', 'loaf')
+        ]
       },
       {
         title: 'Flower Girl Couture & RTW',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Hailey&Co (Filipiniana)', 'loaf'),
+          createDirectorySupplier('Luxurious Designs', 'loaf'),
+          createDirectorySupplier('Fancy Little Designs', 'loaf'),
+          createDirectorySupplier('Little Nana’s Closet', 'loaf'),
+          createDirectorySupplier('Love C', 'loaf'),
+          createDirectorySupplier('Macy’s Dollhouse', 'loaf'),
+          createDirectorySupplier('Posh and Pearls', 'loaf'),
+          createDirectorySupplier('Spinkie Wear', 'loaf')
+        ]
       },
       {
         title: 'Groom’s Tailor (Traditional, Contemporary & Suits)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Exclusively His', 'loaf'),
+          createDirectorySupplier('Kingsmen', 'loaf'),
+          createDirectorySupplier('King Philip', 'loaf'),
+          createDirectorySupplier('Kultura (Ready-Made)', 'loaf'),
+          createDirectorySupplier('Onesimus', 'loaf'),
+          createDirectorySupplier('Tesoro’s', 'loaf'),
+          createDirectorySupplier('Ched Studio', 'loaf'),
+          createDirectorySupplier('Daryl Maat', 'loaf'),
+          createDirectorySupplier('Happy Andrada', 'loaf'),
+          createDirectorySupplier('Hubadero Studio', 'loaf'),
+          createDirectorySupplier('Lucas Lumban Barong', 'loaf'),
+          createDirectorySupplier('Randolf Lab', 'loaf'),
+          createDirectorySupplier('RNB Gowns and Barong Lumban', 'loaf'),
+          createDirectorySupplier('Sassy Creation PH', 'loaf'),
+          createDirectorySupplier('BKS Men', 'loaf'),
+          createDirectorySupplier('Cornell’s Custom Tailors', 'loaf'),
+          createDirectorySupplier('Common Suits', 'loaf'),
+          createDirectorySupplier('Exclusively His Tailoring', 'loaf'),
+          createDirectorySupplier('Felipe and Sons', 'loaf'),
+          createDirectorySupplier('Fort and Tailler', 'loaf'),
+          createDirectorySupplier('JC Buendia', 'loaf'),
+          createDirectorySupplier('Made to Measure', 'loaf'),
+          createDirectorySupplier('Masanting Sasteria', 'loaf'),
+          createDirectorySupplier('Suit It Up Manila', 'loaf'),
+          createDirectorySupplier('The Fine Gentlemen', 'loaf'),
+          createDirectorySupplier('Tiño Suits', 'loaf'),
+          createDirectorySupplier('Ziggy Savella Clothiers', 'loaf')
+        ]
       },
       {
         title: 'Entourage Tailoring (Barong & Suits)',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('EA Casedo Embroidery (Rey Casedo)', 'loaf'),
+          createDirectorySupplier('Lilith De Leon', 'loaf'),
+          createDirectorySupplier('Arvox Tailoring by Mang Roger', 'loaf'),
+          createDirectorySupplier('Bonnie’s Tailoring Shop, Kamuning', 'loaf'),
+          createDirectorySupplier('Edwin Valerio Tailors', 'loaf')
+        ]
       },
       {
         title: 'Fashion Stylists & Dress Rentals',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Cath Sobrevega', 'loaf'),
+          createDirectorySupplier('Pam Quiniones/Quotator', 'loaf'),
+          createDirectorySupplier('Rabbit Hole Creatives', 'loaf'),
+          createDirectorySupplier('Sidney Yap', 'loaf'),
+          createDirectorySupplier('Styled by Jeff Galang', 'loaf'),
+          createDirectorySupplier('Vestidos', 'loaf'),
+          createDirectorySupplier('Intissimo', 'loaf'),
+          createDirectorySupplier('La Rosa Bridal', 'loaf'),
+          createDirectorySupplier('La Tercera', 'loaf'),
+          createDirectorySupplier('LisseMNL', 'loaf')
+        ]
       },
       {
         title: 'Made to Order Shoes',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Jefferson Si', 'loaf'),
+          createDirectorySupplier('Jimmy Choo x Julianne Syjuco', 'loaf'),
+          createDirectorySupplier('Shoepatos Custom Made Shoes by Doreen Odvina', 'loaf'),
+          createDirectorySupplier('Waltz Manila', 'loaf')
+        ]
       }
     ]
   },
@@ -254,15 +563,45 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Bridal Hair and Make-up',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Anthea Bueno', 'loaf'),
+          createDirectorySupplier('Chinky Tanjangco', 'loaf'),
+          createDirectorySupplier('Denise Ochoa', 'loaf'),
+          createDirectorySupplier('Ennah Trinidad', 'loaf'),
+          createDirectorySupplier('Ish Sison', 'loaf'),
+          createDirectorySupplier('Jigs Mayuga', 'loaf'),
+          createDirectorySupplier('John Pagaduan', 'loaf'),
+          createDirectorySupplier('Mickey See', 'loaf'),
+          createDirectorySupplier('Niki Betos', 'loaf'),
+          createDirectorySupplier('Niki Medina', 'loaf'),
+          createDirectorySupplier('Nikki Duque', 'loaf'),
+          createDirectorySupplier('Sari Campos', 'loaf')
+        ]
       },
       {
         title: 'Grooming of Groom',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Spoiled Groom', 'loaf')
+        ]
       },
       {
         title: 'Entourage HMU',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Aldrin Jalandoni', 'loaf'),
+          createDirectorySupplier('April Ibañez', 'loaf'),
+          createDirectorySupplier('Bianca Li-Lomboy', 'loaf'),
+          createDirectorySupplier('Chu Salud', 'loaf'),
+          createDirectorySupplier('Dane Salcedo (Creations by DGS)', 'loaf'),
+          createDirectorySupplier('Daryl Dreyper', 'loaf'),
+          createDirectorySupplier('Ervin Braga', 'loaf'),
+          createDirectorySupplier('Gex Garcia', 'loaf'),
+          createDirectorySupplier('Jill Felix', 'loaf'),
+          createDirectorySupplier('Iya Gueco', 'loaf'),
+          createDirectorySupplier('Rev Santos', 'loaf'),
+          createDirectorySupplier('Rose Lyn Pedayo', 'loaf'),
+          createDirectorySupplier('Theresa Padin', 'loaf'),
+          createDirectorySupplier('Winshayna Young - Rivera', 'loaf')
+        ]
       }
     ]
   },
@@ -273,15 +612,48 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
     subcategories: [
       {
         title: 'Printers & Invitation Makers',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('101 Folk Street', 'loaf'),
+          createDirectorySupplier('28th of December (invites by Story Machine)', 'loaf'),
+          createDirectorySupplier('Kasali.PH', 'loaf'),
+          createDirectorySupplier('Fel and Ink', 'loaf'),
+          createDirectorySupplier('Ink Scribbler', 'loaf'),
+          createDirectorySupplier('Lance Chee', 'loaf'),
+          createDirectorySupplier('Neonovelties', 'loaf'),
+          createDirectorySupplier('Pat and Fi', 'loaf'),
+          createDirectorySupplier('PopGram', 'loaf'),
+          createDirectorySupplier('Print and Co.', 'loaf'),
+          createDirectorySupplier('Print Divas', 'loaf'),
+          createDirectorySupplier('Prinsonalities', 'loaf'),
+          createDirectorySupplier('The Story Machine (Illustration)', 'loaf'),
+          createDirectorySupplier('WINK Written In Ink', 'loaf'),
+          createDirectorySupplier('Write Impressions Paperie and Press Inc.', 'loaf')
+        ]
       },
       {
         title: 'Graphic Artists & Calligraphers',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Angela Chua', 'loaf'),
+          createDirectorySupplier('Estudio Harana', 'loaf'),
+          createDirectorySupplier('Fel and Ink', 'loaf'),
+          createDirectorySupplier('Figma by Kara Silva', 'loaf'),
+          createDirectorySupplier('Kasali', 'loaf'),
+          createDirectorySupplier('Camille Go', 'loaf'),
+          createDirectorySupplier('Fozzy Castro-Dayrit (TheFozzyBook)', 'loaf'),
+          createDirectorySupplier('Icka Santos', 'loaf'),
+          createDirectorySupplier('Jaycie Tanseco Flores', 'loaf'),
+          createDirectorySupplier('Kathryn Puyat', 'loaf'),
+          createDirectorySupplier('Patty Py', 'loaf')
+        ]
       },
       {
         title: 'Embroidery & Specialty Prints',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('By Grace Creatives', 'loaf'),
+          createDirectorySupplier('Panyo Embroidered', 'loaf'),
+          createDirectorySupplier('Creative Preppers (Personalized Accessories)', 'loaf'),
+          createDirectorySupplier('Paper Jam (reasonably priced missalettes)', 'loaf')
+        ]
       }
     ]
   },
@@ -293,31 +665,70 @@ export const SUPPLIERS_DIRECTORY_DATA: SupplierCategory[] = [
       {
         title: 'Wedding Essentials & Accessories',
         vendors: [
-          createDirectorySupplier('Creative Preppers', 'bread-basket', {
-            logo: '/images/suppliers/creative-preppers.webp',
-            tagline: 'Custom heirloom wedding cords, personalized velvet ring boxes, and curated bridal essentials.',
-            location: 'Metro Manila',
-            socialLinks: {
-              facebook: 'https://www.facebook.com/CreativePreppers'
-            }
-          })
+          createDirectorySupplier('Beadybeadz Personalized Wedding Cords', 'loaf'),
+          createDirectorySupplier('Creative Preppers', 'loaf'),
+          createDirectorySupplier('Wedding Cords and Accessories by Diane Lane', 'loaf')
         ]
       },
       {
         title: 'Curated Gift Boxes & Favors',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Cosette and Simon Artisan Gift Design Studio', 'loaf'),
+          createDirectorySupplier('Gift Craft MNL', 'loaf'),
+          createDirectorySupplier('Made with Love Favors', 'loaf'),
+          createDirectorySupplier('The Rustic Craft', 'loaf'),
+          createDirectorySupplier('Auro', 'loaf'),
+          createDirectorySupplier('Neg’5 Kitchen PH', 'loaf'),
+          createDirectorySupplier('Theo and Filo', 'loaf'),
+          createDirectorySupplier('Pamaypay ni Nanay', 'loaf'),
+          createDirectorySupplier('Casa Juan', 'loaf'),
+          createDirectorySupplier('Liwayway PH', 'loaf'),
+          createDirectorySupplier('Pamana – Abel Blankets', 'loaf'),
+          createDirectorySupplier('Vela', 'loaf'),
+          createDirectorySupplier('Sky and Co', 'loaf'),
+          createDirectorySupplier('Artisans of Hope', 'loaf')
+        ]
       },
       {
         title: 'Personalized Favors & Interactive Booths',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('360 Cam Spin Video', 'loaf'),
+          createDirectorySupplier('BaiCapture Inc.', 'loaf'),
+          createDirectorySupplier('Easy Pics', 'loaf'),
+          createDirectorySupplier('Flipbooks by Flipbook Projects', 'loaf'),
+          createDirectorySupplier('Paparazzzzi', 'loaf'),
+          createDirectorySupplier('Pose and Print', 'loaf'),
+          createDirectorySupplier('Team OSS', 'loaf'),
+          createDirectorySupplier('Creative Preppers', 'loaf'),
+          createDirectorySupplier('High Caliber', 'loaf'),
+          createDirectorySupplier('Stella Personalized Collection', 'loaf'),
+          createDirectorySupplier('Thinker Box', 'loaf'),
+          createDirectorySupplier('Ben and Bart', 'loaf')
+        ]
       },
       {
         title: 'Live Painting & Artists',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Anagrace Bingculado', 'loaf'),
+          createDirectorySupplier('Britney Myishia Art', 'loaf'),
+          createDirectorySupplier('Caricatures by Krystina Bogus', 'loaf'),
+          createDirectorySupplier('Michelle Sy', 'loaf'),
+          createDirectorySupplier('Shannah Leigh', 'loaf'),
+          createDirectorySupplier('Zoro Jones Art', 'loaf')
+        ]
       },
       {
         title: 'Bridal & Gift Registry',
-        vendors: []
+        vendors: [
+          createDirectorySupplier('Crate and Barrel', 'loaf'),
+          createDirectorySupplier('Dimensione', 'loaf'),
+          createDirectorySupplier('Gourdo’s', 'loaf'),
+          createDirectorySupplier('Landmark Department Store', 'loaf'),
+          createDirectorySupplier('Pottery Barn', 'loaf'),
+          createDirectorySupplier('Rustan’s Weddings and Beyond Bridal Registry', 'loaf'),
+          createDirectorySupplier('SM Department Store', 'loaf'),
+          createDirectorySupplier('West Elm', 'loaf')
+        ]
       }
     ]
   }

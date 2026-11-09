@@ -5,7 +5,7 @@ import { getProofSubmitPayload, type PaymentProofPanelExpose } from '~/utils/pay
 import PaymentCheckoutPanel from '~/components/PaymentCheckoutPanel.vue'
 import PaymentProofPanel from '~/components/PaymentProofPanel.vue'
 
-definePageMeta({ layout: 'signed-in-navbar', middleware: 'seating-enabled' })
+definePageMeta({ layout: false, middleware: 'seating-enabled' })
 useHead({ title: 'Seating payment - Bread + Butter' })
 
 const route = useRoute()
@@ -143,11 +143,30 @@ async function payWithCheckout() {
 </script>
 
 <template>
-  <div class="bg-toast-700 min-h-screen pt-24 sm:pt-28 pb-10">
-    <UContainer class="max-w-xl space-y-4">
-      <h1 class="text-3xl font-bold font-serif text-bread-400 text-center">
-        Pay for seating
+  <div class="bg-toast-700 h-screen max-h-screen flex flex-col justify-between py-3 px-4 sm:px-6 overflow-y-auto lg:overflow-hidden select-none">
+    <!-- Header with Back Button (No Navbar) -->
+    <header class="w-full max-w-xl mx-auto flex items-center justify-between pb-2 border-b border-white/10 shrink-0">
+      <UButton
+        size="xs"
+        variant="ghost"
+        color="neutral"
+        icon="i-lucide-arrow-left"
+        class="text-bread-200 hover:text-white cursor-pointer font-medium text-xs px-2 py-1"
+        :to="gathering
+          ? { path: '/user/create-seating', query: { gatheringId: gathering._id } }
+          : { path: '/user/create-seating', query: draft }"
+      >
+        Back to Setup
+      </UButton>
+      <h1 class="text-lg font-bold font-serif text-bread-400">
+        Pay for Seating
       </h1>
+      <span class="text-xs text-white/50 font-mono">Checkout</span>
+    </header>
+
+    <main class="w-full max-w-xl mx-auto flex-1 flex flex-col justify-center min-h-0 py-2">
+    <div class="w-full space-y-3.5 my-auto">
+
       <div
         v-if="loading"
         class="text-white text-center"
@@ -219,6 +238,10 @@ async function payWithCheckout() {
           @submit="payWithProof"
         />
       </div>
-    </UContainer>
+    </div>
+    </main>
+    <footer class="w-full max-w-xl mx-auto py-1 text-center shrink-0 border-t border-white/10">
+      <p class="text-[10px] text-white/50">Secure payment processed by Bread + Butter</p>
+    </footer>
   </div>
 </template>

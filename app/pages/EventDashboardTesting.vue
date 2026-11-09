@@ -599,7 +599,7 @@ function openSuppliersDashboard() {
   startPageTransition({ path: '/event/suppliers', query: { eventId: getActiveEventQueryId() } })
 }
 
-const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'guestList']
+const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'colorsDressCode', 'schedules']
 const isDesktopOnlyModalOpen = ref(false)
 const selectedDesktopOnlyFeature = ref<QuickNavItem | null>(null)
 const activeMobileTab = ref<'launcher' | 'overview'>('launcher')
@@ -1804,26 +1804,23 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                     ? 'Visual website editor, theme customizer & live canvas'
                     : selectedDesktopOnlyFeature?.action === 'invitation'
                       ? 'Card layout designer, typography controls & preview'
-                      : 'Comprehensive guest seating arrangement & group tables'
+                      : selectedDesktopOnlyFeature?.action === 'colorsDressCode'
+                        ? 'Color palette customizer, mood board & dress code guidelines'
+                        : selectedDesktopOnlyFeature?.action === 'schedules'
+                          ? 'Detailed day-of timeline, ceremony itineraries & run-of-show'
+                          : 'Desktop view required for optimal management'
                 }}
               </div>
             </div>
           </div>
 
           <!-- Actions -->
-          <div class="space-y-2 pt-1">
+          <div class="pt-1">
             <UButton block color="primary" size="md"
               class="font-bold shadow-sm bg-toast-600 hover:bg-toast-700 text-white cursor-pointer"
               @click="isDesktopOnlyModalOpen = false">
               Understood
             </UButton>
-            <div class="text-center">
-              <button type="button"
-                class="text-[11px] text-toast-700/70 hover:text-toast-900 underline cursor-pointer"
-                @click="isDesktopOnlyModalOpen = false; navigateFromModal(selectedDesktopOnlyFeature)">
-                Continue anyway on mobile
-              </button>
-            </div>
           </div>
         </div>
       </template>

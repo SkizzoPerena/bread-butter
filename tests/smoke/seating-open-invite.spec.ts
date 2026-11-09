@@ -52,7 +52,7 @@ async function fillDetails(page: Parameters<typeof stubApi>[0]) {
   await page.getByLabel('Email address').fill('mina@example.com')
 }
 
-test('someone with the link registers as coming, and can then choose a seat', async ({ page }) => {
+test('someone with the link registers as coming and can open their seat pass', async ({ page }) => {
   const calls = await openLinkPage(page)
   await page.goto(`/jam/open/${OPEN_TOKEN}`)
   await expect(page.getByText('Come hungry.')).toBeVisible()
@@ -61,7 +61,6 @@ test('someone with the link registers as coming, and can then choose a seat', as
   await page.getByRole('button', { name: "I'm coming" }).click()
 
   await expect(page.getByRole('status').first()).toHaveText('You are on the guest list.')
-  await expect(page.getByRole('button', { name: 'Sit here: Family, seat 1' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'See my seat pass' })).toHaveAttribute('href', `/attend/${GUEST_TOKEN}`)
   expect(calls.find(call => call.url.endsWith('/register'))?.body).toEqual({
     passcode: '',
