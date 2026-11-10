@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 // https://nuxt.com/docs/api/configuration/nuxt-config - geocode API route enabled
 type NuxtHookPage = {
   name?: string
@@ -6,6 +7,9 @@ type NuxtHookPage = {
 }
 
 export default defineNuxtConfig({
+  alias: {
+    assets: fileURLToPath(new URL('./app/assets', import.meta.url)),
+  },
   components: [
     {
       path: '~/components',
@@ -31,7 +35,34 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      link: []
+      htmlAttrs: {
+        lang: 'en'
+      },
+      title: "Bread+Butter, your event's digital home",
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        {
+          name: 'description',
+          content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
+        },
+        { property: 'og:title', content: "Bread+Butter, your event's digital home" },
+        {
+          property: 'og:description',
+          content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
+        },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'Bread + Butter' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: "Bread+Butter, your event's digital home" },
+        {
+          name: 'twitter:description',
+          content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
+        }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
     }
   },
 
@@ -52,6 +83,7 @@ export default defineNuxtConfig({
         'secondary',
         'bread',
         'toast',
+        'jam',
         'info',
         'success',
         'warning',
@@ -78,6 +110,8 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    resendFromEmail: process.env.RESEND_FROM_EMAIL || 'hello@blinkpunch.com',
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
       useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',
@@ -236,6 +270,20 @@ export default defineNuxtConfig({
       setPath('UsefulTips', '/useful-tips')
 
       // Set paths for Jam feature routes
+      setPath('JamLanding', '/jam')
+      const jamLandingPage = pages.find(p => p.name === 'JamLanding')
+      if (jamLandingPage) {
+        pages.push({
+          ...jamLandingPage,
+          name: 'JamLandingAlias',
+          path: '/jam/landing',
+        })
+        pages.push({
+          ...jamLandingPage,
+          name: 'JamLandingDirect',
+          path: '/jam-landing',
+        })
+      }
       const jamDashboard = pages.find(p => p.name === 'JamDashboard')
       if (jamDashboard) {
         jamDashboard.path = '/jam/dashboard/:gatheringId?'

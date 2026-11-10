@@ -37,6 +37,11 @@ const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
 const { startPageTransition, finishPageTransition } = usePageTransition()
 const seating = useSeating()
+const { captureCardAsBlob, isCapturing: isCapturingCard } = useCardCapture()
+const stationeryCardRef = ref<HTMLElement | null>(null)
+const cardImageUrl = ref<string>('')
+const isUploadingCard = ref(false)
+const cardUploadFailed = ref(false)
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
 const gathering = ref<GatheringRecord | null>(null)
@@ -206,6 +211,7 @@ async function load() {
       designMode.value = d.mode || 'MAKER'
       ownImageUrl.value = d.imageUrl || ''
       bannerImageUrl.value = d.bannerImageUrl || ''
+      cardImageUrl.value = d.cardImageUrl || ''
       if (d.paletteName) customPaletteName.value = d.paletteName
       if (d.typographyName) customTypographyName.value = d.typographyName
       customAccentColor.value = d.accentColor || resolvePalette(customPaletteName.value).colors.secondary
@@ -321,6 +327,50 @@ function savedAccentColor(): string {
   return customAccentColor.value.toLowerCase() === paletteAccent.toLowerCase() ? '' : customAccentColor.value
 }
 
+async function captureAndUploadJamCard() {
+  if (designMode.value !== 'MAKER' || !gatheringId.value) return
+  const previousMode = previewMode.value
+  let switched = false
+  if (!stationeryCardRef.value && previewMode.value !== 'stationery') {
+    previewMode.value = 'stationery'
+    switched = true
+    await nextTick()
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  try {
+    if (!stationeryCardRef.value) return
+    isUploadingCard.value = true
+    cardUploadFailed.value = false
+    const blob = await captureCardAsBlob(stationeryCardRef.value, { fixedWidth: 580, backgroundColor: '#f7f4ef' })
+    if (!blob) throw new Error('Could not capture card')
+    const updated = await seating.uploadInvitationImage(gatheringId.value, 'card', blob)
+    gathering.value = updated
+    if (updated?.invitationDesign?.cardImageUrl) {
+      cardImageUrl.value = updated.invitationDesign.cardImageUrl
+    }
+  } catch (err) {
+    console.warn('Could not upload Jam card image:', err)
+    cardUploadFailed.value = true
+    toast.add({
+      title: 'Email card could not be generated',
+      description: 'Your invitation is saved! Guest emails will use standard layout until card upload succeeds.',
+      color: 'warning'
+    })
+  } finally {
+    isUploadingCard.value = false
+    if (switched) {
+      previewMode.value = previousMode
+    }
+  }
+}
+
+async function retryUploadJamCard() {
+  await captureAndUploadJamCard()
+  if (!cardUploadFailed.value) {
+    toast.add({ title: 'Email card ready!', description: 'Your invitation card has been prepared for guest emails.', color: 'success' })
+  }
+}
+
 async function saveInvitation() {
   if (!gatheringId.value) return
   isSaving.value = true
@@ -359,6 +409,9 @@ async function saveInvitation() {
       },
     })
     gathering.value = updated
+    if (designMode.value === 'MAKER') {
+      await captureAndUploadJamCard()
+    }
     toast.add({ title: 'Draft saved successfully', color: 'success' })
   } catch (error) {
     toast.add({ title: 'Could not save draft', description: getApiErrorMessage(error), color: 'error' })
@@ -494,6 +547,18 @@ async function updateOpenInvite(enabled: boolean) {
           </UButton>
 
           <UButton
+            v-if="cardUploadFailed"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="sm"
+            :loading="isUploadingCard"
+            @click="retryUploadJamCard"
+          >
+            Retry Email Card
+          </UButton>
+
+          <UButton
             v-if="!isPublished"
             icon="i-lucide-save"
             color="blue"
@@ -534,6 +599,18 @@ async function updateOpenInvite(enabled: boolean) {
           >
             {{ isPublished ? 'Edit Invitation' : 'Save & Publish' }}
           </UButton>
+          <UButton
+            v-if="cardUploadFailed"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="sm"
+            :loading="isUploadingCard"
+            @click="retryUploadJamCard"
+          >
+            Retry Email Card
+          </UButton>
+
           <UButton
             v-if="!isPublished"
             icon="i-lucide-save"
@@ -597,7 +674,7 @@ async function updateOpenInvite(enabled: boolean) {
         >
           <!-- Static Header with Step Indicator -->
           <div class="px-6 pt-5 pb-4 shrink-0 border-b border-blue-100">
-            <div class="relative flex justify-center items-center text-lg font-semibold mb-1 text-toast-900">
+            <div class="relative flex justify-center items-center text-lg font-semibold mb-1 text-jam-900">
               <UButton
                 v-if="currentStep > 0"
                 icon="i-lucide-arrow-left"
@@ -1083,7 +1160,18 @@ async function updateOpenInvite(enabled: boolean) {
         <!-- RIGHT SIDE: Live Preview (col-span-2) -->
         <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-4">
           <!-- Preview Switcher -->
-          <div class="flex items-center justify-end px-1">
+          <div class="flex items-center justify-end px-1 gap-2">
+            <UButton
+              v-if="cardUploadFailed"
+              icon="i-lucide-refresh-cw"
+              color="warning"
+              variant="soft"
+              size="xs"
+              :loading="isUploadingCard"
+              @click="retryUploadJamCard"
+            >
+              Retry Email Card
+            </UButton>
             <div class="inline-flex p-1 rounded-xl bg-stone-100 border border-stone-200/80 shadow-xs">
               <button
                 type="button"
@@ -1113,6 +1201,7 @@ async function updateOpenInvite(enabled: boolean) {
           <!-- 1. Luxury Stationery Invitation Card (Web View) -->
           <div
             v-if="previewMode === 'stationery'"
+            ref="stationeryCardRef"
             class="w-full transition-all duration-300"
             :class="isPublished ? 'max-w-xl mx-auto my-4' : 'w-full'"
           >
@@ -1162,7 +1251,7 @@ async function updateOpenInvite(enabled: boolean) {
                 <span>From: <strong>Bread & Butter Invites</strong> &lt;invitations@bread-plus-butter.com&gt;</span>
                 <span class="text-[10px]">Just now</span>
               </div>
-              <div class="text-xs text-toast-900">
+              <div class="text-xs text-jam-900">
                 <span class="text-muted">Subject: </span>
                 <strong>{{ rsvpData.emailSubject || 'You are warmly invited!' }}</strong>
               </div>
@@ -1171,7 +1260,13 @@ async function updateOpenInvite(enabled: boolean) {
             <!-- Email Body Content -->
             <div class="space-y-4 pt-2">
               <div
-                v-if="bannerImageUrl"
+                v-if="designMode === 'MAKER' && cardImageUrl"
+                class="rounded-xl overflow-hidden border border-bread-200/60 shadow-xs"
+              >
+                <img :src="cardImageUrl" alt="Invitation Card" class="w-full h-auto block" />
+              </div>
+              <div
+                v-else-if="bannerImageUrl"
                 class="rounded-xl overflow-hidden border border-bread-200/60"
               >
                 <img :src="bannerImageUrl" alt="Banner" class="w-full aspect-5/1 object-cover" />
@@ -1181,19 +1276,19 @@ async function updateOpenInvite(enabled: boolean) {
                 <p v-if="rsvpData.headerLabel" class="text-xs text-muted uppercase tracking-wider font-semibold">
                   {{ rsvpData.headerLabel }}
                 </p>
-                <h2 class="font-serif font-bold text-2xl text-toast-900">
+                <h2 class="font-serif font-bold text-2xl text-jam-900">
                   {{ rsvpData.headline || rsvpData.primaryName || gathering?.name }}
                 </h2>
-                <p v-if="rsvpData.hostName" class="font-bold text-sm text-toast-800">
+                <p v-if="rsvpData.hostName" class="font-bold text-sm text-jam-800">
                   {{ rsvpData.hostName }}
                 </p>
                 <p v-if="rsvpData.requestLine" class="text-xs text-stone-600 whitespace-pre-line">
                   {{ rsvpData.requestLine }}
                 </p>
-                <p v-if="rsvpData.headline && rsvpData.primaryName" class="font-bold text-lg text-toast-900">
+                <p v-if="rsvpData.headline && rsvpData.primaryName" class="font-bold text-lg text-jam-900">
                   {{ rsvpData.primaryName }}
                 </p>
-                <p class="text-xs text-toast-700 font-semibold pt-1">
+                <p class="text-xs text-jam-700 font-semibold pt-1">
                   {{ formatDateWithWeekday(rsvpData.eventDate) || 'Event Date' }}
                 </p>
                 <div v-if="rsvpData.scheduleType === 'dual'" class="text-xs text-stone-600 space-y-1">
@@ -1207,7 +1302,7 @@ async function updateOpenInvite(enabled: boolean) {
 
               <div
                 v-if="rsvpData.personalMessage"
-                class="bg-toast-50/70 p-3.5 rounded-xl border border-bread-200/60 text-xs text-toast-800 leading-relaxed text-center"
+                class="bg-jam-50/70 p-3.5 rounded-xl border border-bread-200/60 text-xs text-jam-800 leading-relaxed text-center"
               >
                 {{ rsvpData.personalMessage }}
               </div>
@@ -1216,7 +1311,7 @@ async function updateOpenInvite(enabled: boolean) {
                 <a
                   :href="guestRsvpSampleUrl || '#'"
                   target="_blank"
-                  class="inline-block bg-toast-800 hover:bg-toast-900 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-sm transition-all"
+                  class="inline-block bg-jam-800 hover:bg-jam-900 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-sm transition-all"
                 >
                   {{ rsvpData.ctaText || 'Confirm Attendance' }}
                 </a>

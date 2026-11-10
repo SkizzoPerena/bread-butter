@@ -101,7 +101,7 @@ const SEAT_LABEL = { TAKEN: 'Taken', UNAVAILABLE: 'Unavailable', YOURS: 'Your se
         Who is this seat for?
         <select
           v-model="choosingFor"
-          class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2 font-normal"
+          class="mt-1 w-full rounded-md border border-jam-700/30 bg-white px-3 py-2 font-normal"
         >
           <option value="">Me</option>
           <option
@@ -141,7 +141,7 @@ const SEAT_LABEL = { TAKEN: 'Taken', UNAVAILABLE: 'Unavailable', YOURS: 'Your se
       <div
         v-for="table in seatMap.tables"
         :key="table._id"
-        class="rounded-xl border border-toast-700/20 bg-white p-3 space-y-2"
+        class="rounded-xl border border-jam-700/20 bg-white p-3 space-y-2"
       >
         <h3 class="font-semibold">
           {{ table.label }}
@@ -151,13 +151,13 @@ const SEAT_LABEL = { TAKEN: 'Taken', UNAVAILABLE: 'Unavailable', YOURS: 'Your se
             v-for="seat in table.seats"
             :key="seat.number"
             class="flex items-center justify-between gap-2 rounded-md bg-bread-100 px-2 py-1 text-sm"
-            :class="{ 'ring-2 ring-toast-700': seat.status === 'YOURS' }"
+            :class="{ 'ring-2 ring-jam-700': seat.status === 'YOURS' }"
           >
             <span>Seat {{ seat.number }}</span>
             <button
               v-if="seat.status === 'OPEN' && !seatMap.locked"
               type="button"
-              class="rounded-md bg-toast-800 px-2 py-0.5 text-xs font-semibold text-bread-100 disabled:opacity-50"
+              class="rounded-md bg-jam-800 px-2 py-0.5 text-xs font-semibold text-bread-100 disabled:opacity-50"
               :disabled="saving"
               :aria-label="`Sit here: ${table.label}, seat ${seat.number}`"
               @click="sitHere(table._id, seat.number)"
@@ -176,7 +176,7 @@ const SEAT_LABEL = { TAKEN: 'Taken', UNAVAILABLE: 'Unavailable', YOURS: 'Your se
       <button
         v-if="currentSeat && !seatMap.locked"
         type="button"
-        class="rounded-md border border-toast-800 px-3 py-1 text-sm disabled:opacity-50"
+        class="rounded-md border border-jam-800 px-3 py-1 text-sm disabled:opacity-50"
         :disabled="saving"
         @click="giveUp"
       >

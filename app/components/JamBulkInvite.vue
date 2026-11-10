@@ -72,28 +72,28 @@ async function retrySkipped() {
     <div class="flex items-center gap-1.5 border-b border-bread-200/60 pb-2">
       <UIcon
         name="i-lucide-mails"
-        class="size-4 text-toast-600"
+        class="size-4 text-jam-600"
       />
-      <h3 class="font-serif font-bold text-base text-toast-900">
+      <h3 class="font-serif font-bold text-base text-jam-900">
         Bulk Invite
       </h3>
     </div>
     <p class="text-xs text-muted">
       Paste email addresses, and each person gives their own name when they reply.
     </p>
-    <label class="block text-[11px] font-semibold text-toast-800">
+    <label class="block text-[11px] font-semibold text-jam-800">
       Email addresses
       <textarea
         v-model="text"
         rows="4"
         placeholder="ana@example.com, ben@example.com"
-        class="mt-1 w-full rounded-lg border border-toast-300 bg-white p-2.5 text-xs font-normal text-toast-900 sm:text-sm"
+        class="mt-1 w-full rounded-lg border border-jam-300 bg-white p-2.5 text-xs font-normal text-jam-900 sm:text-sm"
       />
     </label>
     <div class="flex flex-wrap items-center gap-2">
       <UButton
         size="sm"
-        color="toast"
+        color="jam"
         variant="outline"
         class="cursor-pointer"
         :loading="checking"
@@ -116,7 +116,7 @@ async function retrySkipped() {
 
     <div
       v-if="preview"
-      class="space-y-1 rounded-lg bg-toast-50/70 p-2.5 text-xs"
+      class="space-y-1 rounded-lg bg-jam-50/70 p-2.5 text-xs"
       data-testid="bulk-preview"
     >
       <p>{{ preview.toInvite }} new · {{ preview.creditsRemaining }} email credits left</p>
@@ -163,7 +163,7 @@ async function retrySkipped() {
         <span>{{ result.skipped }} couldn't be emailed. They're on your list as pending.</span>
         <UButton
           size="xs"
-          color="toast"
+          color="jam"
           variant="outline"
           class="cursor-pointer"
           :loading="retrying"

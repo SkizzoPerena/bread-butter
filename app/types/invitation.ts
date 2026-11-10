@@ -15,6 +15,8 @@ export interface InvitationRecord {
   deadlineText: string
   deadlineDate: string
   bannerImageUrl?: string
+  cardImageUrl?: string
+  cardImageUpdatedAt?: string
 }
 
 export interface InvitationResponse {
@@ -40,5 +42,7 @@ export interface InvitationSavePayload {
   deadlineText: string
   deadlineDate: string
   bannerImageUrl?: string
+  cardImageUrl?: string
+  cardImageUpdatedAt?: string
 }
 

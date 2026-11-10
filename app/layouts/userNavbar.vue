@@ -6,6 +6,10 @@ const route = useRoute()
 const router = useRouter()
 const { user, logout } = useAuth()
 
+const activeDashboardTab = useState<'events' | 'seating'>('user-dashboard-tab', () =>
+  route.query.tab === 'seating' ? 'seating' : 'events'
+)
+
 const isUserDashboard = computed(() => {
   if (route.meta.isUserDashboard !== undefined) {
     return Boolean(route.meta.isUserDashboard)
@@ -69,7 +73,7 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <div class="min-h-screen min-h-dvh flex flex-col" :class="isUserDashboard ? 'h-screen max-h-screen max-h-dvh overflow-hidden bg-toast-700 text-white' : 'bg-bread-400'">
+  <div class="min-h-screen min-h-dvh flex flex-col theme-jam-scope" :class="[isUserDashboard ? 'h-screen max-h-screen max-h-dvh overflow-hidden bg-toast-700 text-white' : 'bg-bread-400', isUserDashboard && activeDashboardTab === 'seating' ? 'theme-jam' : '']">
     <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar shrink-0">
       <template #toggle>
         <!-- Back button on non-user dashboard pages (leftmost side) -->
@@ -119,14 +123,7 @@ const dropitems: DropdownMenuItem[][] = [
           <NuxtLink to="/" class="flex items-center">
             <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
           </NuxtLink>
-          <UBadge
-            color="bread"
-            variant="subtle"
-            size="xs"
-            class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
-          >
-            Closed Testing
-          </UBadge>
+          
         </div>
         <span v-if="user?.firstName"
           class="text-white font-serif text-sm sm:text-xl font-semibold border-l-2 border-white pl-2 sm:pl-3 truncate">

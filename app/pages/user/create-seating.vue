@@ -45,7 +45,7 @@ function formatPlan(jamPackage: JamPackageRecord) {
       label: `Select ${jamPackage.name}`,
       color: 'primary' as const,
       size: 'xs' as const,
-      class: 'w-full font-bold text-white bg-toast-700 hover:bg-toast-800 active:bg-toast-900 py-1.5 px-3 text-xs rounded-xl shadow-xs cursor-pointer justify-center transition-all',
+      class: 'w-full font-bold text-white bg-jam-700 hover:bg-jam-800 active:bg-jam-900 py-1.5 px-3 text-xs rounded-xl shadow-xs cursor-pointer justify-center transition-all',
       onClick: () => choosePackage(jamPackage._id),
     },
   }
@@ -98,8 +98,15 @@ onMounted(async () => {
       eventType.value = gathering.eventType || 'WEDDING'
       venue.value = gathering.venue
       eventDate.value = toDateInput(gathering.eventDate)
-    } else if (route.query.packageId) {
-      selectedId.value = String(route.query.packageId)
+    } else if (route.query.packageId || route.query.package || route.query.tier) {
+      const targetParam = String(route.query.packageId || route.query.package || route.query.tier || '').trim().toLowerCase()
+      const match = packages.value.find((p) => p._id.toLowerCase() === targetParam || p.name.toLowerCase() === targetParam)
+      if (match) {
+        selectedId.value = match._id
+        currentView.value = 'details'
+      } else if (route.query.packageId) {
+        selectedId.value = String(route.query.packageId)
+      }
       name.value = String(route.query.name || '')
       eventType.value = String(route.query.eventType || 'WEDDING')
       venue.value = String(route.query.venue || '')
@@ -148,7 +155,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="bg-toast-700 h-screen max-h-screen flex flex-col justify-between py-2 sm:py-3 px-3 sm:px-6 overflow-y-auto lg:overflow-hidden select-none">
+  <div class="bg-jam-700 h-screen max-h-screen flex flex-col justify-between py-2 sm:py-3 px-3 sm:px-6 overflow-y-auto lg:overflow-hidden select-none">
     <!-- Top Header & Navigation Bar (Compact, No Navbar) -->
     <header class="w-full max-w-6xl mx-auto flex items-center justify-between pb-1.5 border-b border-white/10 shrink-0">
       <div class="flex items-center gap-2">
@@ -165,11 +172,11 @@ async function submit() {
       </div>
 
       <!-- Step Navigation Toggle -->
-      <div class="inline-flex items-center gap-1.5 bg-toast-900/60 p-0.5 rounded-full border border-toast-600/40">
+      <div class="inline-flex items-center gap-1.5 bg-jam-900/60 p-0.5 rounded-full border border-jam-600/40">
         <button
           type="button"
           class="px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer"
-          :class="currentView === 'packages' ? 'bg-bread-400 text-toast-950 shadow-xs' : 'text-bread-200 hover:text-white'"
+          :class="currentView === 'packages' ? 'bg-bread-400 text-jam-950 shadow-xs' : 'text-bread-200 hover:text-white'"
           @click="switchView('packages')"
         >
           1. Select package
@@ -178,7 +185,7 @@ async function submit() {
         <button
           type="button"
           class="px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer"
-          :class="currentView === 'details' ? 'bg-bread-400 text-toast-950 shadow-xs' : 'text-bread-200 hover:text-white'"
+          :class="currentView === 'details' ? 'bg-bread-400 text-jam-950 shadow-xs' : 'text-bread-200 hover:text-white'"
           @click="switchView('details')"
         >
           2. Gathering details
@@ -199,10 +206,10 @@ async function submit() {
         v-if="!loading && !seatingPlansEnabled"
         class="white-bread-container p-5 text-center space-y-2 max-w-md mx-auto"
       >
-        <h1 class="text-xl font-bold font-serif text-toast-900">
+        <h1 class="text-xl font-bold font-serif text-jam-900">
           Seating is not available right now
         </h1>
-        <p class="text-xs text-toast-700">
+        <p class="text-xs text-jam-700">
           You can still create and manage your event.
         </p>
       </div>
@@ -251,10 +258,10 @@ async function submit() {
                   root: 'p-3 sm:p-3.5 gap-1.5 rounded-2xl flex flex-col justify-between shadow-xs',
                   body: 'flex flex-col min-w-0 justify-between gap-1',
                   titleWrapper: 'flex items-center justify-between gap-1',
-                  title: 'font-serif font-bold text-base sm:text-lg text-toast-900 leading-tight',
+                  title: 'font-serif font-bold text-base sm:text-lg text-jam-900 leading-tight',
                   priceWrapper: 'flex items-baseline gap-1.5 pt-1.5 border-t border-bread-200/60 mt-1',
                   discount: 'text-xs text-stone-400 line-through font-mono',
-                  price: 'text-sm sm:text-base font-bold font-serif text-toast-900',
+                  price: 'text-sm sm:text-base font-bold font-serif text-jam-900',
                   footer: 'mt-1.5 pt-0',
                 }"
               >
@@ -262,10 +269,10 @@ async function submit() {
                 <template #description>
                   <div class="my-0.5 sm:my-1">
                     <span class="text-[9px] text-muted block uppercase font-bold tracking-wider">Capacity</span>
-                    <p class="font-serif font-bold text-xl sm:text-2xl text-toast-900 leading-none py-0.5">
+                    <p class="font-serif font-bold text-xl sm:text-2xl text-jam-900 leading-none py-0.5">
                       Up to {{ plan.maxGuests }} guests
                     </p>
-                    <p class="text-[10.5px] text-toast-700/80 font-medium">
+                    <p class="text-[10.5px] text-jam-700/80 font-medium">
                       Seating, check-in & RSVP
                     </p>
                   </div>
@@ -288,10 +295,10 @@ async function submit() {
                   root: 'p-3 sm:p-3.5 gap-1.5 rounded-2xl flex flex-col justify-between shadow-xs',
                   body: 'flex flex-col min-w-0 justify-between gap-1',
                   titleWrapper: 'flex items-center justify-between gap-1',
-                  title: 'font-serif font-bold text-base sm:text-lg text-toast-900 leading-tight',
+                  title: 'font-serif font-bold text-base sm:text-lg text-jam-900 leading-tight',
                   priceWrapper: 'flex items-baseline gap-1.5 pt-1.5 border-t border-bread-200/60 mt-1',
                   discount: 'text-xs text-stone-400 line-through font-mono',
-                  price: 'text-sm sm:text-base font-bold font-serif text-toast-900',
+                  price: 'text-sm sm:text-base font-bold font-serif text-jam-900',
                   footer: 'mt-1.5 pt-0',
                 }"
               >
@@ -299,10 +306,10 @@ async function submit() {
                 <template #description>
                   <div class="my-0.5 sm:my-1">
                     <span class="text-[9px] text-muted block uppercase font-bold tracking-wider">Capacity</span>
-                    <p class="font-serif font-bold text-xl sm:text-2xl text-toast-900 leading-none py-0.5">
+                    <p class="font-serif font-bold text-xl sm:text-2xl text-jam-900 leading-none py-0.5">
                       Up to {{ plan.maxGuests }} guests
                     </p>
-                    <p class="text-[10.5px] text-toast-700/80 font-medium">
+                    <p class="text-[10.5px] text-jam-700/80 font-medium">
                       Seating, check-in & RSVP
                     </p>
                   </div>
@@ -317,14 +324,14 @@ async function submit() {
           v-else
           class="max-w-xl w-full mx-auto my-auto"
         >
-          <div class="bread-container bg-bread-400 text-toast-900 p-4 sm:p-5 rounded-2xl space-y-3.5 shadow-md">
-            <div class="flex items-center justify-between bg-white/85 p-3 rounded-xl border border-toast-600/20">
+          <div class="bread-container bg-bread-400 text-jam-900 p-4 sm:p-5 rounded-2xl space-y-3.5 shadow-md">
+            <div class="flex items-center justify-between bg-white/85 p-3 rounded-xl border border-jam-600/20">
               <div>
-                <span class="text-[10px] text-toast-600 uppercase font-bold tracking-wider">Selected plan:</span>
-                <h3 class="text-base font-bold font-serif text-toast-900">
+                <span class="text-[10px] text-jam-600 uppercase font-bold tracking-wider">Selected plan:</span>
+                <h3 class="text-base font-bold font-serif text-jam-900">
                   {{ selected?.name }}
                 </h3>
-                <p class="text-xs text-toast-700">
+                <p class="text-xs text-jam-700">
                   Up to {{ selected?.maxGuests }} guests · ₱{{ selected?.pricePhp.toLocaleString() }}
                 </p>
               </div>
@@ -352,7 +359,7 @@ async function submit() {
                   v-model="name"
                   placeholder="Santos reunion"
                   size="md"
-                  class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                  class="w-full bg-white text-jam-900 border-jam-300 rounded-lg"
                 />
               </UFormField>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -364,7 +371,7 @@ async function submit() {
                     v-model="eventType"
                     :items="eventTypeOptions"
                     size="md"
-                    class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                    class="w-full bg-white text-jam-900 border-jam-300 rounded-lg"
                   />
                 </UFormField>
                 <UFormField
@@ -375,7 +382,7 @@ async function submit() {
                     v-model="eventDate"
                     type="date"
                     size="md"
-                    class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                    class="w-full bg-white text-jam-900 border-jam-300 rounded-lg"
                   />
                 </UFormField>
               </div>
@@ -387,7 +394,7 @@ async function submit() {
                   v-model="venue"
                   placeholder="The garden hall"
                   size="md"
-                  class="w-full bg-white text-toast-900 border-toast-300 rounded-lg"
+                  class="w-full bg-white text-jam-900 border-jam-300 rounded-lg"
                 />
               </UFormField>
               <div class="pt-2 flex gap-3">
@@ -405,7 +412,7 @@ async function submit() {
                   type="submit"
                   color="primary"
                   size="md"
-                  class="w-2/3 font-bold text-white bg-toast-700 hover:bg-toast-800 active:bg-toast-900 shadow-sm justify-center cursor-pointer"
+                  class="w-2/3 font-bold text-white bg-jam-700 hover:bg-jam-800 active:bg-jam-900 shadow-sm justify-center cursor-pointer"
                   :loading="saving"
                 >
                   Continue to payment

@@ -760,7 +760,7 @@ function getTableLabel(tableId: string | null): string {
               class="w-full flex items-center justify-between p-2.5 rounded-xl border text-left cursor-pointer transition-all min-w-0"
               :class="selectedTab === btn.key
                 ? 'bg-red-500 border-red-500 text-white shadow-xs font-semibold'
-                : 'bg-white border-bread-200/80 text-toast-800 hover:bg-bread-50 hover:text-toast-900'"
+                : 'bg-white border-bread-200/80 text-jam-800 hover:bg-bread-50 hover:text-jam-900'"
               @click="selectedTab = btn.key"
             >
               <div class="flex items-center gap-1.5 min-w-0">
@@ -773,7 +773,7 @@ function getTableLabel(tableId: string | null): string {
               </div>
               <span
                 class="text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-1"
-                :class="selectedTab === btn.key ? 'bg-white/20 text-white' : 'bg-bread-100 text-toast-700'"
+                :class="selectedTab === btn.key ? 'bg-white/20 text-white' : 'bg-bread-100 text-jam-700'"
               >
                 {{ btn.count }}
               </span>
@@ -848,16 +848,16 @@ function getTableLabel(tableId: string | null): string {
 
           <!-- Secondary Metrics: Invitations & Email Credits -->
           <div class="grid grid-cols-2 gap-2 pt-1">
-            <div class="bg-toast-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
-              <span class="text-[11px] font-semibold text-toast-700 font-sans">Invites Sent</span>
+            <div class="bg-jam-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+              <span class="text-[11px] font-semibold text-jam-700 font-sans">Invites Sent</span>
               <span class="text-lg sm:text-xl font-bold font-serif text-highlighted tracking-tight mt-1">
                 {{ invitesSentCount }}/{{ guestCount }}
               </span>
             </div>
 
-            <div class="bg-toast-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+            <div class="bg-jam-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold text-toast-700 font-sans">Email Credits</span>
+                <span class="text-[11px] font-semibold text-jam-700 font-sans">Email Credits</span>
                 <a
                   :href="`/user/jam-upgrade/${gatheringId}`"
                   class="text-[10px] text-orange-600 hover:text-orange-700 font-semibold underline cursor-pointer"
@@ -873,9 +873,9 @@ function getTableLabel(tableId: string | null): string {
           </div>
 
           <!-- Response Rate Progress Card -->
-          <div class="bg-toast-50/70 border border-bread-200/60 rounded-xl p-3.5 space-y-2">
+          <div class="bg-jam-50/70 border border-bread-200/60 rounded-xl p-3.5 space-y-2">
             <div class="flex items-center justify-between text-xs font-sans">
-              <span class="font-semibold text-toast-800">Response Rate</span>
+              <span class="font-semibold text-jam-800">Response Rate</span>
               <span class="font-bold font-serif text-black text-sm">{{ responseRate }}%</span>
             </div>
             <UProgress :model-value="responseRate" color="primary" size="xs" />
@@ -928,20 +928,20 @@ function getTableLabel(tableId: string | null): string {
 
     <!-- ================= RIGHT DIVISION (col-span-3): Scrollable Guests View ================= -->
     <main
-      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-toast-50/30"
+      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-jam-50/30"
     >
       <!-- Top Sticky Toolbar -->
       <header
         class="bg-white/95 backdrop-blur border-b border-bread-200/80 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10"
       >
         <!-- Mobile Tab Switcher (Visible on mobile/tablet since left sidebar is hidden) -->
-        <div class="lg:hidden w-full flex items-center p-1 bg-toast-100/80 border border-bread-200/60 rounded-xl gap-1">
+        <div class="lg:hidden w-full flex items-center p-1 bg-jam-100/80 border border-bread-200/60 rounded-xl gap-1">
           <button
             v-for="btn in tabButtons"
             :key="btn.key"
             type="button"
             class="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer truncate"
-            :class="selectedTab === btn.key ? 'bg-red-500 text-white shadow-xs' : 'text-toast-800 hover:bg-white/60'"
+            :class="selectedTab === btn.key ? 'bg-red-500 text-white shadow-xs' : 'text-jam-800 hover:bg-white/60'"
             @click="selectedTab = btn.key"
           >
             <UIcon :name="btn.icon" class="size-3.5 shrink-0" />
@@ -979,7 +979,7 @@ function getTableLabel(tableId: string | null): string {
             v-if="selectedTab === 'guest-list'"
             class="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1"
           >
-            <div class="inline-flex items-center p-0.5 bg-toast-100/70 border border-bread-200/50 rounded-lg text-xs font-medium font-sans shrink-0">
+            <div class="inline-flex items-center p-0.5 bg-jam-100/70 border border-bread-200/50 rounded-lg text-xs font-medium font-sans shrink-0">
               <button
                 v-for="opt in rsvpFilterOptions"
                 :key="opt.key"
@@ -1096,12 +1096,12 @@ function getTableLabel(tableId: string | null): string {
             <div class="md:hidden space-y-2.5">
               <!-- Mobile Select All Bar -->
               <div class="flex items-center justify-between px-3.5 py-2.5 bg-white rounded-xl border border-bread-200/90 shadow-2xs text-xs">
-                <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-toast-900 select-none">
+                <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-jam-900 select-none">
                   <input
                     type="checkbox"
                     :checked="allFilteredSelected"
                     :indeterminate="someFilteredSelected && !allFilteredSelected"
-                    class="rounded border-toast-300 text-red-600 focus:ring-red-500 cursor-pointer size-4"
+                    class="rounded border-jam-300 text-red-600 focus:ring-red-500 cursor-pointer size-4"
                     @change="toggleSelectAll(($event.target as HTMLInputElement).checked)"
                   />
                   <span>Select All</span>
@@ -1126,10 +1126,10 @@ function getTableLabel(tableId: string | null): string {
                   <input
                     type="checkbox"
                     :checked="selectedGuestIds.has(guest._id)"
-                    class="mt-1 size-4.5 rounded border-toast-300 text-red-600 focus:ring-red-500 cursor-pointer shrink-0"
+                    class="mt-1 size-4.5 rounded border-jam-300 text-red-600 focus:ring-red-500 cursor-pointer shrink-0"
                     @change="toggleGuestSelection(guest._id)"
                   />
-                  <div class="size-8 rounded-full bg-toast-100 text-toast-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase mt-0.5">
+                  <div class="size-8 rounded-full bg-jam-100 text-jam-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase mt-0.5">
                     {{ (guest.firstName?.[0] || guest.email?.[0] || '?') }}
                   </div>
                   <div class="min-w-0 flex-1">
@@ -1143,10 +1143,10 @@ function getTableLabel(tableId: string | null): string {
                       {{ guest.email || 'No email' }}
                     </p>
                     <p v-if="guest.companionOf" class="text-[11px] text-muted truncate mt-0.5" data-testid="companion-of">
-                      +1 of <strong class="font-medium text-toast-800">{{ companionOfName(guest) }}</strong>
+                      +1 of <strong class="font-medium text-jam-800">{{ companionOfName(guest) }}</strong>
                     </p>
                     <p v-else-if="guest.partyName" class="text-[11px] text-muted truncate mt-0.5">
-                      Party: <strong class="font-medium text-toast-800">{{ guest.partyName }}</strong>
+                      Party: <strong class="font-medium text-jam-800">{{ guest.partyName }}</strong>
                     </p>
                   </div>
                 </div>
@@ -1224,13 +1224,13 @@ function getTableLabel(tableId: string | null): string {
               <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr class="bg-bread-50/60 border-b border-bread-200/80 text-[11px] font-semibold text-toast-800 uppercase tracking-wider">
+                    <tr class="bg-bread-50/60 border-b border-bread-200/80 text-[11px] font-semibold text-jam-800 uppercase tracking-wider">
                       <th class="py-3 px-3.5 w-10 text-center">
                         <input
                           type="checkbox"
                           :checked="allFilteredSelected"
                           :indeterminate="someFilteredSelected && !allFilteredSelected"
-                          class="rounded border-toast-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                          class="rounded border-jam-300 text-red-600 focus:ring-red-500 cursor-pointer"
                           @change="toggleSelectAll(($event.target as HTMLInputElement).checked)"
                         />
                       </th>
@@ -1255,7 +1255,7 @@ function getTableLabel(tableId: string | null): string {
                         <input
                           type="checkbox"
                           :checked="selectedGuestIds.has(guest._id)"
-                          class="rounded border-toast-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                          class="rounded border-jam-300 text-red-600 focus:ring-red-500 cursor-pointer"
                           @change="toggleGuestSelection(guest._id)"
                         />
                       </td>
@@ -1263,7 +1263,7 @@ function getTableLabel(tableId: string | null): string {
                       <!-- Guest Name & Party -->
                       <td class="py-3 px-3">
                         <div class="flex items-center gap-2.5">
-                          <div class="size-7 rounded-full bg-toast-100 text-toast-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase">
+                          <div class="size-7 rounded-full bg-jam-100 text-jam-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase">
                             {{ (guest.firstName?.[0] || guest.email?.[0] || '?') }}
                           </div>
                           <div class="min-w-0">
@@ -1274,10 +1274,10 @@ function getTableLabel(tableId: string | null): string {
                               </span>
                             </div>
                             <div v-if="guest.companionOf" class="text-[10.5px] text-muted truncate" data-testid="companion-of">
-                              +1 of <strong class="font-medium text-toast-700">{{ companionOfName(guest) }}</strong>
+                              +1 of <strong class="font-medium text-jam-700">{{ companionOfName(guest) }}</strong>
                             </div>
                             <div v-else-if="guest.partyName" class="text-[10.5px] text-muted truncate">
-                              Party: <strong class="font-medium text-toast-700">{{ guest.partyName }}</strong>
+                              Party: <strong class="font-medium text-jam-700">{{ guest.partyName }}</strong>
                             </div>
                           </div>
                         </div>
@@ -1285,7 +1285,7 @@ function getTableLabel(tableId: string | null): string {
 
                       <!-- Email Address -->
                       <td class="py-3 px-3">
-                        <span class="font-mono text-xs text-toast-700 truncate block max-w-44">
+                        <span class="font-mono text-xs text-jam-700 truncate block max-w-44">
                           {{ guest.email || '—' }}
                         </span>
                       </td>
@@ -1457,7 +1457,7 @@ function getTableLabel(tableId: string | null): string {
                   </span>
                   <UIcon
                     name="i-lucide-chevron-down"
-                    class="size-4 text-toast-500 transition-transform duration-200"
+                    class="size-4 text-jam-500 transition-transform duration-200"
                     :class="{ '-rotate-90': isPartyCollapsed(party.name) }"
                   />
                 </div>
@@ -1539,7 +1539,7 @@ function getTableLabel(tableId: string | null): string {
                   </span>
                   <UIcon
                     name="i-lucide-chevron-down"
-                    class="size-4 text-toast-500 transition-transform duration-200"
+                    class="size-4 text-jam-500 transition-transform duration-200"
                     :class="{ '-rotate-90': isCheckedInSectionCollapsed(section.label) }"
                   />
                 </div>
@@ -1609,13 +1609,13 @@ function getTableLabel(tableId: string | null): string {
             <div class="flex items-center justify-between px-1">
               <div class="flex items-center gap-1.5">
                 <span class="size-2 rounded-full bg-red-500 animate-pulse" />
-                <span class="text-xs font-bold text-toast-900">
+                <span class="text-xs font-bold text-jam-900">
                   {{ selectedGuestIds.size }} guest{{ selectedGuestIds.size === 1 ? '' : 's' }} selected
                 </span>
               </div>
               <button
                 type="button"
-                class="text-[11px] font-semibold text-toast-700 hover:text-toast-950 cursor-pointer"
+                class="text-[11px] font-semibold text-jam-700 hover:text-jam-950 cursor-pointer"
                 @click="clearSelection"
               >
                 Clear
@@ -1725,50 +1725,50 @@ function getTableLabel(tableId: string | null): string {
         <div class="p-4 sm:p-5 space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">First Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">First Name</label>
               <input
                 v-model="addForm.firstName"
                 type="text"
                 placeholder="First name"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Last Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Last Name</label>
               <input
                 v-model="addForm.lastName"
                 type="text"
                 placeholder="Last name"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1">Email Address *</label>
+            <label class="block text-xs font-semibold text-jam-900 mb-1">Email Address *</label>
             <input
               v-model="addForm.email"
               type="email"
               placeholder="guest@example.com"
-              class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+              class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Party / Group Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Party / Group Name</label>
               <input
                 v-model="addForm.partyName"
                 type="text"
                 placeholder="e.g. VIP, Smith Family"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Initial RSVP</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Initial RSVP</label>
               <select
                 v-model="addForm.rsvpStatus"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500 font-semibold"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500 font-semibold"
               >
                 <option value="PENDING">Pending (Awaiting Reply)</option>
                 <option value="GOING">Going (Attending)</option>
@@ -1778,16 +1778,16 @@ function getTableLabel(tableId: string | null): string {
           </div>
 
           <!-- Pax / Registered Companions -->
-          <div class="bg-toast-50/80 border border-toast-200/90 rounded-xl p-3 space-y-2">
+          <div class="bg-jam-50/80 border border-jam-200/90 rounded-xl p-3 space-y-2">
             <div class="flex items-center justify-between">
               <div>
-                <label class="block text-xs font-semibold text-toast-900">Total Pax / Seats</label>
+                <label class="block text-xs font-semibold text-jam-900">Total Pax / Seats</label>
                 <p class="text-[11px] text-muted">Total number of guests registered under this entry</p>
               </div>
-              <div class="flex items-center gap-1.5 bg-white border border-toast-300/80 rounded-lg p-0.5 shadow-2xs">
+              <div class="flex items-center gap-1.5 bg-white border border-jam-300/80 rounded-lg p-0.5 shadow-2xs">
                 <button
                   type="button"
-                  class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                  class="size-6 rounded flex items-center justify-center font-bold text-jam-800 hover:bg-jam-100 cursor-pointer disabled:opacity-30"
                   :disabled="addForm.pax <= 1"
                   @click="addForm.pax = Math.max(1, addForm.pax - 1)"
                 >
@@ -1798,11 +1798,11 @@ function getTableLabel(tableId: string | null): string {
                   type="number"
                   min="1"
                   max="20"
-                  class="w-10 text-center font-bold font-mono text-xs text-toast-900 focus:outline-none"
+                  class="w-10 text-center font-bold font-mono text-xs text-jam-900 focus:outline-none"
                 />
                 <button
                   type="button"
-                  class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                  class="size-6 rounded flex items-center justify-center font-bold text-jam-800 hover:bg-jam-100 cursor-pointer disabled:opacity-30"
                   :disabled="addForm.pax >= 20"
                   @click="addForm.pax = Math.min(20, addForm.pax + 1)"
                 >
@@ -1812,17 +1812,17 @@ function getTableLabel(tableId: string | null): string {
             </div>
 
             <!-- Preview of registered companions -->
-            <div v-if="addForm.pax > 1" class="pt-2 border-t border-toast-200/70 text-xs">
-              <span class="text-toast-700 font-medium text-[11px] block mb-1">
+            <div v-if="addForm.pax > 1" class="pt-2 border-t border-jam-200/70 text-xs">
+              <span class="text-jam-700 font-medium text-[11px] block mb-1">
                 Listed with no email, until you add their names:
               </span>
               <div class="space-y-1 max-h-28 overflow-y-auto pr-1">
                 <div
                   v-for="n in (addForm.pax - 1)"
                   :key="n"
-                  class="flex items-center gap-2 px-2 py-1 bg-white/95 border border-bread-200 rounded-lg text-[11px] text-toast-800 font-mono shadow-2xs"
+                  class="flex items-center gap-2 px-2 py-1 bg-white/95 border border-bread-200 rounded-lg text-[11px] text-jam-800 font-mono shadow-2xs"
                 >
-                  <UIcon name="i-lucide-user-plus" class="size-3 text-toast-500 shrink-0" />
+                  <UIcon name="i-lucide-user-plus" class="size-3 text-jam-500 shrink-0" />
                   <span class="truncate">
                     {{ addForm.firstName.trim() || 'Guest' }}'s companion {{ n }}
                   </span>
@@ -1836,10 +1836,10 @@ function getTableLabel(tableId: string | null): string {
               Cancel
             </UButton>
             <UButton
-              color="toast"
+              color="jam"
               variant="solid"
               size="sm"
-              class="bg-toast-800 hover:bg-toast-900 text-white font-bold"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-bold"
               :loading="saving"
               @click="handleAddGuest"
             >
@@ -1856,56 +1856,56 @@ function getTableLabel(tableId: string | null): string {
         <div class="p-4 sm:p-5 space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">First Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">First Name</label>
               <input
                 v-model="editForm.firstName"
                 type="text"
                 placeholder="First name"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Last Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Last Name</label>
               <input
                 v-model="editForm.lastName"
                 type="text"
                 placeholder="Last name"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1">
+            <label class="block text-xs font-semibold text-jam-900 mb-1">
               Email Address<span v-if="editingIsCompanion" class="text-muted font-normal"> (optional for a companion)</span>
             </label>
             <input
               v-model="editForm.email"
               type="email"
               placeholder="guest@example.com"
-              class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+              class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Party / Group Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Party / Group Name</label>
               <input
                 v-model="editForm.partyName"
                 type="text"
                 placeholder="e.g. VIP, Family"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">RSVP Status</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">RSVP Status</label>
               <p v-if="editingIsCompanion" class="text-[11px] text-muted pt-1.5">
                 Follows the reply of the guest who brought them.
               </p>
               <select
                 v-else
                 v-model="editForm.rsvpStatus"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500 font-semibold"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500 font-semibold"
               >
                 <option value="GOING">Going (Attending)</option>
                 <option value="PENDING">Pending (Awaiting Reply)</option>
@@ -1919,10 +1919,10 @@ function getTableLabel(tableId: string | null): string {
               Cancel
             </UButton>
             <UButton
-              color="toast"
+              color="jam"
               variant="solid"
               size="sm"
-              class="bg-toast-800 hover:bg-toast-900 text-white font-bold"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-bold"
               :loading="saving"
               @click="handleEditGuest"
             >
@@ -1963,7 +1963,7 @@ function getTableLabel(tableId: string | null): string {
     <UModal v-model:open="isDeleteConfirmOpen" title="Remove Guest">
       <template #content>
         <div class="p-4 sm:p-5 space-y-3">
-          <p class="text-xs sm:text-sm text-toast-800">
+          <p class="text-xs sm:text-sm text-jam-800">
             Are you sure you want to remove <strong>{{ guestToDelete ? guestDisplayName(guestToDelete) : 'this guest' }}</strong> from the guest list?
           </p>
           <div class="flex justify-end gap-2 pt-2 border-t border-bread-200/60">
@@ -1989,7 +1989,7 @@ function getTableLabel(tableId: string | null): string {
       <template #content>
         <div class="p-4 sm:p-5 space-y-4">
           <div>
-            <h3 class="font-serif font-bold text-base text-toast-900">Assign Guests to Party</h3>
+            <h3 class="font-serif font-bold text-base text-jam-900">Assign Guests to Party</h3>
             <p class="text-xs text-muted mt-0.5">
               Assign {{ selectedGuestIds.size }} selected guest{{ selectedGuestIds.size === 1 ? '' : 's' }} to a party group.
             </p>
@@ -1997,12 +1997,12 @@ function getTableLabel(tableId: string | null): string {
 
           <div class="space-y-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Party / Group Name</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Party / Group Name</label>
               <input
                 v-model="partyInputName"
                 type="text"
                 placeholder="e.g. Dela Cruz Family, College Friends"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-2 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-2 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
                 autofocus
                 @keydown.enter.prevent="submitAddToParty"
               />
@@ -2019,7 +2019,7 @@ function getTableLabel(tableId: string | null): string {
                   class="px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer"
                   :class="partyInputName === pName
                     ? 'bg-red-500 border-red-500 text-white shadow-2xs font-semibold'
-                    : 'bg-bread-50 border-bread-200/80 text-toast-800 hover:bg-bread-100'"
+                    : 'bg-bread-50 border-bread-200/80 text-jam-800 hover:bg-bread-100'"
                   @click="partyInputName = pName"
                 >
                   {{ pName }}

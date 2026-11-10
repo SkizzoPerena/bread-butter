@@ -41,8 +41,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-toast-800 text-bread-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-xl rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
+  <div class="min-h-screen bg-jam-800 text-bread-100 flex items-center justify-center p-4">
+    <div class="w-full max-w-xl rounded-2xl bg-bread-100 text-jam-900 p-6 space-y-4 text-center">
       <p class="text-sm uppercase tracking-wide">
         Seat pass
       </p>
@@ -91,7 +91,7 @@ onMounted(async () => {
           <div
             v-for="companion in pass.companions"
             :key="companion._id"
-            class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-toast-700/20 bg-white p-3 text-sm"
+            class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-jam-700/20 bg-white p-3 text-sm"
           >
             <div>
               <p class="font-semibold">
@@ -103,7 +103,7 @@ onMounted(async () => {
             </div>
             <NuxtLink
               :to="companion.attendPath"
-              class="rounded-md border border-toast-800 px-3 py-1"
+              class="rounded-md border border-jam-800 px-3 py-1"
             >
               Open pass
             </NuxtLink>

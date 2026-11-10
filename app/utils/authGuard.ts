@@ -24,6 +24,9 @@ export function notifyWrongRoleAccess(expected: 'user' | 'partner') {
 
 const PUBLIC_PATHS = new Set([
   '/',
+  '/jam',
+  '/jam/landing',
+  '/jam-landing',
   '/faqs',
   '/terms',
   '/contact-us',
@@ -87,6 +90,7 @@ export function normalizeAuthPath(path: string): string {
 export function isPublicPath(path: string): boolean {
   const normalized = normalizeAuthPath(path)
   if (PUBLIC_PATHS.has(normalized)) return true
+  if (normalized === '/jam' || normalized === '/jam/landing' || normalized === '/jam-landing') return true
   if (normalized === '/our-suppliers' || normalized.startsWith('/our-suppliers/')) return true
   if (normalized === '/our-bakery' || normalized.startsWith('/our-bakery/')) return true
   if (normalized === '/bakery' || normalized.startsWith('/bakery/')) return true

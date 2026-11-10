@@ -126,7 +126,7 @@ async function payWithProof() {
 </script>
 
 <template>
-  <div class="bg-toast-700 min-h-screen pt-24 sm:pt-28 pb-10">
+  <div class="bg-jam-700 min-h-screen pt-24 sm:pt-28 pb-10">
     <UContainer class="max-w-xl space-y-4">
       <h1 class="text-3xl font-bold font-serif text-bread-400 text-center">
         Upgrade your plan
@@ -216,7 +216,7 @@ async function payWithProof() {
             v-for="option in options.options"
             :key="option._id"
             class="white-bread-container p-5 flex items-center justify-between gap-3"
-            :class="{ 'ring-2 ring-toast-600': selected?._id === option._id }"
+            :class="{ 'ring-2 ring-jam-600': selected?._id === option._id }"
             data-testid="upgrade-option"
           >
             <div>

@@ -6,6 +6,12 @@ import { useAuth, ensureSession } from '~/composables/useAuth'
 
 const route = useRoute()
 const { user, logout } = useAuth('user')
+const { triggerSlideTransition } = useJamSlideTransition()
+
+function onSwitchToJam() {
+  closeMobileMenu()
+  triggerSlideTransition('/jam', 'to-jam')
+}
 
 const isScrolled = ref(false)
 const isMobileMenuOpen = ref(false)
@@ -306,14 +312,24 @@ const moreInfoItems: DropdownMenuItem[][] = [
           <NuxtLink to="/?view=landing" class="flex items-center">
             <img class="h-10 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
           </NuxtLink>
-          <UBadge
-            color="bread"
-            variant="subtle"
-            size="xs"
-            class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
+          <button
+            type="button"
+            class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+            aria-label="Switch to Jam"
+            title="Switch to Jam"
+            @click.prevent.stop="onSwitchToJam"
           >
-            Closed Testing
-          </UBadge>
+            <img
+              src="~/assets/bpb-icons/Jam Logos-03.png"
+              class="size-3.5 sm:size-4 shrink-0 object-contain transition-transform duration-300 group-hover/jam:scale-110 brightness-0 invert"
+              alt="Jam"
+            />
+            <span
+              class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[11px] sm:text-xs font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1.5"
+            >
+              switch to jam
+            </span>
+          </button>
         </div>
       </template>
 
@@ -544,14 +560,24 @@ const moreInfoItems: DropdownMenuItem[][] = [
             <NuxtLink to="/?view=landing" class="flex items-center" @click="closeMobileMenu">
               <img class="h-7 w-auto" src="~/assets/bpb-icons/logo-white.svg" alt="Bread + Butter Logo" />
             </NuxtLink>
-            <UBadge
-              color="bread"
-              variant="subtle"
-              size="xs"
-              class="text-[10px] font-medium tracking-wide px-1.5 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
+            <button
+              type="button"
+              class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+              aria-label="Switch to Jam"
+              title="Switch to Jam"
+              @click.prevent.stop="onSwitchToJam"
             >
-              Closed Testing
-            </UBadge>
+              <img
+                src="~/assets/bpb-icons/Jam Logos-03.png"
+                class="size-3.5 shrink-0 object-contain transition-transform duration-300 group-hover/jam:scale-110 brightness-0 invert"
+                alt="Jam"
+              />
+              <span
+                class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[10px] font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1"
+              >
+                switch to jam
+              </span>
+            </button>
           </div>
         </div>
       </template>

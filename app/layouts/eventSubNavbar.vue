@@ -47,14 +47,7 @@ const titleThemeClass = computed(() => {
               <img v-if="route.meta.useLogo" src="~/assets/bpb-icons/logomark-toast-700.svg" class="h-7" />
               <img v-else src="~/assets/bpb-icons/logo-toast-700.svg" class="h-7" />
             </a>
-            <UBadge
-              color="toast"
-              variant="subtle"
-              size="xs"
-              class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-toast-200 text-toast-700 bg-toast-50"
-            >
-              Closed Testing
-            </UBadge>
+            
           </div>
           <div class="font-serif text-xl font-bold truncate max-w-[min(100%,20rem)] transition-colors" :class="titleThemeClass">
           <slot name="title">

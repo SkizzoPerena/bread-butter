@@ -9,6 +9,10 @@ const toast = useToast()
 const route = useRoute()
 const { register } = useAuth()
 
+useHead({
+  title: 'Create an account - Bread + Butter'
+})
+
 const isSubmitting = ref(false)
 
 const genderOptions = [
@@ -96,6 +100,13 @@ watch(state, (val) => {
 const isPasswordVisible = ref(false)
 const isRepassVisible = ref(false)
 
+const signInTarget = computed(() => {
+  const redirect = typeof route.query.redirect === 'string' && route.query.redirect.trim()
+    ? route.query.redirect.trim()
+    : ''
+  return redirect ? { path: '/user/login', query: { redirect } } : '/user/login'
+})
+
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (isSubmitting.value) {
     return
@@ -120,7 +131,18 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     state.value = { ...defaultForm }
     toast.add({ title: 'Registration started', description: 'Please enter the verification code sent to your email.' })
     const otpId = res?.otpId || 'demo-otp-id'
-    await navigateTo(`/user/otp?otpId=${encodeURIComponent(otpId)}&email=${encodeURIComponent(email)}`)
+    const redirectParam = typeof route.query.redirect === 'string' && route.query.redirect.trim()
+      ? route.query.redirect.trim()
+      : undefined
+
+    await navigateTo({
+      path: '/user/otp',
+      query: {
+        otpId,
+        email,
+        ...(redirectParam ? { redirect: redirectParam } : {})
+      }
+    })
   } catch (error) {
     toast.add({
       title: 'Sign up failed',
@@ -220,7 +242,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <div class="sm:col-span-2 space-y-2 pt-1">
               <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign up</UButton>
               <div class="text-xs sm:text-sm text-center">
-                Already have an account? <ULink to="/user/login" class="text-primary font-medium">Sign in</ULink> instead.
+                Already have an account? <ULink :to="signInTarget" class="text-primary font-medium">Sign in</ULink> instead.
               </div>
             </div>
           </div>

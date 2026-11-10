@@ -13,6 +13,13 @@ definePageMeta({
 })
 
 useHead({
+  title: "Bread+Butter, your event's digital home",
+  meta: [
+    {
+      name: 'description',
+      content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
+    }
+  ],
   link: [
     { rel: 'preload', href: '/images/hero-poster.webp', as: 'image', type: 'image/webp', fetchpriority: 'high' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -30,6 +37,15 @@ useHead({
       innerHTML: `html.has-stored-session #auth-checking-overlay{display:flex!important;}`
     }
   ]
+})
+
+useSeoMeta({
+  title: "Bread+Butter, your event's digital home",
+  ogTitle: "Bread+Butter, your event's digital home",
+  description: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.',
+  ogDescription: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.',
+  twitterTitle: "Bread+Butter, your event's digital home",
+  twitterDescription: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
 })
 
 const route = useRoute()

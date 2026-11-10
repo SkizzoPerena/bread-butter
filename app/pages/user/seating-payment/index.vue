@@ -143,7 +143,7 @@ async function payWithCheckout() {
 </script>
 
 <template>
-  <div class="bg-toast-700 h-screen max-h-screen flex flex-col justify-between py-3 px-4 sm:px-6 overflow-y-auto lg:overflow-hidden select-none">
+  <div class="bg-jam-700 h-screen max-h-screen flex flex-col justify-between py-3 px-4 sm:px-6 overflow-y-auto lg:overflow-hidden select-none">
     <!-- Header with Back Button (No Navbar) -->
     <header class="w-full max-w-xl mx-auto flex items-center justify-between pb-2 border-b border-white/10 shrink-0">
       <UButton

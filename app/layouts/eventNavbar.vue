@@ -66,11 +66,11 @@ const dropitems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-  <UDashboardNavbar variant="link" class="bg-toast-500/90 w-full sticky top-0 z-50 event-navbar text-white shrink-0">
+  <UDashboardNavbar variant="link" :class="[isJam ? 'bg-jam-500/95' : 'bg-toast-500/90', 'w-full sticky top-0 z-50 event-navbar text-white shrink-0']">
     <template #toggle>
       <!-- Built-in Navbar Toggle for Mobile -->
       <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'start', side: 'bottom' }" :ui="{
-        content: 'bg-toast-600/95 ring ring-transparent mt-1 min-w-52 rounded-xl text-white shadow-xl',
+        content: (isJam ? 'bg-jam-600/95' : 'bg-toast-600/95') + ' ring ring-transparent mt-1 min-w-52 rounded-xl text-white shadow-xl',
         label: '',
         itemLeadingIcon: 'text-white',
         item: 'text-white link data-disabled:cursor-default data-disabled:opacity-100',
@@ -92,25 +92,20 @@ const dropitems: DropdownMenuItem[][] = [
     <template #leading>
       <div class="flex items-center gap-2 sm:gap-2.5 mr-2 sm:mr-3 shrink-0">
         <a href="/" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer" @click="followLink($event, '/')">
-          <img src="~/assets/bpb-icons/logo-white.svg" class="h-6 sm:h-7" />
-          <UBadge
+          <img
             v-if="isJam"
-            color="warning"
-            variant="solid"
-            size="xs"
-            class="font-serif font-black tracking-widest text-[10px] sm:text-xs text-toast-950 px-2 py-0.5 rounded-full shadow-xs uppercase"
-          >
-            JAM
-          </UBadge>
+            src="~/assets/bpb-icons/Jam Logos-01.png"
+            class="h-6 sm:h-7 w-auto filter brightness-0 invert"
+            alt="Jam"
+          />
+          <img
+            v-else
+            src="~/assets/bpb-icons/logo-white.svg"
+            class="h-6 sm:h-7"
+            alt="Bread + Butter"
+          />
         </a>
-        <UBadge
-          color="bread"
-          variant="subtle"
-          size="xs"
-          class="text-[10px] sm:text-[11px] font-medium tracking-wide px-2 py-0.5 rounded-full border border-bread-400/30 text-bread-200 bg-bread-400/15"
-        >
-          Closed Testing
-        </UBadge>
+        
       </div>
       <div class="font-serif text-sm sm:text-xl font-bold truncate max-w-[min(100%,20rem)] text-white">
         {{ headerEventTitle }}

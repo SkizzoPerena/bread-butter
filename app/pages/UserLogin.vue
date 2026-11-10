@@ -15,6 +15,11 @@ import {
   resolveUserPostLoginRedirect
 } from '~/utils/paymentPendingGuard'
 
+useHead({
+  title: 'Sign in - Bread + Butter'
+})
+} from '~/utils/paymentPendingGuard'
+
 const toast = useToast()
 const route = useRoute()
 const { login } = useAuth()
@@ -48,6 +53,13 @@ onMounted(async () => {
 })
 
 const isSubmitting = ref(false)
+
+const signUpTarget = computed(() => {
+  const redirect = typeof route.query.redirect === 'string' && route.query.redirect.trim()
+    ? route.query.redirect.trim()
+    : ''
+  return redirect ? { path: '/user/signup', query: { redirect } } : '/user/signup'
+})
 
   const schema = z.object({
     email: z.string().email('Invalid email'),
@@ -183,7 +195,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
             <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign in</UButton>
 
             <p class="text-xs sm:text-sm text-center">
-              New to Bread+Butter? <ULink to="/user/signup" class="text-primary font-medium">Sign up here.</ULink>
+              New to Bread+Butter? <ULink :to="signUpTarget" class="text-primary font-medium">Sign up here.</ULink>
             </p>
           </UForm>
         </div>
@@ -232,7 +244,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
           <UButton type="submit" block size="sm" class="text-xs sm:text-sm py-1.5 sm:py-2" :loading="isSubmitting">Sign in</UButton>
 
           <p class="text-xs sm:text-sm text-center">
-            New to Bread+Butter? <ULink to="/user/signup" class="text-primary font-medium">Sign up here.</ULink>
+            New to Bread+Butter? <ULink :to="signUpTarget" class="text-primary font-medium">Sign up here.</ULink>
           </p>
         </UForm>
       </div>

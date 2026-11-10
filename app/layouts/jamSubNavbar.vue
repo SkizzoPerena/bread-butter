@@ -43,12 +43,12 @@ const titleThemeClass = computed(() => {
     'bg-red-50': 'text-red-600',
     'bg-yellow-50': 'text-yellow-700',
   }
-  return colorMap[bgClass] || 'text-toast-700'
+  return colorMap[bgClass] || 'text-jam-700'
 })
 </script>
 
 <template>
-  <div class="relative w-full min-h-screen" :class="route.meta.bgClass || 'bg-toast-50/20'">
+  <div class="relative w-full min-h-screen" :class="route.meta.bgClass || 'bg-jam-50/20'">
     <UDashboardNavbar class="bg-white w-full sticky top-0 z-50 event-navbar border-b border-bread-200/80 shadow-2xs">
       <!-- LEFT SIDE: Back Button, Logo, Badge, Subpage Title -->
       <template #left>
@@ -71,22 +71,22 @@ const titleThemeClass = computed(() => {
             >
               <img
                 v-if="route.meta.useLogo"
-                src="~/assets/bpb-icons/logomark-toast-700.svg"
+                src="~/assets/bpb-icons/Jam Logos-04.png"
                 class="h-6 sm:h-7"
                 alt="Bread & Butter"
               />
               <img
                 v-else
-                src="~/assets/bpb-icons/logo-toast-700.svg"
+                src="~/assets/bpb-icons/Jam Logos-02.png"
                 class="h-6 sm:h-7"
                 alt="Bread & Butter"
               />
             </button>
             <UBadge
-              color="warning"
+              color="jam"
               variant="solid"
               size="xs"
-              class="hidden min-[420px]:inline-flex text-[10px] sm:text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-full text-black bg-amber-400 border border-amber-300"
+              class="hidden min-[420px]:inline-flex text-[10px] sm:text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-full text-jam-700 bg-jam-50 border border-jam-200"
             >
               Jam Seating
             </UBadge>
@@ -119,7 +119,7 @@ const titleThemeClass = computed(() => {
             color="neutral"
             variant="ghost"
             size="sm"
-            class="text-toast-800 hover:bg-bread-100/60 cursor-pointer"
+            class="text-jam-800 hover:bg-bread-100/60 cursor-pointer"
             aria-label="Toggle actions menu"
             @click="isMobileMenuOpen = !isMobileMenuOpen"
           />
@@ -152,17 +152,17 @@ const titleThemeClass = computed(() => {
         >
           <div class="flex items-center justify-between border-b border-bread-100 pb-2">
             <div class="flex items-center gap-2">
-              <div class="size-6 rounded-lg bg-toast-100 flex items-center justify-center text-toast-800">
+              <div class="size-6 rounded-lg bg-jam-100 flex items-center justify-center text-jam-800">
                 <UIcon name="i-lucide-sparkles" class="size-3.5" />
               </div>
-              <span class="font-serif font-bold text-sm text-toast-900">Page Actions</span>
+              <span class="font-serif font-bold text-sm text-jam-900">Page Actions</span>
             </div>
             <UButton
               icon="i-lucide-x"
               color="neutral"
               variant="ghost"
               size="xs"
-              class="rounded-full size-6 p-0 text-muted hover:text-toast-900 cursor-pointer"
+              class="rounded-full size-6 p-0 text-muted hover:text-jam-900 cursor-pointer"
               aria-label="Close menu"
               @click="isMobileMenuOpen = false"
             />
