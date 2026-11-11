@@ -76,7 +76,8 @@ export function useInvitation() {
 
   async function uploadInvitationCardImage(
     invitationId: string,
-    file: File | Blob
+    file: File | Blob,
+    buttonColor?: string
   ): Promise<InvitationRecord> {
     if (isUiOnlyMode.value) {
       const url = URL.createObjectURL(file)
@@ -97,6 +98,10 @@ export function useInvitation() {
     }
     const form = new FormData()
     form.append('image', file, 'invitation-card.jpg')
+    // The email's reply button takes the card's accent color.
+    if (buttonColor && /^#[0-9a-f]{6}$/i.test(buttonColor)) {
+      form.append('buttonColor', buttonColor)
+    }
     let response: InvitationMutationResponse
     try {
       response = await apiUpload<InvitationMutationResponse>(

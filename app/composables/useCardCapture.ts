@@ -7,6 +7,30 @@ export interface CardCaptureOptions {
   backgroundColor?: string
 }
 
+const FONT_WAIT_MS = 4000
+
+function waitForStylesheets(): Promise<unknown> {
+  const pending = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))
+    .filter(link => !link.sheet)
+    .map(link => new Promise<void>((resolve) => {
+      link.addEventListener('load', () => resolve(), { once: true })
+      link.addEventListener('error', () => resolve(), { once: true })
+      setTimeout(resolve, FONT_WAIT_MS)
+    }))
+  return Promise.all(pending)
+}
+
+function loadUsedFonts(card: HTMLElement): Promise<unknown> {
+  if (!document.fonts) return Promise.resolve()
+  const fonts = new Set<string>()
+  for (const el of [card, ...Array.from(card.querySelectorAll<HTMLElement>('*'))]) {
+    const { fontFamily, fontWeight, fontStyle } = getComputedStyle(el)
+    fonts.add(`${fontStyle} ${fontWeight} 16px ${fontFamily}`)
+  }
+  // A font that fails to load falls back, which is better than no picture.
+  return Promise.all(Array.from(fonts).map(font => document.fonts.load(font).catch(() => undefined)))
+}
+
 export function useCardCapture() {
   const isCapturing = ref(false)
 
@@ -49,6 +73,8 @@ export function useCardCapture() {
       // Capturing at 580px ensures email desktop clients don't see a narrow mobile card
       const fixedWidth = options.fixedWidth ?? 580
       clone = element.cloneNode(true) as HTMLElement
+      // Editor-only hints aren't part of what guests get.
+      clone.querySelectorAll('[data-card-capture-hide]').forEach(node => node.remove())
       clone.style.width = `${fixedWidth}px`
       clone.style.maxWidth = `${fixedWidth}px`
       clone.style.minWidth = `${fixedWidth}px`
@@ -77,11 +103,17 @@ export function useCardCapture() {
       // Give browser a frame to compute clone layout
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 
+      // The picture can only embed fonts from loaded stylesheets, and a font loads once text uses it.
+      await waitForStylesheets()
+      await loadUsedFonts(clone)
+
       // 4. Render to Canvas at 2x resolution
       const canvas = await toCanvas(clone, {
         pixelRatio: 2,
         cacheBust: true,
         backgroundColor: options.backgroundColor ?? '#f7f4ef',
+        // The clone is parked off screen. Without this the picture keeps that offset and comes out blank.
+        style: { position: 'static', left: '0', top: '0', margin: '0', transform: 'none' },
       })
 
       // 5. Convert to JPEG Blob, ensuring size is under 1 MB

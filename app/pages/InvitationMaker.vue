@@ -317,7 +317,7 @@ async function retryUploadCardImage() {
   try {
     const blob = await captureStationeryCard()
     if (!blob) throw new Error('Could not capture card')
-    const updated = await uploadInvitationCardImage(existingInvitationId.value, blob)
+    const updated = await uploadInvitationCardImage(existingInvitationId.value, blob, effectivePalette.value.colors.secondary)
     if (updated?.cardImageUrl) {
       cardImageUrl.value = updated.cardImageUrl
     }
@@ -581,7 +581,7 @@ async function saveInvitation() {
       try {
         const blob = await captureStationeryCard()
         if (blob) {
-          const updated = await uploadInvitationCardImage(existingInvitationId.value, blob)
+          const updated = await uploadInvitationCardImage(existingInvitationId.value, blob, effectivePalette.value.colors.secondary)
           if (updated?.cardImageUrl) {
             cardImageUrl.value = updated.cardImageUrl
           }
@@ -1479,6 +1479,7 @@ function copyWebsiteRsvpLink() {
                 </button>
 
                 <p
+                  data-card-capture-hide
                   class="text-[11px] text-stone-500 dark:text-stone-400 mt-1"
                   :style="{ fontFamily: effectiveTypography.bodyFont }"
                 >
