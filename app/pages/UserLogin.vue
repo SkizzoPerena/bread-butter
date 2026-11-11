@@ -18,7 +18,6 @@ import {
 useHead({
   title: 'Sign in - Bread + Butter'
 })
-} from '~/utils/paymentPendingGuard'
 
 const toast = useToast()
 const route = useRoute()

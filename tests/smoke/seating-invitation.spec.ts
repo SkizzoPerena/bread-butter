@@ -150,3 +150,65 @@ test('a host designs the invitation with a live preview, and saves it', async ({
     .toHaveAttribute('src', design.bannerImageUrl)
   await expect(page.getByRole('button', { name: 'Remove', exact: true })).toBeVisible()
 })
+
+test('saving the maker uploads a picture of the card for the invitation email', async ({ page }) => {
+  const saved = { _id: GATHERING_ID, name: 'Damson supper', venue: 'The Hall', eventDate: '2030-01-15T00:00:00.000Z', status: 'ACTIVE', tables: [] }
+  const uploads: { contentType: string, body: Buffer }[] = []
+  await openInvitationPage(page, {
+    routes: {
+      [`PATCH /gatherings/${GATHERING_ID}/invitation/images/card`]: (route) => {
+        uploads.push({
+          contentType: route.request().headers()['content-type'] ?? '',
+          body: route.request().postDataBuffer() ?? Buffer.alloc(0),
+        })
+        return route.fulfill({
+          json: { success: true, status: 200, gathering: { ...saved, invitationDesign: { cardImageUrl: 'https://files.example.com/card.jpg' } } },
+        })
+      },
+      [`PATCH /gatherings/${GATHERING_ID}`]: route => route.fulfill({
+        json: { success: true, status: 200, gathering: saved },
+      }),
+    },
+  })
+
+  await page.getByLabel('Event Headline').fill('Ana turns 30')
+  await page.getByRole('button', { name: 'Save Draft' }).click()
+
+  await expect.poll(() => uploads.length).toBe(1)
+  const [upload] = uploads
+  expect(upload!.contentType).toContain('multipart/form-data')
+  const body = upload!.body
+  expect(body.includes(Buffer.from('Content-Type: image/jpeg'))).toBe(true)
+  // A blank picture is about 10 KB and a real card 80 KB or more.
+  const start = body.indexOf(Buffer.from([0xff, 0xd8, 0xff]))
+  expect(start).toBeGreaterThan(0)
+  expect(body.length - start).toBeGreaterThan(30_000)
+  await expect(page.getByText('Email card could not be generated', { exact: true })).toHaveCount(0)
+})
+
+test('saving in own-image mode doesn\'t upload a card, because the image is the card', async ({ page }) => {
+  const ownImage = { mode: 'IMAGE', imageUrl: 'https://files.example.com/own.png' }
+  const saved = { _id: GATHERING_ID, name: 'Damson supper', venue: 'The Hall', eventDate: '2030-01-15T00:00:00.000Z', status: 'ACTIVE', tables: [] }
+  const calls = await openInvitationPage(page, {
+    routes: {
+      [`PATCH /gatherings/${GATHERING_ID}/invitation/images/invitation`]: route => route.fulfill({
+        json: { success: true, status: 200, gathering: { ...saved, invitationDesign: ownImage } },
+      }),
+      [`PATCH /gatherings/${GATHERING_ID}`]: route => route.fulfill({
+        json: { success: true, status: 200, gathering: { ...saved, invitationDesign: ownImage } },
+      }),
+    },
+  })
+  await page.getByRole('button', { name: 'Next Step' }).click()
+  await page.getByRole('button', { name: 'Next Step' }).click()
+  await page.getByRole('button', { name: /Custom Image/ }).click()
+  await page.locator('input[type="file"]').setInputFiles(png(BLANK_PNG, 'own.png'))
+  await expect(page.getByRole('img', { name: 'Stationery', exact: true }).first()).toHaveAttribute('src', ownImage.imageUrl)
+
+  await page.getByRole('button', { name: 'Save Draft' }).click()
+  await expect.poll(() => calls.find(call => call.method === 'PATCH' && call.url.endsWith(GATHERING_ID))?.body).toMatchObject({
+    invitationDesign: { mode: 'IMAGE' },
+  })
+  await expect(page.getByText('Draft saved successfully', { exact: true })).toBeVisible()
+  expect(calls.some(call => call.url.includes('/invitation/images/card'))).toBe(false)
+})
