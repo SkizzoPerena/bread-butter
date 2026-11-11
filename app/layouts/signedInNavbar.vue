@@ -5,6 +5,7 @@ import { resolveProfileImageUrl } from '~/utils/profileImage'
 import { useAuth, ensureSession } from '~/composables/useAuth'
 
 const route = useRoute()
+const hideFooter = computed(() => Boolean(route.meta.hideFooter))
 const { user, logout } = useAuth('user')
 const { triggerSlideTransition } = useJamSlideTransition()
 
@@ -606,7 +607,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
       <slot />
     </main>
 
-    <UFooter v-if="!route.meta.hideFooter" class="bg-bread-400 flex flex-col items-center">
+    <UFooter v-if="!hideFooter" class="bg-bread-400 flex flex-col items-center">
       <p class="text-sm text-toast-600">
         Copyright © {{ new Date().getFullYear() }} Bread+Butter. All rights reserved.
       </p>

@@ -10,9 +10,13 @@ import {
 } from '~/utils/authGuard'
 import {
   buildPendingPaymentQuery,
+  buildPendingSeatingQuery,
   buildUserPaymentQuery,
   getUiPendingPayment,
+  getUiPendingSeatingPayment,
   getUiUnpaidEvent,
+  isGatheringPendingVerification,
+  isGatheringUnpaid,
   isSinglePendingEventAccount,
   isSingleUnpaidEventAccount,
   isUserHomePath,
@@ -40,7 +44,26 @@ async function checkPaymentRestriction(targetPath: string) {
     const { fetchUserEvents } = useEvents()
     const events = await fetchUserEvents()
     if (events.length === 0) {
-      if (needsCreateEventCheck && !(await hasSeatingPlans())) {
+      const { listGatherings } = useSeating()
+      const gatherings = await listGatherings().catch(() => [])
+      if (gatherings.length > 0) {
+        const latest = gatherings[0] as any
+        if (isGatheringPendingVerification(latest)) {
+          if (targetPath !== '/user/seating-payment/pending' && targetPath !== '/user/profile' && targetPath !== '/user/transactions' && targetPath !== '/user/report-issue') {
+            return navigateTo({
+              path: '/user/seating-payment/pending',
+              query: buildPendingSeatingQuery(latest) as Record<string, string>,
+            }, { replace: true })
+          }
+        } else if (isGatheringUnpaid(latest)) {
+          if (!targetPath.startsWith('/user/seating-payment') && targetPath !== '/user/profile' && targetPath !== '/user/transactions' && targetPath !== '/user/report-issue') {
+            return navigateTo({
+              path: '/user/seating-payment',
+              query: { gatheringId: latest._id },
+            }, { replace: true })
+          }
+        }
+      } else if (needsCreateEventCheck) {
         return navigateTo('/user/create-event', { replace: true })
       }
     } else if (
@@ -92,6 +115,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
         return navigateTo({
           path: '/user/payment-pending',
           query: uiPending as Record<string, string>,
+        }, { replace: true })
+      }
+      const uiSeatingPending = getUiPendingSeatingPayment()
+      if (uiSeatingPending && normalizedPath !== '/user/seating-payment/pending') {
+        return navigateTo({
+          path: '/user/seating-payment/pending',
+          query: uiSeatingPending as Record<string, string>,
         }, { replace: true })
       }
     }

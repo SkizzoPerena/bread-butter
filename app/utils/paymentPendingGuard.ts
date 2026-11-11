@@ -10,8 +10,18 @@ export interface PendingPaymentQueryParams {
   method?: string
 }
 
+export interface PendingSeatingQueryParams {
+  gatheringId?: string
+  ref?: string
+  name?: string
+  package?: string
+  method?: string
+}
+
 const UI_PENDING_KEY = 'bpb-ui-pending-payment'
 const UI_UNPAID_KEY = 'bpb-ui-unpaid-event'
+const UI_JAM_PENDING_KEY = 'bpb-ui-pending-seating-payment'
+const UI_JAM_UNPAID_KEY = 'bpb-ui-unpaid-seating'
 
 export function isSeatingFlowPath(path: string): boolean {
   return (
@@ -261,6 +271,42 @@ export function buildUserPaymentQuery(event: EventRecord): Record<string, string
 }
 
 /**
+ * Checks if a gathering has a proof of payment submitted but is not yet approved.
+ */
+export function isGatheringPendingVerification(gathering?: any): boolean {
+  if (!gathering) return false
+  if (gathering.status === 'ACTIVE' || gathering.payment?.status === 'APPROVED') return false
+  return gathering.status === 'PENDING_PAYMENT' && gathering.payment?.status === 'PENDING'
+}
+
+/**
+ * Checks if a gathering is unpaid (has no payment or payment was denied).
+ */
+export function isGatheringUnpaid(gathering?: any): boolean {
+  if (!gathering) return false
+  if (gathering.status === 'ACTIVE' || gathering.payment?.status === 'APPROVED') return false
+  return gathering.status === 'PENDING_PAYMENT' && (!gathering.payment || gathering.payment.status === 'DENIED')
+}
+
+/**
+ * Checks if a gathering is fully active.
+ */
+export function isGatheringActive(gathering?: any): boolean {
+  if (!gathering) return false
+  return gathering.status === 'ACTIVE' || gathering.payment?.status === 'APPROVED'
+}
+
+export function buildPendingSeatingQuery(gathering: any): PendingSeatingQueryParams {
+  return {
+    gatheringId: gathering._id || '',
+    ref: gathering.payment?.transactionId || gathering.payment?._id || '',
+    name: gathering.name || '',
+    package: gathering.packageName || '',
+    method: gathering.payment?.paymentMethod || '',
+  }
+}
+
+/**
  * Resolves post-login redirection route based on user's events and optional redirect parameter.
  */
 export function resolveUserPostLoginRedirect(
@@ -270,7 +316,23 @@ export function resolveUserPostLoginRedirect(
 ): string | { path: string; query: Record<string, string> } {
   if (events.length === 0) {
     if (gatherings.length > 0) {
+      const latestGathering = gatherings[0] as any
+      if (isGatheringPendingVerification(latestGathering)) {
+        return {
+          path: '/user/seating-payment/pending',
+          query: buildPendingSeatingQuery(latestGathering) as Record<string, string>,
+        }
+      }
+      if (isGatheringUnpaid(latestGathering)) {
+        return {
+          path: '/user/seating-payment',
+          query: { gatheringId: latestGathering._id },
+        }
+      }
       if (redirect && redirect !== '/' && redirect !== '/user/create-event') return redirect
+      if (isGatheringActive(latestGathering)) {
+        return `/jam/dashboard/${latestGathering._id}`
+      }
       return '/'
     }
     return redirect && redirect !== '/' ? redirect : '/user/create-event'
@@ -328,6 +390,34 @@ export function clearUiPendingPayment(): void {
   }
 }
 
+export function setUiPendingSeatingPayment(data: PendingSeatingQueryParams): void {
+  if (!import.meta.client) return
+  try {
+    sessionStorage.setItem(UI_JAM_PENDING_KEY, JSON.stringify(data))
+  } catch {
+    // Ignore
+  }
+}
+
+export function getUiPendingSeatingPayment(): PendingSeatingQueryParams | null {
+  if (!import.meta.client) return null
+  try {
+    const raw = sessionStorage.getItem(UI_JAM_PENDING_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function clearUiPendingSeatingPayment(): void {
+  if (!import.meta.client) return
+  try {
+    sessionStorage.removeItem(UI_JAM_PENDING_KEY)
+  } catch {
+    // Ignore
+  }
+}
+
 export function setUiUnpaidEvent(data: Record<string, string>): void {
   if (!import.meta.client) return
   try {
@@ -351,6 +441,34 @@ export function clearUiUnpaidEvent(): void {
   if (!import.meta.client) return
   try {
     sessionStorage.removeItem(UI_UNPAID_KEY)
+  } catch {
+    // Ignore
+  }
+}
+
+export function setUiUnpaidSeating(data: Record<string, string>): void {
+  if (!import.meta.client) return
+  try {
+    sessionStorage.setItem(UI_JAM_UNPAID_KEY, JSON.stringify(data))
+  } catch {
+    // Ignore
+  }
+}
+
+export function getUiUnpaidSeating(): Record<string, string> | null {
+  if (!import.meta.client) return null
+  try {
+    const raw = sessionStorage.getItem(UI_JAM_UNPAID_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function clearUiUnpaidSeating(): void {
+  if (!import.meta.client) return
+  try {
+    sessionStorage.removeItem(UI_JAM_UNPAID_KEY)
   } catch {
     // Ignore
   }

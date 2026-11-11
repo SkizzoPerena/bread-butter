@@ -3,9 +3,13 @@ import {
   isSinglePendingEventAccount,
   isSingleUnpaidEventAccount,
   buildPendingPaymentQuery,
+  buildPendingSeatingQuery,
   buildUserPaymentQuery,
   getUiPendingPayment,
-  getUiUnpaidEvent
+  getUiPendingSeatingPayment,
+  getUiUnpaidEvent,
+  isGatheringPendingVerification,
+  isGatheringUnpaid,
 } from '~/utils/paymentPendingGuard'
 
 definePageMeta({
@@ -103,6 +107,15 @@ onMounted(async () => {
         }, { replace: true })
         return
       }
+      const uiSeatingPending = getUiPendingSeatingPayment()
+      if (uiSeatingPending) {
+        clearAuthCheckingState()
+        await navigateTo({
+          path: '/user/seating-payment/pending',
+          query: uiSeatingPending as Record<string, string>,
+        }, { replace: true })
+        return
+      }
       const uiUnpaid = getUiUnpaidEvent()
       if (uiUnpaid) {
         clearAuthCheckingState()
@@ -128,7 +141,26 @@ onMounted(async () => {
       try {
         const events = await fetchUserEvents()
         if (events.length === 0) {
-          if (!(await hasSeatingPlans())) {
+          const gatherings = await useSeating().listGatherings().catch(() => [])
+          if (gatherings.length > 0) {
+            const latest = gatherings[0] as any
+            if (isGatheringPendingVerification(latest)) {
+              clearAuthCheckingState()
+              await navigateTo({
+                path: '/user/seating-payment/pending',
+                query: buildPendingSeatingQuery(latest) as Record<string, string>,
+              }, { replace: true })
+              return
+            }
+            if (isGatheringUnpaid(latest)) {
+              clearAuthCheckingState()
+              await navigateTo({
+                path: '/user/seating-payment',
+                query: { gatheringId: latest._id },
+              }, { replace: true })
+              return
+            }
+          } else {
             clearAuthCheckingState()
             await navigateTo('/user/create-event', { replace: true })
             return

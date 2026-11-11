@@ -11,6 +11,7 @@ import {
   buildPendingPaymentQuery,
   buildUserPaymentQuery,
   getUiPendingPayment,
+  getUiPendingSeatingPayment,
   getUiUnpaidEvent,
   resolveUserPostLoginRedirect
 } from '~/utils/paymentPendingGuard'
@@ -33,6 +34,11 @@ onMounted(async () => {
     const uiPending = getUiPendingPayment()
     if (uiPending) {
       await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
+      return
+    }
+    const uiSeatingPending = getUiPendingSeatingPayment()
+    if (uiSeatingPending) {
+      await navigateTo({ path: '/user/seating-payment/pending', query: uiSeatingPending as Record<string, string> })
       return
     }
     const uiUnpaid = getUiUnpaidEvent()
@@ -100,6 +106,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       const uiPending = getUiPendingPayment()
       if (uiPending) {
         await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
+        return
+      }
+      const uiSeatingPending = getUiPendingSeatingPayment()
+      if (uiSeatingPending) {
+        await navigateTo({ path: '/user/seating-payment/pending', query: uiSeatingPending as Record<string, string> })
         return
       }
       const uiUnpaid = getUiUnpaidEvent()
