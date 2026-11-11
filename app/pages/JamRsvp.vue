@@ -98,8 +98,8 @@ async function sendReply() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-toast-800 text-bread-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-xl rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
+  <div class="min-h-screen bg-jam-800 text-bread-100 flex items-center justify-center p-4">
+    <div class="w-full max-w-xl rounded-2xl bg-bread-100 text-jam-900 p-6 space-y-4 text-center">
       <p class="text-sm uppercase tracking-wide">
         Reply
       </p>
@@ -124,7 +124,7 @@ async function sendReply() {
         />
         <NuxtLink
           :to="attendPath"
-          class="inline-block rounded-md border border-toast-800 px-4 py-2"
+          class="inline-block rounded-md border border-jam-800 px-4 py-2"
         >
           See my seat pass
         </NuxtLink>
@@ -160,7 +160,7 @@ async function sendReply() {
               required
               maxlength="50"
               autocomplete="given-name"
-              class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
+              class="mt-1 w-full rounded-md border border-jam-700/30 bg-white px-3 py-2"
             >
           </label>
           <label class="block text-sm font-semibold">
@@ -170,13 +170,13 @@ async function sendReply() {
               required
               maxlength="50"
               autocomplete="family-name"
-              class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
+              class="mt-1 w-full rounded-md border border-jam-700/30 bg-white px-3 py-2"
             >
           </label>
         </div>
         <button
           type="submit"
-          class="rounded-md bg-toast-800 px-4 py-2 text-bread-100"
+          class="rounded-md bg-jam-800 px-4 py-2 text-bread-100"
           :disabled="saving"
         >
           Send reply

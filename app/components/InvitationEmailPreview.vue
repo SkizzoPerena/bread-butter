@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue'
-import { toCanvas } from 'html-to-image'
+import { computed } from 'vue'
 import type { ColorPalette, TypographySet } from '~/utils/websiteTheme'
 import {
   buildHiddenInvitationPreviewText,
@@ -17,10 +16,6 @@ const props = defineProps<{
   recipientEmail?: string
   eventId?: string
 }>()
-
-const cardImageRef = ref<HTMLElement | null>(null)
-const isCapturing = ref(false)
-const capturedCardDataUrl = ref<string | null>(null)
 
 // Resolve absolute URL for RSVP destination
 const resolvedAbsoluteUrl = computed(() => {
@@ -47,50 +42,6 @@ const hiddenInboxSnippet = computed(() => {
     guestName: props.invitation.guestName || 'Guest'
   })
 })
-
-async function captureCardImage(): Promise<string | null> {
-  if (!cardImageRef.value) return null
-  try {
-    isCapturing.value = true
-    if (typeof document !== 'undefined' && document.fonts) {
-      await document.fonts.ready
-    }
-
-    const canvas = await toCanvas(cardImageRef.value as unknown as HTMLElement, {
-      pixelRatio: 2,
-      cacheBust: true,
-      backgroundColor: '#f7f4ef',
-    })
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
-    capturedCardDataUrl.value = dataUrl
-    if (typeof window !== 'undefined' && dataUrl) {
-      try {
-        localStorage.setItem('bpb_invitation_card_latest', dataUrl)
-        const evId = props.eventId || (props.invitation as { eventId?: string })?.eventId
-        if (evId) {
-          localStorage.setItem(`bpb_invitation_card_${evId}`, dataUrl)
-        }
-      } catch (err) {
-        // quota exceeded or private mode, fallback gracefully
-      }
-    }
-    return dataUrl
-  } catch (err) {
-
-    console.warn('Could not capture card as image:', err)
-    return null
-  } finally {
-    isCapturing.value = false
-  }
-}
-
-onMounted(() => {
-  // Warm-up initial card snapshot after fonts render
-  setTimeout(() => {
-    captureCardImage()
-  }, 350)
-})
-
 </script>
 
 <template>
@@ -156,12 +107,24 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Live Email Body Preview Container (Pure Stationery PNG Card) -->
+      <!-- Live Email Body Preview Container -->
       <div class="bg-[#f7f4ef] p-4 sm:p-8 flex flex-col justify-center items-center overflow-x-auto min-h-130">
         
-        <!-- Rendered Email Card Container -->
+        <!-- Uploaded Card Image if available -->
         <div
-          ref="cardImageRef"
+          v-if="invitation.cardImageUrl"
+          class="w-full max-w-145 rounded-2xl shadow-md overflow-hidden bg-white border border-stone-200 text-center"
+        >
+          <img
+            :src="invitation.cardImageUrl"
+            alt="Invitation Card"
+            class="w-full h-auto block object-contain"
+          />
+        </div>
+
+        <!-- Rendered Email Card Container Fallback -->
+        <div
+          v-else
           class="w-full max-w-145 rounded-2xl shadow-md text-center transition-all duration-300 overflow-hidden"
           :class="invitation.bannerImageUrl ? '' : 'p-3'"
           :style="{

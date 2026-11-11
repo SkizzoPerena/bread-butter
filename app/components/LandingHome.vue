@@ -3,6 +3,7 @@ import type { PricingPlanProps } from '@nuxt/ui'
 
 
 useHead({
+  title: "Bread+Butter, your event's digital home",
   link: [
     { rel: 'preload', href: '/images/hero-poster.webp', as: 'image', type: 'image/webp', fetchpriority: 'high' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -262,11 +263,11 @@ function scrollMotion(delay: number = 0) {
         <div class="relative rounded-lg overflow-hidden h-64 sm:h-[85vh] w-full">
           <img src="https://lh3.googleusercontent.com/d/1-tM75FL0soVprwPc2wQ4WJnup1m2J-Qv" alt="Illustration"
             class="rounded-lg h-full w-full object-cover" loading="lazy" width="750" height="500" />
-          <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
+          <!-- <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
             <p class="text-white text-xs sm:text-sm font-medium [text-shadow:0_2px_4px_var(--color-toast-700)]">
               couple name, date
             </p>
-          </div>
+          </div> -->
         </div>
 
         <div>
@@ -307,11 +308,11 @@ function scrollMotion(delay: number = 0) {
         <div class="relative rounded-lg overflow-hidden h-64 sm:h-[85vh] w-full">
           <img src="https://lh3.googleusercontent.com/d/1So8l7ZSJ8Ba748jeL4_fZ07HRU-RZlS9" alt="Illustration"
             class="rounded-lg h-full w-full object-cover" loading="lazy" width="750" height="500" />
-          <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
+          <!-- <div class="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 max-w-[85%] sm:max-w-xs text-right">
             <p class="text-white text-xs sm:text-sm font-medium [text-shadow:0_2px_4px_var(--color-toast-700)]">
               couple name, date
             </p>
-          </div>
+          </div> -->
         </div>
       </UPageCard>
 

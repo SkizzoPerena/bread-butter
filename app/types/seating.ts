@@ -54,6 +54,8 @@ export interface JamInvitationDesign {
   receptionVenue?: string
   celebrationTitle?: string
   ctaText?: string
+  cardImageUrl?: string
+  cardImageUpdatedAt?: string
 }
 
 export interface SeatingUpgradeSnapshot {

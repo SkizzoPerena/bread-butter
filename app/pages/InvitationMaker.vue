@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { toCanvas } from 'html-to-image'
 import type { EventRecord } from '~/types/event'
 import type { CustomSiteRecord } from '~/types/customSite'
 import {
@@ -39,7 +38,11 @@ const { startPageTransition, finishPageTransition } = usePageTransition()
 const { activeEventId } = useActiveEvent()
 const { fetchEvent, getCachedEvent } = useEvents()
 const { fetchCustomSitesByEvent } = useCustomSite()
-const { fetchInvitationByEvent, createInvitation, updateInvitation } = useInvitation()
+const { fetchInvitationByEvent, createInvitation, updateInvitation, uploadInvitationCardImage } = useInvitation()
+const { captureCardAsBlob, isCapturing: isCapturingCard } = useCardCapture()
+const cardImageUrl = ref<string>('')
+const isUploadingCard = ref(false)
+const cardUploadFailed = ref(false)
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -248,7 +251,8 @@ const invitationEmailPayload = computed<InvitationEmailData>(() => ({
   deadlineDate: rsvpData.deadlineDate,
   websiteUrl: absoluteWebsiteUrl.value,
   guestName: 'Valued Guest',
-  bannerImageUrl: effectiveBannerImageUrl.value
+  bannerImageUrl: effectiveBannerImageUrl.value,
+  cardImageUrl: cardImageUrl.value
 }))
 
 // Stationery Card Node for HTML-to-Image Generation
@@ -263,6 +267,7 @@ function syncEstablishedInvitationToStorage() {
     typography: effectiveTypography.value,
     websiteSlug: websiteSlug.value,
     bannerImageUrl: effectiveBannerImageUrl.value,
+  cardImageUrl: cardImageUrl.value,
     bannerImageSource: bannerImageSource.value,
     requestLine: rsvpData.requestLine,
     eventLabel: rsvpData.eventLabel,
@@ -283,51 +288,55 @@ function syncEstablishedInvitationToStorage() {
   }
 }
 
-async function captureStationeryCardToStorage(): Promise<string | null> {
-  if (!stationeryCardRef.value) return null
-  try {
+async function captureStationeryCard(): Promise<Blob | null> {
+  const previousMode = previewMode.value
+  let switched = false
+  if (!stationeryCardRef.value && previewMode.value !== 'stationery') {
+    previewMode.value = 'stationery'
+    switched = true
     await nextTick()
-    if (typeof document !== 'undefined' && document.fonts) {
-      try {
-        await document.fonts.ready
-      } catch {}
-    }
-    const images = Array.from(stationeryCardRef.value.querySelectorAll('img'))
-    await Promise.all(
-      images.map((img) => {
-        if (img.complete && img.naturalHeight !== 0) return Promise.resolve()
-        return new Promise<void>((resolve) => {
-          img.onload = () => resolve()
-          img.onerror = () => resolve()
-          if ('decode' in img) {
-            img.decode().then(resolve).catch(resolve)
-          }
-          setTimeout(resolve, 800)
-        })
-      })
-    )
-
-    const canvas = await toCanvas(stationeryCardRef.value, {
-      pixelRatio: 2,
-      cacheBust: true,
-      backgroundColor: '#f7f4ef',
-    })
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
-    if (dataUrl && dataUrl.startsWith('data:image/')) {
-      try {
-        localStorage.setItem('bpb_invitation_card_latest', dataUrl)
-        if (eventId.value) {
-          localStorage.setItem(`bpb_invitation_card_${eventId.value}`, dataUrl)
-        }
-      } catch (err) {
-        console.warn('Could not cache stationery card image:', err)
-      }
-      return dataUrl
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  try {
+    if (!stationeryCardRef.value) return null
+    return await captureCardAsBlob(stationeryCardRef.value, { fixedWidth: 580, backgroundColor: '#f7f4ef' })
   } catch (err) {
     console.warn('Could not capture stationery card:', err)
+    return null
+  } finally {
+    if (switched) {
+      previewMode.value = previousMode
+    }
   }
-  return null
+}
+
+async function retryUploadCardImage() {
+  if (!existingInvitationId.value) return
+  isUploadingCard.value = true
+  cardUploadFailed.value = false
+  try {
+    const blob = await captureStationeryCard()
+    if (!blob) throw new Error('Could not capture card')
+    const updated = await uploadInvitationCardImage(existingInvitationId.value, blob, effectivePalette.value.colors.secondary)
+    if (updated?.cardImageUrl) {
+      cardImageUrl.value = updated.cardImageUrl
+    }
+    toast.add({
+      title: 'Email card ready!',
+      description: 'Your invitation card has been prepared for guest emails.',
+      color: 'success'
+    })
+  } catch (err) {
+    console.warn('Retry card upload failed:', err)
+    cardUploadFailed.value = true
+    toast.add({
+      title: 'Card upload failed',
+      description: 'Guest emails will use standard layout until card upload succeeds.',
+      color: 'warning'
+    })
+  } finally {
+    isUploadingCard.value = false
+  }
 }
 
 watch(
@@ -406,6 +415,9 @@ onMounted(async () => {
 
     if (fetchedInvitation) {
       existingInvitationId.value = fetchedInvitation._id
+      if (fetchedInvitation.cardImageUrl) {
+        cardImageUrl.value = fetchedInvitation.cardImageUrl
+      }
       applyInvitationToEditor(fetchedInvitation, { rsvpData, blocks: { value: [] } })
       if (rsvpData.bannerImageUrl) {
         customBannerDataUrl.value = rsvpData.bannerImageUrl
@@ -479,6 +491,20 @@ onMounted(async () => {
       }
     }
 
+    // Clean up legacy local-storage card caches
+    if (typeof window !== 'undefined') {
+      try {
+        const keysToRemove: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && key.startsWith('bpb_invitation_card_')) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
+      } catch {}
+    }
+
     syncEstablishedInvitationToStorage()
   } catch (error) {
     console.error('Error loading invitation details:', error)
@@ -521,7 +547,8 @@ async function saveInvitation() {
       eventId: currentEventId,
       rsvpData: {
         ...rsvpData,
-        bannerImageUrl: effectiveBannerImageUrl.value
+        bannerImageUrl: effectiveBannerImageUrl.value,
+  cardImageUrl: cardImageUrl.value
       },
       blocks: []
     })
@@ -546,7 +573,31 @@ async function saveInvitation() {
     }
 
     syncEstablishedInvitationToStorage()
-    captureStationeryCardToStorage().catch(() => null)
+
+    // Upload card image for invitation email
+    if (existingInvitationId.value) {
+      isUploadingCard.value = true
+      cardUploadFailed.value = false
+      try {
+        const blob = await captureStationeryCard()
+        if (blob) {
+          const updated = await uploadInvitationCardImage(existingInvitationId.value, blob, effectivePalette.value.colors.secondary)
+          if (updated?.cardImageUrl) {
+            cardImageUrl.value = updated.cardImageUrl
+          }
+        }
+      } catch (cardErr) {
+        console.warn('Could not upload invitation card image:', cardErr)
+        cardUploadFailed.value = true
+        toast.add({
+          title: 'Email card could not be generated',
+          description: 'Your invitation is saved! Guest emails will use standard layout until card upload succeeds.',
+          color: 'warning'
+        })
+      } finally {
+        isUploadingCard.value = false
+      }
+    }
 
     isPublished.value = true
     toast.add({
@@ -681,6 +732,18 @@ function copyWebsiteRsvpLink() {
             target="_blank"
           >
             Visit Website
+          </UButton>
+
+          <UButton
+            v-if="cardUploadFailed"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="sm"
+            :loading="isUploadingCard"
+            @click="retryUploadCardImage"
+          >
+            Retry Email Card
           </UButton>
 
           <UButton
@@ -1221,30 +1284,42 @@ function copyWebsiteRsvpLink() {
         <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-4">
           <!-- Preview Mode Switcher (Aligned to Right) -->
           <div class="flex items-center justify-end px-1">
-            <!-- Segmented Control: Web vs Email -->
-            <div class="inline-flex p-1 rounded-xl bg-stone-100 dark:bg-stone-800/90 border border-stone-200/80 dark:border-stone-700/80 shadow-xs">
-              <button
-                type="button"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                :class="previewMode === 'stationery'
-                  ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-xs'
-                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'"
-                @click="previewMode = 'stationery'"
+            <div class="flex items-center gap-2">
+              <UButton
+                v-if="cardUploadFailed"
+                icon="i-lucide-refresh-cw"
+                color="warning"
+                variant="soft"
+                size="xs"
+                :loading="isUploadingCard"
+                @click="retryUploadCardImage"
               >
-                <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                <span>Web Stationery</span>
-              </button>
-              <button
-                type="button"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                :class="previewMode === 'email'
-                  ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-xs'
-                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'"
-                @click="previewMode = 'email'"
-              >
-                <UIcon name="i-lucide-mail" class="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                <span>Email Client (Resend)</span>
-              </button>
+                Retry Email Card
+              </UButton>
+              <div class="inline-flex p-1 rounded-xl bg-stone-100 dark:bg-stone-800/90 border border-stone-200/80 dark:border-stone-700/80 shadow-xs">
+                <button
+                  type="button"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  :class="previewMode === 'stationery'
+                    ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-xs'
+                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'"
+                  @click="previewMode = 'stationery'"
+                >
+                  <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                  <span>Web Stationery</span>
+                </button>
+                <button
+                  type="button"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  :class="previewMode === 'email'
+                    ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-xs'
+                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'"
+                  @click="previewMode = 'email'"
+                >
+                  <UIcon name="i-lucide-mail" class="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                  <span>Email Client (Resend)</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1404,6 +1479,7 @@ function copyWebsiteRsvpLink() {
                 </button>
 
                 <p
+                  data-card-capture-hide
                   class="text-[11px] text-stone-500 dark:text-stone-400 mt-1"
                   :style="{ fontFamily: effectiveTypography.bodyFont }"
                 >

@@ -111,7 +111,7 @@ async function save() {
       <div
         v-for="(row, index) in rows"
         :key="row.key"
-        class="rounded-xl border border-toast-700/20 bg-white p-3 space-y-2"
+        class="rounded-xl border border-jam-700/20 bg-white p-3 space-y-2"
         data-testid="companion-row"
       >
         <div class="flex items-center justify-between gap-2">
@@ -135,7 +135,7 @@ async function save() {
               v-model="row.firstName"
               maxlength="50"
               :placeholder="row.placeholder || 'Optional'"
-              class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
+              class="mt-1 w-full rounded-md border border-jam-700/30 bg-white px-3 py-2"
             >
           </label>
           <label class="block text-sm">
@@ -144,7 +144,7 @@ async function save() {
               v-model="row.lastName"
               maxlength="50"
               :placeholder="row.placeholder ? '' : 'Optional'"
-              class="mt-1 w-full rounded-md border border-toast-700/30 bg-white px-3 py-2"
+              class="mt-1 w-full rounded-md border border-jam-700/30 bg-white px-3 py-2"
             >
           </label>
         </div>
@@ -153,7 +153,7 @@ async function save() {
         <button
           v-if="canAdd"
           type="button"
-          class="rounded-md border border-toast-800 px-3 py-1 text-sm disabled:opacity-50"
+          class="rounded-md border border-jam-800 px-3 py-1 text-sm disabled:opacity-50"
           :disabled="saving"
           @click="addRow"
         >
@@ -161,7 +161,7 @@ async function save() {
         </button>
         <button
           type="button"
-          class="rounded-md bg-toast-800 px-3 py-1 text-sm text-bread-100 disabled:opacity-50"
+          class="rounded-md bg-jam-800 px-3 py-1 text-sm text-bread-100 disabled:opacity-50"
           :disabled="saving"
           @click="save"
         >

@@ -249,7 +249,7 @@ async function chooseMode(next: 'MAKER' | 'IMAGE') {
     </div>
 
     <div class="space-y-2">
-      <p class="text-xs font-semibold text-toast-800">
+      <p class="text-xs font-semibold text-jam-800">
         Preview
       </p>
       <JamInvitationCard

@@ -20,6 +20,8 @@ import {
 } from '~/types/supplier'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
+import { useSuppliersDirectory } from '~/composables/useSuppliersDirectory'
+import type { SupplierCategory, SupplierTier } from '~/data/suppliersDirectory'
 import { EVENT_FEATURE } from '~/utils/eventTierFeatures'
 
 definePageMeta({
@@ -111,7 +113,7 @@ const savedSupplierDrafts = ref<Record<string, SupplierDraft>>({})
 const supplierModalUi = {
   header: 'bg-fuchsia-500 border-none',
   title: 'text-white font-serif text-xl',
-  content: 'border-none ring-transparent w-full max-w-md',
+  content: 'border-none ring-transparent w-full max-w-[40vw] min-w-[320px]',
   overlay: 'bg-fuchsia-900/30',
 }
 
@@ -145,6 +147,286 @@ const permitSelectItems = computed(() =>
 const supplierTypeSelectItems = computed(() =>
   SUPPLIER_TYPE_ORDER.map((value) => ({ label: value, value }))
 )
+
+const {
+  suppliersData: directoryCategories,
+  fetchSuppliersDirectory,
+} = useSuppliersDirectory()
+
+interface DirectoryVendorOption {
+  name: string
+  subCategory: string
+  category: string
+  tier?: SupplierTier
+}
+
+function filterDirectorySuppliers(
+  type: SupplierType,
+  title?: string,
+  categories: SupplierCategory[] = directoryCategories.value
+): DirectoryVendorOption[] {
+  const titleLower = (title || '').toLowerCase().trim()
+  const typeLower = (type || '').toLowerCase().trim()
+  const matches: DirectoryVendorOption[] = []
+
+  function titleMatches(subTitle: string, catTitle: string): boolean {
+    if (!titleLower) return false
+    const t = titleLower
+    const s = subTitle.toLowerCase()
+    const c = catTitle.toLowerCase()
+
+    if (
+      (t.includes('cater') || t.includes('food') || t.includes('meal') || t.includes('lechon') || t.includes('snack')) &&
+      (s.includes('cater') || s.includes('food') || s.includes('lechon') || s.includes('meal') || s.includes('gelato') || s.includes('ice cream'))
+    ) return true
+
+    if (t.includes('cake') && s.includes('cake')) return true
+
+    if (
+      (t.includes('bar') || t.includes('alcohol') || t.includes('cocktail') || t.includes('beverage') || t.includes('wine')) &&
+      (s.includes('bar') || s.includes('cocktail') || s.includes('wine') || s.includes('spirit') || s.includes('coffee'))
+    ) return true
+
+    if (t.includes('photo') && (s.includes('photo') || s.includes('editorial') || s.includes('booth'))) return true
+    if (t.includes('video') && s.includes('video')) return true
+
+    if (
+      (t.includes('hair') || t.includes('make-up') || t.includes('makeup') || t.includes('hmu') || t.includes('grooming')) &&
+      (s.includes('hair') || s.includes('hmu') || s.includes('grooming'))
+    ) return true
+
+    if (
+      (t.includes('couture') || t.includes('gown') || t.includes('dress') || t.includes('clothing') || t.includes('suit') || t.includes('tailor') || t.includes('barong') || t.includes('tie') || t.includes('shoe') || t.includes('formalwear')) &&
+      (c.includes('formal') || s.includes('couture') || s.includes('tailor') || s.includes('dress') || s.includes('shoe'))
+    ) return true
+
+    if (
+      (t.includes('stylist') || t.includes('styling') || t.includes('decor') || t.includes('backdrop') || t.includes('flower') || t.includes('florist') || t.includes('bouquet')) &&
+      (s.includes('stylist') || s.includes('florist'))
+    ) return true
+
+    if (
+      (t.includes('sound') || t.includes('light') || t.includes('led') || t.includes('truss') || t.includes('projector') || t.includes('screen') || t.includes('wall')) &&
+      (s.includes('sound') || s.includes('light') || s.includes('led'))
+    ) return true
+
+    if (
+      (t.includes('music') || t.includes('musician') || t.includes('band') || t.includes('choir') || t.includes('string') || t.includes('dj')) &&
+      (s.includes('band') || s.includes('choir') || s.includes('string') || s.includes('dj'))
+    ) return true
+
+    if ((t.includes('mc') || t.includes('host') || t.includes('emcee')) && s.includes('host')) return true
+    if (t.includes('dance') && s.includes('dance')) return true
+    if (t.includes('entertainment') && (c.includes('entertainment') || s.includes('booth') || s.includes('game') || s.includes('artist'))) return true
+    if ((t.includes('invitation') || t.includes('print') || t.includes('stationery') || t.includes('calligraph') || t.includes('save the date')) && c.includes('print')) return true
+    if ((t.includes('favor') || t.includes('gift') || t.includes('box') || t.includes('registry') || t.includes('ring') || t.includes('essential')) && c.includes('favor')) return true
+
+    return s.includes(t) || t.includes(s)
+  }
+
+  function typeMatches(subTitle: string, catTitle: string): boolean {
+    const s = subTitle.toLowerCase()
+    const c = catTitle.toLowerCase()
+    if (typeLower === 'prenuptial shoot') return c.includes('photo') || c.includes('formal') || s.includes('hair') || s.includes('stylist')
+    if (typeLower === 'preparation') return c.includes('vanity') || c.includes('formal') || c.includes('photo') || c.includes('print') || s.includes('meal') || s.includes('coffee') || s.includes('florist') || s.includes('stylist') || s.includes('essential')
+    if (typeLower === 'ceremony') return s.includes('choir') || s.includes('string') || s.includes('band') || c.includes('styling') || s.includes('print') || s.includes('essential') || c.includes('photo') || s.includes('host')
+    if (typeLower === 'cocktail') return c.includes('food') || s.includes('string') || s.includes('band') || s.includes('dj') || s.includes('game') || c.includes('styling') || s.includes('booth') || s.includes('paint')
+    if (typeLower === 'reception') return c.includes('food') || c.includes('entertainment') || c.includes('styling') || c.includes('photo') || c.includes('favor')
+    if (typeLower === 'after party') return s.includes('band') || s.includes('dj') || s.includes('game') || s.includes('dance') || s.includes('cart') || s.includes('station') || s.includes('bar') || s.includes('spirit') || s.includes('sound') || s.includes('photo')
+    return true
+  }
+
+  if (titleLower) {
+    for (const cat of categories) {
+      for (const sub of cat.subcategories) {
+        if (titleMatches(sub.title, cat.title)) {
+          for (const v of sub.vendors) {
+            matches.push({
+              name: v.name,
+              subCategory: sub.title,
+              category: cat.title,
+              tier: v.tier,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  if (matches.length > 0) {
+    const seen = new Set<string>()
+    return matches.filter((m) => {
+      if (seen.has(m.name)) return false
+      seen.add(m.name)
+      return true
+    })
+  }
+
+  for (const cat of categories) {
+    for (const sub of cat.subcategories) {
+      if (typeMatches(sub.title, cat.title)) {
+        for (const v of sub.vendors) {
+          matches.push({
+            name: v.name,
+            subCategory: sub.title,
+            category: cat.title,
+            tier: v.tier,
+          })
+        }
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    for (const cat of categories) {
+      for (const sub of cat.subcategories) {
+        for (const v of sub.vendors) {
+          matches.push({
+            name: v.name,
+            subCategory: sub.title,
+            category: cat.title,
+            tier: v.tier,
+          })
+        }
+      }
+    }
+  }
+
+  const seen = new Set<string>()
+  return matches.filter((m) => {
+    if (seen.has(m.name)) return false
+    seen.add(m.name)
+    return true
+  })
+}
+
+const isCustomModalVendor = ref(false)
+const isCustomNewVendor = ref(false)
+
+const modalVendorSelectItems = computed(() => {
+  const supplier = selectedSupplierForModal.value
+  if (!supplier) return []
+  const draft = supplierDrafts.value[supplier._id]
+  const currentType = draft?.supplierType || supplier.supplierType
+  const currentTitle = supplier.supplierTitle
+  const currentVendorName = (draft?.vendorName || supplier.vendorName || '').trim()
+
+  const list = filterDirectorySuppliers(currentType, currentTitle)
+  const items: { label: string; value: string }[] = list.map((v) => ({
+    label: `${v.name} (${v.subCategory})`,
+    value: v.name,
+  }))
+
+  items.sort((a, b) => a.label.localeCompare(b.label))
+
+  if (
+    currentVendorName &&
+    currentVendorName !== 'Assigned' &&
+    !items.some((i) => i.value.toLowerCase() === currentVendorName.toLowerCase())
+  ) {
+    items.unshift({
+      label: `${currentVendorName} (Custom)`,
+      value: currentVendorName,
+    })
+  }
+
+  items.push({
+    label: '✏️ Enter custom vendor...',
+    value: '__CUSTOM_VENDOR__',
+  })
+
+  return items
+})
+
+const modalVendorSelection = computed({
+  get() {
+    if (!selectedSupplierForModal.value) return ''
+    const draft = supplierDrafts.value[selectedSupplierForModal.value._id]
+    const val = draft?.vendorName ?? ''
+    return val === 'Assigned' ? '' : val
+  },
+  set(val: string) {
+    if (val === '__CUSTOM_VENDOR__') {
+      isCustomModalVendor.value = true
+      return
+    }
+    isCustomModalVendor.value = false
+    if (selectedSupplierForModal.value) {
+      const draft = supplierDrafts.value[selectedSupplierForModal.value._id]
+      if (draft) {
+        draft.vendorName = val
+      }
+    }
+  },
+})
+
+const modalVendorHelpText = computed(() => {
+  const supplier = selectedSupplierForModal.value
+  if (!supplier) return undefined
+  const draft = supplierDrafts.value[supplier._id]
+  const type = draft?.supplierType || supplier.supplierType
+  const title = supplier.supplierTitle
+  const count = Math.max(0, modalVendorSelectItems.value.length - 1)
+  return `${count} existing suppliers available for ${title ? `${title} (${type})` : type}`
+})
+
+const newVendorSelectItems = computed(() => {
+  const currentType = newSupplierForm.value.supplierType
+  const currentTitle = newSupplierForm.value.supplierTitle
+  const currentVendorName = newSupplierForm.value.vendorName.trim()
+
+  const list = filterDirectorySuppliers(currentType, currentTitle)
+  const items: { label: string; value: string }[] = list.map((v) => ({
+    label: `${v.name} (${v.subCategory})`,
+    value: v.name,
+  }))
+
+  items.sort((a, b) => a.label.localeCompare(b.label))
+
+  if (
+    currentVendorName &&
+    !items.some((i) => i.value.toLowerCase() === currentVendorName.toLowerCase())
+  ) {
+    items.unshift({
+      label: `${currentVendorName} (Custom)`,
+      value: currentVendorName,
+    })
+  }
+
+  items.push({
+    label: '✏️ Enter custom vendor...',
+    value: '__CUSTOM_VENDOR__',
+  })
+
+  return items
+})
+
+const newVendorSelection = computed({
+  get() {
+    return newSupplierForm.value.vendorName
+  },
+  set(val: string) {
+    if (val === '__CUSTOM_VENDOR__') {
+      isCustomNewVendor.value = true
+      return
+    }
+    isCustomNewVendor.value = false
+    newSupplierForm.value.vendorName = val
+    if (!newSupplierForm.value.supplierTitle) {
+      const matched = filterDirectorySuppliers(newSupplierForm.value.supplierType, '').find((v) => v.name === val)
+      if (matched) {
+        newSupplierForm.value.supplierTitle = matched.subCategory
+      }
+    }
+  },
+})
+
+const newVendorHelpText = computed(() => {
+  const type = newSupplierForm.value.supplierType
+  const title = newSupplierForm.value.supplierTitle.trim()
+  const count = Math.max(0, newVendorSelectItems.value.length - 1)
+  return `${count} existing suppliers available for ${title ? `${title} (${type})` : type}`
+})
 
 function toBalanceAmount(value: unknown): number {
   const amount = typeof value === 'number' ? value : Number(value)
@@ -419,6 +701,7 @@ async function saveSupplier(supplierId: string) {
 function openSupplierModal(supplier: SupplierRecord, mode: 'assign' | 'edit') {
   selectedSupplierForModal.value = supplier
   modalMode.value = mode
+  isCustomModalVendor.value = false
   if (!supplierDrafts.value[supplier._id]) {
     supplierDrafts.value[supplier._id] = buildSupplierDraft(supplier)
   }
@@ -498,11 +781,13 @@ function openDeleteModal(supplier: SupplierRecord) {
 
 function openAddSupplierModal() {
   newSupplierForm.value = createEmptyNewSupplierForm()
+  isCustomNewVendor.value = false
   isAddSupplierModalOpen.value = true
 }
 
 function openAddSupplierModalForType(type: SupplierType) {
   newSupplierForm.value = createEmptyNewSupplierForm(type)
+  isCustomNewVendor.value = false
   isAddSupplierModalOpen.value = true
 }
 
@@ -565,6 +850,7 @@ onMounted(async () => {
   }
 
   try {
+    fetchSuppliersDirectory()
     await loadEventData()
     await loadSuppliersData()
   } finally {
@@ -1070,8 +1356,12 @@ watch(eventId, async () => {
     >
       <template #body>
         <div v-if="selectedSupplierForModal && supplierDrafts[selectedSupplierForModal._id]" class="space-y-4">
-          <div class="grid gap-3 grid-cols-1 sm:grid-cols-2">
-            <UFormField label="Category" :name="`${selectedSupplierForModal._id}-modal-type`">
+          <div class="grid grid-cols-4 gap-3">
+            <UFormField
+              label="Category"
+              :name="`${selectedSupplierForModal._id}-modal-type`"
+              class="col-span-1"
+            >
               <USelect
                 v-model="supplierDrafts[selectedSupplierForModal._id]!.supplierType"
                 :items="supplierTypeSelectItems"
@@ -1080,16 +1370,49 @@ watch(eventId, async () => {
               />
             </UFormField>
 
-            <UFormField label="Vendor name" :name="`${selectedSupplierForModal._id}-modal-vendor`">
-              <UInput
-                v-model="supplierDrafts[selectedSupplierForModal._id]!.vendorName"
-                class="w-full"
-                placeholder="Company or vendor name"
-                :disabled="mutationsDisabled || isSubmitting"
-              />
+            <UFormField
+              label="Vendor name"
+              :name="`${selectedSupplierForModal._id}-modal-vendor`"
+              :help="modalVendorHelpText"
+              class="col-span-3"
+            >
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-1.5">
+                  <USelect
+                    v-if="!isCustomModalVendor"
+                    v-model="modalVendorSelection"
+                    :items="modalVendorSelectItems"
+                    class="w-full"
+                    placeholder="Select existing supplier..."
+                    :disabled="mutationsDisabled || isSubmitting"
+                  />
+                  <UInput
+                    v-else
+                    v-model="supplierDrafts[selectedSupplierForModal._id]!.vendorName"
+                    class="w-full"
+                    placeholder="Company or vendor name"
+                    :disabled="mutationsDisabled || isSubmitting"
+                    autofocus
+                  />
+                  <UButton
+                    v-if="isCustomModalVendor"
+                    icon="i-lucide-list"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                    title="Choose from existing suppliers"
+                    aria-label="Choose from existing suppliers"
+                    @click="isCustomModalVendor = false"
+                  />
+                </div>
+              </div>
             </UFormField>
 
-            <UFormField label="Contract" :name="`${selectedSupplierForModal._id}-modal-contract`">
+            <UFormField
+              label="Contract"
+              :name="`${selectedSupplierForModal._id}-modal-contract`"
+              class="col-span-1"
+            >
               <USelect
                 v-model="supplierDrafts[selectedSupplierForModal._id]!.contract"
                 :items="contractSelectItems"
@@ -1098,7 +1421,11 @@ watch(eventId, async () => {
               />
             </UFormField>
 
-            <UFormField label="Permit" :name="`${selectedSupplierForModal._id}-modal-permit`">
+            <UFormField
+              label="Permit"
+              :name="`${selectedSupplierForModal._id}-modal-permit`"
+              class="col-span-1"
+            >
               <USelect
                 v-model="supplierDrafts[selectedSupplierForModal._id]!.permit"
                 :items="permitSelectItems"
@@ -1107,7 +1434,11 @@ watch(eventId, async () => {
               />
             </UFormField>
 
-            <UFormField label="Total balance" :name="`${selectedSupplierForModal._id}-modal-total`">
+            <UFormField
+              label="Total balance"
+              :name="`${selectedSupplierForModal._id}-modal-total`"
+              class="col-span-1"
+            >
               <UInput
                 v-model.number="supplierDrafts[selectedSupplierForModal._id]!.totalBalance"
                 type="number"
@@ -1118,7 +1449,11 @@ watch(eventId, async () => {
               />
             </UFormField>
 
-            <UFormField label="Settled balance" :name="`${selectedSupplierForModal._id}-modal-settled`">
+            <UFormField
+              label="Settled balance"
+              :name="`${selectedSupplierForModal._id}-modal-settled`"
+              class="col-span-1"
+            >
               <UInput
                 v-model.number="supplierDrafts[selectedSupplierForModal._id]!.settledBalance"
                 type="number"
@@ -1206,8 +1541,8 @@ watch(eventId, async () => {
       :dismissible="!isSubmitting"
     >
       <template #body>
-        <div class="space-y-4">
-          <UFormField label="Category" name="new-supplier-type" required>
+        <div class="grid grid-cols-4 gap-3">
+          <UFormField label="Category" name="new-supplier-type" class="col-span-2" required>
             <USelect
               v-model="newSupplierForm.supplierType"
               :items="supplierTypeSelectItems"
@@ -1216,7 +1551,7 @@ watch(eventId, async () => {
             />
           </UFormField>
 
-          <UFormField label="Supplier title" name="new-supplier-title" required>
+          <UFormField label="Supplier title" name="new-supplier-title" class="col-span-2" required>
             <UInput
               v-model="newSupplierForm.supplierTitle"
               class="w-full"
@@ -1225,16 +1560,45 @@ watch(eventId, async () => {
             />
           </UFormField>
 
-          <UFormField label="Vendor name" name="new-vendor-name">
-            <UInput
-              v-model="newSupplierForm.vendorName"
-              class="w-full"
-              placeholder="Company or vendor name"
-              :disabled="mutationsDisabled || isSubmitting"
-            />
+          <UFormField
+            label="Vendor name"
+            name="new-vendor-name"
+            :help="newVendorHelpText"
+            class="col-span-4"
+          >
+            <div class="space-y-1.5">
+              <div class="flex items-center gap-1.5">
+                <USelect
+                  v-if="!isCustomNewVendor"
+                  v-model="newVendorSelection"
+                  :items="newVendorSelectItems"
+                  class="w-full"
+                  placeholder="Select existing supplier..."
+                  :disabled="mutationsDisabled || isSubmitting"
+                />
+                <UInput
+                  v-else
+                  v-model="newSupplierForm.vendorName"
+                  class="w-full"
+                  placeholder="Company or vendor name"
+                  :disabled="mutationsDisabled || isSubmitting"
+                  autofocus
+                />
+                <UButton
+                  v-if="isCustomNewVendor"
+                  icon="i-lucide-list"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  title="Choose from existing suppliers"
+                  aria-label="Choose from existing suppliers"
+                  @click="isCustomNewVendor = false"
+                />
+              </div>
+            </div>
           </UFormField>
 
-          <UFormField label="Contract" name="new-contract">
+          <UFormField label="Contract" name="new-contract" class="col-span-1">
             <USelect
               v-model="newSupplierForm.contract"
               :items="contractSelectItems"
@@ -1243,7 +1607,7 @@ watch(eventId, async () => {
             />
           </UFormField>
 
-          <UFormField label="Permit" name="new-permit">
+          <UFormField label="Permit" name="new-permit" class="col-span-1">
             <USelect
               v-model="newSupplierForm.permit"
               :items="permitSelectItems"
@@ -1252,7 +1616,7 @@ watch(eventId, async () => {
             />
           </UFormField>
 
-          <UFormField label="Total balance" name="new-total-balance">
+          <UFormField label="Total balance" name="new-total-balance" class="col-span-2">
             <UInput
               v-model.number="newSupplierForm.totalBalance"
               type="number"

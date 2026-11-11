@@ -3,12 +3,23 @@ import type { RouteLocationRaw } from 'vue-router'
 export function usePageTransition() {
   const isTransitionActive = useState<boolean>('app_page_transition_active', () => false)
   const isTransitionVisible = useState<boolean>('app_page_transition_visible', () => false)
+  const isJamTransition = useState<boolean>('app_page_transition_is_jam', () => false)
   const transitionStartTime = useState<number>('app_page_transition_start_time', () => 0)
 
   async function startPageTransition(to?: RouteLocationRaw, options?: { minDuration?: number; maxDuration?: number }) {
     transitionStartTime.value = Date.now()
     isTransitionActive.value = true
     isTransitionVisible.value = true
+
+    try {
+      const route = useRoute()
+      const targetStr = typeof to === 'string' ? to : (to && typeof to === 'object' && 'path' in to ? String((to as any).path) : '')
+      const currentPath = route?.path || ''
+      const isJamPath = (p: string) => p.startsWith('/jam') || p.startsWith('/user/create-seating') || p.startsWith('/user/seating-payment') || p.startsWith('/seat/')
+      isJamTransition.value = isJamPath(targetStr) || isJamPath(currentPath)
+    } catch {
+      // fallback
+    }
 
     // Safety timeout: automatically fade out if a destination page never calls finishPageTransition (e.g. 10s)
     const maxDuration = options?.maxDuration ?? 10000
@@ -59,6 +70,7 @@ export function usePageTransition() {
   return {
     isTransitionActive,
     isTransitionVisible,
+    isJamTransition,
     startPageTransition,
     followLink,
     finishPageTransition,

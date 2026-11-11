@@ -47,7 +47,7 @@ const buttonLabel = computed(() => {
 <template>
   <article
     v-if="usesOwnImage"
-    class="overflow-hidden rounded-2xl bg-white text-center text-toast-900 shadow-sm border border-stone-200/80"
+    class="overflow-hidden rounded-2xl bg-white text-center text-jam-900 shadow-sm border border-stone-200/80"
     data-testid="jam-invitation-card"
   >
     <img

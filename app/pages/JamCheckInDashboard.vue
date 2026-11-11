@@ -194,7 +194,7 @@ async function downloadGuests() {
 </script>
 
 <template>
-  <div class="bg-toast-700 min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 text-toast-900 select-none relative">
+  <div class="bg-jam-700 min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 text-jam-900 select-none relative">
     <div class="w-full max-w-4xl space-y-2 my-auto">
       <!-- Minimal Organizer Back Navigation -->
       <div class="flex items-center justify-between px-1">
@@ -212,8 +212,8 @@ async function downloadGuests() {
 
       <!-- Loading State -->
       <div v-if="loading" class="white-bread-container p-8 text-center space-y-3 shadow-xl">
-        <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-toast-600 mx-auto" />
-        <p class="font-serif text-lg font-bold text-toast-800">Loading check-in station...</p>
+        <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-jam-600 mx-auto" />
+        <p class="font-serif text-lg font-bold text-jam-800">Loading check-in station...</p>
       </div>
 
       <!-- Inactive Gathering Warning -->
@@ -225,8 +225,8 @@ async function downloadGuests() {
           <UIcon name="i-lucide-lock" class="size-7" />
         </div>
         <div class="space-y-1">
-          <h2 class="text-2xl font-serif font-bold text-toast-900">Check-in Unavailable</h2>
-          <p class="text-xs sm:text-sm text-toast-700">
+          <h2 class="text-2xl font-serif font-bold text-jam-900">Check-in Unavailable</h2>
+          <p class="text-xs sm:text-sm text-jam-700">
             Payment for this Jam plan is pending. Complete payment to activate guest passes and live QR check-in.
           </p>
         </div>
@@ -241,14 +241,14 @@ async function downloadGuests() {
       <!-- GUEST-FACING MAIN CARD: Simplified, Highlighted Event Header -->
       <div
         v-else-if="gathering"
-        class="white-bread-container rounded-2xl shadow-2xl border border-toast-600/20 overflow-hidden"
+        class="white-bread-container rounded-2xl shadow-2xl border border-jam-600/20 overflow-hidden"
       >
         <!-- Card Title Header with Distinct Colored Background -->
-        <div class="bg-bread-400 text-toast-900 p-5 sm:p-6 text-center border-b border-toast-600/15">
-          <h1 class="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-toast-950">
+        <div class="bg-bread-400 text-jam-900 p-5 sm:p-6 text-center border-b border-jam-600/15">
+          <h1 class="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-jam-950">
             {{ gathering.name }}
           </h1>
-          <p class="text-xs sm:text-sm text-toast-800 font-medium mt-1">
+          <p class="text-xs sm:text-sm text-jam-800 font-medium mt-1">
             {{ gathering.venue }} <span v-if="gathering.venue && gatheringDateFormatted">·</span> {{ gatheringDateFormatted }}
           </p>
         </div>
@@ -256,13 +256,13 @@ async function downloadGuests() {
         <!-- Card Body: 2 Clean Guest Actions (QR Seat Finder & Pass Scanner) -->
         <div class="p-5 sm:p-7 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 items-stretch bg-white/95">
           <!-- Left Column: Gathering Seat Finder QR -->
-          <div class="bg-toast-50/70 p-4 sm:p-5 rounded-xl border border-bread-200/90 flex flex-col items-center justify-between text-center space-y-3.5">
+          <div class="bg-jam-50/70 p-4 sm:p-5 rounded-xl border border-bread-200/90 flex flex-col items-center justify-between text-center space-y-3.5">
             <div class="space-y-1">
-              <div class="flex items-center justify-center gap-1.5 text-toast-900 font-bold text-base font-serif">
-                <UIcon name="i-lucide-qr-code" class="size-5 text-toast-600" />
+              <div class="flex items-center justify-center gap-1.5 text-jam-900 font-bold text-base font-serif">
+                <UIcon name="i-lucide-qr-code" class="size-5 text-jam-600" />
                 <span>Find Your Table & Seat</span>
               </div>
-              <p class="text-xs text-toast-700">
+              <p class="text-xs text-jam-700">
                 Scan this QR code with your phone camera to look up your assigned table and seat number.
               </p>
             </div>
@@ -279,13 +279,13 @@ async function downloadGuests() {
           </div>
 
           <!-- Right Column: Guest Pass Scanner -->
-          <div class="bg-toast-50/70 p-4 sm:p-5 rounded-xl border border-bread-200/90 flex flex-col items-center justify-between text-center space-y-3.5">
+          <div class="bg-jam-50/70 p-4 sm:p-5 rounded-xl border border-bread-200/90 flex flex-col items-center justify-between text-center space-y-3.5">
             <div class="space-y-1">
-              <div class="flex items-center justify-center gap-1.5 text-toast-900 font-bold text-base font-serif">
-                <UIcon name="i-lucide-scan" class="size-5 text-toast-600" />
+              <div class="flex items-center justify-center gap-1.5 text-jam-900 font-bold text-base font-serif">
+                <UIcon name="i-lucide-scan" class="size-5 text-jam-600" />
                 <span>Scan Attendance Pass</span>
               </div>
-              <p class="text-xs text-toast-700">
+              <p class="text-xs text-jam-700">
                 Present your personal QR pass to the camera or upload an image to check in.
               </p>
             </div>
@@ -356,13 +356,13 @@ async function downloadGuests() {
       }"
     >
       <template #content>
-        <div class="flex flex-col max-h-[85vh] text-toast-900 bg-white">
+        <div class="flex flex-col max-h-[85vh] text-jam-900 bg-white">
           <!-- Modal Header -->
-          <div class="p-5 sm:p-6 border-b border-toast-200/80 space-y-3 bg-toast-50/40 shrink-0">
+          <div class="p-5 sm:p-6 border-b border-jam-200/80 space-y-3 bg-jam-50/40 shrink-0">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-clipboard-check" class="size-6 text-toast-600" />
-                <h3 class="text-xl sm:text-2xl font-serif font-bold text-toast-900">
+                <UIcon name="i-lucide-clipboard-check" class="size-6 text-jam-600" />
+                <h3 class="text-xl sm:text-2xl font-serif font-bold text-jam-900">
                   Guest Attendance Roster
                 </h3>
               </div>
@@ -448,7 +448,7 @@ async function downloadGuests() {
                     </div>
                     <div class="min-w-0">
                       <div class="flex items-center gap-2">
-                        <span class="font-semibold text-sm text-toast-900 truncate">{{ guestDisplayName(guest) }}</span>
+                        <span class="font-semibold text-sm text-jam-900 truncate">{{ guestDisplayName(guest) }}</span>
                         <UBadge v-if="guest.partyName" color="neutral" variant="subtle" size="xs" class="text-[10px]">
                           {{ guest.partyName }}
                         </UBadge>
@@ -499,15 +499,15 @@ async function downloadGuests() {
                 <div
                   v-for="guest in displayedNotConfirmed"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-toast-50/50 transition-colors border-b border-bread-200/60 last:border-b-0"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-jam-50/50 transition-colors border-b border-bread-200/60 last:border-b-0"
                 >
                   <div class="flex items-center gap-3 min-w-0">
-                    <div class="size-8 rounded-full bg-toast-100 text-toast-600 font-bold flex items-center justify-center shrink-0 text-xs">
+                    <div class="size-8 rounded-full bg-jam-100 text-jam-600 font-bold flex items-center justify-center shrink-0 text-xs">
                       {{ (guest.firstName?.[0] || 'G').toUpperCase() }}{{ (guest.lastName?.[0] || '').toUpperCase() }}
                     </div>
                     <div class="min-w-0">
                       <div class="flex items-center gap-2">
-                        <span class="font-semibold text-sm text-toast-900 truncate">{{ guestDisplayName(guest) }}</span>
+                        <span class="font-semibold text-sm text-jam-900 truncate">{{ guestDisplayName(guest) }}</span>
                         <UBadge v-if="guest.partyName" color="neutral" variant="subtle" size="xs" class="text-[10px]">
                           {{ guest.partyName }}
                         </UBadge>
@@ -545,7 +545,7 @@ async function downloadGuests() {
           </div>
 
           <!-- Modal Footer -->
-          <div class="p-4 border-t border-toast-200/80 flex items-center justify-between bg-toast-50/30 shrink-0">
+          <div class="p-4 border-t border-jam-200/80 flex items-center justify-between bg-jam-50/30 shrink-0">
             <UButton
               size="sm"
               color="neutral"

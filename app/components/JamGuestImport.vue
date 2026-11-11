@@ -75,15 +75,15 @@ async function addSelected() {
     :open="startOpen || guestCount === 0"
     data-testid="guest-import"
   >
-    <summary class="cursor-pointer font-serif font-bold text-base text-toast-900">
+    <summary class="cursor-pointer font-serif font-bold text-base text-jam-900">
       Invite the same guests from another Jam
     </summary>
     <div class="mt-3 space-y-3">
-      <label class="block text-xs font-semibold text-toast-800">
+      <label class="block text-xs font-semibold text-jam-800">
         Copy guests from
         <select
           v-model="sourceId"
-          class="mt-1 w-full rounded-lg border border-toast-300 bg-white px-2 py-1.5 text-sm font-normal"
+          class="mt-1 w-full rounded-lg border border-jam-300 bg-white px-2 py-1.5 text-sm font-normal"
           @change="loadGuests"
         >
           <option value="">

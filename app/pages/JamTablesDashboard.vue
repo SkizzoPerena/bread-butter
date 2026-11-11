@@ -911,7 +911,7 @@ function detectAllotments() {
       const gNameLower = g.name.toLowerCase()
       const words = gNameLower.split(/[\s/&,]+/).filter((w) => w.length > 2)
       if (words.some((w) => nameLower.includes(w)) || nameLower.includes(gNameLower)) {
-        allotments[g.id]?.push(p.partyName)
+        (allotments[g.id] ??= []).push(p.partyName)
         assigned = true
         break
       }
@@ -1198,12 +1198,12 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             {{ gathering?.seatSelectionLocked ? 'Locked' : 'Unlocked' }}
           </UButton>
           <UButton
-            color="toast"
+            color="jam"
             variant="solid"
             size="xs"
             icon="i-lucide-sparkles"
             :loading="saving"
-            class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer shadow-xs"
+            class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer shadow-xs"
             @click="openAutoSortModal()"
           >
             Auto-Sort by Groups
@@ -1215,13 +1215,13 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
       <Teleport to="#navbar-mobile-actions">
         <div class="space-y-2 w-full">
           <UButton
-            color="toast"
+            color="jam"
             variant="solid"
             size="md"
             block
             icon="i-lucide-sparkles"
             :loading="saving"
-            class="w-full justify-center bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer shadow-xs"
+            class="w-full justify-center bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer shadow-xs"
             @click="openAutoSortModal()"
           >
             Auto-Sort by Table Groups
@@ -1260,7 +1260,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           >
             Add Table ({{ newTableSeats }} seats)
           </UButton>
-          <div class="p-2.5 bg-toast-50 border border-bread-200/60 rounded-xl flex items-center justify-between text-xs">
+          <div class="p-2.5 bg-jam-50 border border-bread-200/60 rounded-xl flex items-center justify-between text-xs">
             <span class="text-muted">Unseated Attending:</span>
             <UBadge color="neutral" variant="subtle" size="xs" class="font-bold">
               {{ unseatedGuests.length }} guests
@@ -1272,7 +1272,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
     <!-- Main Workspace Container: 2-Division Split Layout -->
     <div
-      class="grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] w-full bg-toast-50/20"
+      class="grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] w-full bg-jam-50/20"
     >
       <!-- ================= LEFT DIVISION (col-span-1): Overview & Unassigned Pool (Hidden on Mobile) ================= -->
       <aside
@@ -1287,22 +1287,22 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
           <!-- Overview Metrics 2x2 Grid -->
           <div class="grid grid-cols-2 gap-2">
-            <div class="bg-toast-50/70 border border-bread-200/70 rounded-xl p-2.5 flex flex-col justify-between">
+            <div class="bg-jam-50/70 border border-bread-200/70 rounded-xl p-2.5 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold text-toast-800 font-sans">Tables</span>
-                <UIcon name="i-lucide-layout-grid" class="size-3.5 text-toast-600" />
+                <span class="text-[11px] font-semibold text-jam-800 font-sans">Tables</span>
+                <UIcon name="i-lucide-layout-grid" class="size-3.5 text-jam-600" />
               </div>
-              <span class="text-xl sm:text-2xl font-bold font-serif text-toast-900 tracking-tight mt-1">
+              <span class="text-xl sm:text-2xl font-bold font-serif text-jam-900 tracking-tight mt-1">
                 {{ gathering?.tables?.length || 0 }}
               </span>
             </div>
 
-            <div class="bg-toast-50/70 border border-bread-200/70 rounded-xl p-2.5 flex flex-col justify-between">
+            <div class="bg-jam-50/70 border border-bread-200/70 rounded-xl p-2.5 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold text-toast-800 font-sans">Capacity</span>
-                <UIcon name="i-lucide-users" class="size-3.5 text-toast-600" />
+                <span class="text-[11px] font-semibold text-jam-800 font-sans">Capacity</span>
+                <UIcon name="i-lucide-users" class="size-3.5 text-jam-600" />
               </div>
-              <span class="text-xl sm:text-2xl font-bold font-serif text-toast-900 tracking-tight mt-1">
+              <span class="text-xl sm:text-2xl font-bold font-serif text-jam-900 tracking-tight mt-1">
                 {{ totalSeatsCapacity }}
               </span>
             </div>
@@ -1329,9 +1329,9 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           </div>
 
           <!-- Progress Bar Card -->
-          <div class="bg-toast-50/70 border border-bread-200/70 rounded-xl p-3 space-y-1.5">
+          <div class="bg-jam-50/70 border border-bread-200/70 rounded-xl p-3 space-y-1.5">
             <div class="flex items-center justify-between text-xs font-sans">
-              <span class="font-semibold text-toast-800">Seating Progress</span>
+              <span class="font-semibold text-jam-800">Seating Progress</span>
               <span class="font-bold font-serif text-highlighted">{{ seatedPercent }}%</span>
             </div>
             <UProgress :model-value="seatedPercent" color="emerald" size="xs" />
@@ -1341,17 +1341,17 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           </div>
 
           <!-- Table Groups Allotment Card -->
-          <div class="bg-toast-50/70 border border-bread-200/70 rounded-xl p-3 space-y-2.5">
+          <div class="bg-jam-50/70 border border-bread-200/70 rounded-xl p-3 space-y-2.5">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5">
-                <span class="font-bold text-xs text-toast-900 font-sans">Table Groups</span>
+                <span class="font-bold text-xs text-jam-900 font-sans">Table Groups</span>
                 <UBadge color="neutral" variant="subtle" size="xs">
                   {{ tableGroups.length }}
                 </UBadge>
               </div>
               <button
                 type="button"
-                class="text-[11px] font-semibold text-toast-700 hover:text-toast-900 flex items-center gap-1 cursor-pointer"
+                class="text-[11px] font-semibold text-jam-700 hover:text-jam-900 flex items-center gap-1 cursor-pointer"
                 @click="openCreateGroupModal"
               >
                 <UIcon name="i-lucide-plus" class="size-3" />
@@ -1367,7 +1367,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               <p>No table groups created yet.</p>
               <button
                 type="button"
-                class="text-xs text-toast-800 font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                class="text-xs text-jam-800 font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
                 @click="openCreateGroupModal"
               >
                 <UIcon name="i-lucide-plus" class="size-3" />
@@ -1382,8 +1382,8 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 :key="grp.id"
                 class="w-full flex items-center justify-between p-2 rounded-lg text-left transition-all text-xs border group/item"
                 :class="selectedGroupFilter === grp.id
-                  ? 'bg-toast-200/80 border-toast-400 font-bold text-toast-950 shadow-2xs'
-                  : 'bg-white/80 hover:bg-toast-100/70 border-bread-200/60 text-toast-800'"
+                  ? 'bg-jam-200/80 border-jam-400 font-bold text-jam-950 shadow-2xs'
+                  : 'bg-white/80 hover:bg-jam-100/70 border-bread-200/60 text-jam-800'"
               >
                 <button
                   type="button"
@@ -1398,10 +1398,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 </button>
                 <div class="flex items-center gap-1.5 shrink-0 text-[11px] text-muted">
                   <span class="font-mono font-medium">{{ getGroupSeatedCount(grp.id) }}/{{ getGroupCapacity(grp.id) }}</span>
-                  <span class="text-[10px] text-toast-500">({{ getTablesInGroup(grp.id).length }}t)</span>
+                  <span class="text-[10px] text-jam-500">({{ getTablesInGroup(grp.id).length }}t)</span>
                   <button
                     type="button"
-                    class="p-0.5 rounded text-muted hover:text-toast-900 opacity-0 group-hover/item:opacity-100 transition-opacity cursor-pointer"
+                    class="p-0.5 rounded text-muted hover:text-jam-900 opacity-0 group-hover/item:opacity-100 transition-opacity cursor-pointer"
                     title="Manage group tables"
                     @click.stop="openEditGroupModal(grp)"
                   >
@@ -1414,7 +1414,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             <!-- Auto-sort shortcut -->
             <UButton
               icon="i-lucide-sparkles"
-              color="toast"
+              color="jam"
               variant="soft"
               size="xs"
               block
@@ -1429,7 +1429,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           <div class="pt-2 space-y-2.5 border-t border-bread-200/60">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5">
-                <span class="font-bold text-xs text-toast-900 font-sans">Unassigned Guests</span>
+                <span class="font-bold text-xs text-jam-900 font-sans">Unassigned Guests</span>
                 <UBadge color="neutral" variant="subtle" size="xs">
                   {{ unseatedGuests.length }}
                 </UBadge>
@@ -1453,7 +1453,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 ? 'border-rose-400 bg-rose-100 text-rose-800 ring-2 ring-rose-300'
                 : draggedGuestId
                   ? 'border-rose-300/80 bg-rose-50/60 text-rose-700 animate-pulse'
-                  : 'border-bread-300 bg-toast-50/40 text-muted'"
+                  : 'border-bread-300 bg-jam-50/40 text-muted'"
               @dragover.prevent="isOverUnseatZone = true"
               @dragleave="isOverUnseatZone = false"
               @drop="onDropToUnseat()"
@@ -1465,7 +1465,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             <!-- Draggable Unassigned Guests List -->
             <div
               v-if="filteredUnseatedGuests.length === 0"
-              class="py-6 text-center text-xs text-muted border border-dashed border-bread-200 rounded-xl bg-toast-50/30"
+              class="py-6 text-center text-xs text-muted border border-dashed border-bread-200 rounded-xl bg-jam-50/30"
             >
               {{ unseatedGuests.length === 0 ? 'All attending guests are seated!' : 'No guests match your search' }}
             </div>
@@ -1478,15 +1478,15 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 v-for="guest in filteredUnseatedGuests"
                 :key="guest._id"
                 draggable="true"
-                class="flex items-center justify-between gap-2 p-2 rounded-xl border border-bread-200/90 bg-white hover:bg-toast-50/90 hover:border-toast-300 shadow-2xs transition-all cursor-grab active:cursor-grabbing select-none group"
-                :class="draggedGuestId === guest._id ? 'opacity-40 ring-2 ring-toast-400' : ''"
+                class="flex items-center justify-between gap-2 p-2 rounded-xl border border-bread-200/90 bg-white hover:bg-jam-50/90 hover:border-jam-300 shadow-2xs transition-all cursor-grab select-none group"
+                :class="draggedGuestId === guest._id ? 'opacity-40 ring-2 ring-jam-400' : ''"
                 @dragstart="onGuestDragStart($event, guest)"
                 @dragend="onGuestDragEnd"
               >
                 <div class="flex items-center gap-2 min-w-0">
-                  <UIcon name="i-lucide-grip-vertical" class="size-3.5 text-muted group-hover:text-toast-600 shrink-0" />
+                  <UIcon name="i-lucide-grip-vertical" class="size-3.5 text-muted group-hover:text-jam-600 shrink-0" />
                   <div class="min-w-0">
-                    <p class="font-semibold text-xs text-toast-900 truncate leading-tight">
+                    <p class="font-semibold text-xs text-jam-900 truncate leading-tight">
                       {{ guestDisplayName(guest) }}
                     </p>
                     <p v-if="guest.partyName" class="text-[10px] text-muted truncate">
@@ -1507,10 +1507,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
         <div class="pt-3 border-t border-bread-200/60 space-y-2">
           <UButton
             icon="i-lucide-sparkles"
-            color="toast"
+            color="jam"
             size="sm"
             block
-            class="w-full justify-center bg-toast-800 hover:bg-toast-900 text-white font-semibold cursor-pointer shadow-xs"
+            class="w-full justify-center bg-jam-800 hover:bg-jam-900 text-white font-semibold cursor-pointer shadow-xs"
             :loading="saving"
             @click="runAutoAssign"
           >
@@ -1521,7 +1521,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
       <!-- ================= RIGHT DIVISION (col-span-3): Interactive Floor & Tables ================= -->
       <main
-        class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-toast-50/30"
+        class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-jam-50/30"
       >
         <!-- Top Sticky Toolbar -->
         <header
@@ -1547,11 +1547,11 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             <!-- Right: Actions & Tools -->
             <div class="flex items-center gap-2 shrink-0 ml-auto">
               <!-- View Mode Toggle (Grouped vs Flat Grid) -->
-              <div class="inline-flex items-center bg-toast-100/70 border border-bread-200/70 rounded-xl p-0.5 text-xs">
+              <div class="inline-flex items-center bg-jam-100/70 border border-bread-200/70 rounded-xl p-0.5 text-xs">
                 <button
                   type="button"
                   class="px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-all cursor-pointer"
-                  :class="isGroupedView ? 'bg-white text-toast-900 shadow-2xs font-semibold' : 'text-toast-600 hover:text-toast-900'"
+                  :class="isGroupedView ? 'bg-white text-jam-900 shadow-2xs font-semibold' : 'text-jam-600 hover:text-jam-900'"
                   @click="isGroupedView = true"
                 >
                   <UIcon name="i-lucide-layers" class="size-3.5" />
@@ -1560,7 +1560,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 <button
                   type="button"
                   class="px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-all cursor-pointer"
-                  :class="!isGroupedView ? 'bg-white text-toast-900 shadow-2xs font-semibold' : 'text-toast-600 hover:text-toast-900'"
+                  :class="!isGroupedView ? 'bg-white text-jam-900 shadow-2xs font-semibold' : 'text-jam-600 hover:text-jam-900'"
                   @click="isGroupedView = false"
                 >
                   <UIcon name="i-lucide-layout-grid" class="size-3.5" />
@@ -1571,10 +1571,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               <!-- Auto-Sort by Groups Button -->
               <UButton
                 icon="i-lucide-sparkles"
-                color="toast"
+                color="jam"
                 variant="solid"
                 size="sm"
-                class="bg-toast-800 hover:bg-toast-900 text-white font-semibold cursor-pointer shadow-xs"
+                class="bg-jam-800 hover:bg-jam-900 text-white font-semibold cursor-pointer shadow-xs"
                 :loading="saving"
                 @click="openAutoSortModal()"
               >
@@ -1583,20 +1583,20 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               </UButton>
 
               <!-- On-the-fly Table Adder -->
-              <div class="flex items-center gap-1 bg-toast-100/70 border border-bread-200/70 rounded-xl px-2 py-1 text-xs">
+              <div class="flex items-center gap-1 bg-jam-100/70 border border-bread-200/70 rounded-xl px-2 py-1 text-xs">
                 <span class="text-muted text-[11px] font-medium hidden sm:inline">Seats:</span>
                 <button
                   type="button"
-                  class="size-5 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-white cursor-pointer disabled:opacity-30"
+                  class="size-5 rounded flex items-center justify-center font-bold text-jam-800 hover:bg-white cursor-pointer disabled:opacity-30"
                   :disabled="newTableSeats <= 1"
                   @click="newTableSeats = Math.max(1, newTableSeats - 1)"
                 >
                   -
                 </button>
-                <span class="font-bold text-toast-900 font-mono w-4 text-center">{{ newTableSeats }}</span>
+                <span class="font-bold text-jam-900 font-mono w-4 text-center">{{ newTableSeats }}</span>
                 <button
                   type="button"
-                  class="size-5 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-white cursor-pointer disabled:opacity-30"
+                  class="size-5 rounded flex items-center justify-center font-bold text-jam-800 hover:bg-white cursor-pointer disabled:opacity-30"
                   :disabled="newTableSeats >= 30"
                   @click="newTableSeats = Math.min(30, newTableSeats + 1)"
                 >
@@ -1626,8 +1626,8 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               type="button"
               class="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer border"
               :class="selectedGroupFilter === 'all'
-                ? 'bg-toast-800 text-white border-toast-800 shadow-2xs'
-                : 'bg-white text-toast-700 hover:bg-toast-100/70 border-bread-200/80'"
+                ? 'bg-jam-800 text-white border-jam-800 shadow-2xs'
+                : 'bg-white text-jam-700 hover:bg-jam-100/70 border-bread-200/80'"
               @click="selectedGroupFilter = 'all'"
             >
               All Tables ({{ gathering?.tables?.length || 0 }})
@@ -1639,8 +1639,8 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               type="button"
               class="px-2.5 py-1 rounded-full text-xs font-medium shrink-0 flex items-center gap-1.5 transition-all cursor-pointer border"
               :class="selectedGroupFilter === grp.id
-                ? 'bg-toast-800 text-white border-toast-800 shadow-2xs font-semibold'
-                : 'bg-white text-toast-700 hover:bg-toast-100/70 border-bread-200/80'"
+                ? 'bg-jam-800 text-white border-jam-800 shadow-2xs font-semibold'
+                : 'bg-white text-jam-700 hover:bg-jam-100/70 border-bread-200/80'"
               @click="selectedGroupFilter = selectedGroupFilter === grp.id ? 'all' : grp.id"
             >
               <span
@@ -1650,7 +1650,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               <span>{{ grp.name }}</span>
               <span
                 class="text-[10px] px-1 py-0.2 rounded-full font-mono"
-                :class="selectedGroupFilter === grp.id ? 'bg-white/20 text-white' : 'bg-toast-100 text-toast-700'"
+                :class="selectedGroupFilter === grp.id ? 'bg-white/20 text-white' : 'bg-jam-100 text-jam-700'"
               >
                 {{ getTablesInGroup(grp.id).length }}
               </span>
@@ -1658,7 +1658,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
             <button
               type="button"
-              class="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 flex items-center gap-1 text-toast-700 hover:text-toast-900 hover:bg-toast-100/70 border border-dashed border-bread-300 transition-all cursor-pointer"
+              class="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 flex items-center gap-1 text-jam-700 hover:text-jam-900 hover:bg-jam-100/70 border border-dashed border-bread-300 transition-all cursor-pointer"
               @click="openCreateGroupModal"
             >
               <UIcon name="i-lucide-plus" class="size-3" />
@@ -1671,20 +1671,20 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
         <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 min-h-0">
           <!-- Loading State -->
           <div v-if="loading" class="flex flex-col items-center justify-center py-20 text-muted">
-            <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-toast-600" />
+            <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-jam-600" />
             <p class="mt-3 text-sm font-medium">Loading tables & seating arrangement...</p>
           </div>
 
           <!-- Empty Tables State -->
           <div
             v-else-if="!gathering?.tables?.length"
-            class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-toast-300/80 bg-toast-50/50 p-12 text-center max-w-lg mx-auto space-y-3"
+            class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-jam-300/80 bg-jam-50/50 p-12 text-center max-w-lg mx-auto space-y-3"
           >
-            <div class="size-14 rounded-full bg-toast-100 flex items-center justify-center text-toast-600 mx-auto">
+            <div class="size-14 rounded-full bg-jam-100 flex items-center justify-center text-jam-600 mx-auto">
               <UIcon name="i-lucide-layout-grid" class="size-7" />
             </div>
-            <h3 class="font-serif text-lg font-bold text-toast-900">No tables created yet</h3>
-            <p class="text-xs text-toast-600 max-w-sm">
+            <h3 class="font-serif text-lg font-bold text-jam-900">No tables created yet</h3>
+            <p class="text-xs text-jam-600 max-w-sm">
               Add your first reception table above. You can change a table's seats at any time and drag guests onto them.
             </p>
             <UButton
@@ -1709,7 +1709,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               color="neutral"
               variant="ghost"
               size="xs"
-              class="mt-2 cursor-pointer text-toast-700"
+              class="mt-2 cursor-pointer text-jam-700"
               @click="tableSearchQuery = ''"
             >
               Clear filter
@@ -1726,14 +1726,14 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               <!-- Group Header Banner (Only shown in Grouped View) -->
               <div
                 v-if="isGroupedView && section.group"
-                class="flex flex-wrap items-center justify-between gap-3 pb-2.5 bg-toast-50/60 p-3 rounded-xl border border-bread-200/80"
+                class="flex flex-wrap items-center justify-between gap-3 pb-2.5 bg-jam-50/60 p-3 rounded-xl border border-bread-200/80"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
                   <span
                     class="size-3.5 rounded-full shrink-0 shadow-2xs"
                     :class="getGroupTheme(section.group.color).dot"
                   />
-                  <h3 class="font-serif font-bold text-base sm:text-lg text-toast-900 truncate">
+                  <h3 class="font-serif font-bold text-base sm:text-lg text-jam-900 truncate">
                     {{ section.group.name }}
                   </h3>
                   <UBadge
@@ -1765,7 +1765,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                   <UButton
                     v-if="section.group.id !== '__ungrouped__'"
                     icon="i-lucide-sparkles"
-                    color="toast"
+                    color="jam"
                     variant="soft"
                     size="xs"
                     class="font-semibold cursor-pointer"
@@ -1829,19 +1829,19 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                   class="relative bg-white rounded-2xl border border-bread-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-start overflow-hidden group select-none"
                   :class="[
                     dragOverTableId === table._id && (draggedTableId !== null || draggedGuestId !== null)
-                      ? 'ring-4 ring-toast-400 bg-toast-50/40 border-toast-400'
+                      ? 'ring-4 ring-jam-400 bg-jam-50/40 border-jam-400'
                       : draggedTableId === table._id
-                        ? 'opacity-40 border-dashed border-toast-300'
+                        ? 'opacity-40 border-dashed border-jam-300'
                         : '',
                   ]"
                   @dragover.prevent="dragOverTableId = table._id"
                   @dragleave="onTableDragLeave($event, table)"
                   @drop="draggedTableId !== null ? onTableDrop(table) : onTableGuestDrop(table)"
                 >
-                  <!-- Table Card Header (toast-500, draggable for swapping) -->
+                  <!-- Table Card Header (jam-500, draggable for swapping) -->
                   <div
                     draggable="true"
-                    class="px-3.5 py-2.5 bg-toast-500 text-white flex flex-wrap items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-colors rounded-t-2xl"
+                    class="px-3.5 py-2.5 bg-jam-500 text-white flex flex-wrap items-center justify-between gap-2 cursor-grab transition-colors rounded-t-2xl"
                     title="Drag this table onto another table to swap their positions. Guests stay with their table."
                     @dragstart="onTableDragStart($event, table)"
                     @dragend="onTableDragEnd"
@@ -1856,7 +1856,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
                       <div class="flex items-center gap-1.5 min-w-0 group/name">
                         <h3
-                          class="font-serif font-bold text-sm sm:text-base text-white truncate cursor-pointer hover:text-toast-100"
+                          class="font-serif font-bold text-sm sm:text-base text-white truncate cursor-pointer hover:text-jam-100"
                           :title="'Click to rename ' + table.label"
                           @click.stop="openRenameModal(table)"
                         >
@@ -1892,16 +1892,16 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                       >
                         <button
                           type="button"
-                          class="size-5 rounded flex items-center justify-center font-bold text-toast-700 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                          class="size-5 rounded flex items-center justify-center font-bold text-jam-700 hover:bg-jam-100 cursor-pointer disabled:opacity-30"
                           :disabled="table.capacity <= 1"
                           @click="updateTableCapacity(table, table.capacity - 1)"
                         >
                           -
                         </button>
-                        <span class="text-xs font-bold font-mono text-toast-900 px-1">{{ table.capacity }}</span>
+                        <span class="text-xs font-bold font-mono text-jam-900 px-1">{{ table.capacity }}</span>
                         <button
                           type="button"
-                          class="size-5 rounded flex items-center justify-center font-bold text-toast-700 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                          class="size-5 rounded flex items-center justify-center font-bold text-jam-700 hover:bg-jam-100 cursor-pointer disabled:opacity-30"
                           :disabled="table.capacity >= 30"
                           @click="updateTableCapacity(table, table.capacity + 1)"
                         >
@@ -1914,7 +1914,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                         class="font-bold text-[10px] px-2 py-0.5 rounded-full shrink-0 shadow-2xs"
                         :class="occupiedSeatsCount(table) >= table.capacity
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-white text-toast-900'"
+                          : 'bg-white text-jam-900'"
                       >
                         {{ occupiedSeatsCount(table) }}/{{ table.capacity }}
                       </span>
@@ -1935,7 +1935,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                   <div class="p-3 sm:p-3.5 flex flex-col justify-start">
                     <p
                       v-if="draggedGuestId && dragOverTableId === table._id"
-                      class="mb-2 rounded-lg bg-toast-100 px-2 py-1 text-center text-[11px] font-semibold text-toast-900"
+                      class="mb-2 rounded-lg bg-jam-100 px-2 py-1 text-center text-[11px] font-semibold text-jam-900"
                     >
                       {{ nextOpenSeat(table) ? 'Drop anywhere to auto-assign to this table' : 'Table is full' }}
                     </p>
@@ -1952,20 +1952,20 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                         <div
                           v-if="guestInSeat(table, seat.number)"
                           draggable="true"
-                          class="flex items-center justify-between gap-2 p-2 rounded-xl bg-toast-100 hover:bg-toast-200/80 shadow-2xs transition-all cursor-grab active:cursor-grabbing select-none group"
-                          :class="draggedGuestId === guestInSeat(table, seat.number)?._id ? 'opacity-40 ring-2 ring-toast-400' : ''"
+                          class="flex items-center justify-between gap-2 p-2 rounded-xl bg-jam-100 hover:bg-jam-200/80 shadow-2xs transition-all cursor-grab select-none group"
+                          :class="draggedGuestId === guestInSeat(table, seat.number)?._id ? 'opacity-40 ring-2 ring-jam-400' : ''"
                           @dragstart="onGuestDragStart($event, guestInSeat(table, seat.number)!)"
                           @dragend="onGuestDragEnd"
                         >
                           <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="size-5.5 rounded-md bg-toast-500 text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0 shadow-2xs">
+                            <span class="size-5.5 rounded-md bg-jam-500 text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0 shadow-2xs">
                               {{ seat.number }}
                             </span>
                             <div class="min-w-0">
-                              <p class="text-xs font-bold text-toast-900 truncate leading-tight">
+                              <p class="text-xs font-bold text-jam-900 truncate leading-tight">
                                 {{ guestDisplayName(guestInSeat(table, seat.number)!) }}
                               </p>
-                              <p v-if="guestInSeat(table, seat.number)?.partyName" class="text-[10px] text-toast-600 truncate font-medium">
+                              <p v-if="guestInSeat(table, seat.number)?.partyName" class="text-[10px] text-jam-600 truncate font-medium">
                                 {{ guestInSeat(table, seat.number)?.partyName }}
                               </p>
                             </div>
@@ -1973,7 +1973,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
                           <button
                             type="button"
-                            class="size-5 rounded flex items-center justify-center cursor-pointer text-toast-400 hover:text-rose-600 hover:bg-rose-100/70 transition-colors shrink-0"
+                            class="size-5 rounded flex items-center justify-center cursor-pointer text-jam-400 hover:text-rose-600 hover:bg-rose-100/70 transition-colors shrink-0"
                             title="Unseat guest"
                             @click.stop="unseatGuest(guestInSeat(table, seat.number)!)"
                           >
@@ -1987,17 +1987,17 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                           class="flex items-center justify-between gap-2 p-2 rounded-xl select-none border"
                           :class="seat.unavailable
                             ? 'bg-rose-50/60 text-rose-400 border-rose-100'
-                            : 'bg-toast-50/50 text-toast-400 border-toast-100/60'"
+                            : 'bg-jam-50/50 text-jam-400 border-jam-100/60'"
                         >
                           <div class="flex items-center gap-2 min-w-0">
-                            <span class="size-5.5 rounded-md bg-white border border-toast-200/60 text-toast-400 text-[10px] font-mono font-bold flex items-center justify-center shadow-2xs shrink-0">
+                            <span class="size-5.5 rounded-md bg-white border border-jam-200/60 text-jam-400 text-[10px] font-mono font-bold flex items-center justify-center shadow-2xs shrink-0">
                               {{ seat.number }}
                             </span>
                             <span class="text-[11px] font-medium truncate">{{ seat.unavailable ? 'Unavailable' : 'Available' }}</span>
                           </div>
                           <button
                             type="button"
-                            class="size-5 rounded flex items-center justify-center cursor-pointer text-toast-400 hover:text-toast-800 hover:bg-toast-100 transition-colors shrink-0"
+                            class="size-5 rounded flex items-center justify-center cursor-pointer text-jam-400 hover:text-jam-800 hover:bg-jam-100 transition-colors shrink-0"
                             :title="seat.unavailable ? 'Make this seat available' : 'Make this seat unavailable'"
                             :aria-label="`${seat.unavailable ? 'Make available' : 'Make unavailable'}: ${table.label}, seat ${seat.number}`"
                             @click.stop="toggleSeat(table, seat)"
@@ -2021,7 +2021,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
       <template #content>
         <div class="p-4 sm:p-5 space-y-4 max-h-[85vh] overflow-y-auto">
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1.5">
+            <label class="block text-xs font-semibold text-jam-900 mb-1.5">
               Group Name
             </label>
             <UInput
@@ -2036,7 +2036,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1.5">
+            <label class="block text-xs font-semibold text-jam-900 mb-1.5">
               Theme Color
             </label>
             <div class="flex flex-wrap gap-2">
@@ -2046,8 +2046,8 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 type="button"
                 class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all"
                 :class="groupFormColor === colorKey
-                  ? 'border-toast-600 bg-toast-100/80 font-bold ring-2 ring-toast-400'
-                  : 'border-bread-200 bg-white hover:bg-toast-50'"
+                  ? 'border-jam-600 bg-jam-100/80 font-bold ring-2 ring-jam-400'
+                  : 'border-bread-200 bg-white hover:bg-jam-50'"
                 @click="groupFormColor = colorKey as TableGroupRecord['color']"
               >
                 <span class="size-2.5 rounded-full" :class="theme.dot" />
@@ -2059,7 +2059,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           <!-- Select Tables to Include in this Group -->
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-semibold text-toast-900">
+              <label class="block text-xs font-semibold text-jam-900">
                 Include Tables in this Group
               </label>
               <span class="text-[11px] text-muted">
@@ -2067,7 +2067,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               </span>
             </div>
 
-            <div v-if="!gathering?.tables?.length" class="text-xs text-muted italic p-3 bg-toast-50/50 rounded-xl border border-bread-200/60">
+            <div v-if="!gathering?.tables?.length" class="text-xs text-muted italic p-3 bg-jam-50/50 rounded-xl border border-bread-200/60">
               No tables created yet. Add tables after creating this group.
             </div>
 
@@ -2078,8 +2078,8 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 type="button"
                 class="flex items-center justify-between p-2 rounded-xl border text-xs transition-all text-left cursor-pointer"
                 :class="groupFormSelectedTableIds.includes(t._id)
-                  ? 'bg-toast-100/90 border-toast-500 font-bold text-toast-950 shadow-2xs'
-                  : 'bg-white border-bread-200/80 hover:bg-toast-50 text-toast-800'"
+                  ? 'bg-jam-100/90 border-jam-500 font-bold text-jam-950 shadow-2xs'
+                  : 'bg-white border-bread-200/80 hover:bg-jam-50 text-jam-800'"
                 @click="toggleTableInGroupForm(t._id)"
               >
                 <div class="min-w-0 pr-1">
@@ -2089,7 +2089,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 <UIcon
                   :name="groupFormSelectedTableIds.includes(t._id) ? 'i-lucide-check-circle-2' : 'i-lucide-circle'"
                   class="size-4 shrink-0"
-                  :class="groupFormSelectedTableIds.includes(t._id) ? 'text-toast-800' : 'text-bread-300'"
+                  :class="groupFormSelectedTableIds.includes(t._id) ? 'text-jam-800' : 'text-bread-300'"
                 />
               </button>
             </div>
@@ -2117,10 +2117,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 Cancel
               </UButton>
               <UButton
-                color="toast"
+                color="jam"
                 variant="solid"
                 size="sm"
-                class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer"
+                class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer"
                 :disabled="!groupFormName.trim()"
                 @click="saveGroup"
               >
@@ -2141,9 +2141,9 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
       <template #content>
         <div class="p-4 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
           <!-- Description & Context -->
-          <div class="bg-toast-50/80 border border-bread-200/80 rounded-xl p-3.5 space-y-1.5 text-xs text-toast-800">
+          <div class="bg-jam-50/80 border border-bread-200/80 rounded-xl p-3.5 space-y-1.5 text-xs text-jam-800">
             <div class="flex items-center justify-between">
-              <span class="font-bold text-sm text-toast-900">Guest Segregation & Table Allotment</span>
+              <span class="font-bold text-sm text-jam-900">Guest Segregation & Table Allotment</span>
               <UBadge color="neutral" variant="subtle" size="xs">
                 {{ unseatedGuests.length }} unseated guests
               </UBadge>
@@ -2156,10 +2156,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           <!-- Target Filter & Quick Actions -->
           <div class="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-bread-200/60">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-toast-900">Target:</span>
+              <span class="text-xs font-semibold text-jam-900">Target:</span>
               <select
                 v-model="autoSortTargetGroupId"
-                class="text-xs font-medium bg-white border border-bread-300 rounded-lg px-2.5 py-1 text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500 cursor-pointer"
+                class="text-xs font-medium bg-white border border-bread-300 rounded-lg px-2.5 py-1 text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500 cursor-pointer"
               >
                 <option :value="null">All Table Groups</option>
                 <option v-for="grp in tableGroups" :key="grp.id" :value="grp.id">
@@ -2171,7 +2171,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             <div class="flex items-center gap-2">
               <UButton
                 icon="i-lucide-sparkles"
-                color="toast"
+                color="jam"
                 variant="soft"
                 size="xs"
                 class="font-semibold cursor-pointer"
@@ -2226,7 +2226,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
                   <span class="size-3 rounded-full shrink-0" :class="getGroupTheme(grp.color).dot" />
-                  <span class="font-bold text-xs sm:text-sm text-toast-900">{{ grp.name }}</span>
+                  <span class="font-bold text-xs sm:text-sm text-jam-900">{{ grp.name }}</span>
                   <UBadge
                     :color="getBadgeColor(grp.color)"
                     variant="subtle"
@@ -2239,7 +2239,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
 
                 <div class="flex items-center gap-2 text-xs">
                   <span class="font-medium text-muted">
-                    Open Seats: <strong class="text-toast-900">{{ getGroupOpenSeatsCount(grp.id) }}</strong>
+                    Open Seats: <strong class="text-jam-900">{{ getGroupOpenSeatsCount(grp.id) }}</strong>
                   </span>
                   <span class="text-bread-300">·</span>
                   <span class="font-medium">
@@ -2263,7 +2263,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               </div>
 
               <!-- Allotted Parties Chips -->
-              <div class="flex flex-wrap items-center gap-1.5 min-h-8 p-2 bg-toast-50/50 border border-bread-200/50 rounded-lg">
+              <div class="flex flex-wrap items-center gap-1.5 min-h-8 p-2 bg-jam-50/50 border border-bread-200/50 rounded-lg">
                 <span
                   v-if="!groupAllotments[grp.id]?.length"
                   class="text-[11px] text-muted italic px-1"
@@ -2274,10 +2274,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 <div
                   v-for="partyName in (groupAllotments[grp.id] || [])"
                   :key="partyName"
-                  class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white border border-bread-300 rounded-md text-xs font-medium text-toast-900 shadow-2xs"
+                  class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white border border-bread-300 rounded-md text-xs font-medium text-jam-900 shadow-2xs"
                 >
                   <span>{{ partyName }}</span>
-                  <span class="bg-toast-100 text-toast-800 text-[10px] px-1 rounded-full font-mono">
+                  <span class="bg-jam-100 text-jam-800 text-[10px] px-1 rounded-full font-mono">
                     {{ unseatedPartiesList.find(p => p.partyName === partyName)?.count || 0 }}
                   </span>
                   <button
@@ -2309,11 +2309,11 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
                 Cancel
               </UButton>
               <UButton
-                color="toast"
+                color="jam"
                 variant="solid"
                 size="sm"
                 icon="i-lucide-sparkles"
-                class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer"
+                class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer"
                 :loading="saving"
                 @click="executeGroupAutoSort"
               >
@@ -2330,7 +2330,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
       <template #content>
         <div class="p-4 sm:p-5 space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1.5">
+            <label class="block text-xs font-semibold text-jam-900 mb-1.5">
               Table Name
             </label>
             <UInput
@@ -2357,10 +2357,10 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
               Cancel
             </UButton>
             <UButton
-              color="toast"
+              color="jam"
               variant="solid"
               size="sm"
-              class="bg-toast-800 hover:bg-toast-900 text-white font-bold cursor-pointer"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer"
               :loading="saving"
               @click="saveTableRename"
             >

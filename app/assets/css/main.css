@@ -33,6 +33,20 @@
   --color-toast-900: #1f0a00;
   --color-toast-950: #0f0500;
 
+  --color-jam-50: #f2e8eb;
+  --color-jam-100: #e5d1d7;
+  --color-jam-200: #caa4af;
+  --color-jam-300: #b07688;
+  --color-jam-400: #954960;
+  --color-jam-500: #7b1b38;
+  /* base color */
+  --color-jam: #7b1b38;
+  --color-jam-600: #62162d;
+  --color-jam-700: #4a1022;
+  --color-jam-800: #310b16;
+  --color-jam-900: #19050b;
+  --color-jam-950: #0c0306;
+
   --color-bread-50: #fefdfb;
   --color-bread-100: #fefbf7;
   --color-bread-200: #fdf7ef;
@@ -152,4 +166,107 @@ html[data-scroll-locked],
   padding-right: 0px !important;
   margin-right: 0px !important;
   overflow-x: clip !important;
+}
+
+/* Toast to Jam Theme Transition Scope */
+@property --color-toast-50 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f5eae5;
+}
+@property --color-toast-100 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ebd6cc;
+}
+@property --color-toast-200 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #d7ae99;
+}
+@property --color-toast-300 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #c38566;
+}
+@property --color-toast-400 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #af5d32;
+}
+@property --color-toast-500 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #9c3500;
+}
+@property --color-toast {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #7c2a00;
+}
+@property --color-toast-600 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #7c2a00;
+}
+@property --color-toast-700 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #5d1f00;
+}
+@property --color-toast-800 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3e1500;
+}
+@property --color-toast-900 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1f0a00;
+}
+@property --color-toast-950 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0f0500;
+}
+
+.theme-jam-scope {
+  transition:
+    --color-toast-50 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-100 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-200 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-300 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-400 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-500 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-600 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-700 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-800 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-900 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    --color-toast-950 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-jam-scope.theme-jam {
+  --color-toast-50: #f2e8eb;
+  --color-toast-100: #e5d1d7;
+  --color-toast-200: #caa4af;
+  --color-toast-300: #b07688;
+  --color-toast-400: #954960;
+  --color-toast-500: #7b1b38;
+  --color-toast: #7b1b38;
+  --color-toast-600: #62162d;
+  --color-toast-700: #4a1022;
+  --color-toast-800: #310b16;
+  --color-toast-900: #19050b;
+  --color-toast-950: #0c0306;
+}
+
+.theme-jam-scope,
+.theme-jam-scope * {
+  transition-property: color, background-color, border-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 500ms;
 }

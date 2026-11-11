@@ -527,15 +527,15 @@ watch(gatheringId, () => {
 
           <!-- Secondary Metrics Grid: Invites Sent & Email Credits -->
           <div class="grid grid-cols-2 gap-2 pt-1">
-            <div class="bg-toast-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
-              <span class="text-[11px] font-semibold text-toast-700 font-sans">Invites Sent</span>
+            <div class="bg-jam-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+              <span class="text-[11px] font-semibold text-jam-700 font-sans">Invites Sent</span>
               <span class="text-lg sm:text-xl font-bold font-serif text-highlighted tracking-tight mt-1">
                 {{ invitationsSentCount }}/{{ totalSentCount }}
               </span>
             </div>
 
-            <div class="bg-toast-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
-              <span class="text-[11px] font-semibold text-toast-700 font-sans">Email Credits</span>
+            <div class="bg-jam-50/60 border border-bread-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+              <span class="text-[11px] font-semibold text-jam-700 font-sans">Email Credits</span>
               <span class="text-lg sm:text-xl font-bold font-serif text-highlighted tracking-tight mt-1">
                 {{ emailCreditsRemaining }}
               </span>
@@ -543,14 +543,14 @@ watch(gatheringId, () => {
           </div>
 
           <!-- Response Status Chart in Card -->
-          <div class="bg-toast-50/80 border-2 border-toast-200/80 rounded-2xl p-4 shadow-xs">
+          <div class="bg-jam-50/80 border-2 border-jam-200/80 rounded-2xl p-4 shadow-xs">
             <PieChart title="Response Status" :data="chartData" :colors="RSVP_CHART_COLORS" />
           </div>
 
           <!-- Response Rate Progress Card -->
-          <div class="bg-toast-50/70 border border-bread-200/60 rounded-xl p-3.5 space-y-2">
+          <div class="bg-jam-50/70 border border-bread-200/60 rounded-xl p-3.5 space-y-2">
             <div class="flex items-center justify-between text-xs font-sans">
-              <span class="font-semibold text-toast-800">Response Rate</span>
+              <span class="font-semibold text-jam-800">Response Rate</span>
               <span class="font-bold font-serif text-black text-sm">{{ responseRate }}%</span>
             </div>
             <UProgress :model-value="responseRate" color="yellow" size="xs" />
@@ -581,7 +581,7 @@ watch(gatheringId, () => {
 
     <!-- ================= RIGHT DIVISION (col-span-3): Workspace ================= -->
     <main
-      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-toast-50/30"
+      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-jam-50/30"
     >
       <!-- Top Sticky Toolbar -->
       <header
@@ -687,7 +687,7 @@ watch(gatheringId, () => {
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="flex items-start gap-2.5 min-w-0">
-                  <span class="font-bold text-toast-500 font-mono text-sm shrink-0">{{ index + 1 }}.</span>
+                  <span class="font-bold text-jam-500 font-mono text-sm shrink-0">{{ index + 1 }}.</span>
                   <p class="font-semibold text-highlighted text-sm leading-snug">{{ question.question }}</p>
                 </div>
                 <UBadge :color="questionTypeColor(question.type)" variant="subtle" size="xs" class="shrink-0">
@@ -696,7 +696,7 @@ watch(gatheringId, () => {
               </div>
 
               <div v-if="question.type === 'OPTIONS' && question.options?.length" class="text-xs text-muted">
-                <span class="font-semibold text-toast-700">Options:</span> {{ question.options.join(', ') }}
+                <span class="font-semibold text-jam-700">Options:</span> {{ question.options.join(', ') }}
               </div>
 
               <div v-if="isChartableQuestionType(question.type)" class="pt-2 border-t border-bread-100">
@@ -775,8 +775,8 @@ watch(gatheringId, () => {
                         Previous question
                       </UBadge>
                     </div>
-                    <p class="text-toast-700">{{ formatRsvpAnswerValue(answer.answer) }}</p>
-                    <p v-if="answer.notes" class="text-toast-600 italic">{{ answer.notes }}</p>
+                    <p class="text-jam-700">{{ formatRsvpAnswerValue(answer.answer) }}</p>
+                    <p v-if="answer.notes" class="text-jam-600 italic">{{ answer.notes }}</p>
                   </div>
                 </div>
                 <div v-else class="text-xs text-muted italic">
@@ -800,7 +800,7 @@ watch(gatheringId, () => {
       :dismissible="false"
       fullscreen
       :ui="{
-        header: 'bg-toast-400 border-none',
+        header: 'bg-jam-400 border-none',
         title: 'text-white font-serif text-xl',
         content: 'border-none ring-transparent',
       }"
@@ -815,9 +815,9 @@ watch(gatheringId, () => {
               :icon="questionsMode === 'edit' ? 'i-lucide-eye' : 'i-lucide-pencil'"
               :label="questionsMode === 'edit' ? 'Preview' : 'Back to Edit'"
               size="sm"
-              color="toast"
+              color="jam"
               variant="solid"
-              class="bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-semibold shadow-xs border border-toast-900/30 cursor-pointer"
+              class="bg-jam-800 hover:bg-jam-900 active:bg-jam-950 text-white font-semibold shadow-xs border border-jam-900/30 cursor-pointer"
               :disabled="isSubmittingQuestions"
               @click="() => { questionsMode = questionsMode === 'edit' ? 'preview' : 'edit' }"
             />
@@ -849,24 +849,24 @@ watch(gatheringId, () => {
 
             <div
               v-if="!draftQuestions.length"
-              class="rounded-2xl border-2 border-dashed border-toast-300/70 bg-toast-50/50 p-8 text-center space-y-2"
+              class="rounded-2xl border-2 border-dashed border-jam-300/70 bg-jam-50/50 p-8 text-center space-y-2"
             >
-              <div class="size-10 rounded-full bg-toast-100 flex items-center justify-center text-toast-600 mx-auto mb-2">
+              <div class="size-10 rounded-full bg-jam-100 flex items-center justify-center text-jam-600 mx-auto mb-2">
                 <UIcon name="i-lucide-help-circle" class="size-5" />
               </div>
-              <p class="text-sm font-semibold text-toast-900">No questions configured</p>
-              <p class="text-xs text-toast-600 max-w-sm mx-auto">Click "Add Question" to start building your custom RSVP questionnaire.</p>
+              <p class="text-sm font-semibold text-jam-900">No questions configured</p>
+              <p class="text-xs text-jam-600 max-w-sm mx-auto">Click "Add Question" to start building your custom RSVP questionnaire.</p>
             </div>
 
             <div v-else class="space-y-4">
               <div
                 v-for="(draft, index) in draftQuestions"
                 :key="draft.id"
-                class="rounded-2xl border-2 border-toast-200/90 bg-toast-50/70 p-4 sm:p-5 shadow-xs space-y-3.5 transition-all hover:border-toast-300 hover:shadow-sm"
+                class="rounded-2xl border-2 border-jam-200/90 bg-jam-50/70 p-4 sm:p-5 shadow-xs space-y-3.5 transition-all hover:border-jam-300 hover:shadow-sm"
               >
-                <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-toast-200/70">
+                <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-jam-200/70">
                   <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-toast-200/80 text-toast-900 border border-toast-300/60 shadow-2xs">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-jam-200/80 text-jam-900 border border-jam-300/60 shadow-2xs">
                       Question #{{ index + 1 }}
                     </span>
                   </div>
@@ -901,9 +901,9 @@ watch(gatheringId, () => {
                 </UFormField>
 
                 <!-- Options list for Multiple Choice -->
-                <div v-if="draft.type === 'OPTIONS'" class="space-y-2.5 pt-2.5 border-t border-toast-200/70">
+                <div v-if="draft.type === 'OPTIONS'" class="space-y-2.5 pt-2.5 border-t border-jam-200/70">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-toast-900 font-sans">Choices</span>
+                    <span class="text-xs font-bold text-jam-900 font-sans">Choices</span>
                     <UButton
                       icon="i-lucide-plus"
                       color="yellow"
@@ -931,7 +931,7 @@ watch(gatheringId, () => {
                       color="neutral"
                       variant="ghost"
                       size="xs"
-                      class="cursor-pointer hover:bg-toast-200/60"
+                      class="cursor-pointer hover:bg-jam-200/60"
                       @click="removeOption(index, oIdx)"
                     />
                   </div>
@@ -963,7 +963,7 @@ watch(gatheringId, () => {
 
           <!-- PREVIEW MODE -->
           <div v-else class="space-y-6 max-w-xl mx-auto">
-            <div class="bg-toast-50/80 border-2 border-toast-200/90 rounded-2xl p-6 space-y-5 shadow-xs">
+            <div class="bg-jam-50/80 border-2 border-jam-200/90 rounded-2xl p-6 space-y-5 shadow-xs">
               <div class="border-b border-bread-200/70 pb-3">
                 <h3 class="font-serif text-lg font-bold text-highlighted">Guest RSVP Questionnaire Preview</h3>
                 <p class="text-xs text-muted">This is how your questions will be rendered to your guests.</p>
@@ -975,15 +975,15 @@ watch(gatheringId, () => {
 
               <div v-else class="space-y-4">
                 <div v-for="(draft, idx) in draftQuestions" :key="draft.id" class="space-y-1.5">
-                  <label class="block text-xs font-semibold text-toast-900">
+                  <label class="block text-xs font-semibold text-jam-900">
                     {{ idx + 1 }}. {{ draft.question || '(Untitled Question)' }}
                   </label>
                   <UInput v-if="draft.type === 'TEXT'" placeholder="Guest types their answer here..." class="w-full" disabled />
-                  <div v-else-if="draft.type === 'YES/NO'" class="flex items-center gap-4 text-xs font-medium text-toast-700">
+                  <div v-else-if="draft.type === 'YES/NO'" class="flex items-center gap-4 text-xs font-medium text-jam-700">
                     <label class="flex items-center gap-1.5"><input type="radio" disabled checked /> Yes</label>
                     <label class="flex items-center gap-1.5"><input type="radio" disabled /> No</label>
                   </div>
-                  <div v-else-if="draft.type === 'OPTIONS'" class="space-y-1 text-xs font-medium text-toast-700">
+                  <div v-else-if="draft.type === 'OPTIONS'" class="space-y-1 text-xs font-medium text-jam-700">
                     <label v-for="(opt, oIdx) in draft.options" :key="oIdx" class="flex items-center gap-2">
                       <input type="radio" disabled />
                       <span>{{ opt || `Option ${oIdx + 1}` }}</span>

@@ -111,6 +111,13 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
           description: 'Your identity has been confirmed.',
           color: 'success',
         })
+        const redirect = typeof route.query.redirect === 'string' && route.query.redirect.trim()
+          ? route.query.redirect.trim()
+          : undefined
+        if (redirect) {
+          await navigateTo(redirect)
+          return
+        }
         const uiPending = getUiPendingPayment()
         if (uiPending) {
           await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
@@ -121,8 +128,7 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
           await navigateTo({ path: '/user/payment', query: uiUnpaid as Record<string, string> })
           return
         }
-        const target = typeof route.query.redirect === 'string' ? route.query.redirect : '/user/create-event'
-        await navigateTo(target)
+        await navigateTo('/user/create-event')
       },
       api: () => verifyEmail(otpId.value, event.data.pinCode),
       onApiSuccess: async (res: any) => {

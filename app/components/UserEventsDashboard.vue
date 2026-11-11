@@ -32,10 +32,37 @@ const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
 })
 
-const activeTab = ref<'events' | 'seating'>(
+const activeTab = useState<'events' | 'seating'>('user-dashboard-tab', () =>
   route.query.tab === 'seating' ? 'seating' : 'events'
 )
 
+
+// Touch swipe gesture support for mobile / tablets
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+
+function onTouchStart(e: TouchEvent) {
+  const touch = e.touches[0]
+  if (!touch || e.touches.length !== 1) return
+  touchStartX.value = touch.clientX
+  touchStartY.value = touch.clientY
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const touch = e.changedTouches[0]
+  if (!touch || e.changedTouches.length !== 1) return
+  const deltaX = touch.clientX - touchStartX.value
+  const deltaY = touch.clientY - touchStartY.value
+
+  // Horizontal swipe dominant with >= 40px threshold
+  if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+    if (deltaX < 0 && activeTab.value === 'events' && seatingPlansEnabled.value) {
+      activeTab.value = 'seating'
+    } else if (deltaX > 0 && activeTab.value === 'seating') {
+      activeTab.value = 'events'
+    }
+  }
+}
 const userEvents = ref<EventRecord[]>([])
 const seatingPlans = ref<GatheringRecord[]>([])
 const isLoadingEvents = ref(false)
@@ -324,14 +351,63 @@ function handleOpenJam(plan: GatheringRecord) {
   startPageTransition(target)
 }
 
+const eventsContainerRef = ref<any>(null)
+const jamsContainerRef = ref<any>(null)
+const containerHeight = ref<number | undefined>(undefined)
+let resizeObserver: any = null
+
+function updateActiveHeight() {
+  const target = activeTab.value === 'events' ? eventsContainerRef.value : jamsContainerRef.value
+  if (target) {
+    const h = target.offsetHeight
+    if (h > 0) {
+      containerHeight.value = h
+    }
+  }
+}
+
+watch(activeTab, () => {
+  nextTick(() => {
+    updateActiveHeight()
+  })
+})
+
+watch(eventsContainerRef, (el) => {
+  if (el && resizeObserver) resizeObserver.observe(el)
+  updateActiveHeight()
+})
+
+watch(jamsContainerRef, (el) => {
+  if (el && resizeObserver) resizeObserver.observe(el)
+  updateActiveHeight()
+})
+
 onMounted(() => {
   loadSeatingFeature()
-  loadUserEvents()
+  loadUserEvents().then(() => {
+    nextTick(() => {
+      updateActiveHeight()
+    })
+  })
+
+  if (typeof window !== 'undefined' && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      updateActiveHeight()
+    })
+    if (eventsContainerRef.value) resizeObserver.observe(eventsContainerRef.value)
+    if (jamsContainerRef.value) resizeObserver.observe(jamsContainerRef.value)
+  }
+})
+
+onUnmounted(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
 })
 </script>
 
 <template>
-  <div class="w-full flex-1 bg-toast-700 text-white py-3.5 sm:py-5 px-3.5 sm:px-6 lg:px-8 flex flex-col items-center">
+  <div
+    :class="['w-full flex-1 text-white py-3.5 sm:py-5 px-3.5 sm:px-6 lg:px-8 flex flex-col items-center theme-jam-scope bg-toast-700', activeTab === 'seating' ? 'theme-jam' : '']">
     <div class="w-full max-w-7xl mx-auto space-y-6">
       <!-- Navbar Teleport Actions -->
       <ClientOnly>
@@ -341,8 +417,8 @@ onMounted(() => {
             @click="followLink($event, '/user/create-event')">
             Create New Event
           </UButton>
-          <UButton :to="'/user/create-seating'" v-else-if="seatingPlansEnabled" icon="i-lucide-layout-grid" color="bread"
-            class="font-semibold rounded-lg shadow-xs cursor-pointer text-xs sm:text-sm"
+          <UButton :to="'/user/create-seating'" v-else-if="seatingPlansEnabled" icon="i-lucide-layout-grid"
+            color="bread" class="font-semibold rounded-lg shadow-xs cursor-pointer text-xs sm:text-sm"
             @click="followLink($event, '/user/create-seating')">
             Create New Jam
           </UButton>
@@ -351,341 +427,392 @@ onMounted(() => {
 
       <!-- Main Dashboard Container -->
       <div
-        class="bread-container bg-bread-400 text-toast-900 p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 w-full rounded-2xl">
-        <!-- Top Toolbar with UTabs and Contextual Action Button -->
-        <UTabs v-model="activeTab" :items="tabItems" :content="false" class="w-full " :ui="{
-        }" />
+        class="bread-container bg-bread-400 text-toast-900 p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 w-full rounded-2xl overflow-hidden shadow-sm">
+        <!-- Top Toolbar with UTabs spanning full width of container -->
+        <UTabs v-model="activeTab" :items="tabItems" :content="false" class="w-full" size="sm"
+          :color="activeTab === 'seating' ? 'jam' : 'toast'" :ui="{
+            list: 'w-full grid grid-flow-col auto-cols-fr bg-toast-800/10 border border-toast-600/15 p-1 rounded-xl transition-colors duration-500 shadow-2xs',
+            indicator: 'shadow-xs rounded-lg transition-all duration-300',
+            trigger: 'w-full flex items-center justify-center gap-2 py-2 text-xs sm:text-sm font-semibold text-toast-800 hover:text-toast-950 data-[state=active]:text-white transition-colors cursor-pointer'
 
+          }" />
 
-        <!-- Loading State Skeleton -->
-        <div v-if="isLoadingEvents" class="space-y-4 w-full">
-          <div class="border-b border-toast-600/20 pb-4">
-            <USkeleton class="h-6 sm:h-8 w-48 bg-toast-900/10" />
-          </div>
-          <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-            <div v-for="n in 3" :key="`skeleton-home-${n}`"
-              class="bg-toast-500/90 rounded-xl overflow-hidden border border-white/10">
-              <USkeleton class="aspect-[3/2] w-full rounded-none bg-white/15" />
-              <div class="space-y-2 p-3 sm:space-y-3 sm:p-4">
-                <USkeleton class="h-4 sm:h-5 w-3/4 bg-white/20" />
-                <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
-                <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
-                <USkeleton class="h-7 sm:h-9 w-full mt-3 bg-white/25" />
-              </div>
-            </div>
-          </UPageGrid>
-        </div>
-
-        <!-- TAB CONTENT: EVENTS -->
-        <div v-else-if="activeTab === 'events'" class="space-y-6 w-full">
-          <!-- Ongoing Events -->
-          <div v-if="ongoingEvents.length > 0" class="space-y-4 w-full">
-            <div class="flex items-center justify-between pb-1">
-              <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-800 flex items-center gap-2">
-                <UIcon name="i-lucide-calendar-heart" class="size-5 text-toast-700" />
-                <span>Ongoing Events</span>
-              </h3>
-              <span class="text-xs text-toast-700 font-medium">
-                {{ ongoingEvents.length }} active celebration{{ ongoingEvents.length === 1 ? '' : 's' }}
-              </span>
-            </div>
-
-            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-              <div v-for="event in ongoingEvents" :key="event._id"
-                class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden transition-all duration-200 border-5 border-toast-500 text-white group">
-                <div>
-                  <div class="aspect-[3/2] w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
-                    <!-- Package tier badge on upper right of image -->
-                    <div class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
-                      <UBadge color="neutral" variant="solid" size="xs"
-                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-toast-900/80 backdrop-blur-xs text-white shadow-xs border border-white/20">
-                        {{ formatEventPriceTier(event) }}
-                      </UBadge>
-                    </div>
-
-                    <!-- If event has a custom cover image -->
-                    <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
-                      class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                      @error="() => onCoverImageError(event)" />
-
-                    <!-- If no event image inserted: UFileUpload filling the same size of the image area -->
-                    <div v-else class="h-full w-full bg-toast-800">
-                      <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*"
-                        variant="area" label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
-                        icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
-                        class="h-full w-full rounded-none border-0 bg-toast-800! hover:bg-toast-900! transition-colors"
-                        :ui="{
-                          root: 'h-full w-full bg-toast-800!',
-                          base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer bg-toast-800! hover:bg-toast-900! border-dashed! border-toast-600/60! transition-colors',
-                          wrapper: 'flex flex-col items-center justify-center text-center',
-                          label: 'text-xs font-bold text-white mt-1',
-                          description: 'text-[11px] text-toast-200 mt-0.5',
-                          icon: 'size-6 text-toast-300 mb-1 shrink-0',
-                        }" @update:model-value="(val) => handleEventImageUpload(event, val)" />
-                    </div>
+        <!-- Sliding Content Viewport with Swipe Movement -->
+        <div class="w-full overflow-hidden transition-[height] duration-500 ease-in-out"
+          :style="containerHeight ? { height: `${containerHeight}px` } : undefined" @touchstart="onTouchStart"
+          @touchend="onTouchEnd">
+          <div class="flex items-start transition-transform duration-500 ease-in-out"
+            :class="seatingPlansEnabled ? 'w-[200%]' : 'w-full'" :style="{
+              transform: seatingPlansEnabled && activeTab === 'seating' ? 'translateX(-50%)' : 'translateX(0%)'
+            }">
+            <!-- Events Tab Column -->
+            <div ref="eventsContainerRef"
+              :class="[seatingPlansEnabled ? 'w-1/2 shrink-0' : 'w-full', activeTab !== 'events' ? 'pointer-events-none' : '']"
+              :aria-hidden="activeTab !== 'events'">
+              <div class="space-y-4 sm:space-y-5 w-full">
+                <!-- Loading State Skeleton -->
+                <div v-if="isLoadingEvents" class="space-y-4 w-full">
+                  <div class="border-b border-toast-600/20 pb-4">
+                    <USkeleton class="h-6 sm:h-8 w-48 bg-toast-900/10" />
                   </div>
-
-                  <div class="p-3 sm:p-4 space-y-2">
-                    <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
-                      <div
-                        class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
-                        {{ event.eventName }}
+                  <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                    <div v-for="n in 3" :key="`skeleton-home-${n}`"
+                      class="bg-toast-500/90 rounded-xl overflow-hidden border border-white/10">
+                      <USkeleton class="aspect-3/2 w-full rounded-none bg-white/15" />
+                      <div class="space-y-2 p-3 sm:space-y-3 sm:p-4">
+                        <USkeleton class="h-4 sm:h-5 w-3/4 bg-white/20" />
+                        <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
+                        <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
+                        <USkeleton class="h-7 sm:h-9 w-full mt-3 bg-white/25" />
                       </div>
+                    </div>
+                  </UPageGrid>
+                </div>
 
-                      <div class="flex items-center gap-2 shrink-0">
-                        <!-- Hazard icon with hover tooltip if event is not fully paid -->
-                        <UTooltip v-if="!isEventFullyPaid(event)" :text="getPaymentStatusLabel(event)"
-                          :content="{ side: 'top' }">
-                          <div
-                            class="inline-flex items-center justify-center size-6.5 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 cursor-help transition-transform hover:scale-110 shadow-xs"
-                            aria-label="Payment status">
-                            <UIcon name="i-lucide-alert-triangle" class="size-4 text-amber-400 animate-pulse" />
+                <!-- Events Tab Content -->
+                <div v-else class="space-y-6 w-full">
+                  <!-- Ongoing Events -->
+                  <div v-if="ongoingEvents.length > 0" class="space-y-4 w-full">
+                    <div class="flex items-center justify-between pb-1">
+                      <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-800 flex items-center gap-2">
+                        <UIcon name="i-lucide-calendar-heart" class="size-5 text-toast-700" />
+                        <span>Ongoing Events</span>
+                      </h3>
+                      <span class="text-xs text-toast-700 font-medium">
+                        {{ ongoingEvents.length }} active celebration{{ ongoingEvents.length === 1 ? '' : 's' }}
+                      </span>
+                    </div>
+
+                    <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                      <div v-for="event in ongoingEvents" :key="event._id"
+                        class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden transition-all duration-200 border-5 border-toast-500 text-white group">
+                        <div>
+                          <div class="aspect-3/2 w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
+                            <!-- Package tier badge on upper right of image -->
+                            <div class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
+                              <UBadge color="neutral" variant="solid" size="xs"
+                                class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-toast-900/80 backdrop-blur-xs text-white shadow-xs border border-white/20">
+                                {{ formatEventPriceTier(event) }}
+                              </UBadge>
+                            </div>
+
+                            <!-- If event has a custom cover image -->
+                            <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
+                              class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                              @error="() => onCoverImageError(event)" />
+
+                            <!-- If no event image inserted: UFileUpload filling the same size of the image area -->
+                            <div v-else class="h-full w-full bg-toast-800">
+                              <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*"
+                                variant="area" label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
+                                icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
+                                class="h-full w-full rounded-none border-0 bg-toast-800! hover:bg-toast-900! transition-colors"
+                                :ui="{
+                                  root: 'h-full w-full bg-toast-800!',
+                                  base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer bg-toast-800! hover:bg-toast-900! border-dashed! border-toast-600/60! transition-colors',
+                                  wrapper: 'flex flex-col items-center justify-center text-center',
+                                  label: 'text-xs font-bold text-white mt-1',
+                                  description: 'text-[11px] text-toast-200 mt-0.5',
+                                  icon: 'size-6 text-toast-300 mb-1 shrink-0',
+                                }" @update:model-value="(val) => handleEventImageUpload(event, val)" />
+                            </div>
                           </div>
-                        </UTooltip>
 
-                        <!-- Event type badge -->
-                        <UBadge color="bread" variant="subtle" size="xs"
-                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold truncate max-w-37.5">
-                          {{ mapApiToEventTypeLabel(event.eventType || 'GENERAL_CELEBRATIONS') }}
-                        </UBadge>
-                      </div>
-                    </div>
+                          <div class="p-3 sm:p-4 space-y-2">
+                            <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
+                              <div
+                                class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
+                                {{ event.eventName }}
+                              </div>
 
-                    <div class="space-y-1.5 pt-0.5 text-xs sm:text-sm text-toast-100">
-                      <div class="flex items-start gap-2">
-                        <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
-                        <span class="wrap-break-word hyphens-none flex-1">{{ event.venue || 'Venue pending' }}</span>
-                      </div>
-                      <div class="flex items-center gap-2 truncate">
-                        <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-bread-300 shrink-0" />
-                        <span class="truncate">{{ formatEventDateLabel(event.eventDate) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                              <div class="flex items-center gap-2 shrink-0">
+                                <!-- Hazard icon with hover tooltip if event is not fully paid -->
+                                <UTooltip v-if="!isEventFullyPaid(event)" :text="getPaymentStatusLabel(event)"
+                                  :content="{ side: 'top' }">
+                                  <div
+                                    class="inline-flex items-center justify-center size-6.5 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 cursor-help transition-transform hover:scale-110 shadow-xs"
+                                    aria-label="Payment status">
+                                    <UIcon name="i-lucide-alert-triangle" class="size-4 text-amber-400 animate-pulse" />
+                                  </div>
+                                </UTooltip>
 
-                <div class="p-3 sm:p-4 pt-0">
-                  <UButton block size="sm" :color="getEventAction(event).color" variant="solid"
-                    :icon="getEventAction(event).icon" trailing
-                    class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
-                    @click.prevent="handleEventAction(event)">
-                    {{ getEventAction(event).label }}
-                  </UButton>
-                </div>
-              </div>
-            </UPageGrid>
-          </div>
+                                <!-- Event type badge -->
+                                <UBadge color="bread" variant="subtle" size="xs"
+                                  class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold truncate max-w-37.5">
+                                  {{ mapApiToEventTypeLabel(event.eventType || 'GENERAL_CELEBRATIONS') }}
+                                </UBadge>
+                              </div>
+                            </div>
 
-          <!-- Past Events -->
-          <div v-if="pastEvents.length > 0" class="space-y-4 pt-4 border-t border-toast-600/20">
-            <div class="flex items-center justify-between pb-1">
-              <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-800 flex items-center gap-2">
-                <UIcon name="i-lucide-history" class="size-5 text-toast-700" />
-                <span>Past Events</span>
-              </h3>
-              <span class="text-xs text-toast-700 font-medium">
-                {{ pastEvents.length }} completed celebration{{ pastEvents.length === 1 ? '' : 's' }}
-              </span>
-            </div>
-
-            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-              <div v-for="event in pastEvents" :key="event._id"
-                class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden border-5 border-toast-500 text-white group">
-                <div>
-                  <div class="aspect-[3/2] w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
-                    <!-- Package tier badge on upper right of image -->
-                    <div class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
-                      <UBadge color="neutral" variant="solid" size="xs"
-                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-toast-900/80 backdrop-blur-xs text-white shadow-xs border border-white/20">
-                        {{ formatEventPriceTier(event) }}
-                      </UBadge>
-                    </div>
-
-                    <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
-                      class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                      @error="() => onCoverImageError(event)" />
-                    <div v-else class="h-full w-full bg-toast-800">
-                      <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*"
-                        variant="area" label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
-                        icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
-                        class="h-full w-full rounded-none border-0 bg-toast-800! hover:bg-toast-900! transition-colors"
-                        :ui="{
-                          root: 'h-full w-full bg-toast-800!',
-                          base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer bg-toast-800! hover:bg-toast-900! border-dashed! border-toast-600/60! transition-colors',
-                          wrapper: 'flex flex-col items-center justify-center text-center',
-                          label: 'text-xs font-bold text-white mt-1',
-                          description: 'text-[11px] text-toast-200 mt-0.5',
-                          icon: 'size-6 text-toast-300 mb-1 shrink-0',
-                        }" @update:model-value="(val) => handleEventImageUpload(event, val)" />
-                    </div>
-                  </div>
-
-                  <div class="p-3 sm:p-4 space-y-2">
-                    <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
-                      <div
-                        class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
-                        {{ event.eventName }}
-                      </div>
-
-                      <div class="flex items-center gap-2 shrink-0">
-                        <!-- Hazard icon with hover tooltip if event is not fully paid -->
-                        <UTooltip v-if="!isEventFullyPaid(event)" :text="getPaymentStatusLabel(event)"
-                          :content="{ side: 'top' }">
-                          <div
-                            class="inline-flex items-center justify-center size-6.5 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 cursor-help transition-transform hover:scale-110 shadow-xs"
-                            aria-label="Payment status">
-                            <UIcon name="i-lucide-alert-triangle" class="size-4 text-amber-400 animate-pulse" />
+                            <div class="space-y-1.5 pt-0.5 text-xs sm:text-sm text-toast-100">
+                              <div class="flex items-start gap-2">
+                                <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
+                                <span class="wrap-break-word hyphens-none flex-1">{{ event.venue || 'Venue pending'
+                                }}</span>
+                              </div>
+                              <div class="flex items-center gap-2 truncate">
+                                <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-bread-300 shrink-0" />
+                                <span class="truncate">{{ formatEventDateLabel(event.eventDate) }}</span>
+                              </div>
+                            </div>
                           </div>
-                        </UTooltip>
-
-                        <!-- Event type badge -->
-                        <UBadge color="bread" variant="subtle" size="xs"
-                          class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold truncate max-w-37.5">
-                          {{ mapApiToEventTypeLabel(event.eventType || 'GENERAL_CELEBRATIONS') }}
-                        </UBadge>
-                      </div>
-                    </div>
-
-                    <div class="space-y-1.5 pt-0.5 text-xs sm:text-sm text-toast-100">
-                      <div class="flex items-start gap-2">
-                        <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
-                        <span class="wrap-break-word hyphens-none flex-1">{{ event.venue || 'Venue pending' }}</span>
-                      </div>
-                      <div class="flex items-center gap-2 truncate">
-                        <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-bread-300 shrink-0" />
-                        <span class="truncate">{{ formatEventDateLabel(event.eventDate) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="p-3 sm:p-4 pt-0">
-                  <UButton block size="sm" :color="getEventAction(event).color" variant="solid"
-                    :icon="getEventAction(event).icon" trailing
-                    class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
-                    @click.prevent="handleEventAction(event)">
-                    {{ getEventAction(event).label }}
-                  </UButton>
-                </div>
-              </div>
-            </UPageGrid>
-          </div>
-
-          <!-- Empty Events State -->
-          <div v-if="userEvents.length === 0" class="p-6 sm:p-8 text-center space-y-3.5 max-w-xl mx-auto w-full">
-            <div
-              class="size-16 rounded-full bg-toast-600 text-white flex items-center justify-center mx-auto shadow-sm">
-              <UIcon name="i-lucide-calendar-plus" class="size-8" />
-            </div>
-            <div class="space-y-1">
-              <h3 class="text-xl sm:text-2xl font-serif font-bold text-toast-900">No Events Planned Yet</h3>
-              <p class="text-xs sm:text-sm text-toast-700 max-w-sm mx-auto">
-                Start creating your event website, guest lists, RSVPs, and countdown in just a few minutes.
-              </p>
-            </div>
-            <div class="pt-2">
-              <UButton :to="'/user/create-event'" color="primary" variant="solid" size="md"
-                class="font-semibold bg-toast-600 hover:bg-toast-700 text-white rounded-lg shadow-sm cursor-pointer"
-                icon="i-lucide-plus" @click="followLink($event, '/user/create-event')">
-                Create Your First Event
-              </UButton>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB CONTENT: JAMS -->
-        <div v-else-if="activeTab === 'seating'" class="space-y-6 w-full">
-          <div v-if="seatingPlans.length > 0" class="space-y-4 w-full">
-            <div class="flex items-center justify-between pb-1">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-layout-grid" class="size-5 text-toast-700" />
-                <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-800">
-                  Jams
-                </h3>
-              </div>
-              <span class="text-xs text-toast-700 font-medium">
-                {{ seatingPlans.length }} active jam{{ seatingPlans.length === 1 ? '' : 's' }}
-              </span>
-            </div>
-
-            <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-              <div v-for="plan in seatingPlans" :key="plan._id"
-                class="bg-toast-500 rounded-xl p-3.5 sm:p-4 space-y-2.5 flex flex-col justify-between border-5 border-toast-500 text-white group cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
-                @click="handleOpenJam(plan)">
-                <div class="space-y-2">
-                  <!-- Row 1: Plan Name, Hazard alert (if unpaid), and Plan Type badge -->
-                  <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
-                    <h3
-                      class="min-w-0 flex-1 font-serif text-lg sm:text-xl font-bold text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
-                      {{ plan.name }}
-                    </h3>
-
-                    <div class="flex items-center gap-2 shrink-0">
-                      <!-- Hazard icon with hover tooltip if seating plan is not active/fully paid -->
-                      <UTooltip v-if="!isSeatingPlanFullyPaid(plan)" :text="getSeatingPaymentStatusLabel(plan)"
-                        :content="{ side: 'top' }">
-                        <div
-                          class="inline-flex items-center justify-center size-6.5 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 cursor-help transition-transform hover:scale-110 shadow-xs"
-                          aria-label="Payment status">
-                          <UIcon name="i-lucide-alert-triangle" class="size-4 text-amber-400 animate-pulse" />
                         </div>
-                      </UTooltip>
 
-                      <!-- Event type badge -->
-                      <UBadge color="bread" variant="subtle" size="xs"
-                        class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold shrink-0">
-                        {{ mapApiToEventTypeLabel(plan.eventType || 'GENERAL_CELEBRATIONS') }}
-                      </UBadge>
-                    </div>
+                        <div class="p-3 sm:p-4 pt-0">
+                          <UButton block size="sm" :color="getEventAction(event).color" variant="solid"
+                            :icon="getEventAction(event).icon" trailing
+                            class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
+                            @click.prevent="handleEventAction(event)">
+                            {{ getEventAction(event).label }}
+                          </UButton>
+                        </div>
+                      </div>
+                    </UPageGrid>
                   </div>
 
-                  <!-- Row 2: Below title is guest count -->
-                  <div class="text-xs text-toast-200 font-medium">
-                    {{ plan.guestCount }} / {{ plan.maxGuests }} guests
+                  <!-- Past Events -->
+                  <div v-if="pastEvents.length > 0" class="space-y-4 pt-4 border-t border-toast-600/20">
+                    <div class="flex items-center justify-between pb-1">
+                      <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-800 flex items-center gap-2">
+                        <UIcon name="i-lucide-history" class="size-5 text-toast-700" />
+                        <span>Past Events</span>
+                      </h3>
+                      <span class="text-xs text-toast-700 font-medium">
+                        {{ pastEvents.length }} completed celebration{{ pastEvents.length === 1 ? '' : 's' }}
+                      </span>
+                    </div>
+
+                    <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                      <div v-for="event in pastEvents" :key="event._id"
+                        class="bg-toast-500 rounded-xl flex flex-col justify-between overflow-hidden border-5 border-toast-500 text-white group">
+                        <div>
+                          <div class="aspect-3/2 w-full overflow-hidden rounded-lg relative bg-toast-800 shrink-0">
+                            <!-- Package tier badge on upper right of image -->
+                            <div class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
+                              <UBadge color="neutral" variant="solid" size="xs"
+                                class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-toast-900/80 backdrop-blur-xs text-white shadow-xs border border-white/20">
+                                {{ formatEventPriceTier(event) }}
+                              </UBadge>
+                            </div>
+
+                            <img v-if="hasEventCover(event)" :src="event.coverImageURL!" :alt="event.eventName"
+                              class="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                              @error="() => onCoverImageError(event)" />
+                            <div v-else class="h-full w-full bg-toast-800">
+                              <UFileUpload v-model="eventUploadFiles[event._id]" :multiple="false" accept="image/*"
+                                variant="area" label="Add image here" description="Click or drag image (PNG, JPG, WEBP)"
+                                icon="i-lucide-image-plus" :loading="uploadingEventId === event._id"
+                                class="h-full w-full rounded-none border-0 bg-toast-800! hover:bg-toast-900! transition-colors"
+                                :ui="{
+                                  root: 'h-full w-full bg-toast-800!',
+                                  base: 'h-full w-full flex flex-col items-center justify-center text-center p-4 cursor-pointer bg-toast-800! hover:bg-toast-900! border-dashed! border-toast-600/60! transition-colors',
+                                  wrapper: 'flex flex-col items-center justify-center text-center',
+                                  label: 'text-xs font-bold text-white mt-1',
+                                  description: 'text-[11px] text-toast-200 mt-0.5',
+                                  icon: 'size-6 text-toast-300 mb-1 shrink-0',
+                                }" @update:model-value="(val) => handleEventImageUpload(event, val)" />
+                            </div>
+                          </div>
+
+                          <div class="p-3 sm:p-4 space-y-2">
+                            <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
+                              <div
+                                class="min-w-0 flex-1 text-base sm:text-lg font-bold font-serif text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
+                                {{ event.eventName }}
+                              </div>
+
+                              <div class="flex items-center gap-2 shrink-0">
+                                <!-- Hazard icon with hover tooltip if event is not fully paid -->
+                                <UTooltip v-if="!isEventFullyPaid(event)" :text="getPaymentStatusLabel(event)"
+                                  :content="{ side: 'top' }">
+                                  <div
+                                    class="inline-flex items-center justify-center size-6.5 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 cursor-help transition-transform hover:scale-110 shadow-xs"
+                                    aria-label="Payment status">
+                                    <UIcon name="i-lucide-alert-triangle" class="size-4 text-amber-400 animate-pulse" />
+                                  </div>
+                                </UTooltip>
+
+                                <!-- Event type badge -->
+                                <UBadge color="bread" variant="subtle" size="xs"
+                                  class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold truncate max-w-37.5">
+                                  {{ mapApiToEventTypeLabel(event.eventType || 'GENERAL_CELEBRATIONS') }}
+                                </UBadge>
+                              </div>
+                            </div>
+
+                            <div class="space-y-1.5 pt-0.5 text-xs sm:text-sm text-toast-100">
+                              <div class="flex items-start gap-2">
+                                <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
+                                <span class="wrap-break-word hyphens-none flex-1">{{ event.venue || 'Venue pending'
+                                }}</span>
+                              </div>
+                              <div class="flex items-center gap-2 truncate">
+                                <UIcon name="i-lucide-calendar-heart" class="size-3.5 text-bread-300 shrink-0" />
+                                <span class="truncate">{{ formatEventDateLabel(event.eventDate) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="p-3 sm:p-4 pt-0">
+                          <UButton block size="sm" :color="getEventAction(event).color" variant="solid"
+                            :icon="getEventAction(event).icon" trailing
+                            class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
+                            @click.prevent="handleEventAction(event)">
+                            {{ getEventAction(event).label }}
+                          </UButton>
+                        </div>
+                      </div>
+                    </UPageGrid>
                   </div>
 
-                  <!-- Venue & Date -->
-                  <div class="space-y-1 text-xs text-toast-100 pt-0.5">
-                    <div class="flex items-start gap-1.5">
-                      <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
-                      <span class="wrap-break-word hyphens-none flex-1">{{ plan.venue || 'Venue pending' }}</span>
+                  <!-- Empty Events State -->
+                  <div v-if="userEvents.length === 0"
+                    class="p-6 sm:p-8 text-center space-y-3.5 max-w-xl mx-auto w-full">
+                    <div
+                      class="size-16 rounded-full bg-toast-600 text-white flex items-center justify-center mx-auto shadow-sm">
+                      <UIcon name="i-lucide-calendar-plus" class="size-8" />
                     </div>
-                    <div class="flex items-center gap-1.5 truncate">
-                      <UIcon name="i-lucide-calendar" class="size-3.5 text-bread-300 shrink-0" />
-                      <span class="truncate">{{ formatEventDateLabel(plan.eventDate) }}</span>
+                    <div class="space-y-1">
+                      <h3 class="text-xl sm:text-2xl font-serif font-bold text-toast-900">No Events Planned Yet</h3>
+                      <p class="text-xs sm:text-sm text-toast-700 max-w-sm mx-auto">
+                        Start creating your event website, guest lists, RSVPs, and countdown in just a few minutes.
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <UButton :to="'/user/create-event'" color="primary" variant="solid" size="md"
+                        class="font-semibold bg-toast-600 hover:bg-toast-700 text-white rounded-lg shadow-sm cursor-pointer"
+                        icon="i-lucide-plus" @click="followLink($event, '/user/create-event')">
+                        Create Your First Event
+                      </UButton>
                     </div>
                   </div>
-                </div>
-                <div class="pt-2">
-                  <UButton block size="sm" :color="plan.status === 'ACTIVE' ? 'bread' : 'neutral'" variant="solid"
-                    :icon="plan.status === 'ACTIVE' ? 'i-lucide-arrow-right' : 'i-lucide-credit-card'" trailing
-                    class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
-                    @click.stop="handleOpenJam(plan)">
-                    {{ plan.status === 'ACTIVE' ? 'Open Jam' : 'Complete Payment' }}
-                  </UButton>
                 </div>
               </div>
-            </UPageGrid>
-          </div>
+            </div>
 
-          <!-- Empty Jams State -->
-          <div v-else class="p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto w-full">
-            <div
-              class="size-16 rounded-full bg-toast-600 text-white flex items-center justify-center mx-auto shadow-sm">
-              <UIcon name="i-lucide-layout-grid" class="size-8" />
-            </div>
-            <div class="space-y-1">
-              <h3 class="text-xl sm:text-2xl font-serif font-bold text-toast-900">No Jams Yet</h3>
-              <p class="text-xs sm:text-sm text-toast-700 max-w-sm mx-auto">
-                Arrange tables, assign seats, manage RSVP lists, and set up your guest arrival pass scanner with Jam.
-              </p>
-            </div>
-            <div class="pt-2">
-              <UButton :to="'/user/create-seating'" color="primary" variant="solid" size="md"
-                class="font-semibold bg-toast-600 hover:bg-toast-700 text-white rounded-lg shadow-sm cursor-pointer"
-                icon="i-lucide-plus" @click="followLink($event, '/user/create-seating')">
-                Create Your First Jam
-              </UButton>
+            <!-- Jams Tab Column -->
+            <div v-if="seatingPlansEnabled" ref="jamsContainerRef"
+              :class="['w-1/2 shrink-0', activeTab !== 'seating' ? 'pointer-events-none' : '']"
+              :aria-hidden="activeTab !== 'seating'">
+              <div class="space-y-4 sm:space-y-5 w-full">
+                <!-- Loading State Skeleton -->
+                <div v-if="isLoadingEvents" class="space-y-4 w-full">
+                  <div class="border-b border-jam-600/20 pb-4">
+                    <USkeleton class="h-6 sm:h-8 w-48 bg-jam-900/10" />
+                  </div>
+                  <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                    <div v-for="n in 3" :key="`skeleton-jam-${n}`"
+                      class="bg-jam-500/90 rounded-xl overflow-hidden border border-white/10">
+                      <USkeleton class="aspect-3/2 w-full rounded-none bg-white/15" />
+                      <div class="space-y-2 p-3 sm:space-y-3 sm:p-4">
+                        <USkeleton class="h-4 sm:h-5 w-3/4 bg-white/20" />
+                        <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
+                        <USkeleton class="h-3 sm:h-4 w-1/2 bg-white/15" />
+                        <USkeleton class="h-7 sm:h-9 w-full mt-3 bg-white/25" />
+                      </div>
+                    </div>
+                  </UPageGrid>
+                </div>
+
+                <!-- Jams Tab Content -->
+                <div v-else class="space-y-6 w-full">
+                  <div v-if="seatingPlans.length > 0" class="space-y-4 w-full">
+                    <div class="flex items-center justify-between pb-1">
+                      <h3 class="text-lg sm:text-xl font-bold font-serif text-jam-800 flex items-center gap-2">
+                        <UIcon name="i-lucide-layout-grid" class="size-5 text-jam-700" />
+                        <span>Jams</span>
+                      </h3>
+                      <span class="text-xs text-jam-700 font-medium">
+                        {{ seatingPlans.length }} active jam{{ seatingPlans.length === 1 ? '' : 's' }}
+                      </span>
+                    </div>
+
+                    <UPageGrid class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                      <div v-for="plan in seatingPlans" :key="plan._id"
+                        class="bg-jam-500 rounded-xl p-3.5 sm:p-4 space-y-2.5 flex flex-col justify-between border-5 border-jam-500 text-white group cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+                        @click="handleOpenJam(plan)">
+                        <div class="space-y-2">
+                          <!-- Row 1: Plan Name, Hazard alert (if unpaid), and Plan Type badge -->
+                          <div class="flex items-start justify-between gap-2 pb-0.5 min-w-0">
+                            <h3
+                              class="min-w-0 flex-1 font-serif text-lg sm:text-xl font-bold text-white group-hover:text-bread-200 transition-colors wrap-break-word hyphens-none leading-tight">
+                              {{ plan.name }}
+                            </h3>
+
+                            <div class="flex items-center gap-2 shrink-0">
+                              <!-- Hazard icon with hover tooltip if seating plan is not active/fully paid -->
+                              <UTooltip v-if="!isSeatingPlanFullyPaid(plan)" :text="getSeatingPaymentStatusLabel(plan)"
+                                :content="{ side: 'top' }">
+                                <div
+                                  class="inline-flex items-center justify-center size-6.5 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 cursor-help transition-transform hover:scale-110 shadow-xs"
+                                  aria-label="Payment status">
+                                  <UIcon name="i-lucide-alert-triangle" class="size-4 text-amber-400 animate-pulse" />
+                                </div>
+                              </UTooltip>
+
+                              <!-- Event type badge -->
+                              <UBadge color="bread" variant="subtle" size="xs"
+                                class="rounded-full px-2.5 py-0.5 text-[10px] sm:text-xs font-bold shrink-0">
+                                {{ mapApiToEventTypeLabel(plan.eventType || 'GENERAL_CELEBRATIONS') }}
+                              </UBadge>
+                            </div>
+                          </div>
+
+                          <!-- Row 2: Below title is guest count -->
+                          <div class="text-xs text-jam-200 font-medium">
+                            {{ plan.guestCount }} / {{ plan.maxGuests }} guests
+                          </div>
+
+                          <!-- Venue & Date -->
+                          <div class="space-y-1 text-xs text-jam-100 pt-0.5">
+                            <div class="flex items-start gap-1.5">
+                              <UIcon name="i-lucide-map-pin" class="size-3.5 text-bread-300 shrink-0 mt-0.5" />
+                              <span class="wrap-break-word hyphens-none flex-1">{{ plan.venue || 'Venue pending'
+                              }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 truncate">
+                              <UIcon name="i-lucide-calendar" class="size-3.5 text-bread-300 shrink-0" />
+                              <span class="truncate">{{ formatEventDateLabel(plan.eventDate) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="pt-2">
+                          <UButton block size="sm" :color="plan.status === 'ACTIVE' ? 'bread' : 'neutral'"
+                            variant="solid"
+                            :icon="plan.status === 'ACTIVE' ? 'i-lucide-arrow-right' : 'i-lucide-credit-card'" trailing
+                            class="w-full text-xs sm:text-sm py-2 px-3 rounded-lg cursor-pointer justify-center font-bold"
+                            @click.stop="handleOpenJam(plan)">
+                            {{ plan.status === 'ACTIVE' ? 'Open Jam' : 'Complete Payment' }}
+                          </UButton>
+                        </div>
+                      </div>
+                    </UPageGrid>
+                  </div>
+
+                  <!-- Empty Jams State -->
+                  <div v-else class="p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto w-full">
+                    <div
+                      class="size-16 rounded-full bg-jam-600 text-white flex items-center justify-center mx-auto shadow-sm">
+                      <UIcon name="i-lucide-layout-grid" class="size-8" />
+                    </div>
+                    <div class="space-y-1">
+                      <h3 class="text-xl sm:text-2xl font-serif font-bold text-jam-900">No Jams Yet</h3>
+                      <p class="text-xs sm:text-sm text-jam-700 max-w-sm mx-auto">
+                        Arrange tables, assign seats, manage RSVP lists, and set up your guest arrival pass scanner with
+                        Jam.
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <UButton :to="'/user/create-seating'" color="primary" variant="solid" size="md"
+                        class="font-semibold bg-jam-600 hover:bg-jam-700 text-white rounded-lg shadow-sm cursor-pointer"
+                        icon="i-lucide-plus" @click="followLink($event, '/user/create-seating')">
+                        Create Your First Jam
+                      </UButton>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -694,4 +821,6 @@ onMounted(() => {
   </div>
 </template>
 
-<style></style>
+<style scoped>
+/* Optional styling scoped to dashboard */
+</style>

@@ -12,6 +12,7 @@ export interface InvitationEmailData {
   websiteUrl?: string
   guestName?: string
   bannerImageUrl?: string
+  cardImageUrl?: string
 }
 
 export const DEFAULT_APP_DOMAIN = 'https://bread-plus-butter.com'

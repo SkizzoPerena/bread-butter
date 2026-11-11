@@ -84,11 +84,11 @@ interface CheckoutResponse {
 }
 
 const MOCK_PACKAGES: JamPackageRecord[] = [
-  { _id: 'mock-apricot', name: 'Apricot', pricePhp: 1500, maxGuests: 20, isEnabled: true },
-  { _id: 'mock-strawberry', name: 'Strawberry', pricePhp: 3500, maxGuests: 80, isEnabled: true },
-  { _id: 'mock-fig', name: 'Fig', pricePhp: 6000, maxGuests: 150, isEnabled: true },
-  { _id: 'mock-blackberry', name: 'Blackberry', pricePhp: 9500, maxGuests: 250, isEnabled: true },
-  { _id: 'mock-raspberry', name: 'Raspberry', pricePhp: 14000, maxGuests: 400, isEnabled: true },
+  { _id: 'mock-strawberry', name: 'Strawberry', pricePhp: 4000, maxGuests: 150, isEnabled: true },
+  { _id: 'mock-coconut', name: 'Coconut', pricePhp: 7000, maxGuests: 300, isEnabled: true },
+  { _id: 'mock-lemon', name: 'Lemon', pricePhp: 10000, maxGuests: 500, isEnabled: true },
+  { _id: 'mock-apricot', name: 'Apricot', pricePhp: 13000, maxGuests: 750, isEnabled: true },
+  { _id: 'mock-orange-marmalade', name: 'Orange Marmalade', pricePhp: 15000, maxGuests: 1000, isEnabled: true },
 ]
 
 function mockToken() {
@@ -1210,15 +1210,23 @@ export function useSeating() {
 
   async function uploadInvitationImage(
     gatheringId: string,
-    kind: 'banner' | 'invitation',
-    file: File,
+    kind: 'banner' | 'invitation' | 'card',
+    file: File | Blob,
   ): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const gathering = await getGathering(gatheringId)
       const url = URL.createObjectURL(file)
-      gathering.invitationDesign = kind === 'banner'
-        ? { ...gathering.invitationDesign, bannerImageUrl: url }
-        : { ...gathering.invitationDesign, imageUrl: url, mode: 'IMAGE' }
+      if (kind === 'banner') {
+        gathering.invitationDesign = { ...gathering.invitationDesign, bannerImageUrl: url }
+      } else if (kind === 'card') {
+        gathering.invitationDesign = {
+          ...gathering.invitationDesign,
+          cardImageUrl: url,
+          cardImageUpdatedAt: new Date().toISOString()
+        }
+      } else {
+        gathering.invitationDesign = { ...gathering.invitationDesign, imageUrl: url, mode: 'IMAGE' }
+      }
       return gathering
     }
     const form = new FormData()

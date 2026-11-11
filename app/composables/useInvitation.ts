@@ -25,7 +25,7 @@ function mockInvitation(eventId: string, payload: InvitationSavePayload): Invita
 }
 
 export function useInvitation() {
-  const { apiRequest, isUiOnlyMode } = useApiMode()
+  const { apiRequest, apiUpload, isUiOnlyMode } = useApiMode()
 
   async function fetchInvitationByEvent(eventId: string): Promise<InvitationRecord | null> {
     if (isUiOnlyMode.value) {
@@ -74,9 +74,62 @@ export function useInvitation() {
     return response.invitation
   }
 
+  async function uploadInvitationCardImage(
+    invitationId: string,
+    file: File | Blob,
+    buttonColor?: string
+  ): Promise<InvitationRecord> {
+    if (isUiOnlyMode.value) {
+      const url = URL.createObjectURL(file)
+      return {
+        _id: invitationId,
+        event: 'mock-event-id',
+        requestLine: '',
+        eventLabel: '',
+        eventDate: '',
+        eventTime: '',
+        eventVenue: '',
+        blocks: [],
+        deadlineText: '',
+        deadlineDate: '',
+        cardImageUrl: url,
+        cardImageUpdatedAt: new Date().toISOString()
+      }
+    }
+    const form = new FormData()
+    form.append('image', file, 'invitation-card.jpg')
+    // The email's reply button takes the card's accent color.
+    if (buttonColor && /^#[0-9a-f]{6}$/i.test(buttonColor)) {
+      form.append('buttonColor', buttonColor)
+    }
+    let response: InvitationMutationResponse
+    try {
+      response = await apiUpload<InvitationMutationResponse>(
+        `/user/invitations/${invitationId}/card-image`,
+        form,
+        { method: 'PATCH' }
+      )
+    } catch (err: any) {
+      if (err?.status === 404 || err?.statusCode === 404) {
+        response = await apiUpload<InvitationMutationResponse>(
+          `/invitations/${invitationId}/card-image`,
+          form,
+          { method: 'PATCH' }
+        )
+      } else {
+        throw err
+      }
+    }
+    if (!response.invitation) {
+      throw new Error(response.message || 'Invitation was not returned.')
+    }
+    return response.invitation
+  }
+
   return {
     fetchInvitationByEvent,
     createInvitation,
     updateInvitation,
+    uploadInvitationCardImage,
   }
 }

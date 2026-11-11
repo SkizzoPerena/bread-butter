@@ -116,7 +116,7 @@ async function saveAllSettings() {
 </script>
 
 <template>
-  <div class="jam-subpage-root min-h-screen bg-toast-50/20 pb-16">
+  <div class="jam-subpage-root min-h-screen bg-jam-50/20 pb-16">
     <!-- Subpage Top Banner -->
     <ClientOnly>
       <!-- Desktop Navbar Actions (Right Side) -->
@@ -155,8 +155,8 @@ async function saveAllSettings() {
     </ClientOnly>
 
     <div v-if="loading" class="p-12 max-w-4xl mx-auto text-center space-y-3">
-      <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-toast-600 mx-auto" />
-      <p class="font-serif text-lg font-bold text-toast-800">Loading settings & plan details...</p>
+      <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-jam-600 mx-auto" />
+      <p class="font-serif text-lg font-bold text-jam-800">Loading settings & plan details...</p>
     </div>
 
     <div v-else-if="gathering" class="max-w-4xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
@@ -164,8 +164,8 @@ async function saveAllSettings() {
       <div class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
         <div class="flex items-center justify-between border-b border-bread-200/60 pb-2">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-credit-card" class="size-4 text-toast-600" />
-            <h3 class="font-serif font-bold text-base text-toast-900">Plan & Package Details</h3>
+            <UIcon name="i-lucide-credit-card" class="size-4 text-jam-600" />
+            <h3 class="font-serif font-bold text-base text-jam-900">Plan & Package Details</h3>
           </div>
           <UBadge color="warning" variant="solid" size="sm" class="text-black font-semibold">
             {{ gathering.packageName }} Tier
@@ -173,26 +173,26 @@ async function saveAllSettings() {
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div class="bg-toast-50/50 p-3 rounded-xl border border-bread-200/60">
+          <div class="bg-jam-50/50 p-3 rounded-xl border border-bread-200/60">
             <span class="text-[11px] text-muted uppercase font-semibold block">Max Guest Limit</span>
-            <span class="text-xl font-bold font-serif text-toast-900">{{ gathering.maxGuests }} Guests</span>
+            <span class="text-xl font-bold font-serif text-jam-900">{{ gathering.maxGuests }} Guests</span>
           </div>
-          <div class="bg-toast-50/50 p-3 rounded-xl border border-bread-200/60">
+          <div class="bg-jam-50/50 p-3 rounded-xl border border-bread-200/60">
             <span class="text-[11px] text-muted uppercase font-semibold block">Registered Guests</span>
-            <span class="text-xl font-bold font-serif text-toast-900">{{ guests.length }}</span>
+            <span class="text-xl font-bold font-serif text-jam-900">{{ guests.length }}</span>
           </div>
-          <div class="bg-toast-50/50 p-3 rounded-xl border border-bread-200/60">
+          <div class="bg-jam-50/50 p-3 rounded-xl border border-bread-200/60">
             <span class="text-[11px] text-muted uppercase font-semibold block">Status</span>
             <span class="text-xl font-bold font-serif text-emerald-600">{{ gathering.status }}</span>
           </div>
         </div>
 
         <!-- Email Credits Row -->
-        <div class="bg-toast-50/40 p-4 rounded-xl border border-bread-200/60 flex flex-wrap items-center justify-between gap-4">
+        <div class="bg-jam-50/40 p-4 rounded-xl border border-bread-200/60 flex flex-wrap items-center justify-between gap-4">
           <div class="space-y-1">
             <span class="text-xs text-muted block font-semibold uppercase">Email Invitation Credits</span>
             <div class="flex items-baseline gap-2">
-              <span class="text-2xl font-bold font-serif text-toast-900">{{ emailCreditsRemaining }}</span>
+              <span class="text-2xl font-bold font-serif text-jam-900">{{ emailCreditsRemaining }}</span>
               <span class="text-xs text-muted">credits remaining of {{ gathering.maxGuests }} total capacity</span>
             </div>
             <UProgress
@@ -218,7 +218,7 @@ async function saveAllSettings() {
 
         <!-- Available Upgrade Options Preview -->
         <div v-if="upgradeOptions && upgradeOptions.options.length > 0" class="space-y-2 pt-2 border-t border-bread-200/60">
-          <span class="text-xs font-bold text-toast-800 block">Available Higher Tiers:</span>
+          <span class="text-xs font-bold text-jam-800 block">Available Higher Tiers:</span>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div
               v-for="opt in upgradeOptions.options"
@@ -226,11 +226,11 @@ async function saveAllSettings() {
               class="bg-white p-3 rounded-xl border border-bread-200/80 shadow-2xs flex items-center justify-between"
             >
               <div>
-                <span class="font-bold text-toast-900 block text-sm">{{ opt.name }}</span>
+                <span class="font-bold text-jam-900 block text-sm">{{ opt.name }}</span>
                 <span class="text-xs text-muted">Up to {{ opt.maxGuests }} Guests (+{{ opt.additionalGuests }})</span>
               </div>
               <div class="text-right">
-                <span class="font-serif font-bold text-sm text-toast-900 block">₱{{ opt.priceDifferencePhp.toLocaleString() }}</span>
+                <span class="font-serif font-bold text-sm text-jam-900 block">₱{{ opt.priceDifferencePhp.toLocaleString() }}</span>
                 <span class="text-[10px] text-muted">Difference</span>
               </div>
             </div>
@@ -241,27 +241,27 @@ async function saveAllSettings() {
       <!-- 2. Gathering Information Form -->
       <div class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
         <div class="flex items-center gap-2 border-b border-bread-200/60 pb-2">
-          <UIcon name="i-lucide-calendar" class="size-4 text-toast-600" />
-          <h3 class="font-serif font-bold text-base text-toast-900">Event Details</h3>
+          <UIcon name="i-lucide-calendar" class="size-4 text-jam-600" />
+          <h3 class="font-serif font-bold text-base text-jam-900">Event Details</h3>
         </div>
 
         <div class="space-y-3">
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1">Event / Gathering Title *</label>
+            <label class="block text-xs font-semibold text-jam-900 mb-1">Event / Gathering Title *</label>
             <input
               v-model="form.name"
               type="text"
               placeholder="e.g. Sarah & David's Wedding Reception"
-              class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+              class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
             />
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Event Type</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Event Type</label>
               <select
                 v-model="form.eventType"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               >
                 <option v-for="opt in EVENT_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
                   {{ opt.label }}
@@ -269,22 +269,22 @@ async function saveAllSettings() {
               </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-toast-900 mb-1">Event Date</label>
+              <label class="block text-xs font-semibold text-jam-900 mb-1">Event Date</label>
               <input
                 v-model="form.eventDate"
                 type="date"
-                class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+                class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
               />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1">Venue / Location</label>
+            <label class="block text-xs font-semibold text-jam-900 mb-1">Venue / Location</label>
             <input
               v-model="form.venue"
               type="text"
               placeholder="e.g. The Grand Ballroom, Manila"
-              class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 focus:outline-none focus:ring-1 focus:ring-toast-500"
+              class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
             />
           </div>
         </div>
@@ -293,18 +293,18 @@ async function saveAllSettings() {
       <!-- 3. Security, Passcode & Seating Preferences -->
       <div class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
         <div class="flex items-center gap-2 border-b border-bread-200/60 pb-2">
-          <UIcon name="i-lucide-lock" class="size-4 text-toast-600" />
-          <h3 class="font-serif font-bold text-base text-toast-900">Access & Seating Permissions</h3>
+          <UIcon name="i-lucide-lock" class="size-4 text-jam-600" />
+          <h3 class="font-serif font-bold text-base text-jam-900">Access & Seating Permissions</h3>
         </div>
 
         <div class="space-y-3">
           <div>
-            <label class="block text-xs font-semibold text-toast-900 mb-1">Invitation Passcode</label>
+            <label class="block text-xs font-semibold text-jam-900 mb-1">Invitation Passcode</label>
             <input
               v-model="form.passcode"
               type="text"
               placeholder="e.g. CELEBRATE2026"
-              class="w-full bg-toast-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-toast-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-toast-500"
+              class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-jam-500"
             />
             <p class="text-[11px] text-muted mt-1">
               Leave blank if you do not want to require guests to enter a passcode to view the invitation.
@@ -312,27 +312,27 @@ async function saveAllSettings() {
           </div>
 
           <div class="flex items-center justify-between gap-3 pt-2 border-t border-bread-200/60">
-            <div class="text-xs text-toast-900">
+            <div class="text-xs text-jam-900">
               <strong class="block font-semibold">Companions each guest can bring</strong>
               <span class="text-muted block text-[11px]">
                 Guests who reply that they're coming can add this many companions, who count toward your guest limit. Set to 0 to turn this off.
               </span>
             </div>
-            <div class="flex items-center gap-1.5 bg-white border border-toast-300/80 rounded-lg p-0.5 shadow-2xs shrink-0">
+            <div class="flex items-center gap-1.5 bg-white border border-jam-300/80 rounded-lg p-0.5 shadow-2xs shrink-0">
               <button
                 type="button"
                 aria-label="Allow fewer companions"
-                class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                class="size-6 rounded flex items-center justify-center font-bold text-jam-800 hover:bg-jam-100 cursor-pointer disabled:opacity-30"
                 :disabled="form.maxCompanionsPerGuest <= 0"
                 @click="form.maxCompanionsPerGuest -= 1"
               >
                 -
               </button>
-              <span data-testid="max-companions" class="w-6 text-center font-bold font-mono text-xs text-toast-900">{{ form.maxCompanionsPerGuest }}</span>
+              <span data-testid="max-companions" class="w-6 text-center font-bold font-mono text-xs text-jam-900">{{ form.maxCompanionsPerGuest }}</span>
               <button
                 type="button"
                 aria-label="Allow more companions"
-                class="size-6 rounded flex items-center justify-center font-bold text-toast-800 hover:bg-toast-100 cursor-pointer disabled:opacity-30"
+                class="size-6 rounded flex items-center justify-center font-bold text-jam-800 hover:bg-jam-100 cursor-pointer disabled:opacity-30"
                 :disabled="form.maxCompanionsPerGuest >= 10"
                 @click="form.maxCompanionsPerGuest += 1"
               >
@@ -343,10 +343,10 @@ async function saveAllSettings() {
 
           <div class="flex justify-end pt-3 border-t border-bread-200/60">
             <UButton
-              color="toast"
+              color="jam"
               variant="solid"
               size="sm"
-              class="bg-toast-800 hover:bg-toast-900 text-white font-bold"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-bold"
               :loading="saving"
               @click="saveAllSettings"
             >
