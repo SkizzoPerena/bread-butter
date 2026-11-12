@@ -64,14 +64,7 @@ async function preloadSiteAssets(site: ReturnType<typeof customSiteToViewModel> 
     imagePromises.push(preloadImage(site.dressCode.paletteImage))
   }
 
-  // 4. Where to stay hotel images (first 3)
-  if (site?.whereToStayHotels) {
-    for (const h of site.whereToStayHotels.slice(0, 3)) {
-      if (h.photoUrl) imagePromises.push(preloadImage(h.photoUrl))
-    }
-  }
-
-  // 5. Wedding fonts
+  // 4. Wedding fonts
   const fontPromise = typeof document !== 'undefined' && 'fonts' in document
     ? document.fonts.ready.catch(() => {})
     : Promise.resolve()

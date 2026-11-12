@@ -112,8 +112,6 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    resendApiKey: process.env.RESEND_API_KEY || '',
-    resendFromEmail: process.env.RESEND_FROM_EMAIL || 'hello@blinkpunch.com',
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
       useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',
