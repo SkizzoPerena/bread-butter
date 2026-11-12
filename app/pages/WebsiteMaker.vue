@@ -14,6 +14,7 @@ import {
 } from '~/utils/customSiteForm'
 import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
 import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
+import { usePlaces, type GeocodeResult, type PlaceSearchResult } from '~/composables/usePlaces'
 import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
 import type { GalleryLayout, GalleryPhoto, GalleryRecord } from '~/types/gallery'
@@ -60,6 +61,7 @@ const {
 const { fetchGuestRolesByEvent } = useGuestRoles()
 const { fetchGuestsByEvent } = useGuests()
 const { fetchDressCode, getLocalDressCode } = useDressCode()
+const { searchHotels, geocode: geocodePlace } = usePlaces()
 
 const publishedDressCode = ref<DressCodeRecord | null>(null)
 const isDressCodeLoading = ref(false)
@@ -1401,17 +1403,7 @@ function getVenueGoogleMapsUrl(
 // -------------------------------------------------------------
 // Google Maps / Live Geocoding for Venue Location
 // -------------------------------------------------------------
-interface GeocodeResultItem {
-    name: string
-    displayName: string
-    lat: number
-    lng: number
-    address?: {
-        city?: string
-        state?: string
-        country?: string
-    }
-}
+type GeocodeResultItem = GeocodeResult
 
 const venueSearchResults = ref<GeocodeResultItem[]>([])
 const isSearchingVenue = ref(false)
@@ -1429,10 +1421,7 @@ async function searchVenueLocations(query: string) {
 
     isSearchingVenue.value = true
     try {
-        const data = await $fetch<{ results: GeocodeResultItem[] }>('/api/geocode', {
-            params: { q: trimmed },
-        })
-        venueSearchResults.value = data?.results || []
+        venueSearchResults.value = await geocodePlace(trimmed)
         showVenueDropdown.value = venueSearchResults.value.length > 0
     } catch {
         venueSearchResults.value = []
@@ -1499,11 +1488,9 @@ async function detectCurrentLocation() {
             websiteData.whereToStayLatitude = lat
             websiteData.whereToStayLongitude = lng
             try {
-                const data = await $fetch<{ results: GeocodeResultItem[] }>('/api/geocode', {
-                    params: { q: `${lat}, ${lng}` },
-                })
-                if (data?.results?.[0]) {
-                    websiteData.whereToStayLocation = data.results[0].displayName || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+                const [first] = await geocodePlace(`${lat}, ${lng}`)
+                if (first) {
+                    websiteData.whereToStayLocation = first.displayName || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
                 } else {
                     websiteData.whereToStayLocation = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
                 }
@@ -1531,94 +1518,63 @@ async function detectCurrentLocation() {
 }
 
 // Localized Google Maps Places Search State
-interface PlaceSearchResultItem {
-    id: string
-    name: string
-    address: string
-    rating: string
-    ratingValue?: number
-    reviewsCount?: string
-    distance: string
-    distanceKm?: number
-    description: string
-    image: string
-    link: string
-    lat?: number
-    lng?: number
-    badge?: string
-}
-
 const isAccommodationPickerOpen = ref(false)
 const accommodationSearchQuery = ref('')
 const selectedAccommodationCategory = ref('all')
 const isSearchingPlaces = ref(false)
-const placesSearchResults = ref<PlaceSearchResultItem[]>([])
-const placesSearchCity = ref('')
-const placesSearchRadiusKm = ref(30)
-let placesSearchDebounceTimer: any = null
+const placesSearchResults = ref<PlaceSearchResult[]>([])
+const placesSearchMessage = ref('')
+const placesSearchCity = computed(() => getVenueShortName(websiteData.whereToStayLocation || eventRecord.value?.venue || ''))
 
-async function performPlacesSearch(immediate = false) {
-    if (placesSearchDebounceTimer) {
-        clearTimeout(placesSearchDebounceTimer)
-    }
-
-    const run = async () => {
-        isSearchingPlaces.value = true
-        try {
-            const city = websiteData.whereToStayLocation || eventRecord.value?.venue || ''
-            const lat = websiteData.whereToStayLatitude ?? undefined
-            const lng = websiteData.whereToStayLongitude ?? undefined
-            const data = await $fetch<{
-                success: boolean
-                city: string
-                radiusKm: number
-                results: PlaceSearchResultItem[]
-            }>('/api/places/search', {
-                params: {
-                    q: accommodationSearchQuery.value.trim() || undefined,
-                    city,
-                    lat,
-                    lng,
-                    radius: 30
-                }
-            })
-            if (data?.results) {
-                placesSearchResults.value = data.results
-                placesSearchCity.value = data.city || city
-                placesSearchRadiusKm.value = data.radiusKm || 30
-            }
-        } catch (e) {
-            console.error('[Places] Failed to fetch localized places:', e)
-        } finally {
-            isSearchingPlaces.value = false
-        }
-    }
-
-    if (immediate) {
-        await run()
-    } else {
-        placesSearchDebounceTimer = setTimeout(run, 350)
+// Each search can be a paid Google call, so it runs only when the picker opens,
+// on Enter, or from the Search button. Never on every keystroke.
+async function performPlacesSearch() {
+    if (isSearchingPlaces.value) return
+    isSearchingPlaces.value = true
+    placesSearchMessage.value = ''
+    try {
+        const data = await searchHotels({
+            q: accommodationSearchQuery.value,
+            city: websiteData.whereToStayLocation || eventRecord.value?.venue || '',
+            lat: websiteData.whereToStayLatitude,
+            lng: websiteData.whereToStayLongitude,
+        })
+        placesSearchResults.value = data?.results ?? []
+        placesSearchMessage.value = data?.message ?? ''
+    } catch (e) {
+        placesSearchResults.value = []
+        console.error('[Places] Hotel search failed:', e)
+    } finally {
+        isSearchingPlaces.value = false
     }
 }
 
-watch(accommodationSearchQuery, () => {
-    if (isAccommodationPickerOpen.value) {
-        performPlacesSearch(false)
-    }
-})
+// Offline fallback: the hand-picked hotels for a few known cities, without the hand-written
+// ratings, review counts, distances and badges, since none of those come from a live source.
+const fallbackAccommodations = computed(() =>
+    getDynamicAccommodations(websiteData.whereToStayLocation).map(h => ({
+        name: h.name,
+        address: h.address || '',
+        rating: '',
+        reviewsCount: '',
+        distance: '',
+        description: h.description,
+        link: '',
+    }))
+)
 
-const displayAccommodationsList = computed(() => {
-    const list = placesSearchResults.value.length > 0
+type PickerHotel = Omit<PlaceSearchResult, 'id' | 'distanceKm'> & { distanceKm?: number }
+
+const displayAccommodationsList = computed<PickerHotel[]>(() => {
+    const list: PickerHotel[] = placesSearchResults.value.length > 0
         ? placesSearchResults.value
-        : getDynamicAccommodations(websiteData.whereToStayLocation)
+        : fallbackAccommodations.value
     const query = accommodationSearchQuery.value.trim().toLowerCase()
     const cat = selectedAccommodationCategory.value
 
-    return list.filter((h: any) => {
+    return list.filter((h) => {
         if (cat === 'luxury') {
-            const isLux = (h.badge && (h.badge.includes('5-Star') || h.badge.includes('Luxury'))) ||
-                (h.ratingValue && h.ratingValue >= 4.7) ||
-                (h.rating && h.rating.includes('4.9')) ||
+            const isLux = (parseFloat(h.rating) >= 4.7) ||
                 (h.description && h.description.toLowerCase().includes('luxury'))
             if (!isLux) return false
         } else if (cat === 'resort') {
@@ -1685,7 +1641,7 @@ async function openAccommodationPicker() {
     accommodationSearchQuery.value = ''
     selectedAccommodationCategory.value = 'all'
     isAccommodationPickerOpen.value = true
-    await performPlacesSearch(true)
+    await performPlacesSearch()
 }
 
 function selectAccommodation(hotel: { name: string; address?: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }) {
@@ -1714,11 +1670,11 @@ function selectAccommodation(hotel: { name: string; address?: string; rating?: s
         id: `acc-${Date.now() + whereToStayAccommodations.value.length}`,
         name: hotel.name.trim(),
         address: hotel.address || '',
-        rating: hotel.rating || '4.8 ★',
-        distance: hotel.distance || 'Near venue',
+        rating: hotel.rating || '',
+        distance: hotel.distance || '',
         description: hotel.description || '',
         link: hotel.link || '',
-        image: hotel.image || ''
+        image: ''
     }
 
     whereToStayAccommodations.value.push(newAccommodation)
@@ -5340,7 +5296,7 @@ function togglePreview() {
                                 <span v-else class="text-amber-600 font-semibold">
                                     All 4 slots are filled.
                                 </span>
-                                Google Maps search within 30 km of {{ placesSearchCity || websiteData.whereToStayLocation || 'Venue' }}.
+                                Showing places to stay within 30 km of {{ placesSearchCity || 'your venue' }}.
                             </p>
                         </div>
                     </div>
@@ -5377,15 +5333,21 @@ function togglePreview() {
                         <div class="flex items-center gap-2">
                             <div class="relative flex-1">
                                 <UInput v-model="accommodationSearchQuery"
-                                    :placeholder="`Search hotel name, street, or amenity in ${placesSearchCity || websiteData.whereToStayLocation || 'the area'}...`"
-                                    icon="i-lucide-search" size="sm" class="w-full" />
+                                    :placeholder="`Search a hotel name in ${placesSearchCity || 'the area'}, then press Enter`"
+                                    icon="i-lucide-search" size="sm" class="w-full"
+                                    @keydown.enter.prevent="performPlacesSearch()" />
                                 <div v-if="isSearchingPlaces"
                                     class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                     <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin text-blue-500" />
                                 </div>
                             </div>
+                            <UButton size="xs" color="blue" variant="solid" icon="i-lucide-search"
+                                class="cursor-pointer shrink-0" :loading="isSearchingPlaces"
+                                @click="performPlacesSearch()">
+                                Search
+                            </UButton>
                             <UButton v-if="accommodationSearchQuery" size="xs" color="neutral" variant="ghost"
-                                class="cursor-pointer shrink-0" @click="accommodationSearchQuery = ''">
+                                class="cursor-pointer shrink-0" @click="accommodationSearchQuery = ''; performPlacesSearch()">
                                 Clear
                             </UButton>
                         </div>
@@ -5424,10 +5386,7 @@ function togglePreview() {
                         <UButton size="xs" color="blue" variant="solid" icon="i-lucide-plus"
                             :disabled="whereToStayAccommodations.length >= 4"
                             class="shrink-0 cursor-pointer" @click="selectAccommodation({
-                                name: accommodationSearchQuery.trim(),
-                                rating: '4.8 ★',
-                                distance: 'Near venue',
-                                description: `Custom accommodation in ${websiteData.whereToStayLocation || 'the area'}`
+                                name: accommodationSearchQuery.trim()
                             })">
                             {{ whereToStayAccommodations.length >= 4 ? 'Max 4 Reached' : `Add to Slot ${whereToStayAccommodations.length + 1}` }}
                         </UButton>
@@ -5447,12 +5406,13 @@ function togglePreview() {
                         <div v-if="isSearchingPlaces"
                             class="text-center py-6 text-xs text-blue-600 flex items-center justify-center gap-2">
                             <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin text-blue-500" />
-                            <span>Searching Google Maps within 30 km of {{ placesSearchCity || websiteData.whereToStayLocation || 'the venue' }}...</span>
+                            <span>Searching within 30 km of {{ placesSearchCity || 'the venue' }}...</span>
                         </div>
 
                         <div v-else-if="displayAccommodationsList.length === 0"
                             class="text-center py-6 text-sm text-toast-500 italic">
-                            No hotels matching "{{ accommodationSearchQuery }}" within 30 km. You can click "Use Custom" above to add it.
+                            <template v-if="placesSearchMessage">{{ placesSearchMessage }}</template>
+                            <template v-else>No places to stay found within 30 km. Type the hotel's name above to add it yourself.</template>
                         </div>
 
                         <div v-for="(hotel, hIdx) in displayAccommodationsList" :key="hIdx"
@@ -5476,29 +5436,25 @@ function togglePreview() {
                                             class="font-bold text-sm text-toast-900 group-hover:text-blue-600 transition-colors">
                                             {{ hotel.name }}
                                         </h4>
-                                        <span v-if="hotel.badge"
-                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                                            {{ hotel.badge }}
-                                        </span>
                                     </div>
                                     <div v-if="hotel.address"
                                         class="text-[11px] text-toast-500 line-clamp-1 mt-0.5 flex items-center gap-1">
                                         <UIcon name="i-lucide-map-pin" class="w-3 h-3 text-toast-400 shrink-0" />
                                         <span>{{ hotel.address }}</span>
                                     </div>
-                                    <div
+                                    <div v-if="formatCleanRating(hotel.rating) || formatCleanDistance(hotel.distance)"
                                         class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 mt-1">
-                                        <span
+                                        <span v-if="formatCleanRating(hotel.rating)"
                                             class="font-bold text-amber-600 flex items-center gap-0.5">
                                             <UIcon name="i-lucide-star"
                                                 class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                                             {{ formatCleanRating(hotel.rating) }}
                                         </span>
-                                        <span v-if="hotel.reviewsCount" class="text-toast-500">
+                                        <span v-if="formatCleanRating(hotel.rating) && hotel.reviewsCount" class="text-toast-500">
                                             {{ hotel.reviewsCount }}
                                         </span>
-                                        <span class="text-toast-300">•</span>
-                                        <span
+                                        <span v-if="formatCleanRating(hotel.rating) && formatCleanDistance(hotel.distance)" class="text-toast-300">•</span>
+                                        <span v-if="formatCleanDistance(hotel.distance)"
                                             class="flex items-center gap-0.5 text-blue-600 font-medium">
                                             <UIcon name="i-lucide-route"
                                                 class="w-3.5 h-3.5 text-blue-500 shrink-0" />

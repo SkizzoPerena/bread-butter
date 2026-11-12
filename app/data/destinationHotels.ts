@@ -354,67 +354,18 @@ export function getDynamicAccommodations(location: string): SuggestedAccommodati
             return hotels
         }
     }
-    // Check common aliases
-    if (locLower.includes('makati') || locLower.includes('bgc') || locLower.includes('bonifacio') || locLower.includes('intramuros')) {
+    // Common aliases for the cities above
+    if (/\b(makati|bgc|bonifacio|intramuros)\b/.test(locLower)) {
         return destinationHotelsDatabase.manila || []
     }
-    if (locLower.includes('mactan')) {
+    if (/\bmactan\b/.test(locLower)) {
         return destinationHotelsDatabase.cebu || []
     }
-    if (locLower.includes('central park') || locLower.includes('manhattan') || locLower.includes('brooklyn') || locLower.includes('ny')) {
+    // Whole words only, so places like "Canyon Woods" don't match "ny".
+    if (/\b(new york|nyc|ny|manhattan|brooklyn|central park)\b/.test(locLower)) {
         return destinationHotelsDatabase.newyork || []
     }
 
-    const clean = (location || '').trim() || 'Wedding Venue'
-    return [
-        {
-            name: `The Grand Hotel & Suites ${clean}`,
-            rating: '4.9 ★',
-            reviewsCount: '1,840+ reviews',
-            distance: '0.8 km from venue',
-            description: `Premier 5-star luxury stay with spacious bridal suites, fine dining, and prime accessibility in ${clean}.`,
-            image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=700&q=80',
-            badge: 'Top Rated',
-            tags: ['5-Star Luxury', 'Bridal Suites', 'Free Breakfast']
-        },
-        {
-            name: `${clean} Boutique Resort & Spa`,
-            rating: '4.8 ★',
-            reviewsCount: '1,420+ reviews',
-            distance: '1.5 km from venue',
-            description: `Charming boutique retreat offering tranquil gardens, relaxation spa, and scenic photo spots in ${clean}.`,
-            image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=700&q=80',
-            badge: 'Boutique Pick',
-            tags: ['Garden Retreat', 'Full Spa', 'Scenic Grounds']
-        },
-        {
-            name: `Heritage Manor & Country Club ${clean}`,
-            rating: '4.8 ★',
-            reviewsCount: '980+ reviews',
-            distance: '2.3 km from venue',
-            description: `Classic estate elegance surrounded by lush greenery, event-friendly rooms, and warm hospitality.`,
-            image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=700&q=80',
-            badge: 'Heritage Estate',
-            tags: ['Estate Grounds', 'Event Friendly', 'Fine Dining']
-        },
-        {
-            name: `Courtyard & Suites ${clean}`,
-            rating: '4.7 ★',
-            reviewsCount: '1,650+ reviews',
-            distance: '3.0 km from venue',
-            description: `Modern accommodations with comfortable amenities, pool deck, and convenient transportation links.`,
-            image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=700&q=80',
-            tags: ['Modern Comfort', 'Swimming Pool', 'Free High-speed Wi-Fi']
-        },
-        {
-            name: `The Vista Villas at ${clean}`,
-            rating: '4.8 ★',
-            reviewsCount: '870+ reviews',
-            distance: '4.5 km from venue',
-            description: `Scenic hilltop villas offering panoramic landscape views and intimate private celebration spaces.`,
-            image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=80',
-            badge: 'Private Villas',
-            tags: ['Private Villas', 'Panoramic Views', 'Family Friendly']
-        }
-    ]
+    // Anywhere else: no made-up hotels. The couple searches or types their own.
+    return []
 }

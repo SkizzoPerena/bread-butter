@@ -7,6 +7,7 @@ definePageMeta({
 
 const route = useRoute()
 const toast = useToast()
+const { apiRequest } = useApiMode()
 const { user } = useAuth('user')
 
 const phoneNumber = '+639175869442'
@@ -170,8 +171,11 @@ async function handleSubmit() {
   }
 
   try {
-    const res = await $fetch<{ success: boolean; fallbackMailto?: boolean; message?: string }>('/api/contact', {
+    // Sent by the backend. In UI-only mode, or when email isn't set up, this throws
+    // and the catch below opens the visitor's email app instead.
+    const res = await apiRequest<{ success: boolean; fallbackMailto?: boolean; message?: string }>('/public/contact', {
       method: 'POST',
+      authenticated: false,
       body: payload
     })
 
