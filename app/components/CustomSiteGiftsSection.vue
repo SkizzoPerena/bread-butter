@@ -6,6 +6,8 @@ const props = defineProps<{
   colors: { bg: string; text: string; heading: string }
   headingFont: string
   minHeight?: string
+  title?: string
+  description?: string
 }>()
 
 const qrCodes = computed(() => props.registry?.qrCodes ?? [])
@@ -24,7 +26,7 @@ const giftItems = computed(() => props.registry?.wishedItems ?? [])
         class="font-bold text-5xl pt-2 sm:pt-4"
         :style="{ color: colors.heading, fontFamily: `'${headingFont}'` }"
       >
-        Gifts &amp; Registry
+        {{ title || 'Gifts & Registry' }}
       </div>
       <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
         <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: colors.heading }" />
@@ -32,10 +34,11 @@ const giftItems = computed(() => props.registry?.wishedItems ?? [])
         <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: colors.heading }" />
       </div>
       <p
+        v-if="description?.trim()"
         class="text-sm sm:text-base opacity-80 leading-relaxed"
         :style="{ color: colors.text }"
       >
-        Your presence at our celebration is the greatest gift of all. If you wish to honor us with a gift, our registry options are shared below.
+        {{ description }}
       </p>
     </div>
 

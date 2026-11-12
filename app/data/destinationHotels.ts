@@ -1,6 +1,7 @@
 export interface WhereToStayAccommodation {
     id: string
     name: string
+    address?: string
     rating?: string
     distance?: string
     description?: string
@@ -12,6 +13,7 @@ export interface WhereToStayAccommodation {
 
 export interface SuggestedAccommodation {
     name: string
+    address?: string
     rating: string
     reviewsCount: string
     distance: string
@@ -19,6 +21,51 @@ export interface SuggestedAccommodation {
     image?: string
     badge?: string
     tags?: string[]
+}
+
+export function getVenueShortName(location?: string): string {
+    if (!location) return ''
+    const trimmed = location.trim()
+    return trimmed.split(',')[0]?.trim() || trimmed
+}
+
+export function formatCleanDistance(distance?: string): string {
+    if (!distance) return ''
+    const d = distance.trim()
+    const match = d.match(/(\d+(?:\.\d+)?)\s*(km|m|mins?)\b/i)
+    if (match) {
+        const val = match[1]
+        const unit = match[2]!.toLowerCase()
+        return `${val}${unit}`
+    }
+    return d.replace(/^(within|around|approx\.?)\s+/i, '').replace(/\s+(of|from|away).*$/i, '').trim()
+}
+
+export function formatCleanRating(rating?: string): string {
+    if (!rating) return ''
+    return rating.replace(/[★⭐\s]/g, '').trim()
+}
+
+export function getDescriptionClampStyle(hotel?: { name?: string }, allHotels?: Array<{ name?: string }>): Record<string, string | number> {
+    const list = allHotels && allHotels.length > 0 ? allHotels : (hotel ? [hotel] : [])
+    const estimateLines = (name?: string) => {
+        const len = (name || '').trim().length
+        if (len > 48) return 3
+        if (len > 24) return 2
+        return 1
+    }
+
+    const maxLines = Math.max(...list.map(h => estimateLines(h?.name)), 1)
+    const thisLines = estimateLines(hotel?.name)
+    const extraLines = Math.max(0, maxLines - thisLines)
+    const totalLines = 3 + extraLines
+
+    return {
+        display: '-webkit-box',
+        WebkitLineClamp: totalLines,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden'
+    }
 }
 
 export function getAccommodationImage(hotel?: { name?: string; image?: string }): string {

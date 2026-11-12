@@ -39,6 +39,7 @@ export interface CustomSiteWeddingPartyMember {
 export interface CustomSiteAccommodation {
   id?: string
   name: string
+  address?: string
   rating?: string
   distance?: string
   description?: string
@@ -116,6 +117,12 @@ export interface CustomSiteRecord {
   rsvpDeadlineDate?: string | null
   dressCode?: DressCodeRecord | null
   giftRegistry?: CustomSiteGiftRegistry | null
+  qaTitle?: string
+  qaDescription?: string
+  scheduleTitle?: string
+  scheduleDescription?: string
+  giftsTitle?: string
+  giftsDescription?: string
 }
 
 export interface CustomSitesListResponse {
