@@ -589,7 +589,7 @@ function copyHex(hex: string) {
 
 function copySummaryText() {
   const summary = `
-💍 ${eventRecord.value?.eventName || 'Wedding'} - Dress Code & Colors
+💍 ${eventRecord.value?.eventName || 'Wedding'} - Colors & Dress Code
 ----------------------------------------
 ✨ Formality: ${dressCode.formality}
 🎨 Color Palette: ${dressCode.presetPaletteName}
@@ -608,7 +608,7 @@ function copySummaryText() {
   if (typeof navigator !== 'undefined' && navigator.clipboard) {
     navigator.clipboard.writeText(summary)
     toast.add({
-      title: 'Dress Code Summary Copied!',
+      title: 'Colors & Dress Code Summary Copied!',
       description: 'Text ready to paste into invitations, emails, or chat.',
       color: 'rose',
     })
@@ -692,7 +692,7 @@ onMounted(async () => {
 
 
           <h1 class="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-toast-900 leading-tight">
-            Dress Code & Colors
+            Colors & Dress Code
           </h1>
 
           <p class="text-xs sm:text-sm text-toast-600 leading-relaxed max-w-lg mx-auto">
@@ -1404,7 +1404,7 @@ onMounted(async () => {
                 <div class="flex items-center gap-2">
                   <UIcon name="i-lucide-sparkles" class="size-5 text-rose-600" />
                   <h4 class="font-bold text-sm text-toast-900">
-                    Your Dress Code is Ready!
+                    Your Colors & Dress Code is Ready!
                   </h4>
                 </div>
                 <p class="text-xs text-toast-700 leading-relaxed">
@@ -1541,7 +1541,7 @@ onMounted(async () => {
               <div class="flex items-start sm:items-center gap-2 text-rose-950">
                 <UIcon name="i-lucide-palette" class="size-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
                 <span>
-                  <strong>Synced with Website Maker:</strong> Insert the <strong>"Color &amp; Dress Code"</strong> component in Website Maker to showcase this palette and attire guidelines to your guests.
+                  <strong>Synced with Website Maker:</strong> Insert the <strong>"Colors &amp; Dress Code"</strong> component in Website Maker to showcase this palette and attire guidelines to your guests.
                 </span>
               </div>
               <NuxtLink :to="'/event/website-maker' + (eventId ? '?eventId=' + eventId : '')"

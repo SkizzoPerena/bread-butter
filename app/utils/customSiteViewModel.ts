@@ -50,8 +50,14 @@ export interface CustomSiteViewModel {
   simplifiedColors: boolean
   singlePageSite: boolean
   weddingPartyIntro?: string
+  qaTitle?: string
+  qaDescription?: string
+  scheduleTitle?: string
+  scheduleDescription?: string
+  giftsTitle?: string
+  giftsDescription?: string
   weddingPartyMembers?: { id: string; name: string; role: string; notes?: string }[]
-  whereToStayAccommodations?: { id?: string; name: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
+  whereToStayAccommodations?: { id?: string; name: string; address?: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
   dressCode?: DressCodeRecord | null
   gallery?: GalleryRecord | null
   giftRegistry?: CustomSiteGiftRegistry | null
@@ -159,12 +165,18 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
       endTime: item.endTime ?? '',
       isAllDay: Boolean(item.isAllDay),
     })),
-    selectedComponents: [...(site.enabledComponents ?? [])],
+    selectedComponents: [...(site.enabledComponents ?? [])].filter(id => id !== 'rsvp'),
     diyComponents,
     invertColors,
     simplifiedColors,
     singlePageSite,
     weddingPartyIntro: motifConfig?.weddingPartyIntro || '',
+    qaTitle: site.qaTitle || motifConfig?.qaTitle || 'Q&A',
+    qaDescription: site.qaDescription || motifConfig?.qaDescription || '',
+    scheduleTitle: site.scheduleTitle || motifConfig?.scheduleTitle || 'Schedule',
+    scheduleDescription: site.scheduleDescription || motifConfig?.scheduleDescription || '',
+    giftsTitle: site.giftsTitle || motifConfig?.giftsTitle || 'Gifts & Registry',
+    giftsDescription: site.giftsDescription || motifConfig?.giftsDescription || '',
     weddingPartyMembers: (site.weddingParty && site.weddingParty.length > 0)
       ? site.weddingParty.map((m, i) => ({
           id: m.id || `wp-${i}`,
@@ -177,6 +189,7 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
       ? site.whereToStay.accommodations.map((a, i) => ({
           id: a.id || `acc-${i}`,
           name: a.name || '',
+          address: a.address || '',
           rating: a.rating || '',
           distance: a.distance || '',
           description: a.description || '',

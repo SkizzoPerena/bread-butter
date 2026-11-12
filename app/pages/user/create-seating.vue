@@ -2,6 +2,12 @@
 import type { JamPackageRecord } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import { EVENT_TYPE_OPTIONS } from '~/types/event'
+import {
+  getUiPendingSeatingPayment,
+  isGatheringPendingVerification,
+  isGatheringUnpaid,
+  buildPendingSeatingQuery,
+} from '~/utils/paymentPendingGuard'
 
 definePageMeta({ layout: false })
 useHead({ title: 'New seating plan - Bread + Butter' })
@@ -10,7 +16,7 @@ type ViewStep = 'packages' | 'details'
 
 const route = useRoute()
 const toast = useToast()
-const { listPackages, getGathering, updateGathering } = useSeating()
+const { listPackages, getGathering, listGatherings, updateGathering } = useSeating()
 const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { startPageTransition, finishPageTransition } = usePageTransition()
 
@@ -98,19 +104,47 @@ onMounted(async () => {
       eventType.value = gathering.eventType || 'WEDDING'
       venue.value = gathering.venue
       eventDate.value = toDateInput(gathering.eventDate)
-    } else if (route.query.packageId || route.query.package || route.query.tier) {
-      const targetParam = String(route.query.packageId || route.query.package || route.query.tier || '').trim().toLowerCase()
-      const match = packages.value.find((p) => p._id.toLowerCase() === targetParam || p.name.toLowerCase() === targetParam)
-      if (match) {
-        selectedId.value = match._id
-        currentView.value = 'details'
-      } else if (route.query.packageId) {
-        selectedId.value = String(route.query.packageId)
+    } else {
+      const uiPending = getUiPendingSeatingPayment()
+      if (uiPending) {
+        await navigateTo({
+          path: '/user/seating-payment/pending',
+          query: uiPending as Record<string, string>,
+        }, { replace: true })
+        return
       }
-      name.value = String(route.query.name || '')
-      eventType.value = String(route.query.eventType || 'WEDDING')
-      venue.value = String(route.query.venue || '')
-      eventDate.value = toDateInput(String(route.query.eventDate || ''))
+      const gatherings = await listGatherings().catch(() => [])
+      const pendingGathering = gatherings.find((g) => isGatheringPendingVerification(g))
+      if (pendingGathering) {
+        await navigateTo({
+          path: '/user/seating-payment/pending',
+          query: buildPendingSeatingQuery(pendingGathering) as Record<string, string>,
+        }, { replace: true })
+        return
+      }
+      const unpaidGathering = gatherings.find((g) => isGatheringUnpaid(g))
+      if (unpaidGathering && !route.query.packageId && !route.query.package && !route.query.tier) {
+        await navigateTo({
+          path: '/user/seating-payment',
+          query: { gatheringId: unpaidGathering._id },
+        }, { replace: true })
+        return
+      }
+
+      if (route.query.packageId || route.query.package || route.query.tier) {
+        const targetParam = String(route.query.packageId || route.query.package || route.query.tier || '').trim().toLowerCase()
+        const match = packages.value.find((p) => p._id.toLowerCase() === targetParam || p.name.toLowerCase() === targetParam)
+        if (match) {
+          selectedId.value = match._id
+          currentView.value = 'details'
+        } else if (route.query.packageId) {
+          selectedId.value = String(route.query.packageId)
+        }
+        name.value = String(route.query.name || '')
+        eventType.value = String(route.query.eventType || 'WEDDING')
+        venue.value = String(route.query.venue || '')
+        eventDate.value = toDateInput(String(route.query.eventDate || ''))
+      }
     }
   } catch (error) {
     toast.add({ title: 'Could not load packages', description: getApiErrorMessage(error), color: 'error' })

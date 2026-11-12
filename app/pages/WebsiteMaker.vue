@@ -14,6 +14,7 @@ import {
 } from '~/utils/customSiteForm'
 import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
 import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
+import { usePlaces, type GeocodeResult, type PlaceSearchResult } from '~/composables/usePlaces'
 import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
 import type { GalleryLayout, GalleryPhoto, GalleryRecord } from '~/types/gallery'
@@ -29,9 +30,11 @@ import {
 } from '~/utils/websiteTheme'
 import { formatDateWithWeekday } from '~/utils/invitationDisplay'
 import {
-    defaultAccommodations,
-    getAccommodationImage,
     getDynamicAccommodations,
+    getVenueShortName,
+    formatCleanDistance,
+    formatCleanRating,
+    getDescriptionClampStyle,
     type WhereToStayAccommodation,
     type SuggestedAccommodation,
 } from '~/data/destinationHotels'
@@ -58,6 +61,7 @@ const {
 const { fetchGuestRolesByEvent } = useGuestRoles()
 const { fetchGuestsByEvent } = useGuests()
 const { fetchDressCode, getLocalDressCode } = useDressCode()
+const { searchHotels, geocode: geocodePlace } = usePlaces()
 
 const publishedDressCode = ref<DressCodeRecord | null>(null)
 const isDressCodeLoading = ref(false)
@@ -218,9 +222,9 @@ const websiteData = reactive({
     isPasswordProtected: false,
     sitePassword: '',
     rsvpDeadlineDate: '2024-12-31', // Mocked from account data
-    whereToStayLocation: 'Central Park, New York',
-    whereToStayLatitude: 40.785091 as number | null,
-    whereToStayLongitude: -73.968285 as number | null,
+    whereToStayLocation: '',
+    whereToStayLatitude: null as number | null,
+    whereToStayLongitude: null as number | null,
 })
 
 // 2. Dynamic Content Sections
@@ -636,6 +640,7 @@ const getBaseLabel = (id: string) => {
         'typography': 'Typography',
         'basic-info': 'Basic Information',
         'components': 'Components',
+        'arrange-components': 'Arrange Components',
         'color-remix': 'Color Remix & Navigation',
         'thank-you': 'Thank You Message',
         'review-publish': 'Review & Publish'
@@ -645,8 +650,7 @@ const getBaseLabel = (id: string) => {
 
 // 5. Available Components (Step 7)
 const availableComponents = [
-    { id: 'rsvp', name: 'RSVP', icon: 'i-lucide-mail', description: 'Allow guests to respond to your invitation.' },
-    { id: 'dress-code', name: 'Color & Dress Code', icon: 'i-lucide-shirt', description: 'Display your color palette, attire guidelines, and moodboard.' },
+    { id: 'dress-code', name: 'Colors & Dress Code', icon: 'i-lucide-shirt', description: 'Display your color palette, attire guidelines, and moodboard.' },
     { id: 'gallery', name: 'Photo Gallery', icon: 'i-lucide-images', description: 'Showcase your favorite photos.' },
     { id: 'schedule', name: 'Schedule', icon: 'i-lucide-calendar', description: 'Share the timeline of your event.' },
     { id: 'where-to-stay', name: 'Where to Stay', icon: 'i-lucide-bed', description: 'Recommend accommodations for your guests.' },
@@ -664,16 +668,111 @@ const offeredComponents = computed(() =>
 
 const selectedComponents = ref<string[]>([])
 
+// Arrangement methods for Step: Arrange Components
+function moveComponentUp(index: number) {
+    if (index <= 0 || index >= selectedComponents.value.length) return
+    const items = [...selectedComponents.value]
+    const temp = items[index]!
+    items[index] = items[index - 1]!
+    items[index - 1] = temp
+    selectedComponents.value = items
+}
+
+function moveComponentDown(index: number) {
+    if (index < 0 || index >= selectedComponents.value.length - 1) return
+    const items = [...selectedComponents.value]
+    const temp = items[index]!
+    items[index] = items[index + 1]!
+    items[index + 1] = temp
+    selectedComponents.value = items
+}
+
+function resetComponentOrder() {
+    const availableOrder = availableComponents.map(c => c.id)
+    selectedComponents.value.sort((a, b) => {
+        const idxA = availableOrder.indexOf(a)
+        const idxB = availableOrder.indexOf(b)
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
+    })
+}
+
+const draggedComponentIndex = ref<number | null>(null)
+const dragOverComponentIndex = ref<number | null>(null)
+
+function onComponentDragStart(index: number, event: DragEvent) {
+    draggedComponentIndex.value = index
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move'
+        event.dataTransfer.setData('text/plain', String(index))
+    }
+}
+
+function onComponentDragOver(index: number, event: DragEvent) {
+    event.preventDefault()
+    dragOverComponentIndex.value = index
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move'
+    }
+}
+
+function onComponentDragLeave(index: number) {
+    if (dragOverComponentIndex.value === index) {
+        dragOverComponentIndex.value = null
+    }
+}
+
+function onComponentDrop(dropIndex: number, event: DragEvent) {
+    event.preventDefault()
+    const fromIndex = draggedComponentIndex.value
+    if (fromIndex !== null && fromIndex !== dropIndex) {
+        const items = [...selectedComponents.value]
+        const [moved] = items.splice(fromIndex, 1)
+        if (moved) {
+            items.splice(dropIndex, 0, moved)
+            selectedComponents.value = items
+        }
+    }
+    draggedComponentIndex.value = null
+    dragOverComponentIndex.value = null
+}
+
+function onComponentDragEnd() {
+    draggedComponentIndex.value = null
+    dragOverComponentIndex.value = null
+}
+
+function getComponentMeta(compId: string) {
+    if (compId === 'diy') {
+        const firstDiy = diyComponents.value[0]
+        return {
+            id: 'diy',
+            name: firstDiy?.name || 'DIY Component',
+            icon: 'i-lucide-plus-square',
+            description: firstDiy?.header || 'Create your own custom component.'
+        }
+    }
+    return availableComponents.find(c => c.id === compId) || {
+        id: compId,
+        name: compId,
+        icon: 'i-lucide-blocks',
+        description: ''
+    }
+}
+
 const { fetchWishlistByEvent } = useWishlist()
 const giftRegistry = ref<CustomSiteGiftRegistry | null>(null)
+const isGiftsLoading = ref(false)
 
 async function loadGiftRegistry() {
     if (!eventId.value) return
+    isGiftsLoading.value = true
     try {
         const wishlist = await fetchWishlistByEvent(eventId.value)
         giftRegistry.value = { qrCodes: wishlist.qrCodes, wishedItems: wishlist.wishedItems }
     } catch {
         giftRegistry.value = null
+    } finally {
+        isGiftsLoading.value = false
     }
 }
 
@@ -681,7 +780,7 @@ watch(() => selectedComponents.value.includes('gifts'), (enabled) => {
     if (enabled) loadGiftRegistry()
 }, { immediate: true })
 const displayComponents = computed(() => {
-    return selectedComponents.value.filter(id => id !== 'diy')
+    return selectedComponents.value.filter(id => id !== 'diy' && id !== 'rsvp')
 })
 
 const toggleComponent = (id: string) => {
@@ -722,6 +821,7 @@ const getStepShortName = (step: StepDef) => {
         'typography': 'Fonts',
         'basic-info': 'Info',
         'components': 'Blocks',
+        'arrange-components': 'Arrange',
         'dress-code': 'Dress Code',
         'gallery': 'Gallery',
         'schedule': 'Schedule',
@@ -741,35 +841,55 @@ const getStepShortName = (step: StepDef) => {
 const websiteSteps = computed(() => {
     const baseSteps: StepDef[] = [
         { id: 'choose-format', icon: 'i-lucide-layout', description: "Select the structural layout for your website." },
-        { id: 'header-image', icon: 'i-lucide-image', description: "1. Upload a captivating image for your website's header." },
+        { id: 'header-image', icon: 'i-lucide-image', description: "Upload a captivating image for your website's header." },
         { id: 'color-palette', icon: 'i-lucide-swatch-book', description: "Choose a color scheme for your website." },
         { id: 'typography', icon: 'i-lucide-type', description: "Select a font pairing for your website\'s headings and text." },
         { id: 'basic-info', icon: 'i-lucide-info', description: "Provide the essential details and story for your website.", name: "Basic Information" },
         { id: 'components', icon: 'i-lucide-blocks', description: "Select the extra components you want to include on your website." }
     ];
 
-    const dynamicSteps: StepDef[] = selectedComponents.value
-        .filter(compId => compId !== 'rsvp' && compId !== 'diy') // Skip RSVP and DIY from this mapping
-        .map(compId => {
-            const compDef = availableComponents.find(c => c.id === compId)!;
-            return { id: compId, icon: compDef.icon, description: `Configure your ${compDef.name} component.`, name: compDef.name };
-        });
+    const arrangeStep: StepDef[] = selectedComponents.value.length > 0
+        ? [{
+            id: 'arrange-components',
+            icon: 'i-lucide-arrow-up-down',
+            description: "Drag or use arrows to arrange the order of your custom components on your website and navigation bar.",
+            name: "Arrange Components"
+        }]
+        : [];
+
+    const dynamicSteps: StepDef[] = [];
+    for (const compId of selectedComponents.value) {
+        if (compId === 'rsvp') continue;
+        if (compId === 'diy') {
+            dynamicSteps.push({
+                id: 'diy-config',
+                icon: 'i-lucide-settings-2',
+                description: "Configure your custom component.",
+                name: "DIY Component"
+            });
+        } else {
+            const compDef = availableComponents.find(c => c.id === compId);
+            if (compDef) {
+                dynamicSteps.push({
+                    id: compId,
+                    icon: compDef.icon,
+                    description: `Configure your ${compDef.name} component.`,
+                    name: compDef.name
+                });
+            }
+        }
+    }
 
     const endSteps: StepDef[] = [
         { id: 'thank-you', icon: 'i-lucide-heart-handshake', description: "Add a closing message or thank you note to your guests." },
         { id: 'review-publish', icon: 'i-lucide-check-circle', description: "Review all your website details and publish it to go live." }
     ];
 
-    // Add a step for DIY component configuration if it's selected
-    const diyStep: StepDef[] = selectedComponents.value.includes('diy')
-        ? [{ id: 'diy-config', icon: 'i-lucide-settings-2', description: "Configure your custom component.", name: "DIY Component" }]
-        : [];
+    const allSteps = [...baseSteps, ...arrangeStep, ...dynamicSteps, ...endSteps];
 
-    const allSteps = [...baseSteps, ...dynamicSteps, ...diyStep, ...endSteps];
-
-    return allSteps.map((step, index) => {
+    return allSteps.map((step) => {
         const title = step.name || getBaseLabel(step.id);
-        return { ...step, label: `${index + 1}. ${title}` };
+        return { ...step, label: title };
     });
 });
 
@@ -778,12 +898,12 @@ const currentStepData = computed(() => websiteSteps.value[currentStep.value]);
 const optionalBlockStepIds = computed(() => {
     const list: string[] = []
     for (const compId of selectedComponents.value) {
-        if (compId !== 'rsvp' && compId !== 'diy') {
+        if (compId === 'rsvp') continue
+        if (compId === 'diy') {
+            list.push('diy-config')
+        } else {
             list.push(compId)
         }
-    }
-    if (selectedComponents.value.includes('diy')) {
-        list.push('diy-config')
     }
     return list
 })
@@ -798,7 +918,7 @@ const optionalBlockSteps = computed(() => {
 
 const isBlocksAccordionOpen = computed(() => {
     const currentId = currentStepData.value?.id || ''
-    return currentId === 'components' || optionalBlockStepIds.value.includes(currentId)
+    return currentId === 'components' || currentId === 'arrange-components' || optionalBlockStepIds.value.includes(currentId)
 })
 
 const railTopLevelSteps = computed(() => {
@@ -816,6 +936,7 @@ function handleRailStepClick(step: StepDef & { originalIndex: number }) {
     } else {
         currentStep.value = step.originalIndex
     }
+    syncLivePreviewForStep(step.id)
 }
 
 watch(websiteSteps, (newSteps) => {
@@ -827,50 +948,276 @@ watch(websiteSteps, (newSteps) => {
 
 const headerLinks = computed(() => {
     const aboutUsLink = { id: 'about-us', name: 'Welcome' };
-    const dynamicComponents = selectedComponents.value.filter(id => id !== 'diy')
-        .map(id => availableComponents.find(c => c.id === id))
-        .filter(Boolean) as { id: string, name: string }[];
+    const middleLinks: Array<{ id: string; name: string }> = [];
 
-    const diyLinks = diyComponents.value.map(diy => ({
-        id: `diy-${diy.id}`,
-        name: diy.name
-    }));
+    for (const id of selectedComponents.value) {
+        if (id === 'rsvp') continue;
+        if (id === 'diy') {
+            for (const diy of diyComponents.value) {
+                middleLinks.push({
+                    id: `diy-${diy.id}`,
+                    name: diy.name || 'Custom'
+                });
+            }
+        } else {
+            const compDef = availableComponents.find(c => c.id === id);
+            if (compDef) {
+                middleLinks.push({ id: compDef.id, name: compDef.name });
+            }
+        }
+    }
 
-    return [aboutUsLink, ...dynamicComponents, ...diyLinks];
+    const rsvpLink = { id: 'rsvp', name: 'RSVP' };
+
+    return [aboutUsLink, ...middleLinks, rsvpLink];
 });
 
 const headerDropdownItems = computed(() => {
     const aboutUsLink = { label: 'Welcome', onSelect: () => handleHeaderLinkClick('about-us') }
-    const dynamicItems = selectedComponents.value.filter(id => id !== 'diy')
-        .map(id => availableComponents.find(c => c.id === id))
-        .filter(Boolean)
-        .map(c => ({ label: c!.name, onSelect: () => handleHeaderLinkClick(c!.id) }))
+    const middleItems: Array<{ label: string; onSelect: () => void }> = []
 
-    const diyItems = diyComponents.value.map(diy => ({
-        label: diy.name,
-        onSelect: () => handleHeaderLinkClick(`diy-${diy.id}`)
-    }))
+    for (const id of selectedComponents.value) {
+        if (id === 'rsvp') continue
+        if (id === 'diy') {
+            for (const diy of diyComponents.value) {
+                middleItems.push({
+                    label: diy.name || 'Custom',
+                    onSelect: () => handleHeaderLinkClick(`diy-${diy.id}`)
+                })
+            }
+        } else {
+            const compDef = availableComponents.find(c => c.id === id)
+            if (compDef) {
+                middleItems.push({
+                    label: compDef.name,
+                    onSelect: () => handleHeaderLinkClick(compDef.id)
+                })
+            }
+        }
+    }
 
-    return [[aboutUsLink, ...dynamicItems, ...diyItems]]
+    const rsvpItem = { label: 'RSVP', onSelect: () => handleHeaderLinkClick('rsvp') };
+
+    return [[aboutUsLink, ...middleItems, rsvpItem]]
 });
 
 const activeComponentId = ref<string>('about-us');
+
+function getPreviewScrollContainer(): HTMLElement | null {
+    if (typeof document === 'undefined') return null
+    const el = document.getElementById('preview-scroll-top')
+    if (!el) return null
+
+    let current = el.parentElement
+    while (current) {
+        if (current.hasAttribute('data-radix-scroll-area-viewport') || current.getAttribute('data-slot') === 'viewport') {
+            return current
+        }
+        const style = window.getComputedStyle(current)
+        const overflowY = style.overflowY
+        if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
+            return current
+        }
+        current = current.parentElement
+    }
+
+    return el.parentElement
+}
+
+function scrollPreviewToElement(target: HTMLElement | null, offsetPx = 0) {
+    if (!target) return
+    const container = getPreviewScrollContainer()
+    if (container && (container.scrollHeight > container.clientHeight)) {
+        const containerRect = container.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+        const targetTop = container.scrollTop + (targetRect.top - containerRect.top) - offsetPx
+        container.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior: 'smooth'
+        })
+        return
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function scrollPreviewToTop() {
+    const container = getPreviewScrollContainer()
+    if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+    }
+    const topTarget = document.getElementById('preview-scroll-top')
+    topTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+let previewScrollTimeout: any = null
+
+function syncLivePreviewForStep(stepId: string | undefined) {
+    if (!stepId) return
+
+    // 1. In multi-page mode (!websiteData.singlePageSite), navigate to the corresponding page view
+    if (!websiteData.singlePageSite) {
+        if (
+            stepId === 'typography' ||
+            stepId === 'choose-format' ||
+            stepId === 'header-image' ||
+            stepId === 'color-palette' ||
+            stepId === 'basic-info' ||
+            stepId === 'components'
+        ) {
+            activeComponentId.value = 'about-us'
+        } else if (stepId === 'arrange-components') {
+            const firstComp = selectedComponents.value.find(id => id !== 'rsvp')
+            if (firstComp) {
+                activeComponentId.value = firstComp === 'diy' ? (diyComponents.value[0] ? `diy-${diyComponents.value[0].id}` : 'about-us') : firstComp
+            } else {
+                activeComponentId.value = 'about-us'
+            }
+        } else if (stepId === 'diy-config') {
+            const firstDiy = diyComponents.value[0]
+            if (firstDiy) {
+                activeComponentId.value = `diy-${firstDiy.id}`
+            }
+        } else if (stepId === 'thank-you') {
+            activeComponentId.value = 'about-us'
+        } else if (stepId === 'rsvp') {
+            activeComponentId.value = 'rsvp'
+        } else if (availableComponents.some(c => c.id === stepId)) {
+            activeComponentId.value = stepId
+        }
+    }
+
+    // 2. Smoothly scroll within the preview container
+    if (previewScrollTimeout) {
+        clearTimeout(previewScrollTimeout)
+    }
+
+    previewScrollTimeout = setTimeout(() => {
+        nextTick(() => {
+            if (stepId === 'choose-format' || stepId === 'header-image' || stepId === 'color-palette' || stepId === 'review-publish') {
+                scrollPreviewToTop()
+                return
+            }
+
+            if (stepId === 'arrange-components') {
+                const firstComp = selectedComponents.value.find(id => id !== 'rsvp')
+                if (firstComp) {
+                    const targetId = firstComp === 'diy' ? `preview-section-diy-${diyComponents.value[0]?.id}` : `preview-section-${firstComp}`
+                    const el = document.getElementById(targetId)
+                    if (el) {
+                        scrollPreviewToElement(el, 0)
+                        return
+                    }
+                }
+                scrollPreviewToTop()
+                return
+            }
+
+            if (stepId === 'typography') {
+                // Scroll down so that site title, heading, and description are in view
+                if (websiteData.format === 'format1') {
+                    const heroTitle = document.getElementById('preview-hero-title')
+                    if (heroTitle) {
+                        scrollPreviewToElement(heroTitle, 72)
+                        return
+                    }
+                }
+                const aboutUs = document.getElementById('preview-section-about-us')
+                if (aboutUs) {
+                    scrollPreviewToElement(aboutUs, 0)
+                    return
+                }
+                scrollPreviewToTop()
+                return
+            }
+
+            if (stepId === 'basic-info') {
+                const aboutUs = document.getElementById('preview-section-about-us')
+                if (aboutUs) {
+                    scrollPreviewToElement(aboutUs, 0)
+                    return
+                }
+            }
+
+            if (stepId === 'thank-you') {
+                const thankYou = document.getElementById('preview-section-thank-you')
+                if (thankYou) {
+                    scrollPreviewToElement(thankYou, 0)
+                    return
+                }
+            }
+
+            if (stepId === 'diy-config') {
+                const diyFirstId = diyComponents.value[0]?.id
+                const diyEl = diyFirstId ? document.getElementById(`preview-section-diy-${diyFirstId}`) : null
+                if (diyEl) {
+                    scrollPreviewToElement(diyEl, 0)
+                    return
+                }
+            }
+
+            // Dynamic components (dress-code, gallery, schedule, q-and-a, where-to-stay, travel, gifts, wedding-party)
+            const compEl = document.getElementById(`preview-section-${stepId}`)
+            if (compEl) {
+                scrollPreviewToElement(compEl, 0)
+                return
+            }
+
+            if (!websiteData.singlePageSite) {
+                scrollPreviewToTop()
+            }
+        })
+    }, 60)
+}
 
 function handleHeaderLinkClick(id: string) {
     if (websiteData.singlePageSite) {
         const target = document.getElementById(`preview-section-${id}`)
         if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            scrollPreviewToElement(target, 0)
             return
         }
         if (id === 'about-us') {
-            const topTarget = document.getElementById('preview-scroll-top')
-            topTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            scrollPreviewToTop()
         }
     } else {
         activeComponentId.value = id;
+        nextTick(() => {
+            scrollPreviewToTop()
+        })
     }
 }
+
+watch(
+    () => currentStepData.value?.id,
+    (newStepId) => {
+        if (newStepId) {
+            syncLivePreviewForStep(newStepId)
+            if (newStepId === 'q-and-a') {
+                activeEditorQaKey.value = 'header'
+            } else if (newStepId === 'schedule') {
+                activeEditorScheduleKey.value = 'header'
+            } else if (newStepId === 'gifts') {
+                activeEditorGiftsKey.value = 'header'
+            }
+        }
+    },
+    { immediate: true }
+)
+
+watch(
+    () => websiteData.singlePageSite,
+    () => {
+        syncLivePreviewForStep(currentStepData.value?.id)
+    }
+)
+
+watch(
+    () => websiteData.format,
+    () => {
+        syncLivePreviewForStep(currentStepData.value?.id)
+    }
+)
 
 
 
@@ -881,15 +1228,45 @@ interface Tidbit {
     paragraph: string;
 }
 
-const tidbits = ref<Tidbit[]>([
-])
+const tidbits = ref<Tidbit[]>([])
+const qaTitle = ref('Q&A')
+const qaDescription = ref('')
+
+const scheduleTitle = ref('Schedule')
+const scheduleDescription = ref('')
+
+const giftsTitle = ref('Gifts & Registry')
+const giftsDescription = ref('')
+
+// Accordion states for Q&A, Schedule, and Gifts in sidebar editor
+// Supports 'header' for Section Details (title & description), or item ID (number)
+const activeEditorQaKey = ref<string | number | null>('header')
+const activeEditorScheduleKey = ref<string | number | null>('header')
+const activeEditorGiftsKey = ref<string | number | null>('header')
+
+function toggleEditorQa(key: string | number) {
+    activeEditorQaKey.value = activeEditorQaKey.value === key ? null : key
+}
+
+function toggleEditorSchedule(key: string | number) {
+    activeEditorScheduleKey.value = activeEditorScheduleKey.value === key ? null : key
+}
+
+function toggleEditorGifts(key: string | number) {
+    activeEditorGiftsKey.value = activeEditorGiftsKey.value === key ? null : key
+}
 
 const addTidbit = () => {
-    tidbits.value.push({ id: Date.now() + tidbits.value.length, heading: 'New Question', paragraph: 'Add answer here.' })
+    const newId = Date.now() + tidbits.value.length
+    tidbits.value.push({ id: newId, heading: 'New Question', paragraph: 'Add answer here.' })
+    activeEditorQaKey.value = newId
 }
 
 const removeTidbit = (id: number) => {
     tidbits.value = tidbits.value.filter(t => t.id !== id)
+    if (activeEditorQaKey.value === id) {
+        activeEditorQaKey.value = 'header'
+    }
 }
 
 // 4. Schedule Section
@@ -919,8 +1296,9 @@ const scheduleItems = ref<ScheduleItem[]>([
 
 const addScheduleItem = () => {
     const defaultDate = eventRecord.value?.eventDate ? eventRecord.value.eventDate.slice(0, 10) : ''
+    const newId = Date.now() + scheduleItems.value.length
     scheduleItems.value.push({
-        id: Date.now() + scheduleItems.value.length,
+        id: newId,
         title: 'New Event',
         description: 'Event details here.',
         location: '',
@@ -929,10 +1307,14 @@ const addScheduleItem = () => {
         endTime: '21:00',
         isAllDay: false
     })
+    activeEditorScheduleKey.value = newId
 }
 
 const removeScheduleItem = (id: number) => {
     scheduleItems.value = scheduleItems.value.filter(s => s.id !== id)
+    if (activeEditorScheduleKey.value === id) {
+        activeEditorScheduleKey.value = 'header'
+    }
 }
 
 function formatTime12h(timeStr?: string): string {
@@ -985,7 +1367,7 @@ function formatScheduleDate(dateStr?: string): string {
 }
 
 // 5. Where to Stay Accommodations (Up to 4 slots)
-const whereToStayAccommodations = ref<WhereToStayAccommodation[]>([...defaultAccommodations])
+const whereToStayAccommodations = ref<WhereToStayAccommodation[]>([])
 
 
 function getAccommodationGoogleUrl(item: { name: string; link?: string }, location?: string): string {
@@ -1021,17 +1403,7 @@ function getVenueGoogleMapsUrl(
 // -------------------------------------------------------------
 // Google Maps / Live Geocoding for Venue Location
 // -------------------------------------------------------------
-interface GeocodeResultItem {
-    name: string
-    displayName: string
-    lat: number
-    lng: number
-    address?: {
-        city?: string
-        state?: string
-        country?: string
-    }
-}
+type GeocodeResultItem = GeocodeResult
 
 const venueSearchResults = ref<GeocodeResultItem[]>([])
 const isSearchingVenue = ref(false)
@@ -1049,10 +1421,7 @@ async function searchVenueLocations(query: string) {
 
     isSearchingVenue.value = true
     try {
-        const data = await $fetch<{ results: GeocodeResultItem[] }>('/api/geocode', {
-            params: { q: trimmed },
-        })
-        venueSearchResults.value = data?.results || []
+        venueSearchResults.value = await geocodePlace(trimmed)
         showVenueDropdown.value = venueSearchResults.value.length > 0
     } catch {
         venueSearchResults.value = []
@@ -1119,11 +1488,9 @@ async function detectCurrentLocation() {
             websiteData.whereToStayLatitude = lat
             websiteData.whereToStayLongitude = lng
             try {
-                const data = await $fetch<{ results: GeocodeResultItem[] }>('/api/geocode', {
-                    params: { q: `${lat}, ${lng}` },
-                })
-                if (data?.results?.[0]) {
-                    websiteData.whereToStayLocation = data.results[0].displayName || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+                const [first] = await geocodePlace(`${lat}, ${lng}`)
+                if (first) {
+                    websiteData.whereToStayLocation = first.displayName || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
                 } else {
                     websiteData.whereToStayLocation = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
                 }
@@ -1150,110 +1517,189 @@ async function detectCurrentLocation() {
     )
 }
 
-// Accommodation Modal State
+// Localized Google Maps Places Search State
 const isAccommodationPickerOpen = ref(false)
-const activeAccommodationSlotIndex = ref(0)
 const accommodationSearchQuery = ref('')
 const selectedAccommodationCategory = ref('all')
+const isSearchingPlaces = ref(false)
+const placesSearchResults = ref<PlaceSearchResult[]>([])
+const placesSearchMessage = ref('')
+const placesSearchCity = computed(() => getVenueShortName(websiteData.whereToStayLocation || eventRecord.value?.venue || ''))
 
-const displayAccommodationsList = computed(() => {
-    const list = getDynamicAccommodations(websiteData.whereToStayLocation)
+// Each search can be a paid Google call, so it runs only when the picker opens,
+// on Enter, or from the Search button. Never on every keystroke.
+async function performPlacesSearch() {
+    if (isSearchingPlaces.value) return
+    isSearchingPlaces.value = true
+    placesSearchMessage.value = ''
+    try {
+        const data = await searchHotels({
+            q: accommodationSearchQuery.value,
+            city: websiteData.whereToStayLocation || eventRecord.value?.venue || '',
+            lat: websiteData.whereToStayLatitude,
+            lng: websiteData.whereToStayLongitude,
+        })
+        placesSearchResults.value = data?.results ?? []
+        placesSearchMessage.value = data?.message ?? ''
+    } catch (e) {
+        placesSearchResults.value = []
+        console.error('[Places] Hotel search failed:', e)
+    } finally {
+        isSearchingPlaces.value = false
+    }
+}
+
+// Offline fallback: the hand-picked hotels for a few known cities, without the hand-written
+// ratings, review counts, distances and badges, since none of those come from a live source.
+const fallbackAccommodations = computed(() =>
+    getDynamicAccommodations(websiteData.whereToStayLocation).map(h => ({
+        name: h.name,
+        address: h.address || '',
+        rating: '',
+        reviewsCount: '',
+        distance: '',
+        description: h.description,
+        link: '',
+    }))
+)
+
+type PickerHotel = Omit<PlaceSearchResult, 'id' | 'distanceKm'> & { distanceKm?: number }
+
+const displayAccommodationsList = computed<PickerHotel[]>(() => {
+    const list: PickerHotel[] = placesSearchResults.value.length > 0
+        ? placesSearchResults.value
+        : fallbackAccommodations.value
     const query = accommodationSearchQuery.value.trim().toLowerCase()
     const cat = selectedAccommodationCategory.value
 
-    return list.filter(h => {
+    return list.filter((h) => {
         if (cat === 'luxury') {
-            const isLux = (h.badge && (h.badge.includes('5-Star') || h.badge.includes('Luxury'))) ||
-                (h.tags && h.tags.some(t => t.toLowerCase().includes('luxury') || t.toLowerCase().includes('5-star'))) ||
-                h.rating.includes('4.9')
+            const isLux = (parseFloat(h.rating) >= 4.7) ||
+                (h.description && h.description.toLowerCase().includes('luxury'))
             if (!isLux) return false
         } else if (cat === 'resort') {
             const isResort = h.name.toLowerCase().includes('resort') ||
                 h.name.toLowerCase().includes('villa') ||
-                (h.tags && h.tags.some(t => t.toLowerCase().includes('pool') || t.toLowerCase().includes('resort') || t.toLowerCase().includes('villa')))
+                (h.description && (h.description.toLowerCase().includes('pool') || h.description.toLowerCase().includes('resort') || h.description.toLowerCase().includes('villa')))
             if (!isResort) return false
         } else if (cat === 'boutique') {
             const isBoutique = h.name.toLowerCase().includes('boutique') ||
                 h.name.toLowerCase().includes('inn') ||
                 h.name.toLowerCase().includes('manor') ||
-                (h.badge && h.badge.toLowerCase().includes('boutique')) ||
-                (h.tags && h.tags.some(t => t.toLowerCase().includes('boutique') || t.toLowerCase().includes('cozy')))
+                h.name.toLowerCase().includes('haven') ||
+                (h.description && (h.description.toLowerCase().includes('boutique') || h.description.toLowerCase().includes('cozy') || h.description.toLowerCase().includes('charming')))
             if (!isBoutique) return false
         } else if (cat === 'nearby') {
-            const isNearby = h.distance.includes('0.') || h.distance.includes('1.') || h.distance.toLowerCase().includes('mins') || h.distance.toLowerCase().includes('park')
+            const isNearby = (h.distanceKm != null && h.distanceKm <= 5) ||
+                (h.distance && (h.distance.includes('0.') || h.distance.includes('1.') || h.distance.includes('2.') || h.distance.toLowerCase().includes('within') || h.distance.toLowerCase().includes('mins')))
             if (!isNearby) return false
         }
 
-        if (!query) return true
+        if (!query || placesSearchResults.value.length > 0) return true
         return (
             h.name.toLowerCase().includes(query) ||
-            h.description.toLowerCase().includes(query) ||
-            h.distance.toLowerCase().includes(query) ||
-            (h.tags && h.tags.some(t => t.toLowerCase().includes(query)))
+            (h.description && h.description.toLowerCase().includes(query)) ||
+            (h.address && h.address.toLowerCase().includes(query)) ||
+            (h.distance && h.distance.toLowerCase().includes(query))
         )
     })
 })
 
+function normalizeAccommodations(): void {
+    whereToStayAccommodations.value = whereToStayAccommodations.value
+        .filter(h => h && h.name && h.name.trim())
+        .slice(0, 4)
+}
+
+function isAccommodationSelected(hotel?: { name?: string }): boolean {
+    const hotelName = (hotel?.name || '').trim().toLowerCase()
+    if (!hotelName) return false
+    return whereToStayAccommodations.value.some(h => (h.name || '').trim().toLowerCase() === hotelName)
+}
+
+function getAssignedSlotNumber(hotel?: { name?: string }): number | null {
+    const hotelName = (hotel?.name || '').trim().toLowerCase()
+    if (!hotelName) return null
+    const idx = whereToStayAccommodations.value.findIndex(h => (h.name || '').trim().toLowerCase() === hotelName)
+    return idx >= 0 ? idx + 1 : null
+}
+
 const previewAccommodations = computed(() => {
-    const list = whereToStayAccommodations.value.slice(0, 4)
-    const filled = list.filter(h => h && h.name && h.name.trim())
-    return filled.length > 0 ? filled : list
+    return whereToStayAccommodations.value.filter(h => h && h.name && h.name.trim()).slice(0, 4)
 })
 
-function openAccommodationPicker(slotIdx: number) {
-    activeAccommodationSlotIndex.value = slotIdx
+async function openAccommodationPicker() {
+    normalizeAccommodations()
+    if (whereToStayAccommodations.value.length >= 4) {
+        toast.add({
+            title: 'Maximum Reached',
+            description: 'All 4 accommodation slots are filled. Please remove an accommodation first.',
+            color: 'warning'
+        })
+        return
+    }
     accommodationSearchQuery.value = ''
     selectedAccommodationCategory.value = 'all'
     isAccommodationPickerOpen.value = true
+    await performPlacesSearch()
 }
 
-function selectAccommodationForSlot(hotel: { name: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }) {
-    const idx = activeAccommodationSlotIndex.value
-    while (whereToStayAccommodations.value.length <= idx) {
-        whereToStayAccommodations.value.push({
-            id: `acc-${whereToStayAccommodations.value.length + 1}`,
-            name: '',
-            rating: '',
-            distance: '',
-            description: '',
-            link: '',
-            image: ''
+function selectAccommodation(hotel: { name: string; address?: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }) {
+    normalizeAccommodations()
+
+    if (whereToStayAccommodations.value.length >= 4) {
+        toast.add({
+            title: 'Maximum Reached',
+            description: 'You can only add up to 4 accommodations. Remove an existing one to add another.',
+            color: 'warning'
         })
+        return
     }
-    whereToStayAccommodations.value[idx] = {
-        id: whereToStayAccommodations.value[idx]?.id || `acc-${idx + 1}`,
-        name: hotel.name,
-        rating: hotel.rating || '4.8 ★',
-        distance: hotel.distance || 'Near venue',
+
+    if (isAccommodationSelected(hotel)) {
+        toast.add({
+            title: 'Already Selected',
+            description: `${hotel.name} is already in your accommodations list.`,
+            color: 'info'
+        })
+        return
+    }
+
+    const assignedSlot = whereToStayAccommodations.value.length + 1
+    const newAccommodation: WhereToStayAccommodation = {
+        id: `acc-${Date.now() + whereToStayAccommodations.value.length}`,
+        name: hotel.name.trim(),
+        address: hotel.address || '',
+        rating: hotel.rating || '',
+        distance: hotel.distance || '',
         description: hotel.description || '',
         link: hotel.link || '',
-        image: hotel.image || getAccommodationImage(hotel)
+        image: ''
     }
-    isAccommodationPickerOpen.value = false
+
+    whereToStayAccommodations.value.push(newAccommodation)
+
     toast.add({
-        title: `Slot ${idx + 1} Selected`,
-        description: `${hotel.name} was added to your accommodations.`,
+        title: `Added to Slot ${assignedSlot}`,
+        description: whereToStayAccommodations.value.length < 4
+            ? `${hotel.name} assigned to Slot ${assignedSlot}. Next hotel will assign to Slot ${whereToStayAccommodations.value.length + 1}.`
+            : `${hotel.name} assigned to Slot ${assignedSlot}. All 4 slots are filled.`,
         color: 'success'
     })
 }
 
-function clearSlotAccommodation(idx: number) {
-    if (whereToStayAccommodations.value[idx]) {
-        whereToStayAccommodations.value[idx] = {
-            id: `acc-${idx + 1}`,
-            name: '',
-            rating: '',
-            distance: '',
-            description: '',
-            image: '',
-            link: ''
-        }
+function removeAccommodation(idx: number) {
+    normalizeAccommodations()
+    if (idx >= 0 && idx < whereToStayAccommodations.value.length) {
+        const removed = whereToStayAccommodations.value[idx]
+        const removedName = removed?.name || `Slot ${idx + 1}`
+        whereToStayAccommodations.value.splice(idx, 1)
+        toast.add({
+            title: 'Accommodation Removed',
+            description: `${removedName} removed. Remaining accommodations auto-assigned to lowest slots.`,
+            color: 'info'
+        })
     }
-    toast.add({
-        title: `Slot ${idx + 1} Cleared`,
-        description: 'Accommodation slot reset.',
-        color: 'info'
-    })
 }
 
 // 6. DIY Component Section
@@ -1736,6 +2182,12 @@ async function loadCustomSite() {
                         websiteData,
                         sections,
                         tidbits,
+                        qaTitle,
+                        qaDescription,
+                        scheduleTitle,
+                        scheduleDescription,
+                        giftsTitle,
+                        giftsDescription,
                         scheduleItems,
                         selectedComponents,
                         diyComponents,
@@ -1837,6 +2289,12 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
             websiteData,
             sections: sections.value,
             tidbits: tidbits.value,
+            qaTitle: qaTitle.value,
+            qaDescription: qaDescription.value,
+            scheduleTitle: scheduleTitle.value,
+            scheduleDescription: scheduleDescription.value,
+            giftsTitle: giftsTitle.value,
+            giftsDescription: giftsDescription.value,
             scheduleItems: scheduleItems.value,
             selectedComponents: selectedComponents.value,
             selectedPalette: selectedPalette.value.colors,
@@ -2092,7 +2550,7 @@ function togglePreview() {
                                             :class="currentStep === sub.originalIndex
                                                 ? 'bg-blue-600 text-white font-semibold shadow-xs'
                                                 : 'text-toast-700 hover:text-blue-600 hover:bg-white/80'"
-                                            @click="currentStep = sub.originalIndex">
+                                            @click="currentStep = sub.originalIndex; syncLivePreviewForStep(sub.id)">
                                             <div class="relative flex items-center justify-center">
                                                 <UIcon :name="sub.icon" class="size-3.5 shrink-0 transition-transform duration-150 group-hover:scale-110" />
                                                 <span v-if="currentStep === sub.originalIndex"
@@ -2114,16 +2572,14 @@ function togglePreview() {
                 <!-- 2. RIGHT PART OF CONTAINER: Step Header + Editor Controls + Footer -->
                 <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white m-0 p-0">
                     <!-- Step Header -->
-                    <div class="px-6 pt-6 shrink-0 bg-white"
+                    <div class="px-6 pt-6 shrink-0 bg-white text-left"
                         :class="['color-palette', 'typography', 'schedule', 'q-and-a'].includes(currentStepData?.id || '') ? 'pb-2' : 'pb-4 border-b border-toast-200/60'">
 
-
-                        <h3 class="text-sm sm:text-base font-bold font-serif text-toast-900 text-center px-1">
+                        <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-900 text-left">
                             {{ currentStepData?.label }}
                         </h3>
 
-
-                        <p class="text-center text-xs text-toast-600 line-clamp-2">
+                        <p class="text-left text-xs text-toast-600 line-clamp-2 mt-1">
                             {{ currentStepData?.description }}
                         </p>
                     </div>
@@ -2669,391 +3125,421 @@ function togglePreview() {
                                 </div>
                             </div>
 
-                            <!-- Dynamic Step: Color & Dress Code -->
-                            <div v-if="currentStepData?.id === 'dress-code'" class="flex flex-col gap-5">
-                                <!-- Live Sync Status Banner -->
-                                <div class="p-4 rounded-xl border border-rose-200/80 bg-rose-50/70 space-y-3">
+                            <!-- Step: Arrange Selected Components -->
+                            <div v-if="currentStepData?.id === 'arrange-components'" class="flex flex-col gap-4">
+                                <!-- Header banner / instructions -->
+                                <div class="p-4 rounded-xl border border-blue-200/80 bg-blue-50/60 space-y-2">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-2">
-                                            <span class="relative flex h-2.5 w-2.5">
-                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                                            </span>
-                                            <span class="text-xs font-bold text-rose-950 uppercase tracking-wide">
-                                                Live Synced with Colors &amp; Dress Code
+                                            <UIcon name="i-lucide-arrow-up-down" class="w-4 h-4 text-blue-600" />
+                                            <span class="text-xs font-bold text-blue-950 uppercase tracking-wide">
+                                                Component Sequence
                                             </span>
                                         </div>
-                                        <UButton size="xs" color="rose" variant="subtle" icon="i-lucide-refresh-cw" :loading="isDressCodeLoading" @click="refreshPublishedDressCode">
-                                            Sync Now
-                                        </UButton>
+                                        <span class="text-xs font-semibold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
+                                            {{ selectedComponents.length }} Components
+                                        </span>
                                     </div>
-                                    <p class="text-xs text-rose-800 leading-relaxed">
-                                        Content, color palette, and moodboard photos automatically reflect whatever you publish in your event's Colors &amp; Dress Code dashboard.
+                                    <p class="text-xs text-blue-900/80 leading-relaxed">
+                                        Drag items or use the up/down arrows to arrange the order of your sections. This exact sequence will be reflected across your website and in the top navigation bar.
                                     </p>
-                                    <div class="pt-1 flex items-center gap-2">
-                                        <UButton :to="'/event/dress-code' + (eventId ? '?eventId=' + eventId : '')" target="_blank" icon="i-lucide-external-link" size="xs" color="rose" variant="solid">
-                                            Open Dress Code Dashboard
-                                        </UButton>
-                                    </div>
                                 </div>
 
-                                <!-- Overview Card -->
-                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
-                                    <div class="flex items-center justify-between pb-2 border-b border-toast-100">
-                                        <span class="text-xs font-bold uppercase tracking-wider text-toast-500">Published Overview</span>
-                                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-toast-100 text-toast-800">
-                                            {{ publishedDressCode?.formality || 'Formal Attire' }}
+                                <!-- Empty State -->
+                                <div v-if="selectedComponents.length === 0" class="text-center py-10 space-y-3 bg-toast-50 rounded-xl border border-dashed border-toast-300">
+                                    <UIcon name="i-lucide-blocks" class="w-8 h-8 text-toast-400 mx-auto" />
+                                    <p class="text-sm text-toast-600">No components selected yet.</p>
+                                    <UButton size="xs" color="blue" variant="solid" @click="currentStep--">
+                                        ← Back to Select Components
+                                    </UButton>
+                                </div>
+
+                                <!-- Reorderable List -->
+                                <div v-else class="space-y-2.5">
+                                    <div class="flex items-center justify-between px-1 text-xs text-toast-500 font-medium">
+                                        <span>Arrange Order (Top to Bottom)</span>
+                                        <button type="button" class="text-blue-600 hover:text-blue-800 underline cursor-pointer" @click="resetComponentOrder">
+                                            Reset Order
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-for="(compId, idx) in selectedComponents"
+                                        :key="compId"
+                                        draggable="true"
+                                        @dragstart="onComponentDragStart(idx, $event)"
+                                        @dragover="onComponentDragOver(idx, $event)"
+                                        @dragleave="onComponentDragLeave(idx)"
+                                        @drop="onComponentDrop(idx, $event)"
+                                        @dragend="onComponentDragEnd"
+                                        class="group p-3 sm:p-3.5 rounded-xl border bg-white transition-all duration-150 flex items-center justify-between gap-3 shadow-2xs select-none"
+                                        :class="[
+                                            draggedComponentIndex === idx ? 'opacity-40 border-dashed border-blue-400' : 'border-toast-200/90 hover:border-blue-400 hover:shadow-xs',
+                                            dragOverComponentIndex === idx && draggedComponentIndex !== idx ? 'ring-2 ring-blue-500 bg-blue-50/50' : ''
+                                        ]">
+                                        <!-- Left: Drag handle + Index + Icon + Info -->
+                                        <div class="flex items-center gap-3 min-w-0 flex-1 cursor-grab">
+                                            <div class="text-toast-400 group-hover:text-toast-600 transition-colors shrink-0">
+                                                <UIcon name="i-lucide-grip-vertical" class="w-4 h-4" />
+                                            </div>
+
+                                            <div class="w-6 h-6 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0 shadow-2xs">
+                                                {{ idx + 1 }}
+                                            </div>
+
+                                            <div class="w-9 h-9 rounded-lg bg-toast-100 text-toast-700 flex items-center justify-center shrink-0 group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
+                                                <UIcon :name="getComponentMeta(compId).icon" class="w-4 h-4" />
+                                            </div>
+
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-bold text-sm text-toast-900 group-hover:text-blue-700 transition-colors truncate">
+                                                        {{ getComponentMeta(compId).name }}
+                                                    </span>
+                                                    <span v-if="compId === 'diy'" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                                                        Custom
+                                                    </span>
+                                                </div>
+                                                <p class="text-xs text-toast-500 line-clamp-1 mt-0.5">
+                                                    {{ getComponentMeta(compId).description }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Right: Up / Down arrow buttons -->
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <UButton
+                                                size="xs"
+                                                color="neutral"
+                                                variant="subtle"
+                                                icon="i-lucide-chevron-up"
+                                                :disabled="idx === 0"
+                                                class="disabled:opacity-30 disabled:cursor-not-allowed"
+                                                aria-label="Move Up"
+                                                @click.stop="moveComponentUp(idx)" />
+                                            <UButton
+                                                size="xs"
+                                                color="neutral"
+                                                variant="subtle"
+                                                icon="i-lucide-chevron-down"
+                                                :disabled="idx === selectedComponents.length - 1"
+                                                class="disabled:opacity-30 disabled:cursor-not-allowed"
+                                                aria-label="Move Down"
+                                                @click.stop="moveComponentDown(idx)" />
+                                        </div>
+                                    </div>
+
+                                    <!-- Live Navbar Sequence Pill Strip -->
+                                    <div class="mt-4 p-3 rounded-xl bg-toast-50/80 border border-toast-200/70 space-y-2">
+                                        <span class="text-[11px] font-semibold text-toast-500 uppercase tracking-wider block">
+                                            Resulting Website Navbar Order
+                                        </span>
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="px-2 py-1 rounded-md text-xs font-medium bg-toast-200/80 text-toast-700">
+                                                Welcome
+                                            </span>
+                                            <template v-for="link in headerLinks.filter(l => l.id !== 'about-us' && l.id !== 'rsvp')" :key="link.id">
+                                                <UIcon name="i-lucide-arrow-right" class="w-3 h-3 text-toast-400 shrink-0" />
+                                                <span class="px-2 py-1 rounded-md text-xs font-semibold bg-blue-100 text-blue-800">
+                                                    {{ link.name }}
+                                                </span>
+                                            </template>
+                                            <UIcon name="i-lucide-arrow-right" class="w-3 h-3 text-toast-400 shrink-0" />
+                                            <span class="px-2 py-1 rounded-md text-xs font-medium bg-toast-200/80 text-toast-700">
+                                                RSVP
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Step: Colors & Dress Code -->
+                            <div v-if="currentStepData?.id === 'dress-code'" class="flex flex-col gap-5">
+                                <!-- Live Sync Status & CTA Banner -->
+                                <div class="p-5 rounded-2xl border border-rose-200/90 bg-rose-50/70 space-y-4">
+                                    <!-- Header: Live Pulse + Title -->
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="relative flex h-2.5 w-2.5 shrink-0">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                                        </span>
+                                        <span class="text-xs font-bold text-rose-950 uppercase tracking-wide">
+                                            Live Synced with Colors &amp; Dress Code
                                         </span>
                                     </div>
 
-                                    <!-- Palette Display Overview (Image, Swatches, or Both) -->
-                                    <div class="space-y-2">
-                                        <div class="flex items-center justify-between text-xs">
-                                            <span class="font-medium text-toast-700">
-                                                Palette: {{ publishedDressCode?.presetPaletteName || 'Curated Colors' }}
-                                            </span>
-                                            <UBadge color="rose" variant="subtle" size="xs">
-                                                {{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.paletteType === 'both' ? 'Image & Swatches' : 'Interactive Swatches') }}
-                                            </UBadge>
-                                        </div>
+                                    <!-- Call to Action Content -->
+                                    <p class="text-xs text-rose-800 leading-relaxed">
+                                        Open the Colors &amp; Dress Code Editor to customize your formality, guest attire guidelines, palette colors, and moodboard lookbook. Published changes automatically reflect on your website.
+                                    </p>
 
-                                        <!-- If Pre-made Palette Image exists and image or both is enabled -->
-                                        <div v-if="(publishedDressCode?.paletteType === 'image' || publishedDressCode?.paletteType === 'both') && publishedDressCode?.paletteImage"
-                                            class="p-2 rounded-xl border border-rose-200 bg-rose-50/50 flex items-center gap-3">
-                                            <div class="size-14 rounded-lg overflow-hidden border border-black/10 bg-white shrink-0 cursor-pointer"
-                                                @click="selectedDressCodeLightboxImage = { id: 'palette-thumb', name: 'Color Palette Graphic', size: 0, dataUrl: publishedDressCode.paletteImage, tag: 'Color Swatches', uploadedAt: '' }; isDressCodeLightboxOpen = true">
-                                                <img :src="publishedDressCode.paletteImage" alt="Palette Graphic" class="w-full h-full object-cover" />
-                                            </div>
-                                            <div class="flex-1 min-w-0 text-xs">
-                                                <span class="font-bold text-toast-900 block truncate">Pre-made Palette Graphic</span>
-                                                <span class="text-[11px] text-toast-500">Click to view full size</span>
-                                            </div>
-                                        </div>
+                                    <!-- Bottom Action Buttons (Both Block) -->
+                                    <div class="pt-2 space-y-2 border-t border-rose-200/60">
+                                        <UButton
+                                            :to="'/event/dress-code' + (eventId ? '?eventId=' + eventId : '')"
+                                            target="_blank"
+                                            icon="i-lucide-external-link"
+                                            size="sm"
+                                            color="rose"
+                                            variant="solid"
+                                            block
+                                            class="cursor-pointer justify-center font-semibold shadow-xs">
+                                            Open Colors &amp; Dress Code Editor
+                                        </UButton>
 
-                                        <!-- Color Swatches Row (if editor or both, or fallback if no image) -->
-                                        <div v-if="publishedDressCode?.paletteType === 'editor' || publishedDressCode?.paletteType === 'both' || !publishedDressCode?.paletteImage"
-                                            class="grid grid-cols-4 gap-2 pt-1">
-                                            <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
-                                                :key="key"
-                                                class="p-2 rounded-lg border border-toast-200 text-center flex flex-col items-center justify-between h-14"
-                                                :style="{ backgroundColor: hex }">
-                                                <span class="text-[9px] font-bold uppercase px-1 py-0.2 bg-black/40 text-white rounded">
-                                                    {{ key }}
-                                                </span>
-                                                <span class="font-mono text-[10px] font-bold px-1 py-0.2 bg-white/80 text-black rounded">
-                                                    {{ hex }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Attire Notes summary -->
-                                    <div class="space-y-2 pt-2 border-t border-toast-100 text-xs">
-                                        <div v-if="publishedDressCode?.menAttire" class="p-2.5 rounded-lg bg-toast-50">
-                                            <span class="font-bold text-toast-900 block mb-0.5">Gentlemen:</span>
-                                            <span class="text-toast-700 leading-relaxed">{{ publishedDressCode.menAttire }}</span>
-                                        </div>
-                                        <div v-if="publishedDressCode?.womenAttire" class="p-2.5 rounded-lg bg-toast-50">
-                                            <span class="font-bold text-toast-900 block mb-0.5">Ladies:</span>
-                                            <span class="text-toast-700 leading-relaxed">{{ publishedDressCode.womenAttire }}</span>
-                                        </div>
-                                        <div v-if="publishedDressCode?.avoidColors" class="p-2.5 rounded-lg bg-red-50 text-red-900 border border-red-200">
-                                            <span class="font-bold block mb-0.5">Avoid:</span>
-                                            <span class="text-red-800 leading-relaxed">{{ publishedDressCode.avoidColors }}</span>
-                                        </div>
-                                        <div v-if="publishedDressCode?.images && publishedDressCode.images.length > 0" class="pt-1 flex items-center justify-between text-toast-600">
-                                            <span class="font-medium flex items-center gap-1.5">
-                                                <UIcon name="i-lucide-image" class="size-3.5 text-rose-500" />
-                                                Moodboard Lookbook
-                                            </span>
-                                            <span class="font-bold text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">
-                                                {{ publishedDressCode.images.length }} photo{{ publishedDressCode.images.length > 1 ? 's' : '' }}
-                                            </span>
-                                        </div>
+                                        <UButton
+                                            size="sm"
+                                            color="rose"
+                                            variant="outline"
+                                            icon="i-lucide-refresh-cw"
+                                            :loading="isDressCodeLoading"
+                                            block
+                                            class="cursor-pointer justify-center"
+                                            @click="refreshPublishedDressCode">
+                                            Sync Now
+                                        </UButton>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Dynamic Step: Photo Gallery -->
                             <div v-if="currentStepData?.id === 'gallery'" class="flex flex-col gap-5">
-                                <!-- Studio Sync Status Banner -->
-                                <div class="p-4 rounded-xl border border-indigo-200/80 bg-indigo-50/70 space-y-3">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <span class="relative flex h-2.5 w-2.5">
-                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
-                                            </span>
-                                            <span class="text-xs font-bold text-indigo-950 uppercase tracking-wide">
-                                                Photo Gallery Component
-                                            </span>
-                                        </div>
-                                        <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-refresh-cw" :loading="isGalleryLoading" @click="refreshGalleryData">
-                                            Sync Studio
-                                        </UButton>
+                                <!-- Live Sync Status & CTA Banner -->
+                                <div class="p-5 rounded-2xl border border-indigo-200/90 bg-indigo-50/70 space-y-4">
+                                    <!-- Header: Live Pulse + Title -->
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="relative flex h-2.5 w-2.5 shrink-0">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+                                        </span>
+                                        <span class="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                                            Live Synced with Photo Gallery
+                                        </span>
                                     </div>
+
+                                    <!-- Call to Action Content -->
                                     <p class="text-xs text-indigo-800 leading-relaxed">
-                                        Pick your preferred layout suggestion below, drag photos to swap order, and customize narrative captions for your guests.
+                                        Open the Photo Gallery Studio to upload photos, choose your layout style, adjust display columns, and manage captions. Published changes automatically reflect on your website.
                                     </p>
-                                    <div class="pt-1 flex items-center gap-2">
-                                        <UButton :to="'/event/gallery' + (eventId ? '?eventId=' + eventId : '')" target="_blank" icon="i-lucide-external-link" size="xs" color="neutral" variant="solid">
-                                            Open Full Gallery Studio
+
+                                    <!-- Bottom Action Buttons (Both Block) -->
+                                    <div class="pt-2 space-y-2 border-t border-indigo-200/60">
+                                        <UButton
+                                            :to="'/event/gallery' + (eventId ? '?eventId=' + eventId : '')"
+                                            target="_blank"
+                                            icon="i-lucide-external-link"
+                                            size="sm"
+                                            color="indigo"
+                                            variant="solid"
+                                            block
+                                            class="cursor-pointer justify-center font-semibold shadow-xs">
+                                            Open Photo Gallery Studio
                                         </UButton>
-                                    </div>
-                                </div>
 
-                                <!-- Gallery Header Configuration -->
-                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">Header &amp; Narrative</h4>
-                                    <div class="space-y-3">
-                                        <UFormField label="Gallery Title" description="Main heading shown on the website section">
-                                            <UInput v-model="galleryData.title" placeholder="e.g. Captured Moments" class="w-full" />
-                                        </UFormField>
-                                        <UFormField label="Subtitle Narrative" description="Optional romantic description or note">
-                                            <UInput v-model="galleryData.subtitle" placeholder="A glimpse into our favorite moments..." class="w-full" />
-                                        </UFormField>
-                                    </div>
-                                </div>
-
-                                <!-- Layout Suggestions Selector -->
-                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3">
-                                    <div class="flex items-center justify-between">
-                                        <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">Layout Suggestions</h4>
-                                        <span class="text-[11px] font-semibold text-rose-600">5 Styles</span>
-                                    </div>
-                                    <div class="grid grid-cols-1 gap-2">
-                                        <button
-                                            v-for="sugg in defaultGallerySuggestions"
-                                            :key="sugg.id"
-                                            type="button"
-                                            class="p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3"
-                                            :class="galleryData.layout === sugg.id
-                                                ? 'border-rose-400 bg-rose-50/60 ring-1 ring-rose-300 shadow-2xs'
-                                                : 'border-toast-200 hover:border-toast-300 hover:bg-toast-50/50'"
-                                            @click="selectMakerGalleryLayout(sugg.id)">
-                                            <div
-                                                class="size-8 rounded-lg flex items-center justify-center shrink-0"
-                                                :class="galleryData.layout === sugg.id ? 'bg-rose-500 text-white' : 'bg-toast-100 text-toast-600'">
-                                                <UIcon :name="sugg.icon" class="size-4" />
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <div class="flex items-center justify-between">
-                                                    <span class="text-xs font-bold text-toast-900">{{ sugg.name }}</span>
-                                                    <span v-if="galleryData.layout === sugg.id" class="text-[9px] font-bold text-rose-600 bg-white px-1.5 py-0.2 rounded border border-rose-200">
-                                                        Active
-                                                    </span>
-                                                </div>
-                                                <span class="text-[10px] text-toast-500 truncate block">{{ sugg.description }}</span>
-                                            </div>
-                                        </button>
-                                    </div>
-
-                                    <!-- Column selector if Grid/Masonry -->
-                                    <div v-if="galleryData.layout === 'grid' || galleryData.layout === 'masonry'" class="pt-2 border-t border-toast-100 space-y-1.5">
-                                        <label class="text-xs font-medium text-toast-700">Display Columns</label>
-                                        <div class="grid grid-cols-3 gap-2">
-                                            <button
-                                                v-for="cols in [2, 3, 4] as const"
-                                                :key="cols"
-                                                type="button"
-                                                class="py-1 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer"
-                                                :class="galleryData.columns === cols
-                                                    ? 'bg-toast-900 text-white border-toast-900'
-                                                    : 'border-toast-200 text-toast-700 hover:bg-toast-100'"
-                                                @click="galleryData.columns = cols">
-                                                {{ cols }} Columns
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Photo Uploader & Drag-to-Swap List -->
-                                <div class="p-4 rounded-xl border border-toast-200 bg-white shadow-xs space-y-3.5">
-                                    <div class="flex items-center justify-between">
-                                        <h4 class="text-xs font-bold uppercase tracking-wider text-toast-500">
-                                            Photos ({{ galleryData.photos.length }})
-                                        </h4>
-                                        <button
-                                            type="button"
-                                            class="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
-                                            @click="resetMakerGalleryToSamples">
-                                            Load Samples
-                                        </button>
-                                    </div>
-
-                                    <!-- Dropzone -->
-                                    <div
-                                        class="border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer bg-toast-50/40"
-                                        :class="isDraggingMakerGalleryFile
-                                            ? 'border-rose-500 bg-rose-50/80 ring-2 ring-rose-300'
-                                            : 'border-toast-300 hover:border-rose-400 hover:bg-rose-50/20'"
-                                        @dragover.prevent="isDraggingMakerGalleryFile = true"
-                                        @dragleave.prevent="isDraggingMakerGalleryFile = false"
-                                        @drop.prevent="handleMakerGalleryFileDrop"
-                                        @click="triggerMakerGalleryFileInput">
-                                        <input ref="makerGalleryFileInputRef" type="file" multiple accept="image/*" class="hidden" @change="handleMakerGalleryFileInputChange" />
-                                        <div class="flex flex-col items-center justify-center gap-1">
-                                            <UIcon name="i-lucide-upload-cloud" class="size-4 text-rose-500" />
-                                            <p class="text-xs font-bold text-toast-900">Upload Photos</p>
-                                            <p class="text-[10px] text-toast-500">{{ isAddingMakerGalleryPhotos ? 'Preparing your photos...' : 'Click or drop multiple images' }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Drag hint -->
-                                    <div class="p-2 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-[11px] text-blue-900">
-                                        <UIcon name="i-lucide-move" class="size-3.5 text-blue-600 shrink-0" />
-                                        <span>Drag cards to swap photos in order.</span>
-                                    </div>
-
-                                    <!-- Draggable cards -->
-                                    <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
-                                        <div
-                                            v-for="(photo, pIdx) in galleryData.photos"
-                                            :key="photo.id"
-                                            draggable="true"
-                                            class="p-2 bg-white rounded-xl border flex items-center gap-2.5 transition-all cursor-grab active:cursor-grabbing group select-none"
-                                            :class="[
-                                                draggedMakerGalleryIndex === pIdx ? 'opacity-40 border-dashed border-rose-400' : 'border-toast-200/90 shadow-2xs hover:border-toast-300',
-                                                dragOverMakerGalleryIndex === pIdx ? 'ring-2 ring-rose-500 bg-rose-50/60 border-rose-500 -translate-y-0.5' : '',
-                                            ]"
-                                            @dragstart="onMakerDragStartPhoto(pIdx, $event)"
-                                            @dragover="onMakerDragOverPhoto(pIdx, $event)"
-                                            @dragleave="onMakerDragLeavePhoto(pIdx)"
-                                            @drop="onMakerDropPhoto(pIdx, $event)"
-                                            @dragend="onMakerDragEndPhoto">
-                                            <div class="flex flex-col items-center text-toast-400">
-                                                <UIcon name="i-lucide-grip-vertical" class="size-3.5" />
-                                                <span class="text-[8px] font-mono font-bold">#{{ pIdx + 1 }}</span>
-                                            </div>
-
-                                            <div
-                                                class="size-11 rounded-lg overflow-hidden bg-toast-100 shrink-0 border border-black/10 cursor-pointer relative"
-                                                @click="openMakerGalleryLightbox(photo)">
-                                                <img :src="photo.url" :alt="photo.caption || 'Thumbnail'" class="w-full h-full object-cover" />
-                                                <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                                    <UIcon name="i-lucide-zoom-in" class="size-3" />
-                                                </div>
-                                            </div>
-
-                                            <div class="flex-1 min-w-0">
-                                                <input
-                                                    v-model="photo.caption"
-                                                    type="text"
-                                                    placeholder="Add photo caption..."
-                                                    class="w-full text-xs py-0.5 px-1.5 rounded border border-toast-200 bg-toast-50 text-toast-800 placeholder-toast-400 focus:outline-none focus:ring-1 focus:ring-rose-500" />
-                                            </div>
-
-                                            <div class="flex items-center gap-1 shrink-0">
-                                                <button
-                                                    v-if="pIdx > 0"
-                                                    type="button"
-                                                    class="p-0.5 text-toast-400 hover:text-toast-700 cursor-pointer"
-                                                    title="Move Up"
-                                                    @click="moveMakerGalleryPhoto(pIdx, 'prev')">
-                                                    <UIcon name="i-lucide-arrow-up" class="size-3" />
-                                                </button>
-                                                <button
-                                                    v-if="pIdx < galleryData.photos.length - 1"
-                                                    type="button"
-                                                    class="p-0.5 text-toast-400 hover:text-toast-700 cursor-pointer"
-                                                    title="Move Down"
-                                                    @click="moveMakerGalleryPhoto(pIdx, 'next')">
-                                                    <UIcon name="i-lucide-arrow-down" class="size-3" />
-                                                </button>
-                                                <UButton
-                                                    icon="i-lucide-trash-2"
-                                                    variant="ghost"
-                                                    color="neutral"
-                                                    size="xs"
-                                                    class="text-toast-400 hover:text-red-500 cursor-pointer"
-                                                    @click="removeMakerGalleryPhoto(photo.id)" />
-                                            </div>
-                                        </div>
+                                        <UButton
+                                            size="sm"
+                                            color="indigo"
+                                            variant="outline"
+                                            icon="i-lucide-refresh-cw"
+                                            :loading="isGalleryLoading"
+                                            block
+                                            class="cursor-pointer justify-center"
+                                            @click="refreshGalleryData">
+                                            Sync Now
+                                        </UButton>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Dynamic Step: Q&A (formerly Tidbits) -->
                             <div v-if="currentStepData?.id === 'q-and-a'" class="flex flex-col gap-6 ">
-                                <div class="items-center space-y-4">
-                                    <div v-if="tidbits.length === 0" class="text-center text-toast-500 italic py-4">No
-                                        questions
-                                        added yet.
-                                    </div>
-                                    <div v-for="tidbit in tidbits" :key="tidbit.id"
-                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg bg-white">
-                                        <div class="flex justify-between items-center">
-                                            <span class="font-medium capitalize">Q&A Item</span>
-                                            <UButton icon="i-lucide-trash" color="error" variant="ghost" size="sm"
-                                                @click="removeTidbit(tidbit.id)" />
+                                <!-- Section Details Accordion (Title & Description) -->
+                                <div class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                    <div
+                                        class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
+                                        :class="{ 'border-b border-toast-100': activeEditorQaKey === 'header' }"
+                                        @click="toggleEditorQa('header')">
+                                        <div class="flex items-center gap-2 min-w-0 pr-1">
+                                            <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span class="font-semibold text-sm text-toast-900 truncate">
+                                                    Section Details
+                                                </span>
+                                                <span v-if="qaTitle && qaTitle !== 'Q&A'" class="text-xs text-toast-500 truncate font-normal">
+                                                    ({{ qaTitle }})
+                                                </span>
+                                            </div>
                                         </div>
-                                        <UFormField label="Question">
-                                            <UInput v-model="tidbit.heading" placeholder="Enter question"
-                                                class="w-full" />
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <div class="p-1 text-toast-400 hover:text-toast-700 transition-transform duration-200"
+                                                :class="{ 'rotate-180': activeEditorQaKey === 'header' }">
+                                                <UIcon name="i-lucide-chevron-down" class="size-4" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-show="activeEditorQaKey === 'header'" class="p-4 flex flex-col gap-3">
+                                        <UFormField label="Section Title">
+                                            <UInput v-model="qaTitle" placeholder="e.g. Q&A or Frequently Asked Questions" class="w-full" />
                                         </UFormField>
-                                        <UFormField label="Answer">
-                                            <UTextarea v-model="tidbit.paragraph" placeholder="Enter answer"
-                                                class="w-full" />
+                                        <UFormField label="Description (Optional)" description="Only displayed when filled in.">
+                                            <UTextarea v-model="qaDescription" placeholder="Optional introductory note..." class="w-full" :rows="2" />
                                         </UFormField>
+                                    </div>
+                                </div>
+
+                                <div class="items-center space-y-3">
+                                    <div v-if="tidbits.length === 0" class="text-center text-toast-500 italic py-4">
+                                        No questions added yet.
+                                    </div>
+                                    <div v-for="(tidbit, tIdx) in tidbits" :key="tidbit.id"
+                                        class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                        <!-- Accordion Header Button -->
+                                        <div
+                                            class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
+                                            :class="{ 'border-b border-toast-100': activeEditorQaKey === tidbit.id }"
+                                            @click="toggleEditorQa(tidbit.id)">
+                                            <div class="flex items-center gap-2 min-w-0 pr-1">
+                                                <UIcon name="i-lucide-help-circle" class="size-4 text-toast-500 shrink-0" />
+                                                <span class="font-semibold text-sm text-toast-900 truncate">
+                                                    {{ tidbit.heading || `Question ${tIdx + 1}` }}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0" @click.stop>
+                                                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
+                                                    @click="removeTidbit(tidbit.id)" />
+                                                <div class="p-1 cursor-pointer text-toast-400 hover:text-toast-700 transition-transform duration-200"
+                                                    :class="{ 'rotate-180': activeEditorQaKey === tidbit.id }"
+                                                    @click="toggleEditorQa(tidbit.id)">
+                                                    <UIcon name="i-lucide-chevron-down" class="size-4" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Accordion Body -->
+                                        <div v-show="activeEditorQaKey === tidbit.id" class="p-4 flex flex-col gap-3">
+                                            <UFormField label="Question">
+                                                <UInput v-model="tidbit.heading" placeholder="Enter question"
+                                                    class="w-full" />
+                                            </UFormField>
+                                            <UFormField label="Answer">
+                                                <UTextarea v-model="tidbit.paragraph" placeholder="Enter answer"
+                                                    class="w-full" :rows="3" />
+                                            </UFormField>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Dynamic Step: Schedule -->
                             <div v-if="currentStepData?.id === 'schedule'" class="flex flex-col gap-6 ">
-                                <div class="items-center space-y-4">
+                                <!-- Section Details Accordion (Title & Description) -->
+                                <div class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                    <div
+                                        class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
+                                        :class="{ 'border-b border-toast-100': activeEditorScheduleKey === 'header' }"
+                                        @click="toggleEditorSchedule('header')">
+                                        <div class="flex items-center gap-2 min-w-0 pr-1">
+                                            <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span class="font-semibold text-sm text-toast-900 truncate">
+                                                    Section Details
+                                                </span>
+                                                <span v-if="scheduleTitle && scheduleTitle !== 'Schedule'" class="text-xs text-toast-500 truncate font-normal">
+                                                    ({{ scheduleTitle }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <div class="p-1 text-toast-400 hover:text-toast-700 transition-transform duration-200"
+                                                :class="{ 'rotate-180': activeEditorScheduleKey === 'header' }">
+                                                <UIcon name="i-lucide-chevron-down" class="size-4" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-show="activeEditorScheduleKey === 'header'" class="p-4 flex flex-col gap-3">
+                                        <UFormField label="Section Title">
+                                            <UInput v-model="scheduleTitle" placeholder="e.g. Schedule or Order of Events" class="w-full" />
+                                        </UFormField>
+                                        <UFormField label="Description (Optional)" description="Only displayed when filled in.">
+                                            <UTextarea v-model="scheduleDescription" placeholder="Optional introductory note..." class="w-full" :rows="2" />
+                                        </UFormField>
+                                    </div>
+                                </div>
+
+                                <div class="items-center space-y-3">
                                     <div v-if="scheduleItems.length === 0"
                                         class="text-center text-toast-500 italic py-4">No
                                         events added yet.</div>
-                                    <div v-for="item in scheduleItems" :key="item.id"
-                                        class="flex flex-col gap-3 border border-toast-200/80 p-4 rounded-xl bg-white shadow-sm">
+                                    <div v-for="(item, sIdx) in scheduleItems" :key="item.id"
+                                        class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                        <!-- Accordion Header Button -->
                                         <div
-                                            class="flex justify-between items-center pb-1 border-b border-toast-100">
-                                            <span
-                                                class="font-semibold text-sm capitalize text-toast-900">Event</span>
-                                            <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
-                                                @click="removeScheduleItem(item.id)" />
-                                        </div>
-                                        <UFormField label="Title">
-                                            <UInput v-model="item.title" placeholder="e.g., Main Program"
-                                                class="w-full" />
-                                        </UFormField>
-
-                                        <!-- Date -->
-                                        <UFormField label="Date">
-                                            <UInput v-model="item.date" type="date" icon="i-lucide-calendar"
-                                                class="w-full" />
-                                        </UFormField>
-
-                                        <!-- Whole day event Checkmark -->
-                                        <div
-                                            class="flex items-center justify-between p-2.5 bg-toast-50/70 rounded-lg border border-toast-200/60">
-                                            <span class="text-xs font-medium text-toast-800">Whole
-                                                day event</span>
-                                            <UCheckbox v-model="item.isAllDay" color="blue" />
+                                            class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
+                                            :class="{ 'border-b border-toast-100': activeEditorScheduleKey === item.id }"
+                                            @click="toggleEditorSchedule(item.id)">
+                                            <div class="flex items-center gap-2 min-w-0 pr-1">
+                                                <UIcon name="i-lucide-calendar" class="size-4 text-toast-500 shrink-0" />
+                                                <span class="font-semibold text-sm text-toast-900 truncate">
+                                                    {{ item.title || `Event ${sIdx + 1}` }}
+                                                </span>
+                                                <span v-if="item.startTime || item.isAllDay" class="text-xs text-toast-400 shrink-0 hidden sm:inline">
+                                                    ({{ item.isAllDay ? 'All Day' : item.startTime }})
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0" @click.stop>
+                                                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
+                                                    @click="removeScheduleItem(item.id)" />
+                                                <div class="p-1 cursor-pointer text-toast-400 hover:text-toast-700 transition-transform duration-200"
+                                                    :class="{ 'rotate-180': activeEditorScheduleKey === item.id }"
+                                                    @click="toggleEditorSchedule(item.id)">
+                                                    <UIcon name="i-lucide-chevron-down" class="size-4" />
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <!-- Start & End Time (shown when not whole day event) -->
-                                        <div v-if="!item.isAllDay" class="grid grid-cols-2 gap-3">
-                                            <UFormField label="Start Time">
-                                                <UInput v-model="item.startTime" type="time" icon="i-lucide-clock"
+                                        <!-- Accordion Body -->
+                                        <div v-show="activeEditorScheduleKey === item.id" class="p-4 flex flex-col gap-3">
+                                            <UFormField label="Title">
+                                                <UInput v-model="item.title" placeholder="e.g., Main Program"
                                                     class="w-full" />
                                             </UFormField>
-                                            <UFormField label="End Time">
-                                                <UInput v-model="item.endTime" type="time" icon="i-lucide-clock"
+
+                                            <!-- Date -->
+                                            <UFormField label="Date">
+                                                <UInput v-model="item.date" type="date" icon="i-lucide-calendar"
+                                                    class="w-full" />
+                                            </UFormField>
+
+                                            <!-- Whole day event Checkmark -->
+                                            <div
+                                                class="flex items-center justify-between p-2.5 bg-toast-50/70 rounded-lg border border-toast-200/60">
+                                                <span class="text-xs font-medium text-toast-800">Whole
+                                                    day event</span>
+                                                <UCheckbox v-model="item.isAllDay" color="blue" />
+                                            </div>
+
+                                            <!-- Start & End Time (shown when not whole day event) -->
+                                            <div v-if="!item.isAllDay" class="grid grid-cols-2 gap-3">
+                                                <UFormField label="Start Time">
+                                                    <UInput v-model="item.startTime" type="time" icon="i-lucide-clock"
+                                                        class="w-full" />
+                                                </UFormField>
+                                                <UFormField label="End Time">
+                                                    <UInput v-model="item.endTime" type="time" icon="i-lucide-clock"
+                                                        class="w-full" />
+                                                </UFormField>
+                                            </div>
+
+                                            <UFormField label="Location (Optional)">
+                                                <UInput v-model="item.location" placeholder="e.g., Main Garden"
+                                                    icon="i-lucide-map-pin" class="w-full" />
+                                            </UFormField>
+
+                                            <UFormField label="Description">
+                                                <UTextarea v-model="item.description" placeholder="Enter event details"
                                                     class="w-full" />
                                             </UFormField>
                                         </div>
-
-                                        <UFormField label="Location (Optional)">
-                                            <UInput v-model="item.location" placeholder="e.g., Main Garden"
-                                                icon="i-lucide-map-pin" class="w-full" />
-                                        </UFormField>
-
-                                        <UFormField label="Description">
-                                            <UTextarea v-model="item.description" placeholder="Enter event details"
-                                                class="w-full" />
-                                        </UFormField>
                                     </div>
                                 </div>
                             </div>
@@ -3128,56 +3614,6 @@ function togglePreview() {
                                         </div>
                                     </div>
 
-                                    <!-- Coordinate Status Badge -->
-                                    <div v-if="websiteData.whereToStayLatitude && websiteData.whereToStayLongitude"
-                                        class="p-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 flex items-center justify-between gap-3 text-xs">
-                                        <div
-                                            class="flex items-center gap-2 text-emerald-900 min-w-0">
-                                            <div
-                                                class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                                                <UIcon name="i-lucide-check-circle-2" class="w-4 h-4" />
-                                            </div>
-                                            <div class="min-w-0">
-                                                <div
-                                                    class="font-semibold text-emerald-950 text-xs">
-                                                    Precise Coordinates Synced
-                                                </div>
-                                                <div
-                                                    class="text-[11px] font-mono text-emerald-700 truncate">
-                                                    {{ Number(websiteData.whereToStayLatitude).toFixed(5) }}°, {{
-                                                        Number(websiteData.whereToStayLongitude).toFixed(5) }}°
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-1 shrink-0">
-                                            <UButton
-                                                :to="getVenueGoogleMapsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })"
-                                                target="_blank" size="xs" color="success" variant="ghost"
-                                                icon="i-lucide-external-link">
-                                                View Pin
-                                            </UButton>
-                                            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-x"
-                                                title="Clear Coordinates"
-                                                @click="websiteData.whereToStayLatitude = null; websiteData.whereToStayLongitude = null" />
-                                        </div>
-                                    </div>
-
-                                    <!-- Google Maps & Reviews Exploration Link -->
-                                    <div
-                                        class="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 flex items-center justify-between gap-3">
-                                        <div class="text-xs text-toast-700">
-                                            <span class="font-semibold block text-toast-900">Find
-                                                Live Google Reviews</span>
-                                            Search real, top-rated hotels in this area on Google Maps.
-                                        </div>
-                                        <UButton
-                                            :to="getAreaHotelsGoogleReviewsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })"
-                                            target="_blank" size="xs" color="blue" variant="soft"
-                                            icon="i-lucide-external-link">
-                                            Open Google
-                                        </UButton>
-                                    </div>
-
                                     <!-- 4 Accommodation Slots -->
                                     <div class="space-y-3.5 pt-1">
                                         <div class="flex items-center justify-between">
@@ -3187,12 +3623,13 @@ function togglePreview() {
                                                     Accommodation Slots (Max 4)
                                                 </h4>
                                                 <p class="text-[11px] text-toast-500 mt-0.5">
-                                                    Click any slot to open top hotels near <span
-                                                        class="font-medium text-blue-600">{{
-                                                            websiteData.whereToStayLocation ||
-                                                            'your venue' }}</span>
+                                                    Venues auto-assign to the lowest available slot.
                                                 </p>
                                             </div>
+                                            <UButton v-if="whereToStayAccommodations.length < 4" size="xs" color="blue" variant="soft"
+                                                icon="i-lucide-plus" class="cursor-pointer" @click="openAccommodationPicker()">
+                                                Add Venue
+                                            </UButton>
                                         </div>
 
                                         <!-- 4 Slots List -->
@@ -3220,19 +3657,17 @@ function togglePreview() {
                                                         </div>
                                                         <div class="flex items-center gap-1">
                                                             <UButton size="xs" color="neutral" variant="ghost"
-                                                                icon="i-lucide-trash-2" title="Clear this slot"
-                                                                class="cursor-pointer"
-                                                                @click="clearSlotAccommodation(slotIdx)" />
+                                                                icon="i-lucide-trash-2" title="Remove accommodation"
+                                                                class="cursor-pointer text-toast-400 hover:text-red-600"
+                                                                @click="removeAccommodation(slotIdx)" />
                                                         </div>
                                                     </div>
 
                                                     <!-- Hotel details -->
                                                     <div class="flex items-start gap-3">
                                                         <div
-                                                            class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-toast-200 bg-toast-100 shadow-xs">
-                                                            <img :src="getAccommodationImage(whereToStayAccommodations[slotIdx])"
-                                                                :alt="whereToStayAccommodations[slotIdx].name"
-                                                                class="w-full h-full object-cover" />
+                                                            class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                                                            <UIcon name="i-lucide-bed-double" class="w-5 h-5 text-blue-600" />
                                                         </div>
                                                         <div class="min-w-0 flex-1">
                                                             <div
@@ -3245,17 +3680,22 @@ function togglePreview() {
                                                                     class="font-semibold text-amber-600 flex items-center gap-0.5">
                                                                     <UIcon name="i-lucide-star"
                                                                         class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                                                    {{ whereToStayAccommodations[slotIdx].rating }}
+                                                                    {{ formatCleanRating(whereToStayAccommodations[slotIdx].rating) }}
                                                                 </span>
                                                                 <span v-if="whereToStayAccommodations[slotIdx].distance"
                                                                     class="flex items-center gap-0.5 text-toast-500">
-                                                                    <UIcon name="i-lucide-map-pin"
+                                                                    <UIcon name="i-lucide-route"
                                                                         class="w-3.5 h-3.5 text-toast-400 shrink-0" />
-                                                                    {{ whereToStayAccommodations[slotIdx].distance }}
+                                                                    {{ formatCleanDistance(whereToStayAccommodations[slotIdx].distance) }}
                                                                 </span>
                                                             </div>
+                                                            <div v-if="whereToStayAccommodations[slotIdx].address"
+                                                                class="text-[11px] text-toast-500 line-clamp-1 mt-1 flex items-center gap-1">
+                                                                <UIcon name="i-lucide-map-pin" class="w-3 h-3 text-toast-400 shrink-0" />
+                                                                <span class="truncate">{{ whereToStayAccommodations[slotIdx].address }}</span>
+                                                            </div>
                                                             <p v-if="whereToStayAccommodations[slotIdx].description"
-                                                                class="text-[11px] text-toast-500 line-clamp-1 mt-1">
+                                                                class="text-[11px] text-toast-500 line-clamp-2 mt-1">
                                                                 {{ whereToStayAccommodations[slotIdx].description }}
                                                             </p>
                                                         </div>
@@ -3263,13 +3703,10 @@ function togglePreview() {
 
                                                     <!-- Slot Action Buttons -->
                                                     <div
-                                                        class="flex items-center gap-2 pt-1 border-t border-toast-100">
-                                                        <UButton size="xs" color="blue" variant="soft"
-                                                            icon="i-lucide-map"
-                                                            class="flex-1 justify-center cursor-pointer"
-                                                            @click="openAccommodationPicker(slotIdx)">
-                                                            Change Hotel
-                                                        </UButton>
+                                                        class="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-toast-100">
+                                                        <span class="text-[11px] text-toast-400 italic">
+                                                            Assigned to Slot {{ slotIdx + 1 }}
+                                                        </span>
                                                         <UButton
                                                             :to="getAccommodationGoogleUrl(whereToStayAccommodations[slotIdx], websiteData.whereToStayLocation)"
                                                             target="_blank" size="xs" color="neutral" variant="outline"
@@ -3281,7 +3718,7 @@ function togglePreview() {
                                                 </div>
 
                                                 <!-- Empty Slot Card (Click to open Google Maps popup) -->
-                                                <button v-else type="button" @click="openAccommodationPicker(slotIdx)"
+                                                <button v-else type="button" @click="openAccommodationPicker()"
                                                     class="w-full p-4 rounded-xl border-2 border-dashed border-toast-300 hover:border-blue-500 bg-white/70 hover:bg-blue-50/40 text-left transition-all group cursor-pointer space-y-2">
                                                     <div class="flex items-center justify-between">
                                                         <div class="flex items-center gap-2">
@@ -3291,12 +3728,12 @@ function togglePreview() {
                                                             </span>
                                                             <span
                                                                 class="font-semibold text-xs text-toast-600 group-hover:text-blue-600 transition-colors">
-                                                                Slot {{ slotIdx + 1 }}: Not Selected
+                                                                Slot {{ slotIdx + 1 }}: Available
                                                             </span>
                                                         </div>
                                                         <span
                                                             class="text-xs font-semibold text-blue-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                                                            Select on Map
+                                                            Select Venue
                                                             <UIcon name="i-lucide-chevron-right" class="w-3.5 h-3.5" />
                                                         </span>
                                                     </div>
@@ -3308,10 +3745,10 @@ function togglePreview() {
                                                         <div class="min-w-0 flex-1">
                                                             <span
                                                                 class="font-semibold text-xs block text-toast-900 group-hover:text-blue-600">
-                                                                Choose Hotel from Google Maps
+                                                                Add Venue to Slot {{ whereToStayAccommodations.length + 1 }}
                                                             </span>
                                                             <span class="text-[11px] text-toast-500 truncate block">
-                                                                Top hotels & stays near {{
+                                                                Choose from top stays near {{
                                                                     websiteData.whereToStayLocation || 'the venue' }}
                                                             </span>
                                                         </div>
@@ -3332,28 +3769,86 @@ function togglePreview() {
                             </div>
 
                             <!-- Dynamic Step: Gifts -->
-                            <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-4">
-                                <p class="text-sm text-toast-500">
-                                    Guests will see your QR codes, account names, account numbers, and gift list on your website.
-                                </p>
-                                <p class="text-sm">
-                                    {{ giftRegistry?.qrCodes.length ?? 0 }} QR code(s) and {{ giftRegistry?.wishedItems.length ?? 0 }} gift(s) added.
-                                </p>
-                                <UButton
-                                    :to="{ path: '/event/wishlist', query: { eventId } }"
-                                    target="_blank"
-                                    icon="i-lucide-external-link"
-                                    variant="outline"
-                                    class="self-start"
-                                    label="Manage gifts and QR codes"
-                                />
-                                <UButton
-                                    icon="i-lucide-refresh-cw"
-                                    variant="ghost"
-                                    class="self-start"
-                                    label="Refresh"
-                                    @click="loadGiftRegistry"
-                                />
+                            <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-6">
+                                <!-- Section Details Accordion (Title & Description) -->
+                                <div class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                    <div
+                                        class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
+                                        :class="{ 'border-b border-toast-100': activeEditorGiftsKey === 'header' }"
+                                        @click="toggleEditorGifts('header')">
+                                        <div class="flex items-center gap-2 min-w-0 pr-1">
+                                            <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span class="font-semibold text-sm text-toast-900 truncate">
+                                                    Section Details
+                                                </span>
+                                                <span v-if="giftsTitle && giftsTitle !== 'Gifts & Registry'" class="text-xs text-toast-500 truncate font-normal">
+                                                    ({{ giftsTitle }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <div class="p-1 text-toast-400 hover:text-toast-700 transition-transform duration-200"
+                                                :class="{ 'rotate-180': activeEditorGiftsKey === 'header' }">
+                                                <UIcon name="i-lucide-chevron-down" class="size-4" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-show="activeEditorGiftsKey === 'header'" class="p-4 flex flex-col gap-3">
+                                        <UFormField label="Section Title">
+                                            <UInput v-model="giftsTitle" placeholder="e.g. Gifts & Registry or Wishlist" class="w-full" />
+                                        </UFormField>
+                                        <UFormField label="Description (Optional)" description="Only displayed when filled in.">
+                                            <UTextarea v-model="giftsDescription" placeholder="Optional introductory note..." class="w-full" :rows="2" />
+                                        </UFormField>
+                                    </div>
+                                </div>
+
+                                <!-- Live Sync Status & CTA Banner -->
+                                <div class="p-5 rounded-2xl border border-emerald-200/90 bg-emerald-50/70 space-y-4">
+                                    <!-- Header: Live Pulse + Title -->
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="relative flex h-2.5 w-2.5 shrink-0">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                        </span>
+                                        <span class="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                                            Live Synced with Gift Registry
+                                        </span>
+                                    </div>
+
+                                    <!-- Call to Action Content -->
+                                    <p class="text-xs text-emerald-800 leading-relaxed">
+                                        Open the Gift Registry &amp; Wishlist Editor to add wished items, upload payment QR codes, and manage account details. Published changes automatically reflect on your website.
+                                    </p>
+
+                                    <!-- Bottom Action Buttons (Both Block) -->
+                                    <div class="pt-2 space-y-2 border-t border-emerald-200/60">
+                                        <UButton
+                                            :to="'/event/wishlist' + (eventId ? '?eventId=' + eventId : '')"
+                                            target="_blank"
+                                            icon="i-lucide-external-link"
+                                            size="sm"
+                                            color="emerald"
+                                            variant="solid"
+                                            block
+                                            class="cursor-pointer justify-center font-semibold shadow-xs">
+                                            Open Gift Registry &amp; Wishlist
+                                        </UButton>
+
+                                        <UButton
+                                            size="sm"
+                                            color="emerald"
+                                            variant="outline"
+                                            icon="i-lucide-refresh-cw"
+                                            :loading="isGiftsLoading"
+                                            block
+                                            class="cursor-pointer justify-center"
+                                            @click="loadGiftRegistry">
+                                            Sync Now
+                                        </UButton>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Dynamic Step: Wedding Party -->
@@ -3668,7 +4163,7 @@ function togglePreview() {
                         : 'w-full h-[calc(100vh-130px)] rounded-2xl shadow-lg border border-toast-200/80 ring-1 ring-black/5'"
                     class="flex flex-col gap-6 transition-colors duration-500 overflow-hidden ring-transparent"
                     :ui="{ container: 'p-0 sm:p-0 lg:p-0 h-full flex flex-col' }">
-                    <div class="h-full w-full flex-1 flex flex-col md:flex-row transition-colors duration-500 relative"
+                    <div class="h-full w-full flex-1 flex flex-col md:flex-row transition-colors duration-500 relative paper-textured-bg"
                         :style="{
                             backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary,
                             fontFamily: `'${selectedTypography.bodyFont}'`,
@@ -3748,7 +4243,7 @@ function togglePreview() {
                                         backgroundImage: `linear-gradient(to bottom, transparent 40%, ${websiteData.invertColors ? selectedPalette.colors.secondary_text_color : selectedPalette.colors.secondary}80)`
                                     }">
                                     </div>
-                                    <div class="relative z-10">
+                                    <div id="preview-hero-title" class="relative z-10 scroll-mt-20">
 
                                         <div class="space-y-3">
                                             <h1 class="font-medium transition-all duration-300 text-white"
@@ -3766,8 +4261,9 @@ function togglePreview() {
                                     <!-- Dynamic Content Sections Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
                                         id="preview-section-about-us"
-                                        class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
-                                        :class="{ 'min-h-[80vh]': isLive || isPreviewing }">
+                                        class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
+                                        :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                        :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }">
                                         <div class="space-y-3 max-w-2xl mx-auto w-full">
                                             <UContainer v-if="headingSectionContent"
                                                 class="font-bold italic transition-all duration-300 pt-2 sm:pt-4"
@@ -3792,10 +4288,10 @@ function togglePreview() {
 
 
                                     <template v-for="(compId, index) in displayComponents" :key="compId">
-                                        <!-- Color & Dress Code Preview -->
+                                        <!-- Colors & Dress Code Preview -->
                                         <div v-if="compId === 'dress-code' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-dress-code"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
@@ -3804,7 +4300,7 @@ function togglePreview() {
                                                 <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                    Color &amp; Dress Code
+                                                    Colors &amp; Dress Code
                                                 </h2>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
                                                     <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
@@ -3909,82 +4405,81 @@ function togglePreview() {
                                                 </div>
                                             </div>
 
-                                            <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) -->
-                                            <div class="max-w-5xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                                                <!-- Gentlemen -->
-                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/20 backdrop-blur-md shadow-xs flex flex-col justify-between"
-                                                    :style="{
-                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
-                                                        borderColor: previewDynamicStyle(index).text + '25',
-                                                        color: previewDynamicStyle(index).text,
-                                                    }">
-                                                    <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
-                                                        <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center">
-                                                            <UIcon name="i-lucide-user" class="size-4" />
+                                            <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) & Guest Guidance / Colors to Avoid -->
+                                            <div class="max-w-5xl mx-auto w-full divide-y divide-current/20 text-left"
+                                                :style="{ color: previewDynamicStyle(index).text }">
+                                                <!-- Row 1: Gentlemen & Ladies Attire -->
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10 pb-6">
+                                                    <!-- Gentlemen -->
+                                                    <div class="flex flex-col justify-between space-y-2">
+                                                        <div class="flex items-center gap-2.5" :style="{ color: previewDynamicStyle(index).heading }">
+                                                            <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center shrink-0">
+                                                                <UIcon name="i-lucide-user" class="size-4" />
+                                                            </div>
+                                                            <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                                :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                                Gentlemen / Men's Attire
+                                                            </h3>
                                                         </div>
-                                                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
-                                                            :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                            Gentlemen / Men's Attire
-                                                        </h3>
+                                                        <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                            {{ publishedDressCode?.menAttire || 'Dark suit, tuxedo, or formal Barong Tagalog with dress trousers and polished shoes.' }}
+                                                        </p>
                                                     </div>
-                                                    <p class="text-xs sm:text-sm leading-relaxed opacity-90">
-                                                        {{ publishedDressCode?.menAttire || 'Dark suit, tuxedo, or formal Barong Tagalog with dress trousers and polished shoes.' }}
-                                                    </p>
-                                                </div>
 
-                                                <!-- Ladies -->
-                                                <div class="p-4 sm:p-5 rounded-2xl border border-current/20 backdrop-blur-md shadow-xs flex flex-col justify-between"
-                                                    :style="{
-                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
-                                                        borderColor: previewDynamicStyle(index).text + '25',
-                                                        color: previewDynamicStyle(index).text,
-                                                    }">
-                                                    <div class="flex items-center gap-2 mb-2" :style="{ color: previewDynamicStyle(index).heading }">
-                                                        <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center">
-                                                            <UIcon name="i-lucide-heart" class="size-4 text-current" />
+                                                    <!-- Ladies -->
+                                                    <div class="flex flex-col justify-between space-y-2">
+                                                        <div class="flex items-center gap-2.5" :style="{ color: previewDynamicStyle(index).heading }">
+                                                            <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center shrink-0">
+                                                                <UIcon name="i-lucide-heart" class="size-4 text-current" />
+                                                            </div>
+                                                            <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                                :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                                Ladies / Women's Attire
+                                                            </h3>
                                                         </div>
-                                                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
-                                                            :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                            Ladies / Women's Attire
-                                                        </h3>
-                                                    </div>
-                                                    <p class="text-xs sm:text-sm leading-relaxed opacity-90">
-                                                        {{ publishedDressCode?.womenAttire || 'Floor-length evening gown, midi cocktail dress, or chic formal attire complementing the palette.' }}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <!-- Section 3: Guest Notes & Colors to Avoid -->
-                                            <div class="max-w-5xl mx-auto w-full space-y-3 text-left">
-                                                <!-- Guest Notes -->
-                                                <div v-if="publishedDressCode?.guestNotes"
-                                                    class="p-4 rounded-xl border border-current/20 backdrop-blur-md shadow-xs"
-                                                    :style="{
-                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
-                                                        borderColor: previewDynamicStyle(index).text + '25',
-                                                        color: previewDynamicStyle(index).text,
-                                                    }">
-                                                    <div class="flex items-start gap-2.5">
-                                                        <UIcon name="i-lucide-info" class="size-4 shrink-0 mt-0.5 opacity-80" />
-                                                        <div class="text-xs sm:text-sm leading-relaxed">
-                                                            <span class="font-bold block mb-0.5" :style="{ color: previewDynamicStyle(index).heading }">Guest Guidance:</span>
-                                                            <span class="opacity-90">{{ publishedDressCode.guestNotes }}</span>
-                                                        </div>
+                                                        <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                            {{ publishedDressCode?.womenAttire || 'Floor-length evening gown, midi cocktail dress, or chic formal attire complementing the palette.' }}
+                                                        </p>
                                                     </div>
                                                 </div>
 
-                                                <!-- Colors to Avoid -->
-                                                <div v-if="publishedDressCode?.avoidColors"
-                                                    class="p-4 rounded-xl border border-current/20 backdrop-blur-md shadow-xs flex items-start gap-2.5"
-                                                    :style="{
-                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
-                                                        borderColor: previewDynamicStyle(index).text + '25',
-                                                        color: previewDynamicStyle(index).text,
-                                                    }">
-                                                    <UIcon name="i-lucide-ban" class="size-4 shrink-0 mt-0.5" :style="{ color: previewDynamicStyle(index).heading }" />
-                                                    <div class="text-xs sm:text-sm leading-relaxed">
-                                                        <span class="font-bold block mb-0.5" :style="{ color: previewDynamicStyle(index).heading }">Colors to Avoid:</span>
-                                                        <span class="opacity-90">{{ publishedDressCode.avoidColors }}</span>
+                                                <!-- Row 2: Guest Guidance & Colors to Avoid -->
+                                                <div v-if="publishedDressCode?.guestNotes || publishedDressCode?.avoidColors"
+                                                    class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10 pt-6">
+                                                    <!-- Guest Notes -->
+                                                    <div v-if="publishedDressCode?.guestNotes"
+                                                        class="flex flex-col justify-between space-y-2"
+                                                        :class="{ 'sm:col-span-2': !publishedDressCode?.avoidColors }">
+                                                        <div class="flex items-center gap-2.5" :style="{ color: previewDynamicStyle(index).heading }">
+                                                            <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center shrink-0">
+                                                                <UIcon name="i-lucide-info" class="size-4 opacity-90" />
+                                                            </div>
+                                                            <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                                :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                                Guest Guidance
+                                                            </h3>
+                                                        </div>
+                                                        <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                            {{ publishedDressCode.guestNotes }}
+                                                        </p>
+                                                    </div>
+
+                                                    <!-- Colors to Avoid -->
+                                                    <div v-if="publishedDressCode?.avoidColors"
+                                                        class="flex flex-col justify-between space-y-2"
+                                                        :class="{ 'sm:col-span-2': !publishedDressCode?.guestNotes }">
+                                                        <div class="flex items-center gap-2.5" :style="{ color: previewDynamicStyle(index).heading }">
+                                                            <div class="size-8 rounded-lg bg-current/10 flex items-center justify-center shrink-0">
+                                                                <UIcon name="i-lucide-ban" class="size-4" />
+                                                            </div>
+                                                            <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider"
+                                                                :style="{ fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                                Colors to Avoid
+                                                            </h3>
+                                                        </div>
+                                                        <p class="text-xs sm:text-sm leading-relaxed opacity-90">
+                                                            {{ publishedDressCode.avoidColors }}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -4037,7 +4532,7 @@ function togglePreview() {
                                         <!-- Photo Gallery Preview -->
                                         <div v-if="compId === 'gallery' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-gallery"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <!-- Title & Subtitle Header -->
@@ -4069,7 +4564,7 @@ function togglePreview() {
                                                 }">
                                                 <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
-                                                    class="group relative aspect-4/3 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    class="group relative aspect-4/3 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                                                     :class="[
                                                         draggedMakerGalleryIndex === gIdx ? 'opacity-30 scale-95 border-dashed border-rose-500' : '',
                                                         dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 scale-102 z-10' : '',
@@ -4100,7 +4595,7 @@ function togglePreview() {
                                                 }">
                                                 <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
-                                                    class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                                                     :class="[
                                                         draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
                                                         dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
@@ -4123,7 +4618,7 @@ function togglePreview() {
                                                 class="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-left">
                                                 <div v-if="galleryData.photos[0]"
                                                     draggable="true"
-                                                    class="lg:col-span-2 group relative aspect-4/3 lg:aspect-auto lg:h-full min-h-80 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-md cursor-grab active:cursor-grabbing transition-all hover:shadow-2xl"
+                                                    class="lg:col-span-2 group relative aspect-4/3 lg:aspect-auto lg:h-full min-h-80 rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-md cursor-grab transition-all hover:shadow-2xl"
                                                     :class="[
                                                         draggedMakerGalleryIndex === 0 ? 'opacity-30 border-dashed border-rose-500' : '',
                                                         dragOverMakerGalleryIndex === 0 ? 'ring-4 ring-rose-500 z-10' : '',
@@ -4148,7 +4643,7 @@ function togglePreview() {
                                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
                                                     <div v-for="(photo, gIdx) in galleryData.photos.slice(1, 5)" :key="photo.id"
                                                         draggable="true"
-                                                        class="group relative aspect-4/3 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
+                                                        class="group relative aspect-4/3 rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab transition-all hover:shadow-md"
                                                         :class="[
                                                             draggedMakerGalleryIndex === (gIdx + 1) ? 'opacity-30 border-dashed border-rose-500' : '',
                                                             dragOverMakerGalleryIndex === (gIdx + 1) ? 'ring-4 ring-rose-500 z-10' : '',
@@ -4172,7 +4667,7 @@ function togglePreview() {
                                                 class="max-w-5xl mx-auto w-full flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin">
                                                 <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
-                                                    class="snap-start shrink-0 w-64 sm:w-72 aspect-3/4 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab active:cursor-grabbing transition-all hover:shadow-xl hover:-translate-y-1 text-left"
+                                                    class="snap-start shrink-0 w-64 sm:w-72 aspect-3/4 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab transition-all hover:shadow-xl hover:-translate-y-1 text-left"
                                                     :class="[
                                                         draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
                                                         dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
@@ -4195,7 +4690,7 @@ function togglePreview() {
                                                 class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto w-full pt-2">
                                                 <div v-for="(photo, pIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
-                                                    class="bg-white p-3 sm:p-4 pb-6 rounded-sm shadow-md border border-black/10 transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 cursor-grab active:cursor-grabbing group select-none"
+                                                    class="bg-white p-3 sm:p-4 pb-6 rounded-sm shadow-md border border-black/10 transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 cursor-grab group select-none"
                                                     :class="[
                                                         pIdx % 3 === 0 ? '-rotate-1 hover:rotate-0' : (pIdx % 3 === 1 ? 'rotate-1 hover:rotate-0' : '-rotate-0.5 hover:rotate-0'),
                                                         draggedMakerGalleryIndex === pIdx ? 'opacity-30 border-dashed border-rose-500' : '',
@@ -4222,7 +4717,7 @@ function togglePreview() {
                                         <!-- Q&A Preview -->
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-q-and-a"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(index).bg,
                                             }">
@@ -4230,14 +4725,18 @@ function togglePreview() {
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                    Q&A</div>
+                                                    {{ qaTitle || 'Q&A' }}</div>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
                                                     <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
                                                     <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
                                                     <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
                                                 </div>
+                                                <p v-if="qaDescription?.trim()"
+                                                    class="text-sm sm:text-base leading-relaxed opacity-80"
+                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                    {{ qaDescription }}
+                                                </p>
                                             </div>
-
 
                                             <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
                                                 <h3 class="font-bold transition-all duration-300"
@@ -4253,24 +4752,27 @@ function togglePreview() {
                                             </div>
                                         </div>
 
-
-
                                         <!-- Schedule Preview -->
                                         <div v-if="compId === 'schedule' && scheduleItems.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-schedule"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                    Schedule</div>
+                                                    {{ scheduleTitle || 'Schedule' }}</div>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
                                                     <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
                                                     <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
                                                     <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
                                                 </div>
+                                                <p v-if="scheduleDescription?.trim()"
+                                                    class="text-sm sm:text-base leading-relaxed opacity-80"
+                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                    {{ scheduleDescription }}
+                                                </p>
                                             </div>
 
                                             <div v-for="item in scheduleItems" :key="item.id"
@@ -4313,54 +4815,15 @@ function togglePreview() {
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <UIcon name="i-lucide-map-pin"
                                                         class="mr-1 inline-block align-middle" />
-                                                    {{
-                                                        item.location
-                                                    }}
+                                                    {{ item.location }}
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- RSVP Preview Placeholder -->
-                                        <div v-if="compId === 'rsvp' && (websiteData.singlePageSite || activeComponentId === compId)"
-                                            id="preview-section-rsvp"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
-                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
-                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
-                                            <div class="space-y-3 max-w-2xl mx-auto">
-                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                    RSVP</div>
-                                                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
-                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
-                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-col items-center gap-5 text-sm"
-                                                :style="{ color: previewDynamicStyle(index).text }">
-                                                <div v-if="websiteData.rsvpDeadlineDate"
-                                                    class="font-semibold uppercase tracking-widest text-xs opacity-80">
-                                                    <UIcon name="i-lucide-calendar"
-                                                        class="w-4 h-4 inline-block align-text-bottom mr-1" />
-                                                    RSVP by {{ formatDateWithWeekday(websiteData.rsvpDeadlineDate) }}
-                                                </div>
-                                                <UButton size="lg"
-                                                    class="transition-all duration-300 hover:opacity-80 shadow-md border"
-                                                    :style="{ // Adjusting button colors to use new palette structure
-                                                        backgroundColor: previewDynamicStyle(index).text,
-                                                        color: previewDynamicStyle(index).bg,
-                                                        borderColor: previewDynamicStyle(index).bg === 'transparent' ? previewDynamicStyle(index - 1).text : previewDynamicStyle(index - 1).bg
-                                                    }">
-                                                    RSVP Here
-                                                </UButton>
                                             </div>
                                         </div>
 
                                         <!-- Where to Stay Preview Placeholder -->
                                         <div v-if="compId === 'where-to-stay' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-where-to-stay"
-                                            class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
@@ -4378,15 +4841,7 @@ function togglePreview() {
                                                     class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5" />
-                                                    <span>{{ websiteData.whereToStayLocation }}</span>
-                                                    <a v-if="websiteData.whereToStayLatitude && websiteData.whereToStayLongitude"
-                                                        :href="getVenueGoogleMapsUrl(websiteData.whereToStayLocation, { lat: websiteData.whereToStayLatitude, lng: websiteData.whereToStayLongitude })"
-                                                        target="_blank" rel="noopener noreferrer"
-                                                        class="inline-flex items-center gap-1 pl-1.5 border-l border-current/20 hover:opacity-100 opacity-75 transition-opacity normal-case"
-                                                        title="View pin on Google Maps">
-                                                        <span class="text-[11px]">{{ Number(websiteData.whereToStayLatitude).toFixed(4) }}°, {{ Number(websiteData.whereToStayLongitude).toFixed(4) }}°</span>
-                                                        <UIcon name="i-lucide-external-link" class="w-3 h-3" />
-                                                    </a>
+                                                    <span>{{ getVenueShortName(websiteData.whereToStayLocation) }}</span>
                                                 </div>
                                             </div>
 
@@ -4409,7 +4864,7 @@ function togglePreview() {
                                             </div>
 
                                             <!-- 4 Suggested Accommodations Buttons (Google Reviews) -->
-                                            <div class="max-w-5xl mx-auto w-full pt-4 space-y-4">
+                                            <div v-if="previewAccommodations.length > 0" class="max-w-5xl mx-auto w-full pt-4 space-y-4">
                                                 <div
                                                     class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-left">
                                                     <div>
@@ -4432,73 +4887,62 @@ function togglePreview() {
                                                     </a>
                                                 </div>
 
-                                                <!-- 4 Accommodation Grid -->
-                                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                    <a v-for="(hotel, slotIdx) in previewAccommodations"
+                                                <!-- 4 Accommodation Grid: Separated by vertical lines, stationary containers -->
+                                                <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-current/20"
+                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                    <div v-for="(hotel, slotIdx) in previewAccommodations"
                                                         :key="hotel.id || slotIdx"
-                                                        :href="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
-                                                        target="_blank" rel="noopener noreferrer"
-                                                        class="group overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col"
-                                                        :style="{
-                                                            backgroundColor: previewDynamicStyle(index).text + '0D',
-                                                            borderColor: previewDynamicStyle(index).text + '25',
-                                                            color: previewDynamicStyle(index).text
-                                                        }">
-                                                        <!-- Venue Image Section -->
-                                                        <div
-                                                            class="relative w-full h-44 sm:h-48 overflow-hidden bg-black/5">
-                                                            <img :src="getAccommodationImage(hotel)"
-                                                                :alt="hotel.name || 'Venue Accommodation'"
-                                                                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                                loading="lazy" />
-                                                            <div
-                                                                class="absolute inset-0 bg-linear-to-t from-black/70 via-black/15 to-transparent">
+                                                        class="flex-1 min-w-0 flex flex-col justify-between p-4 sm:p-5 text-left">
+                                                        <div class="space-y-2.5 flex-1 pb-1">
+                                                            <!-- Topmost: Whole Name of the Venue -->
+                                                            <h4 class="font-bold text-base sm:text-lg leading-snug break-words"
+                                                                :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                                {{ hotel.name || 'Accommodation' }}
+                                                            </h4>
+
+                                                            <!-- Row 2: Distance Metric & Star Rating (In line) -->
+                                                            <div class="flex items-center justify-between gap-2 pt-0.5 text-xs">
+                                                                <div v-if="formatCleanDistance(hotel.distance)"
+                                                                    class="inline-flex items-center gap-1.5 font-medium opacity-85"
+                                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                                    <UIcon name="i-lucide-route" class="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                    <span>{{ formatCleanDistance(hotel.distance) }}</span>
+                                                                </div>
+                                                                <div v-else class="text-transparent select-none">-</div>
+
+                                                                <div v-if="formatCleanRating(hotel.rating)"
+                                                                    class="px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                                                    <UIcon name="i-lucide-star"
+                                                                        class="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                                                                    <span>{{ formatCleanRating(hotel.rating) }}</span>
+                                                                </div>
                                                             </div>
 
-                                                            <!-- Star Rating Badge -->
-                                                            <div v-if="hotel.rating"
-                                                                class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-amber-600 shadow-md backdrop-blur-xs flex items-center gap-1">
-                                                                <UIcon name="i-lucide-star"
-                                                                    class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                                                <span>{{ hotel.rating }}</span>
-                                                            </div>
-
-                                                            <!-- Distance / Location Badge -->
-                                                            <div
-                                                                class="absolute bottom-3 left-3 px-2.5 py-1 rounded-md text-[11px] font-medium bg-black/65 text-white backdrop-blur-xs flex items-center gap-1">
-                                                                <UIcon name="i-lucide-map-pin"
-                                                                    class="w-3.5 h-3.5 text-white/90" />
-                                                                <span>{{ hotel.distance || 'Near venue' }}</span>
-                                                            </div>
+                                                            <!-- Description (Dynamically adapts to available space if another container's header extends) -->
+                                                            <p v-if="hotel.description"
+                                                                class="text-[11px] sm:text-xs opacity-75 leading-relaxed pt-1"
+                                                                :style="[
+                                                                    { color: previewDynamicStyle(index).text },
+                                                                    getDescriptionClampStyle(hotel, previewAccommodations)
+                                                                ]">
+                                                                {{ hotel.description }}
+                                                            </p>
                                                         </div>
 
-                                                        <!-- Venue Content Body -->
-                                                        <div
-                                                            class="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3 text-left">
-                                                            <div>
-                                                                <h4 class="font-bold text-base sm:text-lg leading-snug group-hover:underline line-clamp-1"
-                                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                                    {{ hotel.name || `Accommodation Slot ${slotIdx + 1}`
-                                                                    }}
-                                                                </h4>
-                                                                <p v-if="hotel.description"
-                                                                    class="text-xs sm:text-sm opacity-80 line-clamp-2 mt-1.5"
-                                                                    :style="{ color: previewDynamicStyle(index).text }">
-                                                                    {{ hotel.description }}
-                                                                </p>
-                                                            </div>
-
-                                                            <div class="flex items-center justify-between pt-2.5 border-t border-current/10 text-xs font-semibold"
+                                                        <!-- Footer link pinned to bottom with sizeable padding above divider -->
+                                                        <div class="pt-3.5 mt-4 border-t border-current/15">
+                                                            <a :href="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
+                                                                target="_blank" rel="noopener noreferrer"
+                                                                class="group/btn inline-flex items-center justify-between w-full text-xs font-semibold py-1 transition-all duration-200 cursor-pointer"
                                                                 :style="{ color: previewDynamicStyle(index).heading }">
-                                                                <span
-                                                                    class="inline-flex items-center gap-1.5 opacity-85 group-hover:opacity-100">
-                                                                    View on Google Maps & Reviews
+                                                                <span class="inline-flex items-center gap-1.5 opacity-80 group-hover/btn:opacity-100 group-hover/btn:underline">
+                                                                    Google Reviews & Map
                                                                 </span>
                                                                 <UIcon name="i-lucide-external-link"
-                                                                    class="w-4 h-4 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                                                            </div>
+                                                                    class="w-4 h-4 opacity-70 group-hover/btn:opacity-100 group-hover/btn:translate-x-1 transition-transform duration-200" />
+                                                            </a>
                                                         </div>
-                                                    </a>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -4506,7 +4950,7 @@ function togglePreview() {
                                         <!-- Travel Preview Placeholder -->
                                         <div v-if="compId === 'travel' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-travel"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
@@ -4527,17 +4971,22 @@ function togglePreview() {
                                         </div>
 
                                         <!-- Gifts Preview -->
-                                        <CustomSiteGiftsSection
+                                        <div
                                             v-if="compId === 'gifts' && (websiteData.singlePageSite || activeComponentId === compId)"
-                                            :registry="giftRegistry"
-                                            :colors="previewDynamicStyle(index)"
-                                            :heading-font="selectedTypography.subheaderFont"
-                                        />
+                                            id="preview-section-gifts">
+                                            <CustomSiteGiftsSection
+                                                :registry="giftRegistry"
+                                                :colors="previewDynamicStyle(index)"
+                                                :heading-font="selectedTypography.subheaderFont"
+                                                :title="giftsTitle"
+                                                :description="giftsDescription"
+                                            />
+                                        </div>
 
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-wedding-party"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
@@ -4654,7 +5103,7 @@ function togglePreview() {
                                     <template v-for="(diy, diyIndex) in diyComponents" :key="`diy-${diy.id}`">
                                         <div v-if="websiteData.singlePageSite || activeComponentId === `diy-${diy.id}`"
                                             :id="`preview-section-diy-${diy.id}`"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).bg,
                                             }">
@@ -4678,26 +5127,66 @@ function togglePreview() {
                                         </div>
                                     </template>
 
-                                    <!-- Thank You / Ending Preview -->
-                                    <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
-                                        class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center"
+                                    <!-- RSVP Preview (Fixed component: always last before closing greeting and footer) -->
+                                    <div v-if="websiteData.singlePageSite || activeComponentId === 'rsvp'"
+                                        id="preview-section-rsvp"
+                                        class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
-                                            <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                            <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
-                                                {{ websiteData.endingTitle }}
-                                            </h2>
+                                                :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                RSVP</div>
                                             <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
                                                 <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
                                                 <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
                                                 <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
                                             </div>
                                         </div>
+                                        <div class="flex flex-col items-center gap-5 text-sm"
+                                            :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).text }">
+                                            <div v-if="websiteData.rsvpDeadlineDate"
+                                                class="font-semibold uppercase tracking-widest text-xs opacity-80">
+                                                <UIcon name="i-lucide-calendar"
+                                                    class="w-4 h-4 inline-block align-text-bottom mr-1" />
+                                                RSVP by {{ formatDateWithWeekday(websiteData.rsvpDeadlineDate) }}
+                                            </div>
+                                            <UButton size="lg"
+                                                class="transition-all duration-300 hover:opacity-80 shadow-md border"
+                                                :style="{
+                                                    backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).text,
+                                                    color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg,
+                                                    borderColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg === 'transparent'
+                                                        ? previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) - 1).text
+                                                        : previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) - 1).bg
+                                                }">
+                                                RSVP Here
+                                            </UButton>
+                                        </div>
+                                    </div>
+
+                                    <!-- Thank You / Ending Preview -->
+                                    <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
+                                        id="preview-section-thank-you"
+                                        class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center paper-textured-bg"
+                                        :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                        :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).bg }">
+                                        <div class="space-y-3 max-w-2xl mx-auto">
+                                            <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                                {{ websiteData.endingTitle }}
+                                            </h2>
+                                            <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading }" />
+                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading }" />
+                                            </div>
+                                        </div>
                                         <p class="prose max-w-none mx-auto text-center transition-all duration-300"
                                             :class="isLive || isPreviewing ? 'text-2xl' : 'text-lg'"
-                                            :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).text }">
+                                            :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).text }">
                                             {{ websiteData.endingMessage }}
                                         </p>
                                     </div>
@@ -4791,20 +5280,23 @@ function togglePreview() {
                             <UIcon name="i-lucide-map-pin" class="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="text-base sm:text-lg font-bold text-toast-900">
-                                    Select Accommodation for Slot {{ activeAccommodationSlotIndex + 1 }}
+                                    Select Accommodation
                                 </h3>
                                 <span
-                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                                    Google Maps
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 flex items-center gap-1">
+                                    {{ whereToStayAccommodations.length }} / 4 Slots Filled
                                 </span>
                             </div>
                             <p class="text-xs text-toast-600 mt-0.5">
-                                Top-rated hotels & accommodations near
-                                <span class="font-semibold text-blue-600">
-                                    {{ websiteData.whereToStayLocation || 'Venue Location' }}
+                                <span v-if="whereToStayAccommodations.length < 4">
+                                    Next selected venue will be added to <strong class="text-blue-600">Slot {{ whereToStayAccommodations.length + 1 }}</strong>.
                                 </span>
+                                <span v-else class="text-amber-600 font-semibold">
+                                    All 4 slots are filled.
+                                </span>
+                                Showing places to stay within 30 km of {{ placesSearchCity || 'your venue' }}.
                             </p>
                         </div>
                     </div>
@@ -4839,11 +5331,23 @@ function togglePreview() {
                     <!-- Search Input & Quick Filter Pills -->
                     <div class="space-y-2">
                         <div class="flex items-center gap-2">
-                            <UInput v-model="accommodationSearchQuery"
-                                placeholder="Search hotel name, amenity, or area..." icon="i-lucide-search" size="sm"
-                                class="w-full" />
+                            <div class="relative flex-1">
+                                <UInput v-model="accommodationSearchQuery"
+                                    :placeholder="`Search a hotel name in ${placesSearchCity || 'the area'}, then press Enter`"
+                                    icon="i-lucide-search" size="sm" class="w-full"
+                                    @keydown.enter.prevent="performPlacesSearch()" />
+                                <div v-if="isSearchingPlaces"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin text-blue-500" />
+                                </div>
+                            </div>
+                            <UButton size="xs" color="blue" variant="solid" icon="i-lucide-search"
+                                class="cursor-pointer shrink-0" :loading="isSearchingPlaces"
+                                @click="performPlacesSearch()">
+                                Search
+                            </UButton>
                             <UButton v-if="accommodationSearchQuery" size="xs" color="neutral" variant="ghost"
-                                class="cursor-pointer shrink-0" @click="accommodationSearchQuery = ''">
+                                class="cursor-pointer shrink-0" @click="accommodationSearchQuery = ''; performPlacesSearch()">
                                 Clear
                             </UButton>
                         </div>
@@ -4880,38 +5384,51 @@ function togglePreview() {
                             </span>
                         </div>
                         <UButton size="xs" color="blue" variant="solid" icon="i-lucide-plus"
-                            class="shrink-0 cursor-pointer" @click="selectAccommodationForSlot({
-                                name: accommodationSearchQuery.trim(),
-                                rating: '4.8 ★',
-                                distance: 'Near venue',
-                                description: `Custom accommodation in ${websiteData.whereToStayLocation || 'the area'}`
+                            :disabled="whereToStayAccommodations.length >= 4"
+                            class="shrink-0 cursor-pointer" @click="selectAccommodation({
+                                name: accommodationSearchQuery.trim()
                             })">
-                            Use Custom
+                            {{ whereToStayAccommodations.length >= 4 ? 'Max 4 Reached' : `Add to Slot ${whereToStayAccommodations.length + 1}` }}
                         </UButton>
                     </div>
 
                     <!-- List of Top Accommodations -->
                     <div class="space-y-2.5">
                         <div class="flex items-center justify-between text-xs text-toast-500 font-semibold px-0.5">
-                            <span>TOP SUGGESTIONS FOR {{ (websiteData.whereToStayLocation || 'AREA').toUpperCase()
-                                }}</span>
+                            <span class="flex items-center gap-1.5">
+                                <UIcon name="i-lucide-compass" class="w-3.5 h-3.5 text-blue-600" />
+                                TOP STAYS WITHIN 30 KM OF {{ (placesSearchCity || websiteData.whereToStayLocation || 'AREA').toUpperCase() }}
+                            </span>
                             <span>{{ displayAccommodationsList.length }} stays available</span>
                         </div>
 
-                        <div v-if="displayAccommodationsList.length === 0"
+                        <!-- Loading State -->
+                        <div v-if="isSearchingPlaces"
+                            class="text-center py-6 text-xs text-blue-600 flex items-center justify-center gap-2">
+                            <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin text-blue-500" />
+                            <span>Searching within 30 km of {{ placesSearchCity || 'the venue' }}...</span>
+                        </div>
+
+                        <div v-else-if="displayAccommodationsList.length === 0"
                             class="text-center py-6 text-sm text-toast-500 italic">
-                            No hotels matching "{{ accommodationSearchQuery }}". You can click "Use Custom" above to add
-                            it.
+                            <template v-if="placesSearchMessage">{{ placesSearchMessage }}</template>
+                            <template v-else>No places to stay found within 30 km. Type the hotel's name above to add it yourself.</template>
                         </div>
 
                         <div v-for="(hotel, hIdx) in displayAccommodationsList" :key="hIdx"
-                            @click="selectAccommodationForSlot(hotel)"
-                            class="p-3.5 rounded-xl border border-toast-200/90 bg-white hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            @click="!isAccommodationSelected(hotel) && whereToStayAccommodations.length < 4 && selectAccommodation(hotel)"
+                            :class="[
+                                'p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3',
+                                isAccommodationSelected(hotel)
+                                    ? 'border-emerald-300 bg-emerald-50/40 opacity-90'
+                                    : whereToStayAccommodations.length >= 4
+                                        ? 'border-toast-200 bg-toast-50/50 opacity-75'
+                                        : 'border-toast-200/90 bg-white hover:border-blue-500 hover:shadow-md cursor-pointer group'
+                            ]">
                             <div class="flex items-start gap-3 min-w-0 flex-1">
                                 <div
-                                    class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-toast-200 bg-toast-100 shadow-xs group-hover:scale-105 transition-transform">
-                                    <img :src="getAccommodationImage(hotel)" :alt="hotel.name"
-                                        class="w-full h-full object-cover" />
+                                    class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                    <UIcon name="i-lucide-bed-double" class="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
@@ -4919,35 +5436,36 @@ function togglePreview() {
                                             class="font-bold text-sm text-toast-900 group-hover:text-blue-600 transition-colors">
                                             {{ hotel.name }}
                                         </h4>
-                                        <span v-if="hotel.badge"
-                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                                            {{ hotel.badge }}
-                                        </span>
                                     </div>
-                                    <div
+                                    <div v-if="hotel.address"
+                                        class="text-[11px] text-toast-500 line-clamp-1 mt-0.5 flex items-center gap-1">
+                                        <UIcon name="i-lucide-map-pin" class="w-3 h-3 text-toast-400 shrink-0" />
+                                        <span>{{ hotel.address }}</span>
+                                    </div>
+                                    <div v-if="formatCleanRating(hotel.rating) || formatCleanDistance(hotel.distance)"
                                         class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-toast-600 mt-1">
-                                        <span
+                                        <span v-if="formatCleanRating(hotel.rating)"
                                             class="font-bold text-amber-600 flex items-center gap-0.5">
                                             <UIcon name="i-lucide-star"
                                                 class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                            {{ hotel.rating }}
+                                            {{ formatCleanRating(hotel.rating) }}
                                         </span>
-                                        <span v-if="hotel.reviewsCount" class="text-toast-500">
-                                            ({{ hotel.reviewsCount }})
+                                        <span v-if="formatCleanRating(hotel.rating) && hotel.reviewsCount" class="text-toast-500">
+                                            {{ hotel.reviewsCount }}
                                         </span>
-                                        <span class="text-toast-300">•</span>
-                                        <span
-                                            class="flex items-center gap-0.5 text-toast-600 font-medium">
-                                            <UIcon name="i-lucide-map-pin"
-                                                class="w-3.5 h-3.5 text-toast-400 shrink-0" />
-                                            {{ hotel.distance }}
+                                        <span v-if="formatCleanRating(hotel.rating) && formatCleanDistance(hotel.distance)" class="text-toast-300">•</span>
+                                        <span v-if="formatCleanDistance(hotel.distance)"
+                                            class="flex items-center gap-0.5 text-blue-600 font-medium">
+                                            <UIcon name="i-lucide-route"
+                                                class="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                            {{ formatCleanDistance(hotel.distance) }}
                                         </span>
                                     </div>
-                                    <p class="text-xs text-toast-500 mt-1 line-clamp-2">
+                                    <p v-if="hotel.description" class="text-xs text-toast-600 mt-1 line-clamp-2">
                                         {{ hotel.description }}
                                     </p>
-                                    <div v-if="hotel.tags && hotel.tags.length" class="flex flex-wrap gap-1.5 mt-2">
-                                        <span v-for="tag in hotel.tags" :key="tag"
+                                    <div v-if="'tags' in hotel && Array.isArray((hotel as any).tags) && (hotel as any).tags.length" class="flex flex-wrap gap-1.5 mt-2">
+                                        <span v-for="tag in (hotel as any).tags" :key="tag"
                                             class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-toast-100 text-toast-600">
                                             {{ tag }}
                                         </span>
@@ -4958,9 +5476,17 @@ function togglePreview() {
                             <!-- Action / Select Button -->
                             <div
                                 class="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-toast-100">
-                                <UButton size="xs" color="blue" variant="solid" icon="i-lucide-check"
-                                    class="cursor-pointer">
-                                    Select for Slot {{ activeAccommodationSlotIndex + 1 }}
+                                <UButton v-if="isAccommodationSelected(hotel)" size="xs" color="emerald" variant="subtle"
+                                    icon="i-lucide-check-circle" disabled>
+                                    Added to Slot {{ getAssignedSlotNumber(hotel) }}
+                                </UButton>
+                                <UButton v-else-if="whereToStayAccommodations.length >= 4" size="xs" color="neutral" variant="outline"
+                                    icon="i-lucide-ban" disabled>
+                                    Max 4 Reached
+                                </UButton>
+                                <UButton v-else size="xs" color="blue" variant="solid" icon="i-lucide-plus"
+                                    class="cursor-pointer" @click.stop="selectAccommodation(hotel)">
+                                    Add to Slot {{ whereToStayAccommodations.length + 1 }}
                                 </UButton>
                                 <a :href="getAccommodationGoogleUrl(hotel, websiteData.whereToStayLocation)"
                                     target="_blank" rel="noopener noreferrer" @click.stop
@@ -4977,11 +5503,16 @@ function togglePreview() {
                 <div
                     class="px-5 py-3 border-t border-toast-200 bg-toast-50/70 flex items-center justify-between gap-3 shrink-0">
                     <span class="text-xs text-toast-500">
-                        Targeting Slot {{ activeAccommodationSlotIndex + 1 }}
+                        <span v-if="whereToStayAccommodations.length < 4">
+                            {{ whereToStayAccommodations.length }} of 4 slots filled • Next venue assigns to <strong>Slot {{ whereToStayAccommodations.length + 1 }}</strong>
+                        </span>
+                        <span v-else class="text-amber-600 font-medium">
+                            All 4 accommodation slots filled
+                        </span>
                     </span>
                     <UButton color="neutral" variant="outline" size="sm" class="cursor-pointer"
                         @click="isAccommodationPickerOpen = false">
-                        Cancel
+                        Close
                     </UButton>
                 </div>
             </div>

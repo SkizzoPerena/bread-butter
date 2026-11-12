@@ -5,6 +5,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import {
   resolveUserPostLoginRedirect,
   getUiPendingPayment,
+  getUiPendingSeatingPayment,
   getUiUnpaidEvent,
 } from '~/utils/paymentPendingGuard'
 
@@ -121,6 +122,11 @@ async function submitOtp(event: FormSubmitEvent<OtpSchema>) {
         const uiPending = getUiPendingPayment()
         if (uiPending) {
           await navigateTo({ path: '/user/payment-pending', query: uiPending as Record<string, string> })
+          return
+        }
+        const uiSeatingPending = getUiPendingSeatingPayment()
+        if (uiSeatingPending) {
+          await navigateTo({ path: '/user/seating-payment/pending', query: uiSeatingPending as Record<string, string> })
           return
         }
         const uiUnpaid = getUiUnpaidEvent()

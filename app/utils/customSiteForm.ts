@@ -85,6 +85,12 @@ export interface CustomSiteMotifConfig {
   whereToStay?: CustomSiteWhereToStay
   dressCode?: DressCodeRecord | null
   gallery?: GalleryRecord | null
+  qaTitle?: string
+  qaDescription?: string
+  scheduleTitle?: string
+  scheduleDescription?: string
+  giftsTitle?: string
+  giftsDescription?: string
 }
 
 export function parseMotifConfig(motif?: string | null): CustomSiteMotifConfig | null {
@@ -118,12 +124,24 @@ export interface BuildCustomSiteFormInput {
   whereToStayAccommodations?: CustomSiteAccommodation[]
   dressCode?: DressCodeRecord | null
   gallery?: GalleryRecord | null
+  qaTitle?: string
+  qaDescription?: string
+  scheduleTitle?: string
+  scheduleDescription?: string
+  giftsTitle?: string
+  giftsDescription?: string
 }
 
 export interface WebsiteEditorContext {
   websiteData: WebsiteEditorWebsiteData
   sections: { value: WebsiteEditorSection[] }
   tidbits: { value: WebsiteEditorTidbit[] }
+  qaTitle?: { value: string }
+  qaDescription?: { value: string }
+  scheduleTitle?: { value: string }
+  scheduleDescription?: { value: string }
+  giftsTitle?: { value: string }
+  giftsDescription?: { value: string }
   scheduleItems: { value: WebsiteEditorScheduleItem[] }
   selectedComponents: { value: string[] }
   diyComponents: { value: WebsiteEditorDiyComponent[] }
@@ -249,6 +267,12 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
     },
     dressCode: input.dressCode || undefined,
     gallery: input.gallery || undefined,
+    qaTitle: input.qaTitle?.trim(),
+    qaDescription: input.qaDescription?.trim(),
+    scheduleTitle: input.scheduleTitle?.trim(),
+    scheduleDescription: input.scheduleDescription?.trim(),
+    giftsTitle: input.giftsTitle?.trim(),
+    giftsDescription: input.giftsDescription?.trim(),
   }
   formData.append('motif', JSON.stringify(motifPayload))
   if (input.gallery?.photos && input.gallery.photos.length > 0) {
@@ -296,7 +320,7 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
       }))
     )
   )
-  formData.append('enabledComponents', JSON.stringify(selectedComponents))
+  formData.append('enabledComponents', JSON.stringify(selectedComponents.filter(id => id !== 'rsvp')))
   const whereToStayPayload: CustomSiteWhereToStay = {
     location: websiteData.whereToStayLocation.trim(),
     latitude: websiteData.whereToStayLatitude ?? null,
@@ -435,7 +459,7 @@ export function applyCustomSiteToEditor(
     description: c.content || c.description || '',
   }))
 
-  selectedComponents.value = [...(site.enabledComponents ?? [])]
+  selectedComponents.value = [...(site.enabledComponents ?? [])].filter(id => id !== 'rsvp')
   isLive.value = Boolean(site.isPublished)
 
   if (ctx.customWeddingPartyMembers) {
@@ -452,19 +476,36 @@ export function applyCustomSiteToEditor(
   if (ctx.weddingPartyIntro && motifConfig?.weddingPartyIntro) {
     ctx.weddingPartyIntro.value = motifConfig.weddingPartyIntro
   }
+  if (ctx.qaTitle) {
+    ctx.qaTitle.value = site.qaTitle || motifConfig?.qaTitle || 'Q&A'
+  }
+  if (ctx.qaDescription) {
+    ctx.qaDescription.value = site.qaDescription || motifConfig?.qaDescription || ''
+  }
+  if (ctx.scheduleTitle) {
+    ctx.scheduleTitle.value = site.scheduleTitle || motifConfig?.scheduleTitle || 'Schedule'
+  }
+  if (ctx.scheduleDescription) {
+    ctx.scheduleDescription.value = site.scheduleDescription || motifConfig?.scheduleDescription || ''
+  }
+  if (ctx.giftsTitle) {
+    ctx.giftsTitle.value = site.giftsTitle || motifConfig?.giftsTitle || 'Gifts & Registry'
+  }
+  if (ctx.giftsDescription) {
+    ctx.giftsDescription.value = site.giftsDescription || motifConfig?.giftsDescription || ''
+  }
   if (ctx.whereToStayAccommodations) {
     const rawAccs = site.whereToStay?.accommodations || motifConfig?.whereToStay?.accommodations || []
-    if (rawAccs.length > 0) {
-      ctx.whereToStayAccommodations.value = rawAccs.slice(0, 4).map((a, i) => ({
-        id: a.id || `acc-${Date.now() + i}`,
-        name: a.name || '',
-        rating: a.rating || '',
-        distance: a.distance || '',
-        description: a.description || '',
-        link: a.link || '',
-        image: a.image || '',
-      }))
-    }
+    ctx.whereToStayAccommodations.value = rawAccs.slice(0, 4).map((a, i) => ({
+      id: a.id || `acc-${Date.now() + i}`,
+      name: a.name || '',
+      address: a.address || '',
+      rating: a.rating || '',
+      distance: a.distance || '',
+      description: a.description || '',
+      link: a.link || '',
+      image: a.image || '',
+    }))
   }
   if (ctx.publishedDressCode) {
     const loadedDc = site.dressCode || motifConfig?.dressCode

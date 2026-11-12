@@ -39,6 +39,7 @@ export default defineNuxtConfig({
         lang: 'en'
       },
       title: "Bread+Butter, your event's digital home",
+      titleTemplate: '%s',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -61,7 +62,8 @@ export default defineNuxtConfig({
         }
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'canonical', href: 'https://www.bread-plus-butter.com' }
       ]
     }
   },
@@ -110,8 +112,6 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    resendApiKey: process.env.RESEND_API_KEY || '',
-    resendFromEmail: process.env.RESEND_FROM_EMAIL || 'hello@blinkpunch.com',
     public: {
       // false when .env is missing or NUXT_PUBLIC_USE_REAL_API is unset / not "true"
       useRealApi: process.env.NUXT_PUBLIC_USE_REAL_API === 'true',

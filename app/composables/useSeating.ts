@@ -194,13 +194,13 @@ export function useSeating() {
       gathering.payment = {
         _id: `mock-payment-${Date.now()}`,
         amount: gathering.pricePhp,
-        status: 'APPROVED',
-        amountReceived: gathering.pricePhp,
+        status: 'PENDING',
+        amountReceived: null,
         paymentMethod: payload.paymentMethod,
         transactionId: payload.transactionId,
         provider: 'MANUAL',
       }
-      gathering.status = 'ACTIVE'
+      gathering.status = 'PENDING_PAYMENT'
       return gathering.payment
     }
     const form = new FormData()

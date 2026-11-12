@@ -3,6 +3,7 @@ import type { PublicCustomSiteRecord } from '~/types/customSite'
 import { PublicCustomSiteError } from '~/types/customSite'
 import { reportApiError } from '~/types/auth'
 import { customSiteToViewModel } from '~/utils/customSiteViewModel'
+import { usePageTransition } from '~/composables/usePageTransition'
 
 definePageMeta({
   layout: false,
@@ -17,6 +18,7 @@ const route = useRoute()
 const toast = useToast()
 const { fetchPublicSiteMeta, unlockPublicSite } = usePublicCustomSite()
 const { getSiteAccessToken, setSiteAccessToken } = useSiteAccessCookie()
+const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const siteName = computed(() => {
   const value = route.params.siteName
@@ -33,6 +35,47 @@ const viewModel = computed(() =>
   siteRecord.value ? customSiteToViewModel(siteRecord.value) : null
 )
 
+async function preloadSiteAssets(site: ReturnType<typeof customSiteToViewModel> | null): Promise<void> {
+  if (typeof window === 'undefined') return
+
+  const imagePromises: Promise<void>[] = []
+
+  function preloadImage(src?: string | null): Promise<void> {
+    if (!src) return Promise.resolve()
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => resolve()
+      img.onerror = () => resolve()
+      img.src = src
+    })
+  }
+
+  // 1. Background textures (both orientations)
+  imagePromises.push(preloadImage('/images/paper-texture.webp'))
+  imagePromises.push(preloadImage('/images/paper-texture-horizontal.webp'))
+
+  // 2. Main Hero / Cover Image
+  if (site?.headerImage) {
+    imagePromises.push(preloadImage(site.headerImage))
+  }
+
+  // 3. Dress code palette image if present
+  if (site?.dressCode?.paletteImage) {
+    imagePromises.push(preloadImage(site.dressCode.paletteImage))
+  }
+
+  // 4. Wedding fonts
+  const fontPromise = typeof document !== 'undefined' && 'fonts' in document
+    ? document.fonts.ready.catch(() => {})
+    : Promise.resolve()
+
+  // Wait for all assets with a 4s safety timeout
+  await Promise.race([
+    Promise.all([...imagePromises, fontPromise]),
+    new Promise((resolve) => setTimeout(resolve, 4000)),
+  ])
+}
+
 useHead(() => ({
   title: siteRecord.value?.title ? `${siteRecord.value.title} | Bread + Butter` : 'Event Website',
   meta: [
@@ -46,11 +89,13 @@ useHead(() => ({
 async function loadSite(tokenOverride?: string | null) {
   if (!siteName.value) {
     pageState.value = 'not-found'
+    finishPageTransition()
     return
   }
 
   pageState.value = 'loading'
   pinError.value = ''
+  startPageTransition()
 
   try {
     const accessToken = tokenOverride !== undefined ? tokenOverride : getSiteAccessToken(siteName.value)
@@ -59,17 +104,22 @@ async function loadSite(tokenOverride?: string | null) {
     if (response.passwordProtected && !response.customSite) {
       pageState.value = 'locked'
       siteRecord.value = null
+      finishPageTransition()
       return
     }
 
     if (response.customSite) {
       siteRecord.value = response.customSite
+      await preloadSiteAssets(viewModel.value)
       pageState.value = 'ready'
+      finishPageTransition({ minDuration: 600 })
       return
     }
 
     pageState.value = 'not-found'
+    finishPageTransition()
   } catch (error) {
+    finishPageTransition()
     if (error instanceof PublicCustomSiteError) {
       if (error.availability === 'UNPUBLISHED') {
         pageState.value = 'unavailable'
@@ -126,7 +176,10 @@ async function handlePinSubmit() {
 
     if (returnedSite) {
       siteRecord.value = returnedSite
+      startPageTransition()
+      await preloadSiteAssets(viewModel.value)
       pageState.value = 'ready'
+      finishPageTransition({ minDuration: 600 })
       return
     }
 
@@ -165,12 +218,27 @@ watch(siteName, () => {
 
 <template>
   <div class="min-h-screen bg-neutral-50">
+    <!-- Signature Events Feature Page Transition Loader -->
     <div
       v-if="pageState === 'loading'"
-      class="flex min-h-screen items-center justify-center text-muted"
+      class="fixed inset-0 bg-white flex flex-col items-center justify-center select-none z-50"
+      aria-live="polite"
+      aria-busy="true"
     >
-      <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin" />
-      <span class="ml-3 text-sm">Loading site...</span>
+      <div class="flex flex-col items-center justify-center px-6 text-center transform transition-all duration-300">
+        <img
+          src="~/assets/bpb-icons/logo-toast-700.svg"
+          alt="Bread + Butter"
+          class="h-10 sm:h-12 w-auto max-w-60 object-contain drop-shadow-xs pointer-events-none"
+        />
+
+        <div class="mt-8 flex flex-col items-center justify-center gap-3">
+          <div class="relative w-10 h-10">
+            <div class="w-10 h-10 rounded-full border-[3px] border-toast-100/80" />
+            <div class="absolute inset-0 w-10 h-10 rounded-full border-[3px] border-transparent border-t-toast-700 border-r-toast-700/50 animate-spin" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <div

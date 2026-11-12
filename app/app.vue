@@ -3,6 +3,10 @@ import JamSlideOverlay from '~/components/JamSlideOverlay.vue'
 
 useHead({
   title: "Bread+Butter, your event's digital home",
+  titleTemplate: (titleChunk) => {
+    if (!titleChunk) return "Bread+Butter, your event's digital home"
+    return titleChunk.includes('Bread+Butter') ? titleChunk : `${titleChunk} | Bread+Butter`
+  },
   htmlAttrs: {
     lang: 'en'
   }

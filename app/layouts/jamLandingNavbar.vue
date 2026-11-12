@@ -1,17 +1,66 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { resolveProfileImageUrl } from '~/utils/profileImage'
 import { useAuth, getStoredAccessToken, ensureSession } from '~/composables/useAuth'
 
 const route = useRoute()
 const hideFooter = computed(() => Boolean(route.meta.hideFooter))
-const { isAuthenticated } = useAuth('user')
+const { isAuthenticated, user, logout } = useAuth('user')
 const { triggerSlideTransition } = useJamSlideTransition()
 
 function onSwitchToEvents() {
   closeMobileMenu()
   triggerSlideTransition('/', 'to-events')
 }
+
+const displayName = computed(() => {
+  if (user.value?.firstName) {
+    return `${user.value.firstName} ${user.value.lastName || ''}`.trim()
+  }
+  return user.value?.email?.split('@')[0] || 'User'
+})
+
+const avatarSrc = computed(() => resolveProfileImageUrl(user.value?.profileImageURL))
+
+const avatarLabel = computed(() => {
+  const first = user.value?.firstName?.[0] ?? user.value?.email?.[0] ?? 'U'
+  const last = user.value?.lastName?.[0] ?? ''
+  return `${first}${last}`.toUpperCase()
+})
+
+const dropitems: DropdownMenuItem[][] = [
+  [{
+    slot: 'account',
+    disabled: true
+  }, {
+    label: 'Dashboard',
+    icon: 'i-lucide-layout-dashboard',
+    to: '/',
+    active: false
+  }, {
+    label: 'Profile',
+    icon: 'i-lucide-user-cog',
+    to: '/user/profile'
+  }, {
+    label: 'Transactions',
+    icon: 'i-lucide-receipt',
+    to: '/user/transactions'
+  }, {
+    label: 'Report Issue',
+    icon: 'i-lucide-message-square-warning',
+    to: '/user/report-issue'
+  }, {
+    label: 'Back to Events',
+    icon: 'i-lucide-arrow-left-right',
+    onSelect: () => onSwitchToEvents(),
+    active: false
+  }, {
+    label: 'Sign out',
+    icon: 'i-lucide-log-out',
+    onSelect: () => logout()
+  }]
+]
 
 const signInTarget = computed(() => {
   const dest = '/user/create-seating'
@@ -71,7 +120,10 @@ watch(() => route.path, () => {
   handleScroll()
 })
 
-onMounted(() => {
+onMounted(async () => {
+  if (Boolean(getStoredAccessToken('user'))) {
+    await ensureSession('user').catch(() => null)
+  }
   handleScroll()
   window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('resize', onPartnerItemMouseLeave, { passive: true })
@@ -366,7 +418,28 @@ const links = [
     </div>
 
     <template #right>
-      <div class="flex items-center gap-4">
+      <!-- If Authenticated: show User Account Dropdown -->
+      <div v-if="isAuthenticated" class="flex items-center gap-x-4">
+        <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
+          content: 'bg-jam-800/95 backdrop-blur-md border border-jam-600/30 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-44 text-white z-50',
+          itemLeadingIcon: 'text-bread-400 size-4',
+          item: 'text-white hover:text-bread-400 hover:bg-jam-700/60 rounded-lg text-sm transition-colors cursor-pointer data-disabled:cursor-default data-disabled:opacity-100',
+        }">
+          <div class="flex items-center gap-2 cursor-pointer">
+            <UAvatar :src="avatarSrc" :alt="avatarLabel" />
+            <span class="font-semibold text-white text-sm hidden sm:inline">{{ displayName }}</span>
+          </div>
+          <template #account>
+            <div class="flex items-center gap-2 text-white">
+              <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
+              <span class="font-semibold">{{ displayName }}</span>
+            </div>
+          </template>
+        </UDropdownMenu>
+      </div>
+
+      <!-- If Not Authenticated: show Sign In and Get Started -->
+      <div v-else class="flex items-center gap-4">
         <UButton :to="signInTarget" variant="link" color="bread" class="font-semibold text-white">Sign In</UButton>
         <UButton :to="signUpTarget" color="bread" variant="solid" class="font-bold text-jam-700">Get Started</UButton>
       </div>
@@ -517,7 +590,27 @@ const links = [
     </template>
 
     <template #right>
-      <div class="flex items-center gap-2">
+      <!-- If Authenticated: show User Avatar Menu -->
+      <div v-if="isAuthenticated" class="flex items-center gap-2">
+        <UDropdownMenu :items="dropitems" :modal="false" :content="{ align: 'end', side: 'bottom' }" :ui="{
+          content: 'bg-jam-800/95 backdrop-blur-md border border-jam-600/30 ring-transparent shadow-2xl rounded-xl p-1.5 min-w-44 text-white z-50',
+          itemLeadingIcon: 'text-bread-400 size-4',
+          item: 'text-white hover:text-bread-400 hover:bg-jam-700/60 rounded-lg text-sm transition-colors cursor-pointer data-disabled:cursor-default data-disabled:opacity-100',
+        }">
+          <div class="flex items-center gap-2 cursor-pointer">
+            <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
+          </div>
+          <template #account>
+            <div class="flex items-center gap-2 text-white">
+              <UAvatar :src="avatarSrc" :alt="avatarLabel" size="sm" />
+              <span class="font-semibold">{{ displayName }}</span>
+            </div>
+          </template>
+        </UDropdownMenu>
+      </div>
+
+      <!-- If Not Authenticated: show Sign In and Get Started -->
+      <div v-else class="flex items-center gap-2">
         <UButton :to="signInTarget" variant="link" color="bread" class="font-semibold text-white text-sm"
           @click="closeMobileMenu">Sign In</UButton>
         <UButton :to="signUpTarget" color="bread" variant="solid" class="font-bold text-jam-700 text-xs px-2.5 py-1.5"

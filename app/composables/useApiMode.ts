@@ -75,6 +75,7 @@ function isAuthBypassPath(path: string): boolean {
     'admin/auth/refresh',
     'admin/auth/logout',
     'public/suppliers',
+    'public/contact',
     'suppliers'
   ]
   return bypasses.some((b) => cleanPath.startsWith(b))
