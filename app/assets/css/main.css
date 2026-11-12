@@ -270,3 +270,20 @@ html[data-scroll-locked],
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 500ms;
 }
+
+/* Premium Paper Texture Applied Strictly to Backgrounds */
+.paper-textured-bg {
+  background-image: url('/images/paper-texture.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-blend-mode: multiply;
+}
+
+/* Horizontal / landscape orientation for non-mobile view */
+@media (min-width: 768px) {
+  .paper-textured-bg {
+    background-image: url('/images/paper-texture-horizontal.webp');
+  }
+}
+

@@ -17,7 +17,7 @@ const giftItems = computed(() => props.registry?.wishedItems ?? [])
 <template>
   <div
     id="section-gifts"
-    class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+    class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
     :style="{ minHeight, backgroundColor: colors.bg }"
   >
     <!-- Section Header -->

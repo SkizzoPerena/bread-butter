@@ -382,7 +382,7 @@ function getVenueGoogleMapsUrl(
 </script>
 
 <template>
-  <div class="min-h-screen w-full flex flex-col md:flex-row transition-colors duration-500 relative" :style="{
+  <div class="min-h-screen w-full flex flex-col md:flex-row transition-colors duration-500 relative paper-textured-bg" :style="{
     backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
     fontFamily: `'${typography.bodyFont}'`,
   }">
@@ -501,8 +501,11 @@ function getVenueGoogleMapsUrl(
             (site.headingContent || site.siteDescription || site.paragraphContent) &&
             (site.singlePageSite || activeComponentId === 'about-us')
           " id="section-about-us"
-            class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
-            :style="{ minHeight: componentMinHeight }">
+            class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
+            :style="{
+              minHeight: componentMinHeight,
+              backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
+            }">
             <div class="space-y-3 max-w-2xl mx-auto w-full">
               <UContainer v-if="site.headingContent"
                 class="font-bold italic text-5xl pt-2 sm:pt-4 transition-all duration-300" :style="{
@@ -532,7 +535,7 @@ function getVenueGoogleMapsUrl(
               compId === 'dress-code' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-dress-code"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -779,7 +782,7 @@ function getVenueGoogleMapsUrl(
               compId === 'gallery' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-gallery"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500 text-center"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500 text-center paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -910,7 +913,7 @@ function getVenueGoogleMapsUrl(
               site.tidbits.length > 0 &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-q-and-a"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -953,7 +956,7 @@ function getVenueGoogleMapsUrl(
               site.scheduleItems.length > 0 &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-schedule"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -1031,7 +1034,7 @@ function getVenueGoogleMapsUrl(
               compId === 'where-to-stay' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-where-to-stay"
-              class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -1154,7 +1157,7 @@ function getVenueGoogleMapsUrl(
 
             <!-- Travel -->
             <div v-if="compId === 'travel' && (site.singlePageSite || activeComponentId === compId)" id="section-travel"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -1179,7 +1182,7 @@ function getVenueGoogleMapsUrl(
               compId === 'wedding-party' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-wedding-party"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -1315,7 +1318,7 @@ function getVenueGoogleMapsUrl(
           <!-- DIY Components -->
           <template v-for="(diy, diyIndex) in site.diyComponents" :key="`diy-${diy.id}`">
             <div v-if="site.singlePageSite || activeComponentId === `diy-${diy.id}`" :id="`section-diy-${diy.id}`"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(displayComponents.length + diyIndex).bg,
@@ -1343,7 +1346,7 @@ function getVenueGoogleMapsUrl(
 
           <!-- RSVP (Fixed component: always last before closing greeting and footer) -->
           <div v-if="site.singlePageSite || activeComponentId === 'rsvp'" id="section-rsvp"
-            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500"
+            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).bg,

@@ -4207,7 +4207,7 @@ function togglePreview() {
                         : 'w-full h-[calc(100vh-130px)] rounded-2xl shadow-lg border border-toast-200/80 ring-1 ring-black/5'"
                     class="flex flex-col gap-6 transition-colors duration-500 overflow-hidden ring-transparent"
                     :ui="{ container: 'p-0 sm:p-0 lg:p-0 h-full flex flex-col' }">
-                    <div class="h-full w-full flex-1 flex flex-col md:flex-row transition-colors duration-500 relative"
+                    <div class="h-full w-full flex-1 flex flex-col md:flex-row transition-colors duration-500 relative paper-textured-bg"
                         :style="{
                             backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary,
                             fontFamily: `'${selectedTypography.bodyFont}'`,
@@ -4305,8 +4305,9 @@ function togglePreview() {
                                     <!-- Dynamic Content Sections Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
                                         id="preview-section-about-us"
-                                        class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
-                                        :class="{ 'min-h-[80vh]': isLive || isPreviewing }">
+                                        class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
+                                        :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                        :style="{ backgroundColor: websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary }">
                                         <div class="space-y-3 max-w-2xl mx-auto w-full">
                                             <UContainer v-if="headingSectionContent"
                                                 class="font-bold italic transition-all duration-300 pt-2 sm:pt-4"
@@ -4334,7 +4335,7 @@ function togglePreview() {
                                         <!-- Colors & Dress Code Preview -->
                                         <div v-if="compId === 'dress-code' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-dress-code"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
@@ -4575,7 +4576,7 @@ function togglePreview() {
                                         <!-- Photo Gallery Preview -->
                                         <div v-if="compId === 'gallery' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-gallery"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <!-- Title & Subtitle Header -->
@@ -4760,7 +4761,7 @@ function togglePreview() {
                                         <!-- Q&A Preview -->
                                         <div v-if="compId === 'q-and-a' && tidbits.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-q-and-a"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(index).bg,
                                             }">
@@ -4798,7 +4799,7 @@ function togglePreview() {
                                         <!-- Schedule Preview -->
                                         <div v-if="compId === 'schedule' && scheduleItems.length > 0 && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-schedule"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
@@ -4866,7 +4867,7 @@ function togglePreview() {
                                         <!-- Where to Stay Preview Placeholder -->
                                         <div v-if="compId === 'where-to-stay' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-where-to-stay"
-                                            class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
@@ -4993,7 +4994,7 @@ function togglePreview() {
                                         <!-- Travel Preview Placeholder -->
                                         <div v-if="compId === 'travel' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-travel"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
@@ -5029,7 +5030,7 @@ function togglePreview() {
                                         <!-- Wedding Party Preview -->
                                         <div v-if="compId === 'wedding-party' && (websiteData.singlePageSite || activeComponentId === compId)"
                                             id="preview-section-wedding-party"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
 
@@ -5146,7 +5147,7 @@ function togglePreview() {
                                     <template v-for="(diy, diyIndex) in diyComponents" :key="`diy-${diy.id}`">
                                         <div v-if="websiteData.singlePageSite || activeComponentId === `diy-${diy.id}`"
                                             :id="`preview-section-diy-${diy.id}`"
-                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                             :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
                                                 backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).bg,
                                             }">
@@ -5173,7 +5174,7 @@ function togglePreview() {
                                     <!-- RSVP Preview (Fixed component: always last before closing greeting and footer) -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'rsvp'"
                                         id="preview-section-rsvp"
-                                        class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0"
+                                        class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
@@ -5212,7 +5213,7 @@ function togglePreview() {
                                     <!-- Thank You / Ending Preview -->
                                     <div v-if="websiteData.singlePageSite || activeComponentId === 'about-us'"
                                         id="preview-section-thank-you"
-                                        class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center"
+                                        class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center paper-textured-bg"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
