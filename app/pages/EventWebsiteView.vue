@@ -135,7 +135,20 @@ async function loadSite(tokenOverride?: string | null) {
   }
 }
 
+function onPinKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (event.isComposing || (event as any).keyCode === 229) return
+    handlePinSubmit()
+  }
+}
+
 async function handlePinSubmit() {
+  if (isSubmittingPin.value) return
+  if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur()
+  }
+
   const passcode = pinInput.value.trim()
   if (!passcode) {
     pinError.value = 'Please enter the passcode.'
@@ -268,9 +281,9 @@ watch(siteName, () => {
 
     <div
       v-else-if="pageState === 'locked'"
-      class="flex min-h-screen items-center justify-center px-6"
+      class="min-h-dvh w-full flex flex-col justify-center items-center p-4 sm:p-6 overflow-y-auto"
     >
-      <UPageCard class="w-full max-w-sm space-y-4 p-6">
+      <UPageCard class="w-full max-w-sm space-y-4 p-6 my-auto">
         <div class="space-y-1 text-center">
           <UIcon name="i-lucide-lock" class="mx-auto size-8 text-muted" />
           <p class="text-lg font-semibold text-highlighted">Enter passcode</p>
@@ -285,10 +298,11 @@ watch(siteName, () => {
               v-model="pinInput"
               type="password"
               inputmode="text"
-              autocomplete="off"
+              autocomplete="current-password"
               class="w-full"
               placeholder="Enter passcode"
               :disabled="isSubmittingPin"
+              @keydown="onPinKeydown"
             />
           </UFormField>
           <p v-if="pinError" class="text-sm text-error">
@@ -298,8 +312,10 @@ watch(siteName, () => {
             type="submit"
             color="primary"
             block
+            class="min-h-[44px] bg-toast text-white hover:bg-toast-600 font-medium active:scale-98 transition-all"
             :loading="isSubmittingPin"
             :disabled="isSubmittingPin"
+            @touchend.prevent="handlePinSubmit"
           >
             Unlock Site
           </UButton>

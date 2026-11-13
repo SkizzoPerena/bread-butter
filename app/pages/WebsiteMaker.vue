@@ -157,8 +157,10 @@ onUnmounted(() => {
     finishPageTransition()
     if (typeof window !== 'undefined') {
         window.removeEventListener('focus', onWindowFocus)
+        window.removeEventListener('scroll', checkMakerNavbarVisibility, { capture: true })
     }
     if (typeof document !== 'undefined') {
+        document.removeEventListener('scroll', checkMakerNavbarVisibility, { capture: true })
         document.body.style.overflow = ''
     }
 })
@@ -269,6 +271,37 @@ watch(
 
 const isLive = ref(false)
 const isPreviewing = ref(false)
+const isMakerNavbarVisible = ref(true)
+
+function checkMakerNavbarVisibility() {
+    if (typeof document === 'undefined') return
+
+    // For non-mobile view, keep navbar visible throughout the whole page
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+        isMakerNavbarVisible.value = true
+        return
+    }
+
+    if (!isPreviewing.value && !isLive.value) {
+        isMakerNavbarVisible.value = true
+        return
+    }
+    if (!websiteData.singlePageSite && activeComponentId.value !== 'about-us') {
+        isMakerNavbarVisible.value = true
+        return
+    }
+    const titleEl = document.getElementById('preview-hero-title')
+    if (titleEl) {
+        const rect = titleEl.getBoundingClientRect()
+        if (rect.height > 0) {
+            isMakerNavbarVisible.value = rect.bottom <= 80
+            return
+        }
+    }
+    const root = document.getElementById('preview-scroll-top')?.closest('[data-slot="root"]') as HTMLElement | null
+    const scrollOffset = root?.scrollTop || 0
+    isMakerNavbarVisible.value = scrollOffset > 120
+}
 const currentStep = ref(0) // 0-indexed for steps
 const showPassword = ref(false) // Toggle for password field
 
@@ -1025,7 +1058,7 @@ function getPreviewScrollContainer(): HTMLElement | null {
 }
 
 function scrollPreviewToElement(target: HTMLElement | null, offsetPx = 0) {
-    if (!target) return
+    if (typeof document === 'undefined' || !target) return
     const container = getPreviewScrollContainer()
     if (container && (container.scrollHeight > container.clientHeight)) {
         const containerRect = container.getBoundingClientRect()
@@ -1041,6 +1074,7 @@ function scrollPreviewToElement(target: HTMLElement | null, offsetPx = 0) {
 }
 
 function scrollPreviewToTop() {
+    if (typeof document === 'undefined') return
     const container = getPreviewScrollContainer()
     if (container) {
         container.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1053,7 +1087,7 @@ function scrollPreviewToTop() {
 let previewScrollTimeout: any = null
 
 function syncLivePreviewForStep(stepId: string | undefined) {
-    if (!stepId) return
+    if (typeof document === 'undefined' || !stepId) return
 
     // 1. In multi-page mode (!websiteData.singlePageSite), navigate to the corresponding page view
     if (!websiteData.singlePageSite) {
@@ -1171,6 +1205,7 @@ function syncLivePreviewForStep(stepId: string | undefined) {
 }
 
 function handleHeaderLinkClick(id: string) {
+    if (typeof document === 'undefined') return
     if (websiteData.singlePageSite) {
         const target = document.getElementById(`preview-section-${id}`)
         if (target) {
@@ -2229,7 +2264,16 @@ onMounted(async () => {
     } finally {
         await nextTick()
         finishPageTransition()
+        if (typeof window !== 'undefined') {
+            window.addEventListener('scroll', checkMakerNavbarVisibility, { capture: true, passive: true })
+            document.addEventListener('scroll', checkMakerNavbarVisibility, { capture: true, passive: true })
+        }
+        checkMakerNavbarVisibility()
     }
+})
+
+watch([isPreviewing, isLive, activeComponentId], () => {
+    nextTick(checkMakerNavbarVisibility)
 })
 
 interface SaveCustomSiteOptions {
@@ -4169,35 +4213,53 @@ function togglePreview() {
                             fontFamily: `'${selectedTypography.bodyFont}'`,
                         }">
 
-                        <UHeader :links="[]" class="absolute top-0 w-full z-50 border-none"
-                            :ui="{ container: 'justify-center' }" title="" :style="{
+                        <header
+                            class="absolute top-0 left-0 right-0 w-full z-50 border-none transition-all duration-300 ease-in-out h-14 sm:h-16 flex items-center px-4"
+                            :class="((!isPreviewing && !isLive) || isMakerNavbarVisible)
+                                ? 'translate-y-0 opacity-100 shadow-md pointer-events-auto'
+                                : '-translate-y-full opacity-0 pointer-events-none md:translate-y-0 md:opacity-100 md:shadow-md md:pointer-events-auto'"
+                            :style="{
                                 backgroundColor: websiteData.format === 'format2'
                                     ? (websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary)
                                     : (websiteData.invertColors ? selectedPalette.colors.text_color : selectedPalette.colors.primary),
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)'
                             }">
-                            <template #left />
-                            <template #right />
-                            <template #default>
-                                <!-- Desktop Nav -->
-                                <div class="hidden md:flex w-full items-center justify-center gap-x-8">
-                                    <UButton v-for="link in headerLinks" :key="link.id" variant="link"
-                                        class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
-                                            color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
-                                        }" @click="handleHeaderLinkClick(link.id)">
-                                        {{ link.name }}
-                                    </UButton>
-                                </div>
-                                <!-- Mobile Nav (< md) -->
-                                <div class="flex md:hidden items-center justify-end w-full px-4">
-                                    <UDropdownMenu :items="headerDropdownItems" :content="{ align: 'end' }">
-                                        <UButton icon="i-lucide-menu" variant="ghost" size="sm"
+                            <!-- Desktop Nav -->
+                            <nav class="hidden md:flex w-full items-center justify-center gap-x-8">
+                                <UButton v-for="link in headerLinks" :key="link.id" variant="link"
+                                    class="font-semibold text-sm whitespace-nowrap justify-center" :style="{
+                                        color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
+                                    }" @click="handleHeaderLinkClick(link.id)">
+                                    {{ link.name }}
+                                </UButton>
+                            </nav>
+
+                            <!-- Mobile Nav (< md) -->
+                            <div class="flex md:hidden items-center justify-between w-full relative h-full">
+                                <!-- Expanding menu button on the left -->
+                                <div class="flex items-center shrink-0 z-10">
+                                    <UDropdownMenu :items="headerDropdownItems" :content="{ align: 'start' }">
+                                        <UButton icon="i-lucide-menu" variant="ghost" size="md"
                                             :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }"
                                             aria-label="Open menu" />
                                     </UDropdownMenu>
                                 </div>
-                            </template>
-                        </UHeader>
+
+                                <!-- Event title in the middle -->
+                                <div class="absolute inset-x-12 inset-y-0 flex items-center justify-center text-center pointer-events-none">
+                                    <span class="text-xs sm:text-[13px] font-semibold truncate px-1"
+                                        :style="{
+                                            color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color,
+                                            fontFamily: `'${selectedTypography.headerFont}'`
+                                        }">
+                                        {{ previewSiteTitle }}
+                                    </span>
+                                </div>
+
+                                <!-- Spacer balancing the left button -->
+                                <div class="size-8 shrink-0 pointer-events-none" aria-hidden="true" />
+                            </div>
+                        </header>
                         <!-- LEFT SIDE (FIXED in Format 2 Desktop) -->
                         <div v-if="websiteData.format === 'format2'"
                             class="hidden md:flex flex-col gap-8 text-center pt-24 pb-10 px-6 relative justify-end w-1/2 shrink-0"
@@ -4587,7 +4649,7 @@ function togglePreview() {
 
                                             <!-- Layout 2: Editorial Masonry -->
                                             <div v-else-if="galleryData.layout === 'masonry'"
-                                                class="gap-4 sm:gap-6 max-w-5xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
+                                                class="gap-4 sm:gap-6 max-w-5xl mx-auto w-full text-left"
                                                 :class="{
                                                     'columns-1 sm:columns-2': galleryData.columns === 2,
                                                     'columns-1 sm:columns-2 lg:columns-3': galleryData.columns === 3,
@@ -4595,7 +4657,8 @@ function togglePreview() {
                                                 }">
                                                 <div v-for="(photo, gIdx) in galleryData.photos" :key="photo.id"
                                                     draggable="true"
-                                                    class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                                                    class="inline-block w-full break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-grab transition-all duration-300 hover:shadow-xl hover:-translate-y-1 transform-gpu"
+                                                    style="-webkit-column-break-inside: avoid; break-inside: avoid; transform: translateZ(0);"
                                                     :class="[
                                                         draggedMakerGalleryIndex === gIdx ? 'opacity-30 border-dashed border-rose-500' : '',
                                                         dragOverMakerGalleryIndex === gIdx ? 'ring-4 ring-rose-500 z-10' : '',
@@ -4606,7 +4669,7 @@ function togglePreview() {
                                                     @drop="onMakerDropPhoto(gIdx, $event)"
                                                     @dragend="onMakerDragEndPhoto"
                                                     @click="openMakerGalleryLightbox(photo)">
-                                                    <img :src="photo.url" :alt="photo.caption || 'Gallery photo'" class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
+                                                    <img :src="photo.url" :alt="photo.caption || 'Gallery photo'" class="block w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
                                                     <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
                                                         <p v-if="photo.caption" class="text-xs sm:text-sm font-medium">{{ photo.caption }}</p>
                                                     </div>
