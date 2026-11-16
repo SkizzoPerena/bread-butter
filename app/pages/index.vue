@@ -11,6 +11,7 @@ import {
   isGatheringPendingVerification,
   isGatheringUnpaid,
 } from '~/utils/paymentPendingGuard'
+import { SITE_URL } from '#shared/seo'
 
 definePageMeta({
   layout: false
@@ -31,6 +32,39 @@ useHead({
     { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=La+Belle+Aurore&display=swap' }
   ],
   script: [
+    {
+      // Tells Google the site's name, logo and official profiles.
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify([
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'Bread + Butter',
+          alternateName: ['Bread+Butter', 'Bread Plus Butter', 'Bread and Butter'],
+          url: `${SITE_URL}/`
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: 'Bread + Butter',
+          alternateName: ['Bread+Butter', 'Bread Plus Butter'],
+          url: `${SITE_URL}/`,
+          logo: `${SITE_URL}/images/logo-512.png`,
+          email: 'hello@bread-plus-butter.com',
+          contactPoint: {
+            '@type': 'ContactPoint',
+            contactType: 'customer support',
+            email: 'hello@bread-plus-butter.com',
+            telephone: '+63-917-586-9442',
+            areaServed: 'PH'
+          },
+          sameAs: [
+            'https://www.instagram.com/breadplusbutterph/',
+            'https://www.facebook.com/profile.php?id=61593088533548'
+          ]
+        }
+      ])
+    },
     {
       innerHTML: `try{if(!window.location.search.includes('view=landing')&&(localStorage.getItem('bpb_auth_role')||localStorage.getItem('bpb_user_token')||localStorage.getItem('bpb_partner_token'))){document.documentElement.classList.add('has-stored-session');}}catch(e){}`,
       tagPosition: 'head'

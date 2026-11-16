@@ -2,6 +2,10 @@
   RewriteEngine On
   RewriteBase /
 
+  # One host for search engines: send the bare domain to www.
+  RewriteCond %{HTTP_HOST} ^bread-plus-butter\.com$ [NC]
+  RewriteRule ^ https://www.bread-plus-butter.com%{REQUEST_URI} [R=301,L]
+
   # Stop processing if request is already for index.html or 200.html
   RewriteRule ^(index|200)\.html$ - [L]
 
