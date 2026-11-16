@@ -124,11 +124,113 @@ function updateFooterHeight() {
 }
 
 let footerResizeObserver: ResizeObserver | null = null
+const isNavbarVisible = ref(false)
+const scrollAreaRef = ref<{ $el?: HTMLElement } | null>(null)
+let titleIntersectionObserver: IntersectionObserver | null = null
+
+function getScrollContainers(): HTMLElement[] {
+  if (typeof document === 'undefined') return []
+  const containers: HTMLElement[] = []
+
+  const root = document.getElementById('viewer-scroll-top')?.closest('[data-slot="root"]') as HTMLElement | null
+  if (root && !containers.includes(root)) containers.push(root)
+
+  const parent = document.getElementById('viewer-scroll-top')?.parentElement as HTMLElement | null
+  if (parent && !containers.includes(parent)) containers.push(parent)
+
+  const scrollAreaEl = (scrollAreaRef.value?.$el || (scrollAreaRef.value as unknown as HTMLElement)) as HTMLElement | undefined
+  if (scrollAreaEl && scrollAreaEl.nodeType === 1 && !containers.includes(scrollAreaEl)) {
+    containers.push(scrollAreaEl)
+  }
+
+  return containers
+}
+
+function checkNavbarVisibility() {
+  if (typeof document === 'undefined') return
+
+  // For non-mobile view, keep navbar visible throughout the whole page
+  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+    isNavbarVisible.value = true
+    return
+  }
+
+  if (!props.site.singlePageSite && activeComponentId.value !== 'about-us') {
+    isNavbarVisible.value = true
+    return
+  }
+
+  // 1. Check title element position relative to viewport
+  const titleEl = document.getElementById('viewer-hero-title')
+  if (titleEl) {
+    const rect = titleEl.getBoundingClientRect()
+    if (rect.height > 0) {
+      // Once the bottom of the title element has scrolled above 80px from top of viewport, show navbar
+      isNavbarVisible.value = rect.bottom <= 80
+      return
+    }
+  }
+
+  // 2. Fallback: check any scroll container offset or window scroll
+  const containers = getScrollContainers()
+  const winScroll = typeof window !== 'undefined'
+    ? (window.scrollY || document.documentElement?.scrollTop || document.body?.scrollTop || 0)
+    : 0
+  const containerScrolls = containers.map((c) => c.scrollTop || 0)
+  const maxScroll = Math.max(winScroll, ...containerScrolls)
+
+  // Once scrolled past 120px, show navbar
+  isNavbarVisible.value = maxScroll > 120
+}
+
+function setupTitleObserver() {
+  if (typeof IntersectionObserver === 'undefined') return
+  titleIntersectionObserver?.disconnect()
+
+  const titleEl = document.getElementById('viewer-hero-title')
+  if (!titleEl) return
+
+  titleIntersectionObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          isNavbarVisible.value = false
+        } else if (entry.boundingClientRect.top < 120) {
+          isNavbarVisible.value = true
+        }
+      }
+    },
+    { threshold: [0, 1] }
+  )
+
+  titleIntersectionObserver.observe(titleEl)
+}
+
+function handleScrollEvent() {
+  checkNavbarVisibility()
+}
 
 onMounted(() => {
   nextTick(() => {
     updateFooterHeight()
+
+    // 1. Capture scroll events at window and document level (catches all nested element scrolls)
+    window.addEventListener('scroll', handleScrollEvent, { capture: true, passive: true })
+    document.addEventListener('scroll', handleScrollEvent, { capture: true, passive: true })
+    window.addEventListener('resize', handleScrollEvent, { passive: true })
+
+    // 2. Direct listeners on scroll containers
+    const containers = getScrollContainers()
+    for (const c of containers) {
+      c.addEventListener('scroll', handleScrollEvent, { passive: true })
+    }
+
+    // 3. Native IntersectionObserver on title
+    setupTitleObserver()
+
+    checkNavbarVisibility()
   })
+
   if (typeof ResizeObserver !== 'undefined') {
     footerResizeObserver = new ResizeObserver(() => {
       updateFooterHeight()
@@ -137,6 +239,13 @@ onMounted(() => {
       footerResizeObserver.observe(footerEl.value as unknown as Element)
     }
   }
+})
+
+watch(activeComponentId, () => {
+  nextTick(() => {
+    setupTitleObserver()
+    checkNavbarVisibility()
+  })
 })
 
 watch(footerEl, (newEl) => {
@@ -150,6 +259,15 @@ watch(footerEl, (newEl) => {
 
 onBeforeUnmount(() => {
   footerResizeObserver?.disconnect()
+  titleIntersectionObserver?.disconnect()
+  window.removeEventListener('scroll', handleScrollEvent, { capture: true })
+  document.removeEventListener('scroll', handleScrollEvent, { capture: true })
+  window.removeEventListener('resize', handleScrollEvent)
+
+  const containers = getScrollContainers()
+  for (const c of containers) {
+    c.removeEventListener('scroll', handleScrollEvent)
+  }
 })
 
 const availableComponentsMap: Record<string, { name: string; icon: string }> = {
@@ -387,56 +505,112 @@ function getVenueGoogleMapsUrl(
     fontFamily: `'${typography.bodyFont}'`,
   }">
     <!-- Navbar matching Website Maker -->
-    <UHeader :links="[]" class="absolute top-0 w-full z-50 border-none" :ui="{ container: 'justify-center' }" title=""
+    <header class="fixed top-0 left-0 right-0 w-full z-50 border-none transition-all duration-300 ease-in-out h-14 sm:h-16 flex items-center px-4"
+      :class="isNavbarVisible
+        ? 'translate-y-0 opacity-100 shadow-md pointer-events-auto'
+        : '-translate-y-full opacity-0 pointer-events-none md:translate-y-0 md:opacity-100 md:shadow-md md:pointer-events-auto'"
       :style="{
         backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
       }">
-      <template #left />
-      <template #right />
-      <template #default>
-        <!-- Desktop Nav -->
-        <div class="hidden md:flex w-full items-center justify-center gap-x-8">
-          <UButton v-for="link in headerNav.allItems" :key="link.id" variant="link"
-            class="font-semibold text-sm whitespace-nowrap justify-center transition-opacity hover:opacity-80" :class="{
-              'underline font-bold': !site.singlePageSite && activeComponentId === link.id,
-            }" :style="{
-              color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
-            }" @click="handleHeaderLinkClick(link.id)">
-            {{ link.name }}
-          </UButton>
-        </div>
+      <!-- Desktop Nav (md and up) -->
+      <nav class="hidden md:flex w-full items-center justify-center gap-x-8">
+        <UButton v-for="link in headerNav.allItems" :key="link.id" variant="link"
+          class="font-semibold text-sm whitespace-nowrap justify-center transition-opacity hover:opacity-80" :class="{
+            'underline font-bold': !site.singlePageSite && activeComponentId === link.id,
+          }" :style="{
+            color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+          }" @click="handleHeaderLinkClick(link.id)">
+          {{ link.name }}
+        </UButton>
+      </nav>
 
-        <!-- Mobile Nav Controls (< md) -->
-        <div class="flex md:hidden items-center justify-end w-full px-4">
-          <UButton icon="i-lucide-menu" variant="ghost" aria-label="Toggle navigation menu" :style="{
+      <!-- Mobile Nav (< md) -->
+      <div class="flex md:hidden items-center justify-between w-full relative h-full">
+        <!-- Expanding menu button on the left -->
+        <div class="flex items-center shrink-0 z-10">
+          <UButton icon="i-lucide-menu" variant="ghost" size="md" aria-label="Toggle navigation menu" :style="{
             color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
           }" @click="isMobileMenuOpen = !isMobileMenuOpen" />
         </div>
-      </template>
-    </UHeader>
 
-    <!-- Mobile Navigation Drawer / Slideover -->
-    <USlideover v-model:open="isMobileMenuOpen" title="Navigation" :style="{
-      backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
-      color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
-    }">
-      <template #body>
-        <div class="flex flex-col gap-3 p-6 pt-10">
-          <div class="font-bold text-2xl text-center pb-4 border-b border-white/20" :style="{
+        <!-- Event title in the middle -->
+        <div class="absolute inset-x-12 inset-y-0 flex items-center justify-center text-center pointer-events-none">
+          <span class="text-xs sm:text-[13px] font-semibold truncate px-1" :style="{
             color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
             fontFamily: `'${typography.headerFont}'`,
           }">
             {{ site.siteTitle }}
+          </span>
+        </div>
+
+        <!-- Spacer balancing the left button -->
+        <div class="size-8 shrink-0 pointer-events-none" aria-hidden="true" />
+      </div>
+    </header>
+
+    <!-- Mobile Navigation Drawer / Slideover -->
+    <USlideover
+      v-model:open="isMobileMenuOpen"
+      side="left"
+      :ui="{
+        content: 'paper-textured-bg !shadow-2xl ring-0 border-0',
+      }"
+      :style="{
+        backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
+      }"
+    >
+      <template #content="{ close }">
+        <div
+          class="h-full w-full flex flex-col paper-textured-bg transition-colors duration-500 overflow-y-auto"
+          :style="{
+            backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
+            color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+            fontFamily: `'${typography.bodyFont}'`,
+          }"
+        >
+          <!-- Header / Close -->
+          <div class="flex items-center justify-between p-6 pb-4 border-b border-current/15">
+            <div
+              class="font-bold text-xl truncate pr-2"
+              :style="{
+                color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+                fontFamily: `'${typography.headerFont}'`,
+              }"
+            >
+              {{ site.siteTitle }}
+            </div>
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              aria-label="Close menu"
+              class="hover:opacity-75 shrink-0"
+              :style="{
+                color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+              }"
+              @click="close"
+            />
           </div>
-          <UButton v-for="item in headerNav.allItems" :key="item.id" variant="ghost"
-            class="justify-start text-base py-3 px-4 rounded-lg font-medium" :class="{
-              'font-bold bg-black/10': !site.singlePageSite && activeComponentId === item.id,
-            }" :style="{
-              color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
-            }" @click="handleHeaderLinkClick(item.id)">
-            {{ item.name }}
-          </UButton>
+
+          <!-- Navigation Links -->
+          <div class="flex flex-col gap-2 p-6">
+            <UButton
+              v-for="item in headerNav.allItems"
+              :key="item.id"
+              variant="ghost"
+              class="justify-start text-base py-3 px-4 rounded-lg font-medium transition-all"
+              :class="{
+                'font-bold bg-current/10': !site.singlePageSite && activeComponentId === item.id,
+              }"
+              :style="{
+                color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
+                fontFamily: `'${typography.bodyFont}'`,
+              }"
+              @click="handleHeaderLinkClick(item.id); close()"
+            >
+              {{ item.name }}
+            </UButton>
+          </div>
         </div>
       </template>
     </USlideover>
@@ -455,7 +629,7 @@ function getVenueGoogleMapsUrl(
           }80)`,
       }" />
       <div class="relative z-10">
-        <h1 class="font-medium text-3xl md:text-5xl text-white transition-all duration-300"
+        <h1 id="viewer-hero-title-f2" class="font-medium text-3xl md:text-5xl text-white transition-all duration-300"
           :style="{ fontFamily: `'${typography.headerFont}'` }">
           {{ site.siteTitle }}
         </h1>
@@ -463,7 +637,7 @@ function getVenueGoogleMapsUrl(
     </div>
 
     <!-- MAIN SCROLL AREA -->
-    <UScrollArea class="flex-1 w-full h-full z-20 min-h-0 max-h-screen">
+    <UScrollArea ref="scrollAreaRef" class="flex-1 w-full h-full z-20 min-h-0 max-h-screen">
       <div id="viewer-scroll-top" class="flex flex-col min-h-full w-full">
         <!-- Hero Banner: Format 1, or Format 2 on mobile -->
         <div v-if="
@@ -487,7 +661,7 @@ function getVenueGoogleMapsUrl(
           }" />
           <div class="relative z-10">
             <div class="space-y-3">
-              <h1 class="font-medium text-3xl md:text-5xl text-white transition-all duration-300"
+              <h1 id="viewer-hero-title" class="font-medium text-3xl md:text-5xl text-white transition-all duration-300"
                 :style="{ fontFamily: `'${typography.headerFont}'` }">
                 {{ site.siteTitle }}
               </h1>
@@ -830,17 +1004,18 @@ function getVenueGoogleMapsUrl(
 
               <!-- Layout 2: Editorial Masonry -->
               <div v-else-if="effectiveGallery.layout === 'masonry'"
-                class="gap-4 sm:gap-6 max-w-5xl mx-auto w-full space-y-4 sm:space-y-6 text-left"
+                class="gap-4 sm:gap-6 max-w-5xl mx-auto w-full text-left"
                 :class="{
                   'columns-1 sm:columns-2': effectiveGallery.columns === 2,
                   'columns-1 sm:columns-2 lg:columns-3': effectiveGallery.columns === 3,
                   'columns-2 sm:columns-3 lg:columns-4': effectiveGallery.columns === 4,
                 }">
                 <div v-for="photo in effectiveGallery.photos" :key="photo.id"
-                  class="break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                  class="inline-block w-full break-inside-avoid mb-4 sm:mb-6 group relative rounded-2xl overflow-hidden bg-black/5 border border-black/10 shadow-xs cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 transform-gpu"
+                  style="-webkit-column-break-inside: avoid; break-inside: avoid; transform: translateZ(0);"
                   @click="selectedGalleryLightboxPhoto = photo; isGalleryLightboxOpen = true">
                   <img :src="photo.url" :alt="photo.caption || 'Event moment'"
-                    class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
+                    class="block w-full h-auto object-cover transition-transform duration-500 group-hover:scale-103" loading="lazy" />
                   <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
                     <p v-if="photo.caption" class="text-xs sm:text-sm font-medium">{{ photo.caption }}</p>
                   </div>
