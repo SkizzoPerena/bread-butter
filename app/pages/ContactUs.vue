@@ -32,7 +32,13 @@ const pageTitle = computed(() => {
 })
 
 useHead({
-  title: computed(() => `${pageTitle.value} - Bread + Butter`)
+  title: computed(() => `${pageTitle.value} - Bread + Butter`),
+  meta: [
+    {
+      name: 'description',
+      content: 'Get in touch with the Bread + Butter team about event planning, packages, suppliers or support. Call, email or send us a message.'
+    }
+  ]
 })
 
 const pageSubtitle = computed(() => {
