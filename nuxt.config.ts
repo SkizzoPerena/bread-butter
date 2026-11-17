@@ -40,30 +40,13 @@ export default defineNuxtConfig({
       },
       title: "Bread+Butter, your event's digital home",
       titleTemplate: '%s',
+      // Description, canonical, robots and social tags are set per route in app/app.vue.
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        {
-          name: 'description',
-          content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
-        },
-        { property: 'og:title', content: "Bread+Butter, your event's digital home" },
-        {
-          property: 'og:description',
-          content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
-        },
-        { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: 'Bread + Butter' },
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: "Bread+Butter, your event's digital home" },
-        {
-          name: 'twitter:description',
-          content: 'Bread + Butter is the all-in-one event planning platform designed to bring clients and planners together. From custom websites and digital invitations to guest lists and RSVP management.'
-        }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-        { rel: 'canonical', href: 'https://www.bread-plus-butter.com' }
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
       ]
     }
   },
@@ -142,6 +125,13 @@ export default defineNuxtConfig({
     '/bakery': { redirect: { to: '/our-suppliers', statusCode: 301 } },
     '/ourbakery': { redirect: { to: '/our-suppliers', statusCode: 301 } },
     '/suppliers': { redirect: { to: '/our-suppliers', statusCode: 301 } },
+  },
+
+  nitro: {
+    prerender: {
+      // Not linked from any page, so the crawler would not find it on its own.
+      routes: ['/sitemap.xml']
+    }
   },
 
   compatibilityDate: '2025-01-15',
