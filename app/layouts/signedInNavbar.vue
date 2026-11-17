@@ -315,7 +315,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
           </NuxtLink>
           <button
             type="button"
-            class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+            class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-jam hover:border-jam-400 border border-white/30 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
             aria-label="Switch to Jam"
             title="Switch to Jam"
             @click.prevent.stop="onSwitchToJam"
@@ -563,7 +563,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
             </NuxtLink>
             <button
               type="button"
-              class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+              class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-jam hover:border-jam-400 border border-white/30 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
               aria-label="Switch to Jam"
               title="Switch to Jam"
               @click.prevent.stop="onSwitchToJam"
