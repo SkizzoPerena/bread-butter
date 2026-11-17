@@ -33,10 +33,10 @@ interface JamTier {
 }
 
 const JAM_COMMON_FEATURES = [
-  'Tables & seatings',
-  'Event check-in',
-  'RSVP',
-  'Emails & invitations'
+  'Digital Invitations',
+  'RSVP Tracking & Automated Follow-Ups',
+  'Table & Seating Arrangements',
+  'QR Code Registration & Guest Check-In'
 ]
 
 const jamTiers: JamTier[] = [
@@ -44,50 +44,44 @@ const jamTiers: JamTier[] = [
     name: 'Strawberry',
     tagline: 'A little Jam goes a long way!',
     description: 'Perfect for guest lists of<br />up to 150.',
-    originalPrice: '',
     discountPrice: '₱4,000',
     buttonLabel: 'Pick Strawberry',
     colClass: 'md:col-span-2',
-    features: [
-      'Digital Invitations',
-      'RSVP Tracking & Automated Follow-Ups',
-      'Table & Seating Arrangements',
-      'QR Code Registration & Guest Check-In'
-    ]
+    features: JAM_COMMON_FEATURES
   },
   {
     name: 'Coconut',
-    capacity: 'Up to 300 guests',
-    subtitle: 'Seating, check-in & RSVP',
-    originalPrice: '₱14,000',
+    tagline: 'Smooth, sweet, and made to share!',
+    description: 'Perfect for guest lists of<br />up to 300.',
     discountPrice: '₱7,000',
+    buttonLabel: 'Pick Coconut',
     colClass: 'md:col-span-2',
     features: JAM_COMMON_FEATURES
   },
   {
     name: 'Lemon',
-    capacity: 'Up to 500 guests',
-    subtitle: 'Seating, check-in & RSVP',
-    originalPrice: '₱20,000',
+    tagline: 'Bright, zesty, and full of life!',
+    description: 'Perfect for guest lists of<br />up to 500.',
     discountPrice: '₱10,000',
+    buttonLabel: 'Pick Lemon',
     colClass: 'md:col-span-2',
     features: JAM_COMMON_FEATURES
   },
   {
     name: 'Apricot',
-    capacity: 'Up to 750 guests',
-    subtitle: 'Seating, check-in & RSVP',
-    originalPrice: '₱26,000',
+    tagline: 'Sweet, golden, and crowd-pleasing!',
+    description: 'Perfect for guest lists of<br />up to 750.',
     discountPrice: '₱13,000',
+    buttonLabel: 'Pick Apricot',
     colClass: 'md:col-span-2 md:col-start-2',
     features: JAM_COMMON_FEATURES
   },
   {
     name: 'Orange Marmalade',
-    capacity: 'Up to 1000 guests',
-    subtitle: 'Seating, check-in & RSVP',
-    originalPrice: '₱30,000',
+    tagline: 'The grandest spread for your biggest day!',
+    description: 'Perfect for guest lists of<br />up to 1,000.',
     discountPrice: '₱15,000',
+    buttonLabel: 'Pick Orange Marmalade',
     colClass: 'md:col-span-2',
     features: JAM_COMMON_FEATURES
   }
