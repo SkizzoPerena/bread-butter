@@ -21,10 +21,13 @@ function getTierCtaTarget(tierName: string) {
 
 interface JamTier {
   name: string
-  capacity: string
-  subtitle: string
-  originalPrice: string
+  tagline?: string
+  description?: string
+  capacity?: string
+  subtitle?: string
+  originalPrice?: string
   discountPrice: string
+  buttonLabel?: string
   colClass: string
   features: string[]
 }
@@ -39,12 +42,18 @@ const JAM_COMMON_FEATURES = [
 const jamTiers: JamTier[] = [
   {
     name: 'Strawberry',
-    capacity: 'Up to 150 guests',
-    subtitle: 'Seating, check-in & RSVP',
-    originalPrice: '₱8,000',
+    tagline: 'A little Jam goes a long way!',
+    description: 'Perfect for guest lists of<br />up to 150.',
+    originalPrice: '',
     discountPrice: '₱4,000',
+    buttonLabel: 'Pick Strawberry',
     colClass: 'md:col-span-2',
-    features: JAM_COMMON_FEATURES
+    features: [
+      'Digital Invitations',
+      'RSVP Tracking & Automated Follow-Ups',
+      'Table & Seating Arrangements',
+      'QR Code Registration & Guest Check-In'
+    ]
   },
   {
     name: 'Coconut',
@@ -147,25 +156,35 @@ function scrollMotion(delay: number = 0) {
             class="bg-white rounded-3xl p-6 sm:p-7 text-left shadow-lg flex flex-col justify-between border border-stone-100 hover:shadow-2xl transition-all duration-300"
           >
             <div class="space-y-4">
-              <h3 class="font-serif font-bold text-2xl sm:text-3xl text-jam-900 tracking-tight">
-                {{ tier.name }}
-              </h3>
               <div>
+                <h3 class="font-serif font-bold text-2xl sm:text-3xl text-jam-900 tracking-tight">
+                  {{ tier.name }}
+                </h3>
+                <p v-if="tier.tagline" class="text-xs sm:text-sm font-medium text-jam-700 mt-1">
+                  {{ tier.tagline }}
+                </p>
+              </div>
+
+              <!-- Description / Capacity -->
+              <div v-if="tier.description" class="pt-1">
+                <p class="text-xs sm:text-sm text-stone-700 font-medium leading-relaxed" v-html="tier.description" />
+              </div>
+              <div v-else-if="tier.capacity">
                 <span class="block text-[11px] font-bold tracking-wider text-amber-700 uppercase">
                   CAPACITY
                 </span>
                 <div class="font-serif font-bold text-2xl sm:text-3xl text-stone-900 tracking-tight leading-tight mt-0.5">
                   {{ tier.capacity }}
                 </div>
-                <p class="text-xs text-stone-500 font-medium mt-1">
+                <p v-if="tier.subtitle" class="text-xs text-stone-500 font-medium mt-1">
                   {{ tier.subtitle }}
                 </p>
               </div>
 
               <!-- Included Features -->
               <div class="pt-3 border-t border-stone-100">
-                <span class="block text-[11px] font-bold tracking-wider text-amber-700 uppercase mb-2">
-                  FEATURES
+                <span class="block text-xs font-bold text-amber-800 mb-2">
+                  What's included:
                 </span>
                 <ul class="space-y-2 text-xs text-stone-700 font-medium">
                   <li v-for="feat in tier.features" :key="feat" class="flex items-center gap-2">
@@ -178,7 +197,7 @@ function scrollMotion(delay: number = 0) {
 
             <div class="pt-6">
               <div class="flex items-baseline gap-2.5 mb-4">
-                <span class="text-lg sm:text-xl font-serif text-stone-400 line-through">
+                <span v-if="tier.originalPrice" class="text-lg sm:text-xl font-serif text-stone-400 line-through">
                   {{ tier.originalPrice }}
                 </span>
                 <span class="text-xl sm:text-2xl font-serif font-bold text-stone-900">
@@ -189,7 +208,7 @@ function scrollMotion(delay: number = 0) {
                 :to="getTierCtaTarget(tier.name)"
                 class="w-full block py-2.5 px-4 rounded-xl bg-jam-900 hover:bg-jam-950 active:bg-black text-white text-xs sm:text-sm font-semibold text-center transition-all cursor-pointer shadow-xs"
               >
-                Select {{ tier.name }}
+                {{ tier.buttonLabel || `Pick ${tier.name}` }}
               </NuxtLink>
             </div>
           </div>
