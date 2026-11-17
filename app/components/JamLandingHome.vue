@@ -109,7 +109,7 @@ function scrollMotion(delay: number = 0) {
             Big guest lists? That's our Jam.
           </div>
           <div class="text-sm sm:text-lg max-w-5xl mx-auto">
-            Send digital invitations, track RSVPs, automate follow-ups, and sort out seating arrangements—all in one place! Top it off with QR code registration and seamless guest check-ins.
+            Send digital invitations, track RSVPs, automate follow-ups, and sort out seating arrangements—all in one place!<br />Top it off with QR code registration and seamless guest check-ins.
           </div>
         </div>
         <UContainer class="flex justify-center items-center my-0">
