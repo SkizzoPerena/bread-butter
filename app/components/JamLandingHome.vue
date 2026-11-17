@@ -115,7 +115,7 @@ function scrollMotion(delay: number = 0) {
         <UContainer class="flex justify-center items-center my-0">
           <div class="w-56 sm:w-64">
             <UButton :to="authCtaTarget" size="lg" block color="neutral" variant="soft"
-              class="font-bold text-sm sm:text-base">Let's Jam!
+              class="font-bold text-sm sm:text-base">LET'S JAM!
             </UButton>
           </div>
         </UContainer>
