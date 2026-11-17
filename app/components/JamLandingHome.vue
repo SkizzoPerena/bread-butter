@@ -106,16 +106,16 @@ function scrollMotion(delay: number = 0) {
       <div class="space-y-8">
         <div class="text-white text-center">
           <div class="font-bold text-2xl sm:text-5xl font-serif mb-3 sm:mb-6 text-pretty tracking-tight">
-            Mass invitations and guest organizing,<br class="hidden sm:block" /> smoothed to perfection.
+            Big guest lists? That's our Jam.
           </div>
           <div class="text-sm sm:text-lg max-w-5xl mx-auto">
-            Bread+Butter's Jam is the mass guest organizer designed to make invitations, RSVPs, table seating, and same-day attendance checking effortlessly simple. Send personalized digital passes, track responses in real time, and welcome your guests with swift QR check-ins.
+            Send digital invitations, track RSVPs, automate follow-ups, and sort out seating arrangements—all in one place! Top it off with QR code registration and seamless guest check-ins.
           </div>
         </div>
         <UContainer class="flex justify-center items-center my-0">
           <div class="w-56 sm:w-64">
             <UButton :to="authCtaTarget" size="lg" block color="neutral" variant="soft"
-              class="font-bold text-sm sm:text-base">START A JAM
+              class="font-bold text-sm sm:text-base">Let's Jam!
             </UButton>
           </div>
         </UContainer>
