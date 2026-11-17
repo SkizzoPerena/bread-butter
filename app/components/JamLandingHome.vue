@@ -128,13 +128,13 @@ function scrollMotion(delay: number = 0) {
 
         <Motion v-bind="scrollMotion(0.1)">
           <div class="font-bold text-2xl sm:text-5xl font-serif text-white">
-            What's your jam?
+            What's your Jam?
           </div>
         </Motion>
         <div class="mb-3 sm:mb-6" />
         <Motion v-bind="scrollMotion(0.2)">
           <div class="mb-6 sm:mb-12 text-sm sm:text-base text-jam-100/90 font-normal max-w-2xl mx-auto">
-            Every plan includes seating arrangements, stationery invitations, and live RSVP check-in
+            Every celebration has its own flavor! Pick the perfect Jam for your guest list, big or small.
           </div>
         </Motion>
 
