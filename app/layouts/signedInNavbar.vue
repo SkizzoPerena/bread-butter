@@ -131,7 +131,7 @@ const dropitems: DropdownMenuItem[][] = [
 const aboutItems: DropdownMenuItem[][] = [
   [
     {
-      label: 'What is Bread + Butter',
+      label: 'What is Bread + Butter?',
       icon: 'i-lucide-sparkles',
       to: '/about',
       active: false
@@ -328,7 +328,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
             <span
               class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[11px] sm:text-xs font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1.5"
             >
-              switch to jam
+              Switch to Jam
             </span>
           </button>
         </div>
@@ -450,7 +450,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
                     <template #leading>
                       <UIcon name="i-lucide-sparkles" class="size-4 text-bread-400 mr-2" />
                     </template>
-                    What is Bread + Butter
+                    What is Bread + Butter?
                   </UButton>
                   <UButton variant="ghost"
                     class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
@@ -576,7 +576,7 @@ const moreInfoItems: DropdownMenuItem[][] = [
               <span
                 class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[10px] font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1"
               >
-                switch to jam
+                Switch to Jam
               </span>
             </button>
           </div>
