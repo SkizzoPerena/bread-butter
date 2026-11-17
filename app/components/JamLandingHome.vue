@@ -9,6 +9,14 @@ useHead({
 })
 
 const { isAuthenticated } = useAuth('user')
+const { triggerSlideTransition } = useJamSlideTransition()
+
+function onSwitchToEvents() {
+  const isLoggedIn = isAuthenticated.value || (import.meta.client && Boolean(getStoredAccessToken('user')))
+  const target = isLoggedIn ? '/?view=landing' : '/'
+  triggerSlideTransition(target, 'to-events')
+}
+
 const authCtaTarget = computed(() => {
   const dest = '/user/create-seating'
   return isAuthenticated.value ? dest : `/user/signup?redirect=${encodeURIComponent(dest)}`
@@ -239,6 +247,38 @@ function scrollMotion(delay: number = 0) {
         <div></div>
       </UPageGrid>
     </UPageSection>
+
+    <!-- Switch to Events / Bread + Butter Callout (Before Footer) -->
+    <section class="bg-toast-900 text-white py-14 sm:py-16 px-4 border-t border-toast-800/60 relative overflow-hidden">
+      <!-- Decorative radial glow -->
+      <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]" />
+
+      <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 text-center sm:text-left relative z-10">
+        <div class="space-y-2 max-w-xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-toast-800/90 text-bread-300 border border-toast-700/50">
+            <img src="~/assets/bpb-icons/B+B Logos-10.svg" alt="Bread + Butter" class="size-3.5 object-contain" />
+            <span>Need full celebration planning?</span>
+          </div>
+          <h2 class="font-serif font-bold text-2xl sm:text-3xl lg:text-4xl text-bread-300 tracking-tight">
+            Not quite your Jam?
+          </h2>
+          <p class="text-sm sm:text-base text-toast-100/90 leading-relaxed">
+            Looking for a complete event platform with custom wedding websites, budget trackers, supplier management, ceremony checklists, and collaboration tools? Experience Bread + Butter.
+          </p>
+        </div>
+
+        <div class="shrink-0">
+          <button
+            type="button"
+            class="group inline-flex items-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-sm sm:text-base bg-bread-400 hover:bg-bread-300 text-toast-950 shadow-xl hover:shadow-2xl transition-all duration-300 ease-out cursor-pointer active:scale-95"
+            @click="onSwitchToEvents"
+          >
+            <span>LET'S GET THIS BREAD!</span>
+            <UIcon name="i-lucide-arrow-right" class="size-4 sm:size-5 transition-transform duration-300 group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    </section>
 
   </div>
 </template>
