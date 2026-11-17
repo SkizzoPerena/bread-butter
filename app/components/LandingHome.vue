@@ -380,15 +380,17 @@ function scrollMotion(delay: number = 0) {
       <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]" />
 
       <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8 text-center sm:text-left relative z-10">
-        <div class="space-y-2 max-w-xl">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-jam-800/90 text-bread-300 border border-jam-700/50">
-            <img src="~/assets/bpb-icons/Jam Logos-03.png" alt="Jam" class="size-3.5 object-contain brightness-0 invert" />
-            <span>Looking for mass guest management?</span>
-          </div>
+        <div class="space-y-2.5 max-w-xl">
           <h2 class="font-serif font-bold text-2xl sm:text-3xl lg:text-4xl text-bread-300 tracking-tight">
-            Not quite your bread?
+            Bread's a bit much?
           </h2>
-          <p class="text-sm sm:text-base text-jam-100/90 leading-relaxed">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-jam-800/90 text-bread-300 border border-jam-700/50">
+              <img src="~/assets/bpb-icons/Jam Logos-03.png" alt="Jam" class="size-3.5 object-contain brightness-0 invert" />
+              <span>Looking for mass guest management?</span>
+            </div>
+          </div>
+          <p class="text-sm sm:text-base text-jam-100/90 leading-relaxed pt-0.5">
             If you only need mass digital invitations, RSVP tracking, table seating, and day-of QR check-ins without the whole planning suite, Jam is made just for you.
           </p>
         </div>
@@ -396,11 +398,11 @@ function scrollMotion(delay: number = 0) {
         <div class="shrink-0">
           <button
             type="button"
-            class="group inline-flex items-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-sm sm:text-base bg-bread-400 hover:bg-bread-300 text-jam-950 shadow-xl hover:shadow-2xl transition-all duration-300 ease-out cursor-pointer active:scale-95"
+            class="group inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm bg-bread-400 hover:bg-bread-300 text-jam-950 shadow-md hover:shadow-lg transition-all duration-300 ease-out cursor-pointer active:scale-95"
             @click="onSwitchToJam"
           >
             <span>LET'S JAM!</span>
-            <UIcon name="i-lucide-arrow-right" class="size-4 sm:size-5 transition-transform duration-300 group-hover:translate-x-1" />
+            <UIcon name="i-lucide-arrow-right" class="size-3.5 sm:size-4 transition-transform duration-300 group-hover:translate-x-1" />
           </button>
         </div>
       </div>
