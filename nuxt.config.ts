@@ -271,6 +271,7 @@ export default defineNuxtConfig({
 
       // Set paths for Jam feature routes
       setPath('JamLanding', '/jam')
+      setPath('JamAbout', '/jam/about')
       const jamLandingPage = pages.find(p => p.name === 'JamLanding')
       if (jamLandingPage) {
         pages.push({

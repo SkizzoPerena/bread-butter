@@ -145,9 +145,9 @@ onUnmounted(() => {
 const aboutItems: DropdownMenuItem[][] = [
   [
     {
-      label: 'What is Bread + Butter',
+      label: 'What is Jam',
       icon: 'i-lucide-sparkles',
-      to: '/about',
+      to: '/jam/about',
       active: false
     },
     {
@@ -465,11 +465,11 @@ const links = [
                 <div class="text-[11px] font-bold uppercase tracking-wider text-bread-400 px-2 py-0.5">About</div>
                 <UButton variant="ghost"
                   class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-jam-500/40 rounded-lg"
-                  to="/about" @click="closeMobileMenu">
+                  to="/jam/about" @click="closeMobileMenu">
                   <template #leading>
                     <UIcon name="i-lucide-sparkles" class="size-4 text-bread-400 mr-2" />
                   </template>
-                  What is Bread + Butter
+                  What is Jam
                 </UButton>
                 <UButton variant="ghost"
                   class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-jam-500/40 rounded-lg"
