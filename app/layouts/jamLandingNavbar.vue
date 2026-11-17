@@ -11,7 +11,9 @@ const { triggerSlideTransition } = useJamSlideTransition()
 
 function onSwitchToEvents() {
   closeMobileMenu()
-  triggerSlideTransition('/', 'to-events')
+  const isLoggedIn = isAuthenticated.value || (import.meta.client && Boolean(getStoredAccessToken('user')))
+  const target = isLoggedIn ? '/?view=landing' : '/'
+  triggerSlideTransition(target, 'to-events')
 }
 
 const displayName = computed(() => {
