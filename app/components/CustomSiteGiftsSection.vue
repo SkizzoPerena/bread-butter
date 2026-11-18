@@ -12,6 +12,63 @@ const props = defineProps<{
 
 const qrCodes = computed(() => props.registry?.qrCodes ?? [])
 const giftItems = computed(() => props.registry?.wishedItems ?? [])
+
+const toast = useToast()
+const copiedIndex = ref<number | null>(null)
+let copyTimeout: ReturnType<typeof setTimeout> | null = null
+
+async function copyAccountNumber(accountNumber?: string, bankType?: string, index?: number) {
+  if (!accountNumber) return
+
+  let copied = false
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(accountNumber)
+      copied = true
+    } catch {
+      // Fallback below
+    }
+  }
+
+  if (!copied && typeof document !== 'undefined') {
+    try {
+      const textarea = document.createElement('textarea')
+      textarea.value = accountNumber
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      copied = document.execCommand('copy')
+      document.body.removeChild(textarea)
+    } catch {
+      // ignore
+    }
+  }
+
+  if (copied) {
+    if (index !== undefined) {
+      copiedIndex.value = index
+      if (copyTimeout) clearTimeout(copyTimeout)
+      copyTimeout = setTimeout(() => {
+        if (copiedIndex.value === index) {
+          copiedIndex.value = null
+        }
+      }, 2000)
+    }
+
+    toast.add({
+      title: 'Copied to clipboard',
+      description: `${bankType ? bankType + ' ' : ''}Account #${accountNumber} copied.`,
+      color: 'success',
+    })
+  } else {
+    toast.add({
+      title: 'Failed to copy',
+      description: 'Could not copy account number to clipboard.',
+      color: 'error',
+    })
+  }
+}
 </script>
 
 <template>
@@ -106,9 +163,27 @@ const giftItems = computed(() => props.registry?.wishedItems ?? [])
             <div v-if="entry.accountName" class="text-xs font-medium opacity-85 truncate">
               {{ entry.accountName }}
             </div>
-            <div class="font-mono text-xs font-semibold px-2.5 py-1 rounded-md border border-current/20 bg-current/5 tracking-wider inline-block">
-              {{ entry.accountNumber }}
-            </div>
+            <button
+              v-if="entry.accountNumber"
+              type="button"
+              class="group/copy inline-flex items-center gap-1.5 font-mono text-xs font-semibold px-2.5 py-1 rounded-md border border-current/20 bg-current/5 hover:bg-current/15 active:scale-95 transition-all duration-200 cursor-pointer tracking-wider select-none max-w-full justify-center"
+              :title="`Click to copy ${entry.accountNumber}`"
+              :aria-label="`Copy account number ${entry.accountNumber}`"
+              @click.stop="copyAccountNumber(entry.accountNumber, entry.bankType, index)"
+            >
+              <span class="truncate">{{ entry.accountNumber }}</span>
+              <UIcon
+                :name="copiedIndex === index ? 'i-lucide-check' : 'i-lucide-copy'"
+                class="size-3.5 shrink-0 transition-transform duration-200"
+                :class="copiedIndex === index ? 'text-emerald-500 scale-110' : 'opacity-60 group-hover/copy:opacity-100 group-hover/copy:scale-105'"
+              />
+              <span
+                v-if="copiedIndex === index"
+                class="text-[10px] font-sans font-bold text-emerald-600 dark:text-emerald-400 shrink-0"
+              >
+                Copied!
+              </span>
+            </button>
           </div>
         </div>
       </div>

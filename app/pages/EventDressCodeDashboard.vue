@@ -1544,7 +1544,7 @@ onMounted(async () => {
                   <strong>Synced with Website Maker:</strong> Insert the <strong>"Colors &amp; Dress Code"</strong> component in Website Maker to showcase this palette and attire guidelines to your guests.
                 </span>
               </div>
-              <NuxtLink :to="'/event/website-maker' + (eventId ? '?eventId=' + eventId : '')"
+              <NuxtLink :to="'/website-maker' + (eventId ? '?eventId=' + eventId : '')"
                 class="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-800 underline shrink-0">
                 <span>Open Website Maker</span>
                 <UIcon name="i-lucide-arrow-right" class="size-3" />

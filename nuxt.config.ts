@@ -254,6 +254,14 @@ export default defineNuxtConfig({
       setPath('faqs', '/faqs')
       setPath('InvitationMaker', '/invitation-maker')
       setPath('WebsiteMaker', '/website-maker')
+      const websiteMakerPage = pages.find(p => p.name === 'WebsiteMaker')
+      if (websiteMakerPage) {
+        pages.push({
+          ...websiteMakerPage,
+          name: 'WebsiteMakerEventAlias',
+          path: '/event/website-maker',
+        })
+      }
       setPath('OurSuppliers', '/our-suppliers')
       setPath('About', '/about')
       setPath('NewsAndEvents', '/news-and-events')

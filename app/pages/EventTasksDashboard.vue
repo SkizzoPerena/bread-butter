@@ -80,6 +80,7 @@ const {
   handleStatusChange,
   handlePriorityChange,
   handleDeadlineChange,
+  handleToggleImportant,
   handleFormSaved,
   handleAssigneesChanged,
   confirmRemoveTask,
@@ -170,6 +171,7 @@ function toggleTaskImportant(task: TaskRecord) {
   importantTaskIds.value = updatedSet
   task.isImportant = next
   saveImportantTaskIds()
+  handleToggleImportant(task._id, next)
 
   toast.add({
     title: next ? 'Marked as Important' : 'Removed from Important',

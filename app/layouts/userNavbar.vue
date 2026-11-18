@@ -5,6 +5,7 @@ import { resolveProfileImageUrl } from '~/utils/profileImage'
 const route = useRoute()
 const router = useRouter()
 const { user, logout } = useAuth()
+const { goBackToPreviousPage } = useAppNavigation()
 
 const activeDashboardTab = useState<'events' | 'seating'>('user-dashboard-tab', () =>
   route.query.tab === 'seating' ? 'seating' : 'events'
@@ -20,12 +21,8 @@ const isUserDashboard = computed(() => {
     || normalizedPath === '/userdashboard'
 })
 
-function goBack() {
-  if (import.meta.client && window.history.state?.back) {
-    router.back()
-  } else {
-    router.push('/')
-  }
+async function goBack() {
+  await goBackToPreviousPage('/')
 }
 
 const displayName = computed(() => {

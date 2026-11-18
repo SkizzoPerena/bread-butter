@@ -8,22 +8,13 @@ const props = withDefaults(
   }
 )
 
-const router = useRouter()
+const { goBackToPreviousPage } = useAppNavigation()
 
-function handleBack() {
+async function handleBack() {
   if (props.isErrorPage) {
     clearError()
   }
-
-  if (import.meta.client && window.history.length > 1) {
-    router.back()
-  } else {
-    if (props.isErrorPage) {
-      clearError({ redirect: '/' })
-    } else {
-      navigateTo('/')
-    }
-  }
+  await goBackToPreviousPage('/')
 }
 
 function handleHome() {

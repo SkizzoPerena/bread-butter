@@ -2,6 +2,7 @@
 const route = useRoute()
 const router = useRouter()
 const { startPageTransition } = usePageTransition()
+const { goBackToPreviousPage } = useAppNavigation()
 
 const isMobileMenuOpen = ref(false)
 
@@ -18,12 +19,10 @@ const gatheringId = computed(() => {
 })
 
 async function handleBack() {
-  if (gatheringId.value) {
-    await startPageTransition(`/jam/dashboard/${gatheringId.value}`)
-  } else {
-    await startPageTransition()
-    router.back()
-  }
+  const fallback = gatheringId.value
+    ? `/jam/dashboard/${gatheringId.value}`
+    : '/jam'
+  await goBackToPreviousPage(fallback)
 }
 
 const titleThemeClass = computed(() => {

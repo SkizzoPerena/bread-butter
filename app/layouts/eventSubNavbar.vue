@@ -1,11 +1,29 @@
 <script setup lang="ts">
 const route = useRoute()
-const router = useRouter()
-const { startPageTransition, followLink } = usePageTransition()
+const { followLink } = usePageTransition()
+const { goBackToPreviousPage } = useAppNavigation()
+const { activeEventId } = useActiveEvent()
+
+const eventId = computed(() => {
+  const q = route.query.eventId
+  if (typeof q === 'string' && q) return q
+  const p = route.params.eventId
+  if (typeof p === 'string' && p) return p
+  return activeEventId.value || ''
+})
+
+const defaultFallback = computed(() => {
+  if (eventId.value) {
+    return {
+      path: '/event/dashboard-butter',
+      query: { eventId: eventId.value },
+    }
+  }
+  return '/'
+})
 
 async function handleBack() {
-  await startPageTransition()
-  router.back()
+  await goBackToPreviousPage(defaultFallback.value)
 }
 
 const titleThemeClass = computed(() => {

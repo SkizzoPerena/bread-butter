@@ -114,6 +114,19 @@ async function loadUserEvents() {
     userEvents.value = events
     seatingPlans.value = gatherings
 
+    if (import.meta.client && typeof window !== 'undefined') {
+      for (const ev of events) {
+        if (!hasEventCover(ev)) {
+          const cached = localStorage.getItem(`bpb_event_cover_${ev._id}`)
+          if (cached) {
+            ev.coverImageURL = cached
+          }
+        } else if (ev.coverImageURL) {
+          localStorage.setItem(`bpb_event_cover_${ev._id}`, ev.coverImageURL)
+        }
+      }
+    }
+
     if (isUiOnlyMode.value) {
       const uiPending = getUiPendingPayment()
       if (uiPending) {
@@ -238,6 +251,18 @@ function hasEventCover(event: EventRecord): boolean {
 
 function onCoverImageError(event: EventRecord) {
   event.coverImageURL = null
+  if (import.meta.client && typeof window !== 'undefined') {
+    localStorage.removeItem(`bpb_event_cover_${event._id}`)
+  }
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 function extractSingleFile(val: unknown): File | null {
@@ -259,8 +284,21 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
 
   uploadingEventId.value = event._id
   try {
+    let localDataUrl: string | null = null
+    try {
+      localDataUrl = await readFileAsDataUrl(file)
+      if (localDataUrl && import.meta.client && typeof window !== 'undefined') {
+        localStorage.setItem(`bpb_event_cover_${event._id}`, localDataUrl)
+      }
+    } catch (err) {
+      console.warn('Failed to convert file to data URL', err)
+    }
+
+    if (localDataUrl) {
+      event.coverImageURL = localDataUrl
+    }
+
     if (isUiOnlyMode.value) {
-      event.coverImageURL = URL.createObjectURL(file)
       toast.add({
         title: 'Image added',
         description: 'Event image updated successfully.',
@@ -269,7 +307,7 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
       return
     }
 
-    await updateEvent(event._id, {
+    const updatedEvent = await updateEvent(event._id, {
       eventName: event.eventName,
       eventType: event.eventType,
       venue: event.venue,
@@ -279,7 +317,13 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
       coverImage: file,
     })
 
-    event.coverImageURL = URL.createObjectURL(file)
+    const finalUrl = updatedEvent?.coverImageURL || localDataUrl || (event.coverImageURL ?? null)
+    if (finalUrl) {
+      event.coverImageURL = finalUrl
+      if (import.meta.client && typeof window !== 'undefined') {
+        localStorage.setItem(`bpb_event_cover_${event._id}`, finalUrl)
+      }
+    }
 
     toast.add({
       title: 'Image uploaded',
