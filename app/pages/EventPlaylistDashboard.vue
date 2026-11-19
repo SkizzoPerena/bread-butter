@@ -234,7 +234,8 @@ async function handleUpdatePlaylist() {
   const payload: UpdatePlaylistPayload = {
     label: editPlaylistForm.value.label.trim(),
     spotifyURL: editPlaylistForm.value.spotifyURL.trim(),
-    description: editPlaylistForm.value.description.trim() || undefined,
+    // Send an empty string so clearing the field clears it on the server.
+    description: editPlaylistForm.value.description.trim(),
     displayInWebsite: editPlaylistForm.value.displayInWebsite,
   }
 
@@ -529,6 +530,7 @@ watch(eventId, async () => {
                   v-model="newPlaylistForm.description"
                   class="w-full"
                   :rows="2"
+                  :maxlength="500"
                   placeholder="e.g. Upbeat tracks for cocktail hour and welcome drinks"
                   :disabled="mutationsDisabled || isSubmitting"
                 />
@@ -640,6 +642,7 @@ watch(eventId, async () => {
                   v-model="editPlaylistForm.description"
                   class="w-full"
                   :rows="2"
+                  :maxlength="500"
                   placeholder="e.g. Upbeat tracks for cocktail hour and welcome drinks"
                   :disabled="mutationsDisabled || isSubmitting"
                 />

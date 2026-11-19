@@ -1,5 +1,6 @@
 import type { DressCodeRecord } from './dressCode'
 import type { GalleryRecord } from './gallery'
+import type { PublicPlaylistRecord } from './playlist'
 
 export interface CustomSiteTidbit {
   _id?: string
@@ -117,6 +118,8 @@ export interface CustomSiteRecord {
   rsvpDeadlineDate?: string | null
   dressCode?: DressCodeRecord | null
   giftRegistry?: CustomSiteGiftRegistry | null
+  /** Present only on the public site, when the Playlists section is on. */
+  playlists?: PublicPlaylistRecord[]
   qaTitle?: string
   qaDescription?: string
   scheduleTitle?: string

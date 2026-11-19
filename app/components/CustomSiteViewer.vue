@@ -13,10 +13,8 @@ import {
   getDescriptionClampStyle,
 } from '~/data/destinationHotels'
 import { useDressCode } from '~/composables/useDressCode'
-import { useEventPlaylists } from '~/composables/useEventPlaylists'
 import { defaultGalleryRecord, useEventGallery } from '~/composables/useEventGallery'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
-import type { PlaylistRecord } from '~/types/playlist'
 import type { GalleryPhoto, GalleryRecord } from '~/types/gallery'
 import { GuestRsvpError } from '~/types/rsvp'
 
@@ -33,26 +31,8 @@ const { lookupRsvpForSite } = useGuestRsvp()
 const { getSiteAccessToken } = useSiteAccessCookie()
 const { getLocalDressCode } = useDressCode()
 const { getLocalGallery } = useEventGallery()
-const { getLocalPlaylists, fetchPlaylists } = useEventPlaylists()
-const sitePlaylists = ref<PlaylistRecord[]>([])
-
-watch(() => props.site.event, async (evId) => {
-  if (evId) {
-    sitePlaylists.value = getLocalPlaylists(evId)
-    try {
-      const res = await fetchPlaylists(evId)
-      if (res?.playlists && res.playlists.length > 0) {
-        sitePlaylists.value = res.playlists
-      }
-    } catch {
-      // Ignore
-    }
-  }
-}, { immediate: true })
-
-const websitePlaylists = computed(() => {
-  return sitePlaylists.value.filter((p) => p.displayInWebsite !== false)
-})
+// The public site response carries only the playlists the host chose to show.
+const websitePlaylists = computed(() => props.site.playlists ?? [])
 const isMissingRsvpModalOpen = ref(false)
 const rsvpLookupEmail = ref('')
 const rsvpLookupError = ref('')

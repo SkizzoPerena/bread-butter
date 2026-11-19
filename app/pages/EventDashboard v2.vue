@@ -65,39 +65,6 @@ const supplierSummary = ref<SupplierSummary | null>(null)
 const churchRequirementSummary = ref<ChurchRequirementSummary | null>(null)
 const isLoadingEvent = ref(false)
 const allEventTasks = ref<any[]>([])
-const storageTick = ref(0)
-
-if (import.meta.client && typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key?.startsWith('bpb_important_tasks_')) {
-      storageTick.value++
-    }
-  })
-  window.addEventListener('focus', () => {
-    storageTick.value++
-  })
-}
-
-function isTaskImportant(taskId?: string, isImportantProp?: boolean): boolean {
-  if (isImportantProp) return true
-  if (!taskId) return false
-  if (import.meta.client && typeof window !== 'undefined') {
-    try {
-      const activeId = eventId.value || 'mock-event-id'
-      const stored = localStorage.getItem(`bpb_important_tasks_${activeId}`)
-      if (stored) {
-        const ids = JSON.parse(stored)
-        if (Array.isArray(ids) && ids.includes(taskId)) {
-          return true
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return false
-}
-
 function formatTaskDueText(deadlineStr?: string | null): string {
   if (!deadlineStr) return ''
   const date = new Date(deadlineStr)
@@ -1319,13 +1286,12 @@ const urgentTasks = computed<PriorityDashboardTask[]>(() => {
 })
 
 const importantTasks = computed<PriorityDashboardTask[]>(() => {
-  void storageTick.value
   const rawTasks = allEventTasks.value.length > 0 ? allEventTasks.value : (tasksSummary.value?.preview?.tasks || [])
   const importantList = rawTasks
     .filter((t: any) => isParentTask(t))
     .filter((t: any) => {
       if (t.status === 'COMPLETED' || t.status === 'CANCELLED') return false
-      return isTaskImportant(t._id || t.id, t.isImportant)
+      return Boolean(t.isImportant)
     })
 
   // Sort: tasks with deadlines first (soonest first), then tasks without deadlines

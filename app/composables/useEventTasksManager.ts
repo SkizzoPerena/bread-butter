@@ -379,15 +379,17 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
   }
 
   async function handleToggleImportant(taskId: string, isImportant: boolean) {
+    if (mutationsDisabled.value) return
     const previous = tasks.value.find((t) => t._id === taskId)
     if (!previous) return
     tasks.value = updateTaskInList(tasks.value, { ...previous, isImportant } as TaskRecord)
     syncSummary()
-    if (isUiOnlyMode.value) return
     try {
       await updateTaskDetails(taskId, { isImportant })
-    } catch {
-      // ignore
+    } catch (error) {
+      tasks.value = updateTaskInList(tasks.value, previous)
+      syncSummary()
+      reportApiError(toast, { title: 'Could not update task', error })
     }
   }
 
