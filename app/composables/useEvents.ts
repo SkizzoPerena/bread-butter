@@ -12,7 +12,6 @@ import type { PriceTierRecord } from '~/types/priceTier'
 import { usePriceTiers } from '~/composables/usePriceTiers'
 import { useApiRole } from '~/composables/useApiRole'
 import { normalizeVoucherCode } from '~/utils/referralCode'
-import { defaultCover } from '~/utils/eventImage'
 import {
   EVENT_PAST_REASONS,
   VOUCHER_REDEEM_REASONS,
@@ -20,16 +19,6 @@ import {
   tracked,
   type AnalyticsRole,
 } from '~/utils/analytics'
-
-function hasValidCover(url?: string | null): boolean {
-  if (!url) return false
-  const trimmed = url.trim()
-  if (!trimmed) return false
-  if (trimmed === defaultCover || trimmed.includes('/assets/bpb-images/') || trimmed.includes('wedding-1.jpg')) {
-    return false
-  }
-  return true
-}
 
 function tierCode(event: EventRecord): string | undefined {
   const tier = event.priceTier
@@ -86,20 +75,7 @@ export function useEvents() {
       fetchAvailablePriceTiers().catch(() => []),
       apiRequest<EventsListResponse>('/user/events')
     ])
-    const enriched = (response.events ?? []).map((e) => {
-      const enrichedEvent = enrichEventTier(e, tiers)
-      if (typeof window !== 'undefined') {
-        if (!hasValidCover(enrichedEvent.coverImageURL)) {
-          const cached = localStorage.getItem(`bpb_event_cover_${enrichedEvent._id}`)
-          if (cached) {
-            enrichedEvent.coverImageURL = cached
-          }
-        } else if (enrichedEvent.coverImageURL) {
-          localStorage.setItem(`bpb_event_cover_${enrichedEvent._id}`, enrichedEvent.coverImageURL)
-        }
-      }
-      return enrichedEvent
-    })
+    const enriched = (response.events ?? []).map((e) => enrichEventTier(e, tiers))
     userEventsCache.value = enriched
     return enriched
   }
@@ -116,16 +92,6 @@ export function useEvents() {
       apiRequest<SelectedEventResponse>(`/user/events/${eventId}`)
     ])
     const event = enrichEventTier(response.event, tiers)
-    if (typeof window !== 'undefined') {
-      if (!hasValidCover(event.coverImageURL)) {
-        const cached = localStorage.getItem(`bpb_event_cover_${event._id}`)
-        if (cached) {
-          event.coverImageURL = cached
-        }
-      } else if (event.coverImageURL) {
-        localStorage.setItem(`bpb_event_cover_${event._id}`, event.coverImageURL)
-      }
-    }
     const detail: SelectedEventDetail = {
       event,
       guestList: response.guestList ?? [],
@@ -200,8 +166,6 @@ export function useEvents() {
 
     if (payload.coverImage) {
       formData.append('coverImage', payload.coverImage)
-    } else if (payload.coverImageURL) {
-      formData.append('coverImageURL', payload.coverImageURL)
     }
 
     const normalizedVoucher = payload.voucherCode
@@ -264,8 +228,6 @@ export function useEvents() {
 
     if (payload.coverImage) {
       formData.append('coverImage', payload.coverImage)
-    } else if (payload.coverImageURL) {
-      formData.append('coverImageURL', payload.coverImageURL)
     }
 
     const response = await tracked(currentRole(), () => apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {

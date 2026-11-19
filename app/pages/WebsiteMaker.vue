@@ -63,7 +63,7 @@ const {
 const { fetchGuestRolesByEvent } = useGuestRoles()
 const { fetchGuestsByEvent } = useGuests()
 const { fetchDressCode, getLocalDressCode } = useDressCode()
-const { fetchPlaylists, getLocalPlaylists } = useEventPlaylists()
+const { fetchPlaylists } = useEventPlaylists()
 const { searchHotels, geocode: geocodePlace } = usePlaces()
 
 const publishedDressCode = ref<DressCodeRecord | null>(null)
@@ -121,25 +121,18 @@ async function loadPublishedPlaylists() {
     } catch (err) {
         console.warn('[WebsiteMaker] Failed to fetch published playlists', err)
     } finally {
-        if (!publishedPlaylists.value || publishedPlaylists.value.length === 0) {
-            publishedPlaylists.value = getLocalPlaylists(targetId)
-        }
         isPlaylistsLoading.value = false
     }
 }
 
-function refreshPublishedPlaylists() {
-    const targetId = eventId.value || 'mock'
-    const latest = getLocalPlaylists(targetId)
-    if (latest && latest.length > 0) {
-        publishedPlaylists.value = latest
-        toast.add({
-            title: 'Playlists Synced',
-            description: `Refreshed with ${latest.length} playlist${latest.length === 1 ? '' : 's'}.`,
-            color: 'lime',
-        })
-    }
-    loadPublishedPlaylists()
+async function refreshPublishedPlaylists() {
+    await loadPublishedPlaylists()
+    const count = publishedPlaylists.value.length
+    toast.add({
+        title: 'Playlists Synced',
+        description: `Refreshed with ${count} playlist${count === 1 ? '' : 's'}.`,
+        color: 'lime',
+    })
 }
 
 function copyHexToClipboard(hex: string) {
@@ -159,10 +152,8 @@ function onWindowFocus() {
         if (latestDressCode && JSON.stringify(latestDressCode) !== JSON.stringify(publishedDressCode.value)) {
             publishedDressCode.value = latestDressCode
         }
-        const latestPlaylists = getLocalPlaylists(eventId.value)
-        if (latestPlaylists && JSON.stringify(latestPlaylists) !== JSON.stringify(publishedPlaylists.value)) {
-            publishedPlaylists.value = latestPlaylists
-        }
+        // Pick up changes made in the Playlists dashboard in another tab.
+        loadPublishedPlaylists()
     }
 }
 

@@ -282,6 +282,9 @@ export function useTasks() {
     if (payload.keepImageURLs !== undefined) {
       formData.append('keepImageURLs', JSON.stringify(payload.keepImageURLs))
     }
+    if (payload.isImportant !== undefined) {
+      formData.append('isImportant', String(payload.isImportant))
+    }
     for (const file of newFiles ?? []) {
       formData.append('images', file)
     }
