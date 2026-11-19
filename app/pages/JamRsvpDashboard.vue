@@ -19,15 +19,15 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'RSVP',
-  bgClass: 'bg-yellow-50',
+  bgClass: 'bg-jam-50',
   middleware: 'seating-enabled',
 })
 
 useWeddingFonts()
 
-const RSVP_CHART_COLORS = ['#14b8a6', '#f43f5e', '#f59e0b', '#94a3b8']
+const RSVP_CHART_COLORS = ['#7b1b38', '#f43f5e', '#f59e0b', '#94a3b8']
 const QUESTION_CHART_COLORS = [
-  '#14b8a6',
+  '#7b1b38',
   '#3b82f6',
   '#8b5cf6',
   '#f59e0b',
@@ -189,8 +189,8 @@ function questionTypeLabel(type: string): string {
   return QUESTION_TYPE_LABELS[type] ?? type
 }
 
-function questionTypeColor(type: string): 'yellow' | 'secondary' | 'info' {
-  if (type === 'TEXT') return 'yellow'
+function questionTypeColor(type: string): 'jam' | 'secondary' | 'info' {
+  if (type === 'TEXT') return 'jam'
   if (type === 'OPTIONS') return 'info'
   return 'secondary'
 }
@@ -282,11 +282,15 @@ function removeDraftQuestion(index: number) {
 }
 
 function addOption(qIndex: number) {
-  draftQuestions.value[qIndex].options.push('')
+  const target = draftQuestions.value[qIndex]
+  if (!target) return
+  target.options.push('')
 }
 
 function removeOption(qIndex: number, optIndex: number) {
-  draftQuestions.value[qIndex].options.splice(optIndex, 1)
+  const target = draftQuestions.value[qIndex]
+  if (!target) return
+  target.options.splice(optIndex, 1)
 }
 
 function onQuestionTypeChange(q: DraftQuestion) {
@@ -384,29 +388,18 @@ watch(gatheringId, () => {
 
 <template>
   <div
-    class="rsvp-page-root w-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden bg-bread-50/30"
-  >
+    class="rsvp-page-root w-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden bg-bread-50/30">
     <!-- Navbar Teleport Actions -->
     <ClientOnly>
       <!-- Desktop Navbar Actions (Right Side) -->
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
-          <UButton
-            icon="i-lucide-file-down"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :loading="isExporting"
-            @click="exportRsvpsCsv"
-          >
+          <UButton icon="i-lucide-file-down" color="neutral" variant="outline" size="sm" :loading="isExporting"
+            @click="exportRsvpsCsv">
             Export CSV
           </UButton>
-          <UButton
-            icon="i-lucide-pencil"
-            color="yellow"
-            size="sm"
-            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
-          >
+          <UButton icon="i-lucide-pencil" color="jam" size="sm"
+            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }">
             Edit Questions
           </UButton>
         </div>
@@ -415,26 +408,13 @@ watch(gatheringId, () => {
       <!-- Mobile Navbar Actions (Left Toggle Button Menu) -->
       <Teleport to="#navbar-mobile-actions">
         <div class="space-y-2 w-full">
-          <UButton
-            icon="i-lucide-pencil"
-            color="yellow"
-            size="md"
-            block
+          <UButton icon="i-lucide-pencil" color="jam" size="md" block
             class="w-full justify-center font-bold shadow-xs cursor-pointer"
-            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
-          >
+            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }">
             Edit Questions
           </UButton>
-          <UButton
-            icon="i-lucide-file-down"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            block
-            :loading="isExporting"
-            class="w-full justify-center cursor-pointer"
-            @click="exportRsvpsCsv"
-          >
+          <UButton icon="i-lucide-file-down" color="neutral" variant="outline" size="sm" block :loading="isExporting"
+            class="w-full justify-center cursor-pointer" @click="exportRsvpsCsv">
             Export CSV
           </UButton>
           <div class="grid grid-cols-3 gap-1.5 pt-1 text-center">
@@ -457,8 +437,7 @@ watch(gatheringId, () => {
 
     <!-- ================= LEFT DIVISION (col-span-1): RSVP Overview & Metrics Sidebar (Hidden on Mobile) ================= -->
     <aside
-      class="hidden lg:flex lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6"
-    >
+      class="hidden lg:flex lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6">
       <div class="space-y-6">
         <!-- RSVP Overview -->
         <div class="space-y-3">
@@ -474,13 +453,11 @@ watch(gatheringId, () => {
           <!-- Status Metrics Tiles (Going, Pending, Declined) -->
           <div class="grid grid-cols-3 gap-2">
             <!-- Going -->
-            <button
-              type="button"
+            <button type="button"
               class="bg-emerald-50/70 border border-emerald-200/60 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-emerald-50 text-left cursor-pointer"
               :class="rsvpStatusFilter === 'GOING' ? 'ring-2 ring-emerald-400 bg-emerald-100/60 shadow-xs' : ''"
               :title="rsvpStatusFilter === 'GOING' ? 'Click to show all responses' : 'Filter by Going'"
-              @click="toggleStatusFilter('GOING')"
-            >
+              @click="toggleStatusFilter('GOING')">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-emerald-700 font-sans">Going</span>
                 <UIcon name="i-lucide-check-circle-2" class="size-3.5 text-emerald-500" />
@@ -491,13 +468,11 @@ watch(gatheringId, () => {
             </button>
 
             <!-- Pending -->
-            <button
-              type="button"
+            <button type="button"
               class="bg-amber-50/70 border border-amber-200/70 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-amber-100/60 text-left cursor-pointer"
               :class="rsvpStatusFilter === 'PENDING' ? 'ring-2 ring-amber-400 bg-amber-100/80 shadow-xs' : ''"
               :title="rsvpStatusFilter === 'PENDING' ? 'Click to show all responses' : 'Filter by Pending'"
-              @click="toggleStatusFilter('PENDING')"
-            >
+              @click="toggleStatusFilter('PENDING')">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-amber-700 font-sans">Pending</span>
                 <UIcon name="i-lucide-clock" class="size-3.5 text-amber-500" />
@@ -508,13 +483,11 @@ watch(gatheringId, () => {
             </button>
 
             <!-- Declined -->
-            <button
-              type="button"
+            <button type="button"
               class="bg-rose-50/60 border border-rose-200/60 rounded-xl p-2.5 flex flex-col justify-between transition-all hover:bg-rose-100/50 text-left cursor-pointer"
               :class="rsvpStatusFilter === 'NOT_GOING' ? 'ring-2 ring-rose-400 bg-rose-100/80 shadow-xs' : ''"
               :title="rsvpStatusFilter === 'NOT_GOING' ? 'Click to show all responses' : 'Filter by Declined'"
-              @click="toggleStatusFilter('NOT_GOING')"
-            >
+              @click="toggleStatusFilter('NOT_GOING')">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-semibold text-rose-700 font-sans">Declined</span>
                 <UIcon name="i-lucide-x-circle" class="size-3.5 text-rose-500" />
@@ -553,7 +526,7 @@ watch(gatheringId, () => {
               <span class="font-semibold text-jam-800">Response Rate</span>
               <span class="font-bold font-serif text-black text-sm">{{ responseRate }}%</span>
             </div>
-            <UProgress :model-value="responseRate" color="yellow" size="xs" />
+            <UProgress :model-value="responseRate" color="jam" size="xs" />
             <div class="flex items-center justify-between text-[11px] text-muted font-sans pt-0.5">
               <span>{{ respondedCount }} of {{ totalSentCount }} responded</span>
               <span v-if="goingCount > 0" class="text-emerald-700 font-semibold">
@@ -566,14 +539,9 @@ watch(gatheringId, () => {
 
       <!-- Left Panel Bottom Actions -->
       <div class="pt-4 space-y-2">
-        <UButton
-          icon="i-lucide-pencil"
-          color="yellow"
-          size="md"
-          block
+        <UButton icon="i-lucide-pencil" color="jam" size="md" block
           class="w-full font-semibold shadow-xs justify-center py-2.5 transition-all hover:shadow hover:brightness-105 active:scale-[0.99] cursor-pointer"
-          @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
-        >
+          @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }">
           Edit Questions
         </UButton>
       </div>
@@ -581,56 +549,31 @@ watch(gatheringId, () => {
 
     <!-- ================= RIGHT DIVISION (col-span-3): Workspace ================= -->
     <main
-      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-jam-50/30"
-    >
+      class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-jam-50/30">
       <!-- Top Sticky Toolbar -->
       <header
-        class="bg-white/95 backdrop-blur border-b border-bread-200/80 px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 z-10 w-full"
-      >
+        class="bg-white/95 backdrop-blur border-b border-bread-200/80 px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 z-10 w-full">
         <!-- UTabs spanning the container width -->
         <div class="flex-1 min-w-0 w-full md:w-auto">
-          <UTabs
-            v-model="activeTab"
-            :items="tabItems"
-            value-key="value"
-            color="yellow"
-            :content="false"
-            class="w-full"
-            :ui="{ list: 'w-full' }"
-          />
+          <UTabs v-model="activeTab" :items="tabItems" value-key="value" color="jam" :content="false" class="w-full"
+            :ui="{ list: 'w-full' }" />
         </div>
 
         <!-- Search and Filters on Far Right -->
         <div class="flex items-center gap-2.5 shrink-0 justify-end w-full md:w-auto ml-auto">
           <div v-if="activeTab === 'responses'" class="flex items-center">
-            <USelect
-              v-model="rsvpStatusFilter"
-              :items="STATUS_FILTER_OPTIONS"
-              value-key="value"
-              label-key="label"
-              size="sm"
-              class="w-36 text-xs font-sans shrink-0"
-              @update:model-value="rsvpPage = 1"
-            />
+            <USelect v-model="rsvpStatusFilter" :items="STATUS_FILTER_OPTIONS" value-key="value" label-key="label"
+              size="sm" class="w-36 text-xs font-sans shrink-0" @update:model-value="rsvpPage = 1" />
           </div>
 
-          <UInput
-            v-model="searchQuery"
-            icon="i-lucide-search"
-            type="search"
+          <UInput v-model="searchQuery" icon="i-lucide-search" type="search"
             :placeholder="activeTab === 'questions' ? 'Search questions...' : 'Search responses...'"
-            class="w-full sm:w-60 md:w-64"
-          />
+            class="w-full sm:w-60 md:w-64" />
 
-          <UButton
-            v-if="searchQuery || rsvpStatusFilter !== 'ALL'"
-            icon="i-lucide-filter-x"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="font-sans cursor-pointer text-yellow-700 hover:text-yellow-800 hover:bg-yellow-50 shrink-0"
-            @click="clearFilters"
-          >
+          <UButton v-if="searchQuery || rsvpStatusFilter !== 'ALL'" icon="i-lucide-filter-x" color="neutral"
+            variant="ghost" size="sm"
+            class="font-sans cursor-pointer text-jam-700 hover:text-jam-800 hover:bg-jam-50 shrink-0"
+            @click="clearFilters">
             Clear
           </UButton>
         </div>
@@ -646,45 +589,34 @@ watch(gatheringId, () => {
 
         <!-- TAB 1: QUESTIONS -->
         <template v-else-if="activeTab === 'questions'">
-          <div
-            v-if="!questions.length"
-            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs"
-          >
-            <div class="size-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-700 mb-3">
+          <div v-if="!questions.length"
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs">
+            <div class="size-12 rounded-full bg-jam-50 flex items-center justify-center text-jam-700 mb-3">
               <UIcon name="i-lucide-message-square-text" class="size-6" />
             </div>
             <h3 class="text-base font-semibold text-highlighted">No questions yet</h3>
             <p class="mt-1 max-w-sm text-xs text-muted">
               Add questions for guests to answer when they respond to your RSVP invitation.
             </p>
-            <UButton
-              class="mt-5"
-              color="yellow"
-              icon="i-lucide-pencil"
-              size="sm"
-              @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
-            >
+            <UButton class="mt-5" color="jam" icon="i-lucide-pencil" size="sm"
+              @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }">
               Edit Questions
             </UButton>
           </div>
 
-          <div
-            v-else-if="filteredQuestions.length === 0"
-            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-14 text-center shadow-xs"
-          >
+          <div v-else-if="filteredQuestions.length === 0"
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-14 text-center shadow-xs">
             <UIcon name="i-lucide-search-x" class="size-8 text-muted mb-2" />
             <p class="text-sm font-medium text-highlighted">No questions match your search</p>
-            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-yellow-700" @click="clearFilters">
+            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-jam-700"
+              @click="clearFilters">
               Clear search
             </UButton>
           </div>
 
           <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              v-for="(question, index) in filteredQuestions"
-              :key="`${index}-${question.question}`"
-              class="rounded-xl border border-bread-200/80 bg-white p-4 shadow-xs space-y-3"
-            >
+            <div v-for="(question, index) in filteredQuestions" :key="`${index}-${question.question}`"
+              class="rounded-xl border border-bread-200/80 bg-white p-4 shadow-xs space-y-3">
               <div class="flex items-start justify-between gap-2">
                 <div class="flex items-start gap-2.5 min-w-0">
                   <span class="font-bold text-jam-500 font-mono text-sm shrink-0">{{ index + 1 }}.</span>
@@ -700,12 +632,8 @@ watch(gatheringId, () => {
               </div>
 
               <div v-if="isChartableQuestionType(question.type)" class="pt-2 border-t border-bread-100">
-                <PieChart
-                  size="compact"
-                  :title="`Answer breakdown (${countQuestionAnswers(question)} responses)`"
-                  :data="getQuestionAnswerChartData(question)"
-                  :colors="QUESTION_CHART_COLORS"
-                />
+                <PieChart size="compact" :title="`Answer breakdown (${countQuestionAnswers(question)} responses)`"
+                  :data="getQuestionAnswerChartData(question)" :colors="QUESTION_CHART_COLORS" />
               </div>
             </div>
           </div>
@@ -713,11 +641,9 @@ watch(gatheringId, () => {
 
         <!-- TAB 2: RESPONSES -->
         <template v-else-if="activeTab === 'responses'">
-          <div
-            v-if="!guests.length"
-            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs"
-          >
-            <div class="size-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-700 mb-3">
+          <div v-if="!guests.length"
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs">
+            <div class="size-12 rounded-full bg-jam-50 flex items-center justify-center text-jam-700 mb-3">
               <UIcon name="i-lucide-inbox" class="size-6" />
             </div>
             <h3 class="text-base font-semibold text-highlighted">No RSVP responses yet</h3>
@@ -726,24 +652,20 @@ watch(gatheringId, () => {
             </p>
           </div>
 
-          <div
-            v-else-if="filteredGuests.length === 0"
-            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-14 text-center shadow-xs"
-          >
+          <div v-else-if="filteredGuests.length === 0"
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-14 text-center shadow-xs">
             <UIcon name="i-lucide-search-x" class="size-8 text-muted mb-2" />
             <p class="text-sm font-medium text-highlighted">No responses match your search or filter</p>
-            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-yellow-700" @click="clearFilters">
+            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-jam-700"
+              @click="clearFilters">
               Clear filters
             </UButton>
           </div>
 
           <div v-else class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div
-                v-for="guest in paginatedGuests"
-                :key="guest._id"
-                class="rounded-xl border border-bread-200/80 bg-white p-4 shadow-xs space-y-3"
-              >
+              <div v-for="guest in paginatedGuests" :key="guest._id"
+                class="rounded-xl border border-bread-200/80 bg-white p-4 shadow-xs space-y-3">
                 <div class="flex flex-wrap items-start justify-between gap-2 border-b border-bread-100 pb-2.5">
                   <div>
                     <h4 class="font-bold text-highlighted text-sm">{{ formatGuestName(guestDisplayName(guest)) }}</h4>
@@ -752,10 +674,9 @@ watch(gatheringId, () => {
                   <div class="flex flex-col items-end gap-1">
                     <UBadge
                       :color="guest.rsvpStatus === 'GOING' ? 'success' : guest.rsvpStatus === 'NOT_GOING' ? 'error' : 'warning'"
-                      variant="subtle"
-                      size="xs"
-                    >
-                      {{ guest.rsvpStatus === 'GOING' ? 'Attending' : guest.rsvpStatus === 'NOT_GOING' ? 'Not Attending' : 'Pending' }}
+                      variant="subtle" size="xs">
+                      {{ guest.rsvpStatus === 'GOING' ? 'Attending' : guest.rsvpStatus === 'NOT_GOING' ? 'Not Attending'
+                        : 'Pending' }}
                     </UBadge>
                     <span v-if="guest.inviteSentAt" class="text-[10px] text-muted">
                       Invited {{ formatRsvpDate(guest.inviteSentAt) }}
@@ -764,14 +685,12 @@ watch(gatheringId, () => {
                 </div>
 
                 <div v-if="guest.answers && guest.answers.length" class="space-y-2">
-                  <div
-                    v-for="(answer, aIdx) in guest.answers"
-                    :key="`${guest._id}-${aIdx}`"
-                    class="rounded-lg bg-bread-50/50 p-2.5 text-xs space-y-0.5 border border-bread-100"
-                  >
+                  <div v-for="(answer, aIdx) in guest.answers" :key="`${guest._id}-${aIdx}`"
+                    class="rounded-lg bg-bread-50/50 p-2.5 text-xs space-y-0.5 border border-bread-100">
                     <div class="flex items-center justify-between gap-1">
                       <span class="font-semibold text-highlighted">{{ answer.question }}</span>
-                      <UBadge v-if="isRetiredQuestion(answer.question, questions)" color="warning" variant="subtle" size="2xs">
+                      <UBadge v-if="isRetiredQuestion(answer.question, questions)" color="warning" variant="subtle"
+                        size="xs">
                         Previous question
                       </UBadge>
                     </div>
@@ -795,40 +714,25 @@ watch(gatheringId, () => {
     </main>
 
     <!-- Fullscreen Questions Modal -->
-    <UModal
-      v-model:open="isQuestionsModalOpen"
-      :dismissible="false"
-      fullscreen
-      :ui="{
-        header: 'bg-jam-400 border-none',
-        title: 'text-white font-serif text-xl',
-        content: 'border-none ring-transparent',
-      }"
-    >
+    <UModal v-model:open="isQuestionsModalOpen" :dismissible="false" fullscreen :ui="{
+      header: 'bg-jam-400 border-none',
+      title: 'text-white font-serif text-xl',
+      content: 'border-none ring-transparent',
+    }">
       <template #header>
         <div class="flex items-center justify-between w-full gap-4">
           <h3 class="text-white font-serif text-xl font-semibold truncate">
             RSVP Questions
           </h3>
           <div class="flex items-center gap-2 shrink-0">
-            <UButton
-              :icon="questionsMode === 'edit' ? 'i-lucide-eye' : 'i-lucide-pencil'"
-              :label="questionsMode === 'edit' ? 'Preview' : 'Back to Edit'"
-              size="sm"
-              color="jam"
-              variant="solid"
-              class="bg-jam-800 hover:bg-jam-900 active:bg-jam-950 text-white font-semibold shadow-xs border border-jam-900/30 cursor-pointer"
+            <UButton :icon="questionsMode === 'edit' ? 'i-lucide-eye' : 'i-lucide-pencil'"
+              :label="questionsMode === 'edit' ? 'Preview' : 'Back to Edit'" size="sm" color="jam" variant="solid"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-semibold shadow-xs border border-jam-900/30 cursor-pointer"
               :disabled="isSubmittingQuestions"
-              @click="() => { questionsMode = questionsMode === 'edit' ? 'preview' : 'edit' }"
-            />
-            <UButton
-              icon="i-lucide-x"
-              variant="ghost"
-              color="neutral"
-              class="text-white hover:bg-white/15 cursor-pointer"
-              :disabled="isSubmittingQuestions"
-              @click="() => { isQuestionsModalOpen = false }"
-            />
+              @click="() => { questionsMode = questionsMode === 'edit' ? 'preview' : 'edit' }" />
+            <UButton icon="i-lucide-x" variant="ghost" color="neutral"
+              class="text-white hover:bg-white/15 cursor-pointer" :disabled="isSubmittingQuestions"
+              @click="() => { isQuestionsModalOpen = false }" />
           </div>
         </div>
       </template>
@@ -842,120 +746,73 @@ watch(gatheringId, () => {
                 <h4 class="font-semibold text-highlighted">Questions for Guests</h4>
                 <p class="text-xs text-muted">These questions will appear on the RSVP form when guests respond.</p>
               </div>
-              <UButton icon="i-lucide-plus" color="yellow" size="sm" class="cursor-pointer" @click="addDraftQuestion">
+              <UButton icon="i-lucide-plus" color="jam" size="sm" class="cursor-pointer" @click="addDraftQuestion">
                 Add Question
               </UButton>
             </div>
 
-            <div
-              v-if="!draftQuestions.length"
-              class="rounded-2xl border-2 border-dashed border-jam-300/70 bg-jam-50/50 p-8 text-center space-y-2"
-            >
+            <div v-if="!draftQuestions.length"
+              class="rounded-2xl border-2 border-dashed border-jam-300/70 bg-jam-50/50 p-8 text-center space-y-2">
               <div class="size-10 rounded-full bg-jam-100 flex items-center justify-center text-jam-600 mx-auto mb-2">
                 <UIcon name="i-lucide-help-circle" class="size-5" />
               </div>
               <p class="text-sm font-semibold text-jam-900">No questions configured</p>
-              <p class="text-xs text-jam-600 max-w-sm mx-auto">Click "Add Question" to start building your custom RSVP questionnaire.</p>
+              <p class="text-xs text-jam-600 max-w-sm mx-auto">Click "Add Question" to start building your custom RSVP
+                questionnaire.</p>
             </div>
 
             <div v-else class="space-y-4">
-              <div
-                v-for="(draft, index) in draftQuestions"
-                :key="draft.id"
-                class="rounded-2xl border-2 border-jam-200/90 bg-jam-50/70 p-4 sm:p-5 shadow-xs space-y-3.5 transition-all hover:border-jam-300 hover:shadow-sm"
-              >
+              <div v-for="(draft, index) in draftQuestions" :key="draft.id"
+                class="rounded-2xl border-2 border-jam-200/90 bg-jam-50/70 p-4 sm:p-5 shadow-xs space-y-3.5 transition-all hover:border-jam-300 hover:shadow-sm">
                 <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-jam-200/70">
                   <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-jam-200/80 text-jam-900 border border-jam-300/60 shadow-2xs">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-jam-200/80 text-jam-900 border border-jam-300/60 shadow-2xs">
                       Question #{{ index + 1 }}
                     </span>
                   </div>
-                  <UButton
-                    icon="i-lucide-trash-2"
-                    color="error"
-                    variant="ghost"
-                    size="xs"
-                    class="cursor-pointer hover:bg-rose-50"
-                    title="Delete question"
-                    @click="removeDraftQuestion(index)"
-                  />
+                  <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs"
+                    class="cursor-pointer hover:bg-rose-50" title="Delete question"
+                    @click="removeDraftQuestion(index)" />
                 </div>
 
                 <UFormField label="Question Prompt" required class="font-sans">
-                  <UInput
-                    v-model="draft.question"
-                    placeholder="e.g. Do you have any dietary restrictions?"
-                    class="w-full bg-white rounded-lg shadow-2xs"
-                  />
+                  <UInput v-model="draft.question" placeholder="e.g. Do you have any dietary restrictions?"
+                    class="w-full bg-white rounded-lg shadow-2xs" />
                 </UFormField>
 
                 <UFormField label="Answer Type" class="font-sans">
-                  <USelect
-                    v-model="draft.type"
-                    :items="QUESTION_TYPES"
-                    value-key="value"
-                    label-key="label"
-                    class="w-full bg-white rounded-lg shadow-2xs"
-                    @update:model-value="onQuestionTypeChange(draft)"
-                  />
+                  <USelect v-model="draft.type" :items="QUESTION_TYPES" value-key="value" label-key="label"
+                    class="w-full bg-white rounded-lg shadow-2xs" @update:model-value="onQuestionTypeChange(draft)" />
                 </UFormField>
 
                 <!-- Options list for Multiple Choice -->
                 <div v-if="draft.type === 'OPTIONS'" class="space-y-2.5 pt-2.5 border-t border-jam-200/70">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-jam-900 font-sans">Choices</span>
-                    <UButton
-                      icon="i-lucide-plus"
-                      color="yellow"
-                      variant="ghost"
-                      size="xs"
-                      class="cursor-pointer text-yellow-800 hover:text-yellow-900 hover:bg-yellow-50 font-semibold"
-                      @click="addOption(index)"
-                    >
+                    <UButton icon="i-lucide-plus" color="jam" variant="ghost" size="xs"
+                      class="cursor-pointer text-jam-700 hover:text-jam-800 hover:bg-jam-50 font-semibold"
+                      @click="addOption(index)">
                       Add Option
                     </UButton>
                   </div>
-                  <div
-                    v-for="(opt, oIdx) in draft.options"
-                    :key="oIdx"
-                    class="flex items-center gap-2"
-                  >
-                    <UInput
-                      v-model="draft.options[oIdx]"
-                      placeholder="e.g. Vegetarian"
-                      class="flex-1 bg-white rounded-lg shadow-2xs"
-                      size="sm"
-                    />
-                    <UButton
-                      icon="i-lucide-x"
-                      color="neutral"
-                      variant="ghost"
-                      size="xs"
-                      class="cursor-pointer hover:bg-jam-200/60"
-                      @click="removeOption(index, oIdx)"
-                    />
+                  <div v-for="(opt, oIdx) in draft.options" :key="oIdx" class="flex items-center gap-2">
+                    <UInput v-model="draft.options[oIdx]" placeholder="e.g. Vegetarian"
+                      class="flex-1 bg-white rounded-lg shadow-2xs" size="sm" />
+                    <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs"
+                      class="cursor-pointer hover:bg-jam-200/60" @click="removeOption(index, oIdx)" />
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-bread-200/80">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                :disabled="isSubmittingQuestions"
-                @click="isQuestionsModalOpen = false"
-              >
+              <UButton color="neutral" variant="ghost" size="sm" :disabled="isSubmittingQuestions"
+                @click="isQuestionsModalOpen = false">
                 Cancel
               </UButton>
-              <UButton
-                color="yellow"
-                size="sm"
-                :loading="isSubmittingQuestions"
-                class="cursor-pointer font-semibold"
-                @click="handleSaveQuestions"
-              >
+              <UButton color="jam" size="sm" :loading="isSubmittingQuestions" class="cursor-pointer font-semibold"
+                @click="handleSaveQuestions">
                 Save Questions
               </UButton>
             </div>
@@ -978,8 +835,10 @@ watch(gatheringId, () => {
                   <label class="block text-xs font-semibold text-jam-900">
                     {{ idx + 1 }}. {{ draft.question || '(Untitled Question)' }}
                   </label>
-                  <UInput v-if="draft.type === 'TEXT'" placeholder="Guest types their answer here..." class="w-full" disabled />
-                  <div v-else-if="draft.type === 'YES/NO'" class="flex items-center gap-4 text-xs font-medium text-jam-700">
+                  <UInput v-if="draft.type === 'TEXT'" placeholder="Guest types their answer here..." class="w-full"
+                    disabled />
+                  <div v-else-if="draft.type === 'YES/NO'"
+                    class="flex items-center gap-4 text-xs font-medium text-jam-700">
                     <label class="flex items-center gap-1.5"><input type="radio" disabled checked /> Yes</label>
                     <label class="flex items-center gap-1.5"><input type="radio" disabled /> No</label>
                   </div>

@@ -13,10 +13,12 @@ import {
     validateWebsiteEditorForSave,
 } from '~/utils/customSiteForm'
 import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
+import { useEventPlaylists } from '~/composables/useEventPlaylists'
 import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
 import { usePlaces, type GeocodeResult, type PlaceSearchResult } from '~/composables/usePlaces'
 import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
+import type { PlaylistRecord } from '~/types/playlist'
 import type { GalleryLayout, GalleryPhoto, GalleryRecord } from '~/types/gallery'
 import {
     colorPalettes,
@@ -61,12 +63,20 @@ const {
 const { fetchGuestRolesByEvent } = useGuestRoles()
 const { fetchGuestsByEvent } = useGuests()
 const { fetchDressCode, getLocalDressCode } = useDressCode()
+const { fetchPlaylists, getLocalPlaylists } = useEventPlaylists()
 const { searchHotels, geocode: geocodePlace } = usePlaces()
 
 const publishedDressCode = ref<DressCodeRecord | null>(null)
 const isDressCodeLoading = ref(false)
 const selectedDressCodeLightboxImage = ref<UploadedDressCodeImage | null>(null)
 const isDressCodeLightboxOpen = ref(false)
+
+const publishedPlaylists = ref<PlaylistRecord[]>([])
+const isPlaylistsLoading = ref(false)
+
+const websitePlaylists = computed(() => {
+    return publishedPlaylists.value.filter(p => p.displayInWebsite !== false)
+})
 
 async function loadPublishedDressCode() {
     const targetId = eventId.value || 'mock'
@@ -100,6 +110,38 @@ function refreshPublishedDressCode() {
     loadPublishedDressCode()
 }
 
+async function loadPublishedPlaylists() {
+    const targetId = eventId.value || 'mock'
+    isPlaylistsLoading.value = true
+    try {
+        const res = await fetchPlaylists(targetId)
+        if (res?.playlists) {
+            publishedPlaylists.value = res.playlists
+        }
+    } catch (err) {
+        console.warn('[WebsiteMaker] Failed to fetch published playlists', err)
+    } finally {
+        if (!publishedPlaylists.value || publishedPlaylists.value.length === 0) {
+            publishedPlaylists.value = getLocalPlaylists(targetId)
+        }
+        isPlaylistsLoading.value = false
+    }
+}
+
+function refreshPublishedPlaylists() {
+    const targetId = eventId.value || 'mock'
+    const latest = getLocalPlaylists(targetId)
+    if (latest && latest.length > 0) {
+        publishedPlaylists.value = latest
+        toast.add({
+            title: 'Playlists Synced',
+            description: `Refreshed with ${latest.length} playlist${latest.length === 1 ? '' : 's'}.`,
+            color: 'lime',
+        })
+    }
+    loadPublishedPlaylists()
+}
+
 function copyHexToClipboard(hex: string) {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
         navigator.clipboard.writeText(hex)
@@ -113,9 +155,13 @@ function copyHexToClipboard(hex: string) {
 
 function onWindowFocus() {
     if (eventId.value) {
-        const latest = getLocalDressCode(eventId.value)
-        if (latest && JSON.stringify(latest) !== JSON.stringify(publishedDressCode.value)) {
-            publishedDressCode.value = latest
+        const latestDressCode = getLocalDressCode(eventId.value)
+        if (latestDressCode && JSON.stringify(latestDressCode) !== JSON.stringify(publishedDressCode.value)) {
+            publishedDressCode.value = latestDressCode
+        }
+        const latestPlaylists = getLocalPlaylists(eventId.value)
+        if (latestPlaylists && JSON.stringify(latestPlaylists) !== JSON.stringify(publishedPlaylists.value)) {
+            publishedPlaylists.value = latestPlaylists
         }
     }
 }
@@ -690,7 +736,7 @@ const availableComponents = [
     { id: 'wedding-party', name: 'Wedding Party', icon: 'i-lucide-users', description: 'Introduce your bridesmaids and groomsmen.' },
     { id: 'q-and-a', name: 'Q&A', icon: 'i-lucide-help-circle', description: 'Answer common questions from your guests.' },
     { id: 'gifts', name: 'Gifts', icon: 'i-lucide-gift', description: 'Share your wishlist and payment QR codes. Your account name and number will be visible on your website.' },
-    { id: 'diy', name: 'DIY Component', icon: 'i-lucide-plus-square', description: 'Create your own custom component.' }
+    { id: 'playlist', name: 'Playlists', icon: 'i-lucide-music', description: 'Share your event soundtracks and Spotify playlists.' }
 ]
 
 const offeredComponents = computed(() =>
@@ -775,15 +821,6 @@ function onComponentDragEnd() {
 }
 
 function getComponentMeta(compId: string) {
-    if (compId === 'diy') {
-        const firstDiy = diyComponents.value[0]
-        return {
-            id: 'diy',
-            name: firstDiy?.name || 'DIY Component',
-            icon: 'i-lucide-plus-square',
-            description: firstDiy?.header || 'Create your own custom component.'
-        }
-    }
     return availableComponents.find(c => c.id === compId) || {
         id: compId,
         name: compId,
@@ -813,7 +850,7 @@ watch(() => selectedComponents.value.includes('gifts'), (enabled) => {
     if (enabled) loadGiftRegistry()
 }, { immediate: true })
 const displayComponents = computed(() => {
-    return selectedComponents.value.filter(id => id !== 'diy' && id !== 'rsvp')
+    return selectedComponents.value.filter(id => id !== 'rsvp')
 })
 
 const toggleComponent = (id: string) => {
@@ -821,19 +858,6 @@ const toggleComponent = (id: string) => {
         selectedComponents.value = selectedComponents.value.filter(c => c !== id)
     } else {
         selectedComponents.value.push(id)
-    }
-
-    // Special handling for the DIY component toggle
-    if (id === 'diy') {
-        if (selectedComponents.value.includes('diy')) {
-            // If no DIY components exist, add the first one.
-            if (diyComponents.value.length === 0) {
-                const newId = `diy-${Date.now()}`;
-                diyComponents.value.push({ id: newId, name: 'Custom', header: 'Custom Header', description: 'Custom description.' });
-            }
-        } else {
-            diyComponents.value = [];
-        }
     }
 }
 
@@ -862,7 +886,7 @@ const getStepShortName = (step: StepDef) => {
         'wedding-party': 'Party',
         'q-and-a': 'Q&A',
         'gifts': 'Gifts',
-        'diy-config': 'DIY',
+        'playlist': 'Playlists',
         'thank-you': 'Closing',
         'review-publish': 'Review'
     };
@@ -893,23 +917,14 @@ const websiteSteps = computed(() => {
     const dynamicSteps: StepDef[] = [];
     for (const compId of selectedComponents.value) {
         if (compId === 'rsvp') continue;
-        if (compId === 'diy') {
+        const compDef = availableComponents.find(c => c.id === compId);
+        if (compDef) {
             dynamicSteps.push({
-                id: 'diy-config',
-                icon: 'i-lucide-settings-2',
-                description: "Configure your custom component.",
-                name: "DIY Component"
+                id: compId,
+                icon: compDef.icon,
+                description: `Configure your ${compDef.name} component.`,
+                name: compDef.name
             });
-        } else {
-            const compDef = availableComponents.find(c => c.id === compId);
-            if (compDef) {
-                dynamicSteps.push({
-                    id: compId,
-                    icon: compDef.icon,
-                    description: `Configure your ${compDef.name} component.`,
-                    name: compDef.name
-                });
-            }
         }
     }
 
@@ -929,16 +944,7 @@ const websiteSteps = computed(() => {
 const currentStepData = computed(() => websiteSteps.value[currentStep.value]);
 
 const optionalBlockStepIds = computed(() => {
-    const list: string[] = []
-    for (const compId of selectedComponents.value) {
-        if (compId === 'rsvp') continue
-        if (compId === 'diy') {
-            list.push('diy-config')
-        } else {
-            list.push(compId)
-        }
-    }
-    return list
+    return selectedComponents.value.filter(id => id !== 'rsvp')
 })
 
 const optionalBlockSteps = computed(() => {
@@ -985,18 +991,9 @@ const headerLinks = computed(() => {
 
     for (const id of selectedComponents.value) {
         if (id === 'rsvp') continue;
-        if (id === 'diy') {
-            for (const diy of diyComponents.value) {
-                middleLinks.push({
-                    id: `diy-${diy.id}`,
-                    name: diy.name || 'Custom'
-                });
-            }
-        } else {
-            const compDef = availableComponents.find(c => c.id === id);
-            if (compDef) {
-                middleLinks.push({ id: compDef.id, name: compDef.name });
-            }
+        const compDef = availableComponents.find(c => c.id === id);
+        if (compDef) {
+            middleLinks.push({ id: compDef.id, name: compDef.name });
         }
     }
 
@@ -1011,21 +1008,12 @@ const headerDropdownItems = computed(() => {
 
     for (const id of selectedComponents.value) {
         if (id === 'rsvp') continue
-        if (id === 'diy') {
-            for (const diy of diyComponents.value) {
-                middleItems.push({
-                    label: diy.name || 'Custom',
-                    onSelect: () => handleHeaderLinkClick(`diy-${diy.id}`)
-                })
-            }
-        } else {
-            const compDef = availableComponents.find(c => c.id === id)
-            if (compDef) {
-                middleItems.push({
-                    label: compDef.name,
-                    onSelect: () => handleHeaderLinkClick(compDef.id)
-                })
-            }
+        const compDef = availableComponents.find(c => c.id === id)
+        if (compDef) {
+            middleItems.push({
+                label: compDef.name,
+                onSelect: () => handleHeaderLinkClick(compDef.id)
+            })
         }
     }
 
@@ -1103,14 +1091,9 @@ function syncLivePreviewForStep(stepId: string | undefined) {
         } else if (stepId === 'arrange-components') {
             const firstComp = selectedComponents.value.find(id => id !== 'rsvp')
             if (firstComp) {
-                activeComponentId.value = firstComp === 'diy' ? (diyComponents.value[0] ? `diy-${diyComponents.value[0].id}` : 'about-us') : firstComp
+                activeComponentId.value = firstComp
             } else {
                 activeComponentId.value = 'about-us'
-            }
-        } else if (stepId === 'diy-config') {
-            const firstDiy = diyComponents.value[0]
-            if (firstDiy) {
-                activeComponentId.value = `diy-${firstDiy.id}`
             }
         } else if (stepId === 'thank-you') {
             activeComponentId.value = 'about-us'
@@ -1136,7 +1119,7 @@ function syncLivePreviewForStep(stepId: string | undefined) {
             if (stepId === 'arrange-components') {
                 const firstComp = selectedComponents.value.find(id => id !== 'rsvp')
                 if (firstComp) {
-                    const targetId = firstComp === 'diy' ? `preview-section-diy-${diyComponents.value[0]?.id}` : `preview-section-${firstComp}`
+                    const targetId = `preview-section-${firstComp}`
                     const el = document.getElementById(targetId)
                     if (el) {
                         scrollPreviewToElement(el, 0)
@@ -1181,16 +1164,7 @@ function syncLivePreviewForStep(stepId: string | undefined) {
                 }
             }
 
-            if (stepId === 'diy-config') {
-                const diyFirstId = diyComponents.value[0]?.id
-                const diyEl = diyFirstId ? document.getElementById(`preview-section-diy-${diyFirstId}`) : null
-                if (diyEl) {
-                    scrollPreviewToElement(diyEl, 0)
-                    return
-                }
-            }
-
-            // Dynamic components (dress-code, gallery, schedule, q-and-a, where-to-stay, travel, gifts, wedding-party)
+            // Dynamic components (dress-code, gallery, schedule, q-and-a, where-to-stay, travel, gifts, wedding-party, playlist)
             const compEl = document.getElementById(`preview-section-${stepId}`)
             if (compEl) {
                 scrollPreviewToElement(compEl, 0)
@@ -1272,6 +1246,9 @@ const scheduleDescription = ref('')
 
 const giftsTitle = ref('Gifts & Registry')
 const giftsDescription = ref('')
+
+const playlistTitle = ref('Soundtrack & Playlists')
+const playlistDescription = ref('Listen to our curated playlists and favorite tunes for the celebration.')
 
 // Accordion states for Q&A, Schedule, and Gifts in sidebar editor
 // Supports 'header' for Section Details (title & description), or item ID (number)
@@ -2223,6 +2200,8 @@ async function loadCustomSite() {
                         scheduleDescription,
                         giftsTitle,
                         giftsDescription,
+                        playlistTitle,
+                        playlistDescription,
                         scheduleItems,
                         selectedComponents,
                         diyComponents,
@@ -2259,7 +2238,7 @@ const { finishPageTransition } = usePageTransition()
 
 onMounted(async () => {
     try {
-        await Promise.all([loadEventContext(), loadCustomSite(), loadPublishedDressCode()])
+        await Promise.all([loadEventContext(), loadCustomSite(), loadPublishedDressCode(), loadPublishedPlaylists()])
         seedWebsiteDefaultsFromEvent()
     } finally {
         await nextTick()
@@ -2339,6 +2318,8 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
             scheduleDescription: scheduleDescription.value,
             giftsTitle: giftsTitle.value,
             giftsDescription: giftsDescription.value,
+            playlistTitle: playlistTitle.value,
+            playlistDescription: playlistDescription.value,
             scheduleItems: scheduleItems.value,
             selectedComponents: selectedComponents.value,
             selectedPalette: selectedPalette.value.colors,
@@ -3240,9 +3221,6 @@ function togglePreview() {
                                                     <span class="font-bold text-sm text-toast-900 group-hover:text-blue-700 transition-colors truncate">
                                                         {{ getComponentMeta(compId).name }}
                                                     </span>
-                                                    <span v-if="compId === 'diy'" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                                                        Custom
-                                                    </span>
                                                 </div>
                                                 <p class="text-xs text-toast-500 line-clamp-1 mt-0.5">
                                                     {{ getComponentMeta(compId).description }}
@@ -4014,26 +3992,117 @@ function togglePreview() {
                                 </div>
                             </div>
 
-                            <!-- Dynamic Step: DIY Component Config -->
-                            <div v-if="currentStepData?.id === 'diy-config'" class="flex flex-col gap-6">
-                                <div class="items-center space-y-4">
-                                    <div v-if="diyComponents.length === 0" class="text-center text-toast-500 italic">
-                                        No DIY components added.
+                            <!-- Dynamic Step: Playlists Config -->
+                            <div v-if="currentStepData?.id === 'playlist'" class="flex flex-col gap-5">
+                                <!-- Live Sync Status & CTA Banner -->
+                                <div class="p-5 rounded-2xl border border-lime-300 bg-lime-50/80 space-y-4">
+                                    <!-- Header: Live Pulse + Title -->
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="relative flex h-2.5 w-2.5 shrink-0">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-lime-600"></span>
+                                        </span>
+                                        <span class="text-xs font-bold text-lime-950 uppercase tracking-wide">
+                                            Live Synced with Playlists
+                                        </span>
                                     </div>
-                                    <div v-for="diy in diyComponents" :key="diy.id"
-                                        class="flex flex-col gap-2 border border-toast-100 p-3 rounded-lg">
-                                        <UFormField label="Component Name (for header link)">
-                                            <UInput v-model="diy.name" placeholder="e.g., Our Story" class="w-full" />
-                                        </UFormField>
-                                        <UFormField label="Header">
-                                            <UInput v-model="diy.header" placeholder="Enter a header" class="w-full" />
-                                        </UFormField>
-                                        <UFormField label="Description">
-                                            <UTextarea v-model="diy.description"
-                                                placeholder="Enter your content for this section." class="w-full" />
-                                        </UFormField>
+
+                                    <!-- Call to Action Content -->
+                                    <p class="text-xs text-lime-800 leading-relaxed">
+                                        Manage your Spotify soundtracks, playlist links, and descriptions in the Playlists Dashboard. All changes reflect live on your event website.
+                                    </p>
+
+                                    <!-- Bottom Action Buttons (Both Block) -->
+                                    <div class="pt-2 space-y-2 border-t border-lime-200">
+                                        <UButton
+                                            :to="'/event/playlists' + (eventId ? '?eventId=' + eventId : '')"
+                                            target="_blank"
+                                            icon="i-lucide-external-link"
+                                            size="sm"
+                                            color="lime"
+                                            variant="solid"
+                                            block
+                                            class="cursor-pointer justify-center font-semibold shadow-xs">
+                                            Open Playlists Dashboard
+                                        </UButton>
+
+                                        <UButton
+                                            size="sm"
+                                            color="lime"
+                                            variant="outline"
+                                            icon="i-lucide-refresh-cw"
+                                            :loading="isPlaylistsLoading"
+                                            block
+                                            class="cursor-pointer justify-center"
+                                            @click="refreshPublishedPlaylists">
+                                            Sync Now
+                                        </UButton>
                                     </div>
-                                    <!-- Note: Currently only one DIY component is supported. UI can be extended for more. -->
+                                </div>
+
+                                <!-- Section Details (Title & Description) -->
+                                <div class="space-y-4">
+                                    <UFormField label="Section Title">
+                                        <UInput v-model="playlistTitle" placeholder="e.g., Soundtrack & Playlists" class="w-full" />
+                                    </UFormField>
+
+                                    <UFormField label="Section Description">
+                                        <UTextarea v-model="playlistDescription" placeholder="Write a short intro to your event soundtrack." class="w-full" />
+                                    </UFormField>
+                                </div>
+
+                                <!-- Synced Playlists Summary -->
+                                <div class="space-y-2.5 pt-2 border-t border-toast-100">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-toast-700">
+                                        <span>Website Playlists ({{ websitePlaylists.length }} of {{ publishedPlaylists.length }})</span>
+                                        <span v-if="websitePlaylists.length > 0" class="text-lime-700 font-medium">Ready</span>
+                                        <span v-else-if="publishedPlaylists.length > 0" class="text-amber-600 font-medium text-[11px]">All Hidden</span>
+                                    </div>
+
+                                    <div v-if="publishedPlaylists.length === 0" class="p-4 rounded-xl bg-toast-50 border border-toast-200 text-center text-xs text-toast-500 space-y-2">
+                                        <UIcon name="i-lucide-music" class="w-6 h-6 mx-auto text-toast-400" />
+                                        <p>No playlists added yet.</p>
+                                        <UButton
+                                            :to="'/event/playlists' + (eventId ? '?eventId=' + eventId : '')"
+                                            target="_blank"
+                                            size="xs"
+                                            color="lime"
+                                            variant="subtle">
+                                            Add Playlists
+                                        </UButton>
+                                    </div>
+
+                                    <div v-else class="space-y-2">
+                                        <div v-for="playlist in publishedPlaylists" :key="playlist._id"
+                                            class="p-3 rounded-xl border border-toast-200 bg-white flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                                :class="playlist.displayInWebsite !== false ? 'bg-lime-100 text-lime-700' : 'bg-toast-100 text-toast-400'">
+                                                <UIcon name="i-lucide-music" class="w-4 h-4" />
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <p class="text-xs font-bold text-toast-900 truncate">{{ playlist.label }}</p>
+                                                    <UBadge
+                                                        v-if="playlist.displayInWebsite !== false"
+                                                        size="xs"
+                                                        color="lime"
+                                                        variant="subtle"
+                                                        class="text-[10px] py-0 px-1">
+                                                        Website
+                                                    </UBadge>
+                                                    <UBadge
+                                                        v-else
+                                                        size="xs"
+                                                        color="neutral"
+                                                        variant="subtle"
+                                                        class="text-[10px] py-0 px-1 opacity-70">
+                                                        Hidden
+                                                    </UBadge>
+                                                </div>
+                                                <p v-if="playlist.description" class="text-[11px] text-toast-500 truncate">{{ playlist.description }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4958,7 +5027,7 @@ function togglePreview() {
                                                         class="flex-1 min-w-0 flex flex-col justify-between p-4 sm:p-5 text-left">
                                                         <div class="space-y-2.5 flex-1 pb-1">
                                                             <!-- Topmost: Whole Name of the Venue -->
-                                                            <h4 class="font-bold text-base sm:text-lg leading-snug break-words"
+                                                            <h4 class="font-bold text-base sm:text-lg leading-snug wrap-break-word"
                                                                 :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                                 {{ hotel.name || 'Accommodation' }}
                                                             </h4>
@@ -5160,32 +5229,72 @@ function togglePreview() {
                                                 </div>
                                             </div>
                                         </div>
-                                    </template>
 
-                                    <!-- DIY Component Preview: Always between the last numbered component and the thank you message -->
-                                    <template v-for="(diy, diyIndex) in diyComponents" :key="`diy-${diy.id}`">
-                                        <div v-if="websiteData.singlePageSite || activeComponentId === `diy-${diy.id}`"
-                                            :id="`preview-section-diy-${diy.id}`"
+                                        <!-- Playlists Preview -->
+                                        <div v-if="compId === 'playlist' && (websiteData.singlePageSite || activeComponentId === compId)"
+                                            id="preview-section-playlist"
                                             class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
-                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }" :style="{
-                                                backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).bg,
-                                            }">
+                                            :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
+                                            :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
-                                                <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
+                                                <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                     :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                    :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
-                                                    {{ diy.header }}
-                                                </h2>
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    {{ playlistTitle || 'Soundtrack & Playlists' }}
+                                                </div>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).heading }" />
-                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).heading }" />
-                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + diyIndex).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                    <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(index).heading }" />
+                                                </div>
+                                                <p v-if="playlistDescription?.trim()"
+                                                    class="text-sm sm:text-base leading-relaxed opacity-80"
+                                                    :style="{ color: previewDynamicStyle(index).text }">
+                                                    {{ playlistDescription }}
+                                                </p>
+                                            </div>
+
+                                            <!-- Playlists Content: Gift Registry container style (less opacity containers) -->
+                                            <div v-if="websitePlaylists.length > 0"
+                                                class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                                                <div v-for="playlist in websitePlaylists" :key="playlist._id"
+                                                    class="rounded-2xl border backdrop-blur-md shadow-xs p-5 flex flex-col gap-3 min-w-0 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+                                                    :style="{
+                                                        backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                        borderColor: previewDynamicStyle(index).text + '25',
+                                                        color: previewDynamicStyle(index).text,
+                                                    }">
+                                                    <div class="min-w-0">
+                                                        <h3 class="font-serif text-lg sm:text-xl font-bold truncate"
+                                                            :style="{ color: previewDynamicStyle(index).heading }">
+                                                            {{ playlist.label }}
+                                                        </h3>
+                                                        <p v-if="playlist.description?.trim()"
+                                                            class="text-xs sm:text-sm mt-1 whitespace-pre-wrap leading-relaxed opacity-85"
+                                                            :style="{ color: previewDynamicStyle(index).text }">
+                                                            {{ playlist.description }}
+                                                        </p>
+                                                    </div>
+                                                    <div class="w-full min-w-0 overflow-hidden rounded-xl">
+                                                        <SpotifyPlaylistEmbed :playlist-url="playlist.spotifyURL" compact />
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                                :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
-                                                :style="{ color: previewDynamicStyle(displayComponents.length + diyIndex).text }">
-                                                {{ diy.description }}
+
+                                            <!-- Fallback / Empty state in builder preview -->
+                                            <div v-else class="max-w-md mx-auto py-10 px-6 rounded-2xl border backdrop-blur-md shadow-xs text-center space-y-2"
+                                                :style="{
+                                                    backgroundColor: previewDynamicStyle(index).text + '0D',
+                                                    borderColor: previewDynamicStyle(index).text + '25',
+                                                    color: previewDynamicStyle(index).text,
+                                                }">
+                                                <UIcon name="i-lucide-music" class="size-8 mx-auto mb-2 opacity-60" :style="{ color: previewDynamicStyle(index).heading }" />
+                                                <p class="text-sm font-medium" :style="{ color: previewDynamicStyle(index).heading }">
+                                                    No playlists selected for website
+                                                </p>
+                                                <p class="text-xs opacity-75 leading-relaxed" :style="{ color: previewDynamicStyle(index).text }">
+                                                    Turn on "Display in website" on your playlists in the Playlists Dashboard to display them here.
+                                                </p>
                                             </div>
                                         </div>
                                     </template>
@@ -5195,20 +5304,20 @@ function togglePreview() {
                                         id="preview-section-rsvp"
                                         class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
-                                        :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg }">
+                                        :style="{ backgroundColor: previewDynamicStyle(displayComponents.length).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
                                             <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                :style="{ color: previewDynamicStyle(displayComponents.length).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 RSVP</div>
                                             <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
-                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
-                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).heading }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length).heading }" />
+                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length).heading }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length).heading }" />
                                             </div>
                                         </div>
                                         <div class="flex flex-col items-center gap-5 text-sm"
-                                            :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).text }">
+                                            :style="{ color: previewDynamicStyle(displayComponents.length).text }">
                                             <div v-if="websiteData.rsvpDeadlineDate"
                                                 class="font-semibold uppercase tracking-widest text-xs opacity-80">
                                                 <UIcon name="i-lucide-calendar"
@@ -5218,11 +5327,11 @@ function togglePreview() {
                                             <UButton size="lg"
                                                 class="transition-all duration-300 hover:opacity-80 shadow-md border"
                                                 :style="{
-                                                    backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).text,
-                                                    color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg,
-                                                    borderColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0)).bg === 'transparent'
-                                                        ? previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) - 1).text
-                                                        : previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) - 1).bg
+                                                    backgroundColor: previewDynamicStyle(displayComponents.length).text,
+                                                    color: previewDynamicStyle(displayComponents.length).bg,
+                                                    borderColor: previewDynamicStyle(displayComponents.length).bg === 'transparent'
+                                                        ? previewDynamicStyle(displayComponents.length - 1).text
+                                                        : previewDynamicStyle(displayComponents.length - 1).bg
                                                 }">
                                                 RSVP Here
                                             </UButton>
@@ -5234,22 +5343,22 @@ function togglePreview() {
                                         id="preview-section-thank-you"
                                         class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center paper-textured-bg"
                                         :class="{ 'min-h-[80vh]': isLive || isPreviewing }"
-                                        :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).bg }">
+                                        :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + 1).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
                                             <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
                                                 :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
-                                                :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
+                                                :style="{ color: previewDynamicStyle(displayComponents.length + 1).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                                 {{ websiteData.endingTitle }}
                                             </h2>
                                             <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading }" />
-                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading }" />
-                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).heading }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + 1).heading }" />
+                                                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + 1).heading }" />
+                                                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + 1).heading }" />
                                             </div>
                                         </div>
                                         <p class="prose max-w-none mx-auto text-center transition-all duration-300"
                                             :class="isLive || isPreviewing ? 'text-2xl' : 'text-lg'"
-                                            :style="{ color: previewDynamicStyle(displayComponents.length + (selectedComponents.includes('diy') ? diyComponents.length : 0) + 1).text }">
+                                            :style="{ color: previewDynamicStyle(displayComponents.length + 1).text }">
                                             {{ websiteData.endingMessage }}
                                         </p>
                                     </div>

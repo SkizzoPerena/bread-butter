@@ -433,6 +433,7 @@ watch(eventId, () => {
   >
     <!-- Navbar Teleport Actions -->
     <ClientOnly>
+      <!-- Desktop Navbar Actions (Right Side) -->
       <Teleport to="#navbar-actions">
         <div class="flex items-center gap-2">
           <UButton
@@ -451,17 +452,61 @@ watch(eventId, () => {
             color="teal"
             size="sm"
             :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
-            @click="isQuestionsModalOpen = true"
+            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
           >
             Edit Questions
           </UButton>
         </div>
       </Teleport>
+
+      <!-- Mobile Navbar Actions (Hamburger Menu Pop-up) -->
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            icon="i-lucide-pencil"
+            color="teal"
+            size="md"
+            block
+            class="w-full justify-center font-bold shadow-xs cursor-pointer"
+            :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
+            @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
+          >
+            Edit Questions
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            block
+            :loading="isExporting"
+            :disabled="!eventId || isExporting"
+            class="w-full justify-center cursor-pointer"
+            @click="exportEventPdf(eventId, 'rsvps')"
+          >
+            Export PDF
+          </UButton>
+          <div class="grid grid-cols-3 gap-1.5 pt-1 text-center">
+            <div class="p-2 bg-emerald-50 border border-emerald-200/60 rounded-xl">
+              <span class="text-[10px] uppercase font-bold text-emerald-700 block">Going</span>
+              <span class="text-base font-bold font-serif text-emerald-900">{{ goingCount }}</span>
+            </div>
+            <div class="p-2 bg-amber-50 border border-amber-200/60 rounded-xl">
+              <span class="text-[10px] uppercase font-bold text-amber-700 block">Pending</span>
+              <span class="text-base font-bold font-serif text-amber-900">{{ pendingCount }}</span>
+            </div>
+            <div class="p-2 bg-rose-50 border border-rose-200/60 rounded-xl">
+              <span class="text-[10px] uppercase font-bold text-rose-700 block">Declined</span>
+              <span class="text-base font-bold font-serif text-rose-900">{{ notGoingCount }}</span>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </ClientOnly>
 
-    <!-- ================= LEFT DIVISION (col-span-1): RSVP Overview & Metrics Sidebar ================= -->
+    <!-- ================= LEFT DIVISION (col-span-1): RSVP Overview & Metrics Sidebar (Hidden on Mobile) ================= -->
     <aside
-      class="col-span-1 lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6"
+      class="hidden lg:flex lg:col-span-1 w-full bg-white border-b lg:border-b-0 lg:border-r border-bread-200/80 shadow-xs flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6"
     >
       <div class="space-y-6">
         <!-- RSVP Overview -->
@@ -577,14 +622,14 @@ watch(eventId, () => {
           block
           class="w-full font-semibold shadow-xs justify-center py-2.5 transition-all hover:shadow hover:brightness-105 active:scale-[0.99] cursor-pointer"
           :disabled="isEventCancelled || (!eventId && !isUiOnlyMode)"
-          @click="() => { isQuestionsModalOpen = true }"
+          @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
         >
           Edit Questions
         </UButton>
       </div>
     </aside>
 
-    <!-- ================= RIGHT DIVISION (col-span-3): Scrollable Workspace ================= -->
+    <!-- ================= RIGHT DIVISION (col-span-3): Workspace ================= -->
     <main
       class="col-span-1 lg:col-span-3 w-full h-full lg:h-[calc(100vh-64px)] flex flex-col min-h-0 overflow-hidden bg-toast-50/30"
     >
@@ -633,7 +678,7 @@ watch(eventId, () => {
             color="neutral"
             variant="ghost"
             size="sm"
-            class="font-sans cursor-pointer text-teal-600 hover:text-teal-700 hover:bg-teal-50 shrink-0"
+            class="font-sans cursor-pointer text-teal-700 hover:text-teal-800 hover:bg-teal-50 shrink-0"
             @click="clearFilters"
           >
             Clear
@@ -664,7 +709,7 @@ watch(eventId, () => {
             v-if="!questions.length"
             class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs"
           >
-            <div class="size-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 mb-3">
+            <div class="size-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 mb-3">
               <UIcon name="i-lucide-message-square-text" class="size-6" />
             </div>
             <h3 class="text-base font-semibold text-highlighted">No questions yet</h3>
@@ -677,7 +722,7 @@ watch(eventId, () => {
               color="teal"
               icon="i-lucide-pencil"
               size="sm"
-              @click="() => { isQuestionsModalOpen = true }"
+              @click="() => { seedDraftQuestions(); isQuestionsModalOpen = true }"
             >
               Edit Questions
             </UButton>
@@ -689,7 +734,7 @@ watch(eventId, () => {
           >
             <UIcon name="i-lucide-search-x" class="size-8 text-muted mb-2" />
             <p class="text-sm font-medium text-highlighted">No questions match your search</p>
-            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-teal-600" @click="clearFilters">
+            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-teal-700" @click="clearFilters">
               Clear search
             </UButton>
           </div>
@@ -702,8 +747,8 @@ watch(eventId, () => {
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="flex items-start gap-2.5 min-w-0">
-                  <span class="font-bold text-toast-500 font-mono text-sm shrink-0">{{ index + 1 }}.</span>
-                  <p class="font-semibold text-highlighted text-sm leading-snug">{{ question.question }}</p>
+                  <span class="font-bold text-teal-600 font-mono text-sm shrink-0">{{ index + 1 }}.</span>
+                  <p class="font-semibold text-highlighted text-sm leading-snug wrap-break-word">{{ question.question }}</p>
                 </div>
                 <UBadge :color="questionTypeColor(question.type)" variant="subtle" size="xs" class="shrink-0">
                   {{ questionTypeLabel(question.type) }}
@@ -742,7 +787,7 @@ watch(eventId, () => {
             v-else-if="!paginatedRsvps.length"
             class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-bread-300 bg-white/70 px-6 py-16 text-center shadow-xs"
           >
-            <div class="size-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 mb-3">
+            <div class="size-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 mb-3">
               <UIcon name="i-lucide-inbox" class="size-6" />
             </div>
             <h3 class="text-base font-semibold text-highlighted">No RSVP responses yet</h3>
@@ -757,7 +802,7 @@ watch(eventId, () => {
           >
             <UIcon name="i-lucide-search-x" class="size-8 text-muted mb-2" />
             <p class="text-sm font-medium text-highlighted">No responses match your search or filter</p>
-            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-teal-600" @click="clearFilters">
+            <UButton color="neutral" variant="ghost" size="xs" class="mt-3 cursor-pointer text-teal-700" @click="clearFilters">
               Clear filters
             </UButton>
           </div>
@@ -770,11 +815,11 @@ watch(eventId, () => {
                 class="rounded-xl border border-bread-200/80 bg-white p-4 shadow-xs space-y-3"
               >
                 <div class="flex flex-wrap items-start justify-between gap-2 border-b border-bread-100 pb-2.5">
-                  <div>
-                    <h4 class="font-bold text-highlighted text-sm">{{ formatGuestName(rsvp.name) }}</h4>
-                    <p class="text-xs text-muted font-mono">{{ rsvp.email }}</p>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="font-bold text-highlighted text-sm wrap-break-word">{{ formatGuestName(rsvp.name) }}</h4>
+                    <p class="text-xs text-muted font-mono truncate">{{ rsvp.email }}</p>
                   </div>
-                  <div class="flex flex-col items-end gap-1">
+                  <div class="flex flex-col items-end gap-1 shrink-0">
                     <UBadge :color="mapRsvpStatusToBadgeColor(rsvp.status)" variant="subtle" size="xs">
                       {{ mapRsvpStatusToLabel(rsvp.status) }}
                     </UBadge>
@@ -838,7 +883,7 @@ watch(eventId, () => {
               size="sm"
               color="toast"
               variant="solid"
-              class="bg-toast-800 hover:bg-toast-900 active:bg-toast-950 text-white font-semibold shadow-xs border border-toast-900/30 cursor-pointer"
+              class="bg-toast-800 hover:bg-toast-900 text-white font-semibold shadow-xs border border-toast-900/30 cursor-pointer"
               :disabled="isSubmittingQuestions"
               @click="() => { questionsMode = questionsMode === 'edit' ? 'preview' : 'edit' }"
             />

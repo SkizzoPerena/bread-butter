@@ -144,6 +144,7 @@ async function payWithProof() {
         Upgrades aren't available for this plan.
         <UButton
           :to="workspacePath"
+          color="jam"
           variant="outline"
           class="mt-3 cursor-pointer"
           @click="followLink($event, workspacePath)"
@@ -197,6 +198,7 @@ async function payWithProof() {
             <UButton
               v-if="pending.paymongoCheckoutUrl"
               :to="pending.paymongoCheckoutUrl"
+              color="jam"
               external
               size="sm"
             >
@@ -232,6 +234,7 @@ async function payWithProof() {
             </div>
             <UButton
               size="sm"
+              color="jam"
               :variant="selected?._id === option._id ? 'solid' : 'outline'"
               :aria-label="`Choose ${option.name}`"
               @click="selected = option"

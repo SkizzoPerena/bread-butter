@@ -3,16 +3,22 @@ export interface PlaylistRecord {
   event: string
   label: string
   spotifyURL: string
+  description?: string
+  displayInWebsite?: boolean
 }
 
 export interface CreatePlaylistPayload {
   label: string
   spotifyURL: string
+  description?: string
+  displayInWebsite?: boolean
 }
 
 export interface UpdatePlaylistPayload {
   label: string
   spotifyURL: string
+  description?: string
+  displayInWebsite?: boolean
 }
 
 export interface PlaylistsByEventResponse {

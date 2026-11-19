@@ -143,7 +143,7 @@ async function addSelected() {
         </p>
         <UButton
           size="sm"
-          color="primary"
+          color="jam"
           icon="i-lucide-user-plus"
           :loading="saving"
           :disabled="!selected.length || overLimit"

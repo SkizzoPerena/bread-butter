@@ -104,7 +104,7 @@ async function retrySkipped() {
       </UButton>
       <UButton
         size="sm"
-        color="primary"
+        color="jam"
         icon="i-lucide-send"
         :loading="sending"
         :disabled="!preview?.canSend || checking"

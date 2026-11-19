@@ -11,10 +11,39 @@ import { actorRole, tracked } from '~/utils/analytics'
 let mockPlaylists: PlaylistRecord[] = []
 let mockEventId: string | null = null
 
+function getStorageKey(eventId: string): string {
+  return `bb_playlists_${eventId || 'mock'}`
+}
+
+export function getLocalPlaylists(eventId: string): PlaylistRecord[] {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(getStorageKey(eventId))
+      if (stored) {
+        return JSON.parse(stored) as PlaylistRecord[]
+      }
+    } catch (err) {
+      console.warn('[useEventPlaylists] Failed to parse local playlists', err)
+    }
+  }
+  return []
+}
+
+export function setLocalPlaylists(eventId: string, records: PlaylistRecord[]): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(getStorageKey(eventId), JSON.stringify(records))
+    } catch (err) {
+      console.warn('[useEventPlaylists] Failed to write local playlists', err)
+    }
+  }
+}
+
 function ensureMockPlaylists(eventId: string): PlaylistRecord[] {
   if (mockEventId !== eventId) {
     mockEventId = eventId
-    mockPlaylists = []
+    const local = getLocalPlaylists(eventId)
+    mockPlaylists = local
   }
   return mockPlaylists
 }
@@ -29,8 +58,13 @@ export function useEventPlaylists() {
     isLoading.value = true
     try {
       return await executeAction({
-        api: () =>
-          apiRequest<PlaylistsByEventResponse>(`/user/playlists/${eventId}`),
+        api: async () => {
+          const res = await apiRequest<PlaylistsByEventResponse>(`/user/playlists/${eventId}`)
+          if (res?.playlists) {
+            setLocalPlaylists(eventId, res.playlists)
+          }
+          return res
+        },
         uiOnly: () => ({
           success: true,
           status: 200,
@@ -57,8 +91,11 @@ export function useEventPlaylists() {
             event: eventId,
             label: payload.label.trim(),
             spotifyURL: payload.spotifyURL.trim(),
+            description: payload.description?.trim() || undefined,
+            displayInWebsite: payload.displayInWebsite ?? true,
           }
           mockPlaylists.push(playlist)
+          setLocalPlaylists(eventId, mockPlaylists)
           return {
             success: true,
             status: 201,
@@ -91,8 +128,13 @@ export function useEventPlaylists() {
             ...current,
             label: payload.label.trim(),
             spotifyURL: payload.spotifyURL.trim(),
+            description: payload.description?.trim() || undefined,
+            displayInWebsite: payload.displayInWebsite !== undefined ? payload.displayInWebsite : (current.displayInWebsite ?? true),
           }
           mockPlaylists[index] = updated
+          if (mockEventId) {
+            setLocalPlaylists(mockEventId, mockPlaylists)
+          }
           return {
             success: true,
             status: 200,
@@ -116,6 +158,9 @@ export function useEventPlaylists() {
           }),
         uiOnly: () => {
           mockPlaylists = mockPlaylists.filter((item) => item._id !== playlistId)
+          if (mockEventId) {
+            setLocalPlaylists(mockEventId, mockPlaylists)
+          }
           return {
             success: true,
             status: 200,
@@ -135,5 +180,7 @@ export function useEventPlaylists() {
     createPlaylist,
     updatePlaylist,
     deletePlaylist,
+    getLocalPlaylists,
+    setLocalPlaylists,
   }
 }

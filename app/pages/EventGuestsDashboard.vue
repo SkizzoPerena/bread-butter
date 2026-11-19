@@ -310,6 +310,29 @@ const tabButtons = computed(() => [
   },
 ])
 
+const mobileTabItems = [
+  {
+    label: 'Guest List',
+    value: 'guest-list',
+    icon: 'i-lucide-users',
+  },
+  {
+    label: 'Groups',
+    value: 'groups',
+    icon: 'i-lucide-users-round',
+  },
+  {
+    label: 'Roles',
+    value: 'roles',
+    icon: 'i-lucide-theater',
+  },
+  {
+    label: 'Tables',
+    value: 'tables',
+    icon: 'i-lucide-layout-grid',
+  },
+]
+
 const isRolesTabEmpty = computed(
   () => rolesBySection.value.length === 0 && !isLoadingRoles.value
 )
@@ -361,6 +384,36 @@ const emailCreditsLink = computed(() => {
   }
 })
 
+// Guest Actions Pop-up Menu Items
+function getGuestActionItems(guest: GuestTableRow) {
+  const isSending = sendingGuestId.value === guest.guestId
+
+  return [
+    [
+      {
+        label: guest.invitationSent ? 'Resend Invitation' : 'Send Invitation',
+        icon: guest.invitationSent ? 'i-lucide-mail-check' : 'i-lucide-send',
+        disabled: mutationsDisabled.value || !guest.email || Boolean(sendingGuestId.value),
+        loading: isSending,
+        onSelect: () => handleSendGuestInvite(guest.guestId),
+      },
+      {
+        label: 'Edit Guest',
+        icon: 'i-lucide-pencil',
+        disabled: mutationsDisabled.value,
+        onSelect: () => openEditGuestModal(guest),
+      },
+      {
+        label: 'Delete Guest',
+        icon: 'i-lucide-trash-2',
+        color: 'error' as const,
+        disabled: mutationsDisabled.value,
+        onSelect: () => openRemoveGuestModal(guest),
+      },
+    ],
+  ]
+}
+
 const columns: TableColumn<GuestTableRow>[] = [
   {
     id: 'select',
@@ -397,9 +450,9 @@ const columns: TableColumn<GuestTableRow>[] = [
           !== person.displayName.trim().toLowerCase()
 
       return h('div', { class: 'space-y-1' }, [
-        h('span', { class: 'font-medium text-highlighted' }, person.displayName),
+        h('span', { class: 'font-medium text-highlighted wrap-break-word' }, person.displayName),
         showEnvelope
-          ? h('p', { class: 'text-xs text-muted' }, `Envelope: ${person.envelopeName}`)
+          ? h('p', { class: 'text-xs text-muted wrap-break-word' }, `Envelope: ${person.envelopeName}`)
           : null,
         h('div', { class: 'flex flex-wrap gap-1' }, [
           person.groupName
@@ -450,61 +503,6 @@ const columns: TableColumn<GuestTableRow>[] = [
   {
     id: 'actions',
     header: '',
-    cell: ({ row }) => {
-      const person = row.original
-      const canEdit = !mutationsDisabled.value
-      const canSendInvite = canSendGuestInvite(person)
-      const canRemove = !mutationsDisabled.value
-      const isSendingThisGuest = sendingGuestId.value === person.guestId
-
-      return h('div', { class: 'flex items-center justify-end gap-1' }, [
-        canEdit
-          ? h(resolveComponent('UButton'), {
-              size: 'xs',
-              variant: 'ghost',
-              color: 'neutral',
-              icon: 'i-lucide-pencil',
-              'aria-label': 'Edit guest',
-              title: 'Edit guest',
-              onClick: () => openEditGuestModal(person),
-            })
-          : null,
-        canSendInvite
-          ? h(resolveComponent('UButton'), {
-              size: 'xs',
-              variant: 'ghost',
-              color: 'orange',
-              icon: 'i-lucide-send',
-              loading: isSendingThisGuest,
-              disabled: mutationsDisabled.value || Boolean(sendingGuestId.value),
-              'aria-label': 'Send invitation',
-              title: 'Send invitation',
-              onClick: () => handleSendGuestInvite(person.guestId),
-            })
-          : h(resolveComponent('UButton'), {
-              size: 'xs',
-              variant: 'ghost',
-              color: 'neutral',
-              icon: 'i-lucide-mail-check',
-              loading: isSendingThisGuest,
-              disabled: mutationsDisabled.value || Boolean(sendingGuestId.value),
-              'aria-label': 'Resend invitation',
-              title: 'Resend invitation',
-              onClick: () => handleSendGuestInvite(person.guestId),
-            }),
-        canRemove
-          ? h(resolveComponent('UButton'), {
-              size: 'xs',
-              variant: 'ghost',
-              color: 'error',
-              icon: 'i-lucide-trash-2',
-              loading: deletingGuestId.value === person.guestId,
-              'aria-label': 'Remove guest',
-              onClick: () => openRemoveGuestModal(person),
-            })
-          : null,
-      ])
-    },
   },
 ]
 
@@ -602,8 +600,9 @@ watch(eventId, () => {
     class="guests-page-root w-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] grid grid-cols-1 lg:grid-cols-4 lg:overflow-hidden bg-bread-50/30">
     <!-- Navbar Teleport Actions -->
     <ClientOnly>
+      <!-- Desktop Navbar Actions -->
       <Teleport to="#navbar-actions">
-        <div class="flex items-center gap-2">
+        <div class="hidden sm:flex items-center gap-2">
           <UButton
             :to="rsvpMakerLink"
             icon="i-lucide-calendar"
@@ -621,6 +620,7 @@ watch(eventId, () => {
             size="sm"
             :loading="isExporting"
             :disabled="!eventId || isExporting"
+            class="cursor-pointer font-sans"
             @click="exportEventPdf(eventId, 'guests')"
           >
             Export PDF
@@ -633,6 +633,7 @@ watch(eventId, () => {
             size="sm"
             :loading="isInvitingAll"
             :disabled="isInvitingAll"
+            class="cursor-pointer font-sans"
             @click="handleInviteAll"
           >
             Invite All
@@ -641,6 +642,7 @@ watch(eventId, () => {
             icon="i-lucide-user-plus"
             color="orange"
             size="sm"
+            class="cursor-pointer font-sans"
             :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
             @click="() => { isAddGuestModalOpen = true }"
           >
@@ -648,11 +650,89 @@ watch(eventId, () => {
           </UButton>
         </div>
       </Teleport>
+
+      <!-- Mobile Navbar Actions (Hamburger Menu Pop-up) -->
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            icon="i-lucide-user-plus"
+            color="orange"
+            size="md"
+            block
+            class="w-full justify-center font-bold shadow-xs cursor-pointer"
+            :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
+            @click="() => { isAddGuestModalOpen = true }"
+          >
+            Add New Guest
+          </UButton>
+          <UButton
+            v-if="canInviteAll"
+            icon="i-lucide-mail"
+            color="orange"
+            variant="soft"
+            size="sm"
+            block
+            :loading="isInvitingAll"
+            :disabled="isInvitingAll"
+            class="w-full justify-center cursor-pointer font-sans"
+            @click="handleInviteAll"
+          >
+            Invite All
+          </UButton>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <UButton
+              :to="bulkAddLink"
+              icon="i-lucide-users"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="w-full justify-center cursor-pointer"
+              :disabled="mutationsDisabled || (!eventId && !isUiOnlyMode)"
+            >
+              Bulk Add
+            </UButton>
+            <UButton
+              icon="i-lucide-file-down"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="w-full justify-center cursor-pointer"
+              :loading="isExporting"
+              :disabled="!eventId || isExporting"
+              @click="exportEventPdf(eventId, 'guests')"
+            >
+              Export PDF
+            </UButton>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <UButton
+              :to="rsvpMakerLink"
+              icon="i-lucide-calendar"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="w-full justify-center cursor-pointer"
+            >
+              RSVP Maker
+            </UButton>
+            <UButton
+              :to="`/event/dashboard-butter?eventId=${eventId}`"
+              icon="i-lucide-layout-dashboard"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="w-full justify-center cursor-pointer"
+            >
+              Dashboard
+            </UButton>
+          </div>
+        </div>
+      </Teleport>
     </ClientOnly>
 
-    <!-- ================= LEFT DIVISION (col-span-1): Navigation & Guest Metrics ================= -->
+    <!-- ================= LEFT DIVISION (col-span-1): Navigation & Guest Metrics (Hidden on Mobile) ================= -->
     <aside
-      class="col-span-1 lg:col-span-1 w-full bg-white border-b lg:border-b-0 shadow-xs flex flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6">
+      class="hidden lg:flex lg:col-span-1 w-full bg-white border-b lg:border-b-0 shadow-xs flex-col justify-between lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] z-20 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-6">
       <div class="space-y-6">
         <!-- 1. Guest Views (Navigation Buttons - 2x2 Grid) -->
         <div class="space-y-2">
@@ -825,46 +905,66 @@ watch(eventId, () => {
       <!-- Top Sticky Toolbar -->
       <header
         class="bg-white/95 backdrop-blur border-b border-bread-200/80 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
-        <!-- Search and Quick RSVP Filter -->
-        <div class="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
-          <UInput
-            v-model="searchQuery"
-            icon="i-lucide-search"
-            type="search"
-            placeholder="Search guests by name, email, group, role, or table..."
-            class="w-full sm:w-64 md:w-80"
+        <!-- Mobile Tab Switcher (Visible on mobile/tablet since left sidebar is hidden) -->
+        <div class="lg:hidden w-full pb-1">
+          <UTabs
+            v-model="selectedTab"
+            :items="mobileTabItems"
+            value-key="value"
+            color="orange"
+            size="xs"
+            :content="false"
+            class="w-full"
+            :ui="{ list: 'w-full' }"
           />
-
-          <!-- Quick RSVP Filter Pills (visible when on Guest List tab) -->
-          <div
-            v-if="selectedTab === 'guest-list'"
-            class="inline-flex items-center p-0.5 bg-toast-100/70 border border-bread-200/50 rounded-lg text-xs font-medium font-sans">
-            <button
-              v-for="opt in rsvpFilterOptions"
-              :key="opt.key"
-              type="button"
-              class="px-2.5 py-1 rounded-md transition-all cursor-pointer select-none inline-flex items-center gap-1.5"
-              :class="rsvpFilter === opt.key ? 'bg-white text-highlighted shadow-xs font-semibold' : 'text-muted hover:text-highlighted'"
-              @click="rsvpFilter = opt.key">
-              <span v-if="opt.key === 'ATTENDING'" class="size-1.5 rounded-full bg-emerald-500" />
-              <span v-else-if="opt.key === 'PENDING'" class="size-1.5 rounded-full bg-amber-500" />
-              <span v-else-if="opt.key === 'NOT_ATTENDING'" class="size-1.5 rounded-full bg-red-500" />
-              {{ opt.label }}
-            </button>
-          </div>
         </div>
 
-        <!-- Right Action Controls -->
-        <div v-if="hasActiveFilters" class="flex items-center gap-2 shrink-0">
-          <UButton
-            icon="i-lucide-filter-x"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="font-sans cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-            @click="clearFilters">
-            Clear filters
-          </UButton>
+        <!-- Search and Quick RSVP Filter -->
+        <div class="flex flex-col gap-2.5 flex-1 min-w-0 w-full">
+          <!-- Row 1: Search input & Clear filter button grouped on the same row -->
+          <div class="flex items-center gap-2 w-full max-w-xl">
+            <UInput
+              v-model="searchQuery"
+              icon="i-lucide-search"
+              type="search"
+              placeholder="Search guests by name, email, group, role, or table..."
+              class="flex-1 min-w-0"
+            />
+            <UButton
+              v-if="hasActiveFilters"
+              icon="i-lucide-filter-x"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="font-sans cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50 shrink-0"
+              @click="clearFilters"
+            >
+              <span class="hidden sm:inline">Clear filters</span>
+              <span class="sm:hidden">Clear</span>
+            </UButton>
+          </div>
+
+          <!-- Row 2: Quick RSVP Filter Pills on the next row below the searchbar -->
+          <div
+            v-if="selectedTab === 'guest-list'"
+            class="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1"
+          >
+            <div class="inline-flex items-center p-0.5 bg-toast-100/70 border border-bread-200/50 rounded-lg text-xs font-medium font-sans shrink-0">
+              <button
+                v-for="opt in rsvpFilterOptions"
+                :key="opt.key"
+                type="button"
+                class="px-2.5 py-1 rounded-md transition-all cursor-pointer select-none inline-flex items-center gap-1.5"
+                :class="rsvpFilter === opt.key ? 'bg-white text-highlighted shadow-xs font-semibold' : 'text-muted hover:text-highlighted'"
+                @click="rsvpFilter = opt.key"
+              >
+                <span v-if="opt.key === 'ATTENDING'" class="size-1.5 rounded-full bg-emerald-500" />
+                <span v-else-if="opt.key === 'PENDING'" class="size-1.5 rounded-full bg-amber-500" />
+                <span v-else-if="opt.key === 'NOT_ATTENDING'" class="size-1.5 rounded-full bg-red-500" />
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -970,15 +1070,182 @@ watch(eventId, () => {
             </UButton>
           </div>
 
+          <!-- Guest List Views: Dedicated Mobile Cards (md:hidden) & Desktop Table (hidden md:block) -->
           <div
             v-else
-            class="relative rounded-xl border border-bread-200/80 bg-white shadow-xs overflow-hidden"
-            :class="showGuestListActionBar ? 'pb-24' : ''"
+            class="space-y-3"
+            :class="selectedCount > 0 ? 'pb-32 md:pb-24' : ''"
           >
-            <UTable
-              :data="filteredDisplayRows"
-              :columns="columns"
-            />
+            <!-- ================= MOBILE CARD LIST (md:hidden) ================= -->
+            <div class="md:hidden space-y-2.5">
+              <!-- Mobile Select All Bar -->
+              <div class="flex items-center justify-between px-3.5 py-2.5 bg-white rounded-xl border border-bread-200/90 shadow-2xs text-xs">
+                <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-toast-900 select-none">
+                  <input
+                    type="checkbox"
+                    :checked="isAllFilteredVisibleSelected"
+                    :indeterminate="isSomeFilteredVisibleSelected && !isAllFilteredVisibleSelected"
+                    class="rounded border-toast-300 text-orange-600 focus:ring-orange-500 cursor-pointer size-4"
+                    :disabled="mutationsDisabled || filteredDisplayRows.length === 0"
+                    @change="toggleSelectAllFilteredVisible(($event.target as HTMLInputElement).checked)"
+                  />
+                  <span>Select All</span>
+                  <span class="text-muted font-normal">({{ filteredDisplayRows.length }})</span>
+                </label>
+                <span class="text-[11px] text-muted font-medium">
+                  {{ selectedCount ? `${selectedCount} checked` : `${filteredDisplayRows.length} guests` }}
+                </span>
+              </div>
+
+              <!-- Mobile Guest Cards -->
+              <div
+                v-for="guest in filteredDisplayRows"
+                :key="guest.guestId"
+                class="bg-white rounded-2xl border transition-all p-3.5 shadow-2xs relative flex items-start gap-2.5"
+                :class="selectedGuestIds.has(guest.guestId)
+                  ? 'bg-orange-50/50 border-orange-300 ring-2 ring-orange-400/40 shadow-xs'
+                  : 'border-bread-200/90 hover:border-bread-300'"
+              >
+                <!-- Checkbox -->
+                <input
+                  type="checkbox"
+                  :checked="selectedGuestIds.has(guest.guestId)"
+                  :disabled="mutationsDisabled"
+                  class="mt-1 size-4.5 rounded border-toast-300 text-orange-600 focus:ring-orange-500 cursor-pointer shrink-0"
+                  @change="toggleSelection(guest.guestId, !selectedGuestIds.has(guest.guestId))"
+                />
+
+                <!-- Avatar -->
+                <div class="size-8 rounded-full bg-orange-100 text-orange-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase mt-0.5">
+                  {{ (guest.firstName?.[0] || guest.displayName?.[0] || '?') }}
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="min-w-0 flex-1 space-y-1">
+                  <!-- Row 1: Guest name (left) & Right button (right) -->
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="font-bold text-sm text-highlighted wrap-break-word leading-tight flex-1 min-w-0">
+                      {{ guest.displayName }}
+                    </div>
+
+                    <!-- Right button: 3-dot pop-up button group -->
+                    <div class="shrink-0 -mr-1 -mt-1">
+                      <UDropdownMenu
+                        :items="getGuestActionItems(guest)"
+                        :content="{ align: 'end' }"
+                      >
+                        <UButton
+                          color="neutral"
+                          variant="ghost"
+                          size="xs"
+                          icon="i-lucide-more-vertical"
+                          title="Guest actions"
+                          class="cursor-pointer"
+                          :disabled="mutationsDisabled"
+                          @click.stop
+                        />
+                      </UDropdownMenu>
+                    </div>
+                  </div>
+
+                  <!-- Row 2: Email & Badge statuses on one row -->
+                  <div class="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                    <p class="text-xs text-muted font-mono truncate min-w-0 flex-1">
+                      {{ guest.email || 'No email' }}
+                    </p>
+
+                    <!-- Badges -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <!-- Table Badge -->
+                      <span
+                        v-if="guest.tableLabel"
+                        class="inline-flex items-center gap-1 font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[10.5px]"
+                      >
+                        <span class="size-1.5 rounded-full bg-emerald-500" />
+                        {{ guest.tableLabel }}
+                      </span>
+                      <span
+                        v-else
+                        class="inline-flex items-center font-medium text-muted bg-stone-100/90 border border-stone-200/70 px-2 py-0.5 rounded-full text-[10.5px]"
+                      >
+                        Unseated
+                      </span>
+
+                      <!-- RSVP Status Badge -->
+                      <span
+                        class="text-[10.5px] px-2 py-0.5 rounded-full font-semibold border capitalize"
+                        :class="{
+                          'bg-emerald-50 text-emerald-800 border-emerald-200': guest.rsvpStatus === 'Attending',
+                          'bg-rose-50 text-rose-800 border-rose-200': guest.rsvpStatus === 'Not Attending',
+                          'bg-amber-50 text-amber-800 border-amber-200': guest.rsvpStatus === 'Pending' || guest.rsvpStatus === 'No Response',
+                        }"
+                      >
+                        {{ guest.rsvpStatus }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Extra details (Envelope, Group, Roles) below if present -->
+                  <div
+                    v-if="(guest.envelopeName && guest.envelopeName.toLowerCase() !== guest.displayName.toLowerCase()) || guest.groupName || (guest.roleNames && guest.roleNames.length > 0)"
+                    class="space-y-0.5 pt-0.5"
+                  >
+                    <p
+                      v-if="guest.envelopeName && guest.envelopeName.toLowerCase() !== guest.displayName.toLowerCase()"
+                      class="text-[11px] text-muted wrap-break-word"
+                    >
+                      Envelope: <strong class="font-medium text-toast-800">{{ guest.envelopeName }}</strong>
+                    </p>
+                    <p
+                      v-else-if="guest.groupName"
+                      class="text-[11px] text-muted truncate"
+                    >
+                      Group: <strong class="font-medium text-orange-800">{{ guest.groupName }}</strong>
+                    </p>
+                    <div
+                      v-if="guest.roleNames && guest.roleNames.length > 0"
+                      class="flex flex-wrap gap-1 mt-0.5"
+                    >
+                      <span
+                        v-for="role in guest.roleNames"
+                        :key="role"
+                        class="inline-flex items-center text-[10px] font-medium bg-toast-100 text-toast-700 px-1.5 py-0.5 rounded-full"
+                      >
+                        {{ role }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= DESKTOP TABLE VIEW (hidden md:block) ================= -->
+            <div class="hidden md:block relative rounded-xl border border-bread-200/80 bg-white shadow-xs overflow-hidden">
+              <UTable
+                :data="filteredDisplayRows"
+                :columns="columns"
+              >
+                <template #actions-cell="{ row }">
+                  <div class="flex items-center justify-end">
+                    <UDropdownMenu
+                      :items="getGuestActionItems(row.original)"
+                      :content="{ align: 'end' }"
+                    >
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        icon="i-lucide-more-vertical"
+                        class="cursor-pointer text-muted hover:text-highlighted shrink-0"
+                        title="Guest actions"
+                        :disabled="mutationsDisabled"
+                        @click.stop
+                      />
+                    </UDropdownMenu>
+                  </div>
+                </template>
+              </UTable>
+            </div>
           </div>
         </template>
 
@@ -1047,11 +1314,11 @@ watch(eventId, () => {
                       @update:model-value="(value: boolean | 'indeterminate') => toggleSelection(guest.guestId, value === true)"
                     />
                     <div class="min-w-0">
-                      <p class="font-medium text-highlighted">{{ guest.displayName }}</p>
+                      <p class="font-medium text-highlighted wrap-break-word">{{ guest.displayName }}</p>
                       <p class="text-xs text-muted">{{ guest.email }}</p>
                       <p
                         v-if="guest.envelopeName.trim() && guest.envelopeName.trim().toLowerCase() !== guest.displayName.trim().toLowerCase()"
-                        class="text-[11px] text-muted mt-0.5"
+                        class="text-[11px] text-muted wrap-break-word mt-0.5"
                       >
                         Envelope: {{ guest.envelopeName }}
                       </p>
@@ -1127,7 +1394,7 @@ watch(eventId, () => {
                   class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-bread-50/20 transition-colors"
                 >
                   <div>
-                    <p class="font-medium text-highlighted">{{ guest.displayName }}</p>
+                    <p class="font-medium text-highlighted wrap-break-word">{{ guest.displayName }}</p>
                     <p class="text-xs text-muted">{{ guest.email }}</p>
                   </div>
                   <div class="flex items-center gap-2">
@@ -1201,7 +1468,7 @@ watch(eventId, () => {
                       @update:model-value="(value: boolean | 'indeterminate') => toggleSelection(guest.guestId, value === true)"
                     />
                     <div class="min-w-0">
-                      <p class="font-medium text-highlighted">{{ guest.displayName }}</p>
+                      <p class="font-medium text-highlighted wrap-break-word">{{ guest.displayName }}</p>
                       <p class="text-xs text-muted">{{ guest.email }}</p>
                     </div>
                   </div>
@@ -1241,10 +1508,156 @@ watch(eventId, () => {
           </div>
         </template>
 
-        <!-- Sticky Floating Action Bar for Selected Items -->
+        <!-- ================= MOBILE STICKY BOTTOM PANEL (md:hidden) ================= -->
+        <Transition
+          enter-active-class="transition duration-200 ease-out"
+          enter-from-class="opacity-0 translate-y-full"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition duration-150 ease-in"
+          leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 translate-y-full"
+        >
+          <div
+            v-if="selectedCount > 0 && (showGuestListActionBar || showTablesActionBar || showGroupsActionBar)"
+            class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-bread-200 shadow-2xl px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] space-y-2"
+          >
+            <!-- Top line indicator -->
+            <div class="flex items-center justify-between px-1">
+              <div class="flex items-center gap-1.5">
+                <span class="size-2 rounded-full bg-orange-500 animate-pulse" />
+                <span class="text-xs font-bold text-toast-900">
+                  {{ selectedCount }} guest{{ selectedCount === 1 ? '' : 's' }} selected
+                </span>
+              </div>
+              <button
+                type="button"
+                class="text-[11px] font-semibold text-toast-700 hover:text-toast-950 cursor-pointer"
+                @click="clearSelection"
+              >
+                Clear
+              </button>
+            </div>
+
+            <!-- Action Buttons Row (Horizontal Scrollable) -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
+              <template v-if="showGuestListActionBar">
+                <UButton
+                  v-if="canAssignRole"
+                  color="orange"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-theater"
+                  :loading="isRoleTableActionLoading"
+                  class="text-[11px] font-semibold shrink-0"
+                  @click="openRoleAssignmentModal"
+                >
+                  Assign role
+                </UButton>
+                <UButton
+                  v-if="canUnassignRole"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-user-minus"
+                  :loading="isRoleTableActionLoading"
+                  class="text-[11px] font-semibold shrink-0"
+                  @click="openRoleUnassignmentModal"
+                >
+                  Unassign role
+                </UButton>
+                <UButton
+                  v-if="canGroupGuests"
+                  color="orange"
+                  size="sm"
+                  icon="i-lucide-users-round"
+                  :loading="isGroupActionLoading"
+                  class="text-[11px] font-bold shadow-xs shrink-0"
+                  @click="openGroupAssignmentModal"
+                >
+                  Group guests
+                </UButton>
+                <UButton
+                  v-if="canRenameGroup"
+                  color="orange"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-pencil"
+                  :loading="isGroupActionLoading"
+                  class="text-[11px] font-semibold shrink-0"
+                  @click="openRenameGroupModal"
+                >
+                  Rename group
+                </UButton>
+                <UButton
+                  v-if="canAddToExistingGroup"
+                  color="orange"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-user-plus"
+                  :loading="isGroupActionLoading"
+                  class="text-[11px] font-semibold shrink-0"
+                  @click="openAddToExistingModal"
+                >
+                  Add to group
+                </UButton>
+                <UButton
+                  v-if="canUngroupSingle"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-user-minus"
+                  :loading="isGroupActionLoading"
+                  class="text-[11px] font-semibold shrink-0"
+                  @click="handleUngroupSingle"
+                >
+                  Ungroup
+                </UButton>
+                <UButton
+                  v-if="canUngroupAll && (selectionContext === 'same_group' || selectionContext === 'mixed')"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-user-minus"
+                  :loading="isGroupActionLoading"
+                  class="text-[11px] font-semibold shrink-0"
+                  @click="handleUngroupAll"
+                >
+                  Ungroup all
+                </UButton>
+              </template>
+              <template v-if="showGroupsActionBar">
+                <UButton
+                  color="orange"
+                  size="sm"
+                  icon="i-lucide-user-plus"
+                  :loading="isGroupActionLoading"
+                  class="text-[11px] font-bold shadow-xs shrink-0"
+                  @click="openAddToExistingModal"
+                >
+                  Add to existing group
+                </UButton>
+              </template>
+              <template v-if="showTablesActionBar">
+                <UButton
+                  v-if="canAssignTable"
+                  color="orange"
+                  size="sm"
+                  icon="i-lucide-layout-grid"
+                  :loading="isRoleTableActionLoading"
+                  class="text-[11px] font-bold shadow-xs shrink-0"
+                  @click="openTableAssignmentModal"
+                >
+                  Assign table
+                </UButton>
+              </template>
+            </div>
+          </div>
+        </Transition>
+
+        <!-- ================= DESKTOP STICKY FLOATING ACTION BAR (hidden md:flex) ================= -->
         <div
           v-if="showGuestListActionBar || showTablesActionBar || showGroupsActionBar"
-          class="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg"
+          class="hidden md:flex sticky bottom-4 z-30 flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg"
         >
           <div class="space-y-0.5">
             <span class="text-sm font-semibold text-highlighted">
@@ -1929,6 +2342,7 @@ watch(eventId, () => {
         </div>
       </template>
     </UModal>
+
 
     <UModal
       v-model:open="isNoQuestionsWarningOpen"

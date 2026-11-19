@@ -56,6 +56,8 @@ export interface CustomSiteViewModel {
   scheduleDescription?: string
   giftsTitle?: string
   giftsDescription?: string
+  playlistTitle?: string
+  playlistDescription?: string
   weddingPartyMembers?: { id: string; name: string; role: string; notes?: string }[]
   whereToStayAccommodations?: { id?: string; name: string; address?: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
   dressCode?: DressCodeRecord | null
@@ -177,6 +179,8 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
     scheduleDescription: site.scheduleDescription || motifConfig?.scheduleDescription || '',
     giftsTitle: site.giftsTitle || motifConfig?.giftsTitle || 'Gifts & Registry',
     giftsDescription: site.giftsDescription || motifConfig?.giftsDescription || '',
+    playlistTitle: motifConfig?.playlistTitle || 'Soundtrack & Playlists',
+    playlistDescription: motifConfig?.playlistDescription || '',
     weddingPartyMembers: (site.weddingParty && site.weddingParty.length > 0)
       ? site.weddingParty.map((m, i) => ({
           id: m.id || `wp-${i}`,

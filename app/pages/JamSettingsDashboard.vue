@@ -7,7 +7,7 @@ definePageMeta({
   layout: 'jam-sub-navbar',
   middleware: 'seating-enabled',
   title: 'Jam Settings & Plan',
-  bgClass: 'bg-orange-50',
+  bgClass: 'bg-jam-50',
 })
 
 const route = useRoute()
@@ -124,7 +124,7 @@ async function saveAllSettings() {
         <div class="flex items-center gap-2">
           <UButton
             :to="`/user/jam-upgrade/${gatheringId}`"
-            color="primary"
+            color="jam"
             variant="solid"
             size="xs"
             icon="i-lucide-sparkles"
@@ -140,7 +140,7 @@ async function saveAllSettings() {
       <Teleport to="#navbar-mobile-actions">
         <div class="space-y-2 w-full">
           <UButton
-            color="primary"
+            color="jam"
             variant="solid"
             size="md"
             block
@@ -205,7 +205,7 @@ async function saveAllSettings() {
 
           <UButton
             :to="`/user/jam-upgrade/${gatheringId}`"
-            color="primary"
+            color="jam"
             variant="solid"
             size="sm"
             icon="i-lucide-arrow-up-circle"

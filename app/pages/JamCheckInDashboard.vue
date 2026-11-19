@@ -231,7 +231,7 @@ async function downloadGuests() {
           </p>
         </div>
         <UButton
-          color="primary"
+          color="jam"
           size="md"
           label="Complete Payment"
           :to="{ path: '/user/seating-payment', query: { gatheringId: gathering._id } }"
@@ -315,7 +315,7 @@ async function downloadGuests() {
                 <UButton
                   v-if="companionsLeftToCheckIn.length"
                   size="xs"
-                  color="primary"
+                  color="jam"
                   variant="solid"
                   class="shrink-0 cursor-pointer"
                   :label="`Check in ${companionsLeftToCheckIn.length} ${companionsLeftToCheckIn.length === 1 ? 'companion' : 'companions'} too`"
@@ -335,7 +335,7 @@ async function downloadGuests() {
     <div v-if="gathering && gathering.status === 'ACTIVE'" class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-30">
       <UButton
         size="md"
-        color="primary"
+        color="jam"
         variant="solid"
         icon="i-lucide-clipboard-check"
         class="shadow-2xl rounded-full px-4 py-2.5 font-bold cursor-pointer"
@@ -436,11 +436,11 @@ async function downloadGuests() {
                 No guests in this view are checked in yet.
               </div>
 
-              <div v-else class="border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20">
+              <div v-else class="border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20 divide-y divide-emerald-100">
                 <div
                   v-for="guest in displayedInAttendance"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-emerald-50/50 transition-colors border-b border-emerald-100 last:border-b-0"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-emerald-50/50 transition-colors"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="size-8 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center shrink-0 text-xs">
@@ -495,11 +495,11 @@ async function downloadGuests() {
                 All registered attendees are checked in!
               </div>
 
-              <div v-else class="border border-bread-200/60 rounded-xl overflow-hidden bg-white/70">
+              <div v-else class="border border-bread-200/60 rounded-xl overflow-hidden bg-white/70 divide-y divide-bread-200/60">
                 <div
                   v-for="guest in displayedNotConfirmed"
                   :key="guest._id"
-                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-jam-50/50 transition-colors border-b border-bread-200/60 last:border-b-0"
+                  class="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-jam-50/50 transition-colors"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div class="size-8 rounded-full bg-jam-100 text-jam-600 font-bold flex items-center justify-center shrink-0 text-xs">
@@ -522,7 +522,7 @@ async function downloadGuests() {
                   <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
                     <UButton
                       size="xs"
-                      color="primary"
+                      color="jam"
                       variant="solid"
                       label="Check In"
                       @click="checkIn(guest)"
@@ -556,7 +556,7 @@ async function downloadGuests() {
             />
             <UButton
               size="sm"
-              color="primary"
+              color="jam"
               variant="solid"
               label="Done"
               class="px-5"
