@@ -3,16 +3,25 @@ export interface PlaylistRecord {
   event: string
   label: string
   spotifyURL: string
+  description?: string
+  displayInWebsite?: boolean
 }
+
+/** A playlist as the public event website receives it: only the ones the host shows. */
+export type PublicPlaylistRecord = Pick<PlaylistRecord, '_id' | 'label' | 'spotifyURL' | 'description'>
 
 export interface CreatePlaylistPayload {
   label: string
   spotifyURL: string
+  description?: string
+  displayInWebsite?: boolean
 }
 
 export interface UpdatePlaylistPayload {
   label: string
   spotifyURL: string
+  description?: string
+  displayInWebsite?: boolean
 }
 
 export interface PlaylistsByEventResponse {

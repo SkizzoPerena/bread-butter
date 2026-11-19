@@ -31,6 +31,8 @@ const { lookupRsvpForSite } = useGuestRsvp()
 const { getSiteAccessToken } = useSiteAccessCookie()
 const { getLocalDressCode } = useDressCode()
 const { getLocalGallery } = useEventGallery()
+// The public site response carries only the playlists the host chose to show.
+const websitePlaylists = computed(() => props.site.playlists ?? [])
 const isMissingRsvpModalOpen = ref(false)
 const rsvpLookupEmail = ref('')
 const rsvpLookupError = ref('')
@@ -280,10 +282,11 @@ const availableComponentsMap: Record<string, { name: string; icon: string }> = {
   travel: { name: 'Travel', icon: 'i-lucide-plane' },
   'q-and-a': { name: 'Q&A', icon: 'i-lucide-help-circle' },
   gifts: { name: 'Gifts', icon: 'i-lucide-gift' },
+  playlist: { name: 'Playlists', icon: 'i-lucide-music' },
 }
 
 const displayComponents = computed(() => {
-  return (props.site.selectedComponents || []).filter((id) => id !== 'diy' && id !== 'rsvp')
+  return (props.site.selectedComponents || []).filter((id) => id !== 'rsvp')
 })
 
 const headerNav = computed(() => {
@@ -1488,33 +1491,68 @@ function getVenueGoogleMapsUrl(
                 </div>
               </div>
             </div>
-          </template>
 
-          <!-- DIY Components -->
-          <template v-for="(diy, diyIndex) in site.diyComponents" :key="`diy-${diy.id}`">
-            <div v-if="site.singlePageSite || activeComponentId === `diy-${diy.id}`" :id="`section-diy-${diy.id}`"
+            <!-- Playlists Section -->
+            <div
+              v-if="compId === 'playlist' && (site.singlePageSite || activeComponentId === compId)"
+              id="section-playlist"
               class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
               :style="{
                 minHeight: componentMinHeight,
-                backgroundColor: getSectionStyle(displayComponents.length + diyIndex).bg,
-              }">
+                backgroundColor: getSectionStyle(index).bg,
+              }"
+            >
               <div class="space-y-3 max-w-2xl mx-auto">
-                <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                  color: getSectionStyle(displayComponents.length + diyIndex).heading,
+                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+                  color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
-                  {{ diy.header }}
-                </h2>
+                  {{ site.playlistTitle || 'Soundtrack & Playlists' }}
+                </div>
                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + diyIndex).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + diyIndex).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + diyIndex).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                </div>
+                <p v-if="site.playlistDescription?.trim()" class="text-base sm:text-lg leading-relaxed opacity-80" :style="{ color: getSectionStyle(index).text }">
+                  {{ site.playlistDescription }}
+                </p>
+              </div>
+
+              <!-- Playlists Content: Gift Registry container style (less opacity containers) -->
+              <div v-if="websitePlaylists.length > 0" class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                <div v-for="playlist in websitePlaylists" :key="playlist._id"
+                  class="rounded-2xl border backdrop-blur-md shadow-xs p-5 flex flex-col gap-3 min-w-0 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+                  :style="{
+                    backgroundColor: getSectionStyle(index).text + '0D',
+                    borderColor: getSectionStyle(index).text + '25',
+                    color: getSectionStyle(index).text,
+                  }">
+                  <div class="min-w-0">
+                    <h3 class="font-serif text-lg sm:text-xl font-bold truncate" :style="{ color: getSectionStyle(index).heading }">
+                      {{ playlist.label }}
+                    </h3>
+                    <p v-if="playlist.description?.trim()" class="text-xs sm:text-sm mt-1 whitespace-pre-wrap leading-relaxed opacity-85" :style="{ color: getSectionStyle(index).text }">
+                      {{ playlist.description }}
+                    </p>
+                  </div>
+                  <div class="w-full min-w-0 overflow-hidden rounded-xl">
+                    <SpotifyPlaylistEmbed :playlist-url="playlist.spotifyURL" compact />
+                  </div>
                 </div>
               </div>
-              <div class="prose max-w-none mx-auto text-center text-xl" :style="{
-                color: getSectionStyle(displayComponents.length + diyIndex).text,
-              }">
-                {{ diy.description }}
+
+              <!-- Fallback / Empty state in CustomSiteViewer -->
+              <div v-else class="max-w-md mx-auto py-10 px-6 rounded-2xl border backdrop-blur-md shadow-xs text-center space-y-2"
+                :style="{
+                  backgroundColor: getSectionStyle(index).text + '0D',
+                  borderColor: getSectionStyle(index).text + '25',
+                  color: getSectionStyle(index).text,
+                }">
+                <UIcon name="i-lucide-music" class="size-8 mx-auto mb-2 opacity-60" :style="{ color: getSectionStyle(index).heading }" />
+                <p class="text-sm font-medium" :style="{ color: getSectionStyle(index).heading }">
+                  Playlist details will be shared soon.
+                </p>
               </div>
             </div>
           </template>
@@ -1524,22 +1562,22 @@ function getVenueGoogleMapsUrl(
             class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
             :style="{
               minHeight: componentMinHeight,
-              backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).bg,
+              backgroundColor: getSectionStyle(displayComponents.length).bg,
             }">
             <div class="space-y-3 max-w-2xl mx-auto">
               <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
-                color: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading,
+                color: getSectionStyle(displayComponents.length).heading,
                 fontFamily: `'${typography.subheaderFont}'`,
               }">
                 RSVP
               </div>
               <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading }" />
-                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading }" />
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).heading }" />
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
+                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
               </div>
             </div>
-            <div class="flex flex-col items-center gap-5 text-sm" :style="{ color: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).text }">
+            <div class="flex flex-col items-center gap-5 text-sm" :style="{ color: getSectionStyle(displayComponents.length).text }">
               <div v-if="site.rsvpDeadlineDate" class="font-semibold uppercase tracking-widest text-xs opacity-80">
                 <UIcon name="i-lucide-calendar" class="w-4 h-4 inline-block align-text-bottom mr-1" />
                 RSVP by {{ formatDateWithWeekday(site.rsvpDeadlineDate) }}
@@ -1548,12 +1586,12 @@ function getVenueGoogleMapsUrl(
                 size="lg"
                 class="transition-all duration-300 hover:opacity-80 shadow-md border cursor-pointer"
                 :style="{
-                  backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).text,
-                  color: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).bg,
+                  backgroundColor: getSectionStyle(displayComponents.length).text,
+                  color: getSectionStyle(displayComponents.length).bg,
                   borderColor:
-                    getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0)).bg === 'transparent'
-                      ? getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0) - 1).text
-                      : getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0) - 1).bg,
+                    getSectionStyle(displayComponents.length).bg === 'transparent'
+                      ? getSectionStyle(displayComponents.length - 1).text
+                      : getSectionStyle(displayComponents.length - 1).bg,
                 }"
                 @click="handleRsvpButtonClick"
               >
@@ -1568,27 +1606,27 @@ function getVenueGoogleMapsUrl(
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: getSectionStyle(
-                displayComponents.length + (site.diyComponents?.length || 0) + 1
+                displayComponents.length + 1
               ).bg,
             }">
             <div class="space-y-3 max-w-2xl mx-auto">
               <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
                 color: getSectionStyle(
-                  displayComponents.length + (site.diyComponents?.length || 0) + 1
+                  displayComponents.length + 1
                 ).heading,
                 fontFamily: `'${typography.headerFont}'`,
               }">
                 {{ site.endingTitle }}
               </h2>
               <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0) + 1).heading }" />
-                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0) + 1).heading }" />
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + (site.diyComponents?.length || 0) + 1).heading }" />
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
+                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
+                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
               </div>
             </div>
             <p class="prose max-w-none mx-auto text-center text-2xl" :style="{
               color: getSectionStyle(
-                displayComponents.length + (site.diyComponents?.length || 0) + 1
+                displayComponents.length + 1
               ).text,
             }">
               {{ site.endingMessage }}

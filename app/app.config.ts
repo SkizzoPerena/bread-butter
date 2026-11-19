@@ -4,6 +4,7 @@ export default defineAppConfig({
       primary: 'toast',
       neutral: 'charcoal',
       bread: 'bread',
+      jam: 'jam',
       blue: 'blue',
       emerald: 'emerald',
       purple: 'purple',

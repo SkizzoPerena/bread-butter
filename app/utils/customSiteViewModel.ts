@@ -1,6 +1,7 @@
 import type { CustomSiteGiftRegistry, PublicCustomSiteRecord } from '~/types/customSite'
 import type { DressCodeRecord } from '~/types/dressCode'
 import type { GalleryRecord } from '~/types/gallery'
+import type { PublicPlaylistRecord } from '~/types/playlist'
 import aisleImage from '~/assets/bpb-images/login-aisle.webp'
 import {
   extractCustomColors,
@@ -56,11 +57,14 @@ export interface CustomSiteViewModel {
   scheduleDescription?: string
   giftsTitle?: string
   giftsDescription?: string
+  playlistTitle?: string
+  playlistDescription?: string
   weddingPartyMembers?: { id: string; name: string; role: string; notes?: string }[]
   whereToStayAccommodations?: { id?: string; name: string; address?: string; rating?: string; distance?: string; description?: string; link?: string; image?: string }[]
   dressCode?: DressCodeRecord | null
   gallery?: GalleryRecord | null
   giftRegistry?: CustomSiteGiftRegistry | null
+  playlists?: PublicPlaylistRecord[]
 }
 
 function parseJsonIfString(value: unknown): any {
@@ -177,6 +181,8 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
     scheduleDescription: site.scheduleDescription || motifConfig?.scheduleDescription || '',
     giftsTitle: site.giftsTitle || motifConfig?.giftsTitle || 'Gifts & Registry',
     giftsDescription: site.giftsDescription || motifConfig?.giftsDescription || '',
+    playlistTitle: motifConfig?.playlistTitle || 'Soundtrack & Playlists',
+    playlistDescription: motifConfig?.playlistDescription || '',
     weddingPartyMembers: (site.weddingParty && site.weddingParty.length > 0)
       ? site.weddingParty.map((m, i) => ({
           id: m.id || `wp-${i}`,
@@ -199,6 +205,7 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
       : (motifConfig?.whereToStay?.accommodations || []),
     dressCode: site.dressCode || motifConfig?.dressCode || null,
     giftRegistry: site.giftRegistry ?? null,
+    playlists: site.playlists ?? [],
     gallery: site.galleryRecord || motifConfig?.gallery || (site.gallery && site.gallery.length > 0 ? {
       title: 'Captured Moments',
       subtitle: 'A glimpse into our favorite memories and love story.',

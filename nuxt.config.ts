@@ -254,6 +254,14 @@ export default defineNuxtConfig({
       setPath('faqs', '/faqs')
       setPath('InvitationMaker', '/invitation-maker')
       setPath('WebsiteMaker', '/website-maker')
+      const websiteMakerPage = pages.find(p => p.name === 'WebsiteMaker')
+      if (websiteMakerPage) {
+        pages.push({
+          ...websiteMakerPage,
+          name: 'WebsiteMakerEventAlias',
+          path: '/event/website-maker',
+        })
+      }
       setPath('OurSuppliers', '/our-suppliers')
       setPath('About', '/about')
       setPath('NewsAndEvents', '/news-and-events')
@@ -261,6 +269,7 @@ export default defineNuxtConfig({
 
       // Set paths for Jam feature routes
       setPath('JamLanding', '/jam')
+      setPath('JamAbout', '/jam/about')
       const jamLandingPage = pages.find(p => p.name === 'JamLanding')
       if (jamLandingPage) {
         pages.push({

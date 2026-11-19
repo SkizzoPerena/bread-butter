@@ -100,7 +100,7 @@ onUnmounted(() => {
 const aboutItems: DropdownMenuItem[][] = [
   [
     {
-      label: 'What is Bread + Butter',
+      label: 'What is Bread + Butter?',
       icon: 'i-lucide-sparkles',
       to: '/about',
       active: false
@@ -295,7 +295,7 @@ const links = [
         </NuxtLink>
         <button
           type="button"
-          class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+          class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-jam hover:border-jam-400 border border-white/30 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
           aria-label="Switch to Jam"
           title="Switch to Jam"
           @click.prevent.stop="onSwitchToJam"
@@ -305,7 +305,7 @@ const links = [
             alt="Jam" />
           <span
             class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[11px] sm:text-xs font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1.5">
-            switch to jam
+            Switch to Jam
           </span>
         </button>
       </div>
@@ -412,7 +412,7 @@ const links = [
                   <template #leading>
                     <UIcon name="i-lucide-sparkles" class="size-4 text-bread-400 mr-2" />
                   </template>
-                  What is Bread + Butter
+                  What is Bread + Butter?
                 </UButton>
                 <UButton variant="ghost"
                   class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-toast-500/40 rounded-lg"
@@ -526,7 +526,7 @@ const links = [
           </NuxtLink>
           <button
             type="button"
-            class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+            class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-jam hover:border-jam-400 border border-white/30 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
             aria-label="Switch to Jam"
             title="Switch to Jam"
             @click.prevent.stop="onSwitchToJam"
@@ -536,7 +536,7 @@ const links = [
               alt="Jam" />
             <span
               class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[10px] font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1">
-              switch to jam
+              Switch to Jam
             </span>
           </button>
         </div>

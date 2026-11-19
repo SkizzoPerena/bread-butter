@@ -164,6 +164,10 @@ export function useEvents() {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
     }
 
+    if (payload.coverImage) {
+      formData.append('coverImage', payload.coverImage)
+    }
+
     const normalizedVoucher = payload.voucherCode
       ? normalizeVoucherCode(payload.voucherCode)
       : ''
@@ -203,7 +207,7 @@ export function useEvents() {
     return response.event
   }
 
-  async function updateEvent(eventId: string, payload: UpdateEventPayload): Promise<void> {
+  async function updateEvent(eventId: string, payload: UpdateEventPayload): Promise<EventRecord | undefined> {
     if (isUiOnlyMode.value) {
       return
     }
@@ -222,7 +226,11 @@ export function useEvents() {
       formData.append('isCatholicWedding', String(Boolean(payload.isCatholicWedding)))
     }
 
-    await tracked(currentRole(), () => apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
+    if (payload.coverImage) {
+      formData.append('coverImage', payload.coverImage)
+    }
+
+    const response = await tracked(currentRole(), () => apiUpload<UpdateEventResponse>(`/user/events/${eventId}`, formData, {
       method: 'PATCH'
     }), {
       event: 'event_updated',
@@ -237,6 +245,7 @@ export function useEvents() {
 
     delete eventCache.value[eventId]
     userEventsCache.value = []
+    return response?.event
   }
 
   async function cancelEvent(eventId: string): Promise<void> {

@@ -35,6 +35,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     updateTaskPriority,
     updateTaskAssignee,
     updateTaskDeadline,
+    updateTaskDetails,
     hardDeleteTask,
   } = useTasks()
   const { fetchAssigneesByEvent } = useAssignees()
@@ -377,6 +378,21 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     }
   }
 
+  async function handleToggleImportant(taskId: string, isImportant: boolean) {
+    if (mutationsDisabled.value) return
+    const previous = tasks.value.find((t) => t._id === taskId)
+    if (!previous) return
+    tasks.value = updateTaskInList(tasks.value, { ...previous, isImportant } as TaskRecord)
+    syncSummary()
+    try {
+      await updateTaskDetails(taskId, { isImportant })
+    } catch (error) {
+      tasks.value = updateTaskInList(tasks.value, previous)
+      syncSummary()
+      reportApiError(toast, { title: 'Could not update task', error })
+    }
+  }
+
   async function handleFormSaved() {
     await reloadAll()
   }
@@ -463,6 +479,7 @@ export function useEventTasksManager(options: UseEventTasksManagerOptions) {
     handlePriorityChange,
     handleAssigneeChange,
     handleDeadlineChange,
+    handleToggleImportant,
     handleFormSaved,
     handleAssigneesChanged,
     confirmRemoveTask,

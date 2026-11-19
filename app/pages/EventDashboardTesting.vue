@@ -871,279 +871,156 @@ interface PriorityDashboardTask {
   dueText?: string
 }
 
-function getTaskDashboardTheme(category: string) {
-  const map: Record<string, {
-    bg: string
-    text: string
-    border: string
-    dot: string
-    icon: string
-    cardBg: string
-    cardHoverBg: string
-    cardBorder: string
-    cardHoverBorder: string
-    hoverText: string
-  }> = {
-    Payments: {
-      bg: 'bg-emerald-500/20',
-      text: 'text-emerald-700 dark:text-emerald-400',
-      border: 'border-emerald-500/40',
-      dot: 'bg-emerald-500',
-      icon: 'i-lucide-credit-card',
-      cardBg: 'bg-emerald-500/10',
-      cardHoverBg: 'hover:bg-emerald-500/18',
-      cardBorder: 'border-emerald-500/30',
-      cardHoverBorder: 'hover:border-emerald-500/50',
-      hoverText: 'group-hover:text-emerald-800 dark:group-hover:text-emerald-300',
-    },
-    Suppliers: {
-      bg: 'bg-fuchsia-500/20',
-      text: 'text-fuchsia-700 dark:text-fuchsia-400',
-      border: 'border-fuchsia-500/40',
-      dot: 'bg-fuchsia-500',
-      icon: 'i-lucide-briefcase',
-      cardBg: 'bg-fuchsia-500/10',
-      cardHoverBg: 'hover:bg-fuchsia-500/18',
-      cardBorder: 'border-fuchsia-500/30',
-      cardHoverBorder: 'hover:border-fuchsia-500/50',
-      hoverText: 'group-hover:text-fuchsia-800 dark:group-hover:text-fuchsia-300',
-    },
-    Requirements: {
-      bg: 'bg-yellow-500/20',
-      text: 'text-yellow-800 dark:text-yellow-400',
-      border: 'border-yellow-500/40',
-      dot: 'bg-yellow-500',
-      icon: 'i-lucide-church',
-      cardBg: 'bg-yellow-500/10',
-      cardHoverBg: 'hover:bg-yellow-500/18',
-      cardBorder: 'border-yellow-500/35',
-      cardHoverBorder: 'hover:border-yellow-500/55',
-      hoverText: 'group-hover:text-yellow-900 dark:group-hover:text-yellow-300',
-    },
-    'Guest List': {
-      bg: 'bg-orange-500/20',
-      text: 'text-orange-700 dark:text-orange-400',
-      border: 'border-orange-500/40',
-      dot: 'bg-orange-500',
-      icon: 'i-lucide-users',
-      cardBg: 'bg-orange-500/10',
-      cardHoverBg: 'hover:bg-orange-500/18',
-      cardBorder: 'border-orange-500/30',
-      cardHoverBorder: 'hover:border-orange-500/50',
-      hoverText: 'group-hover:text-orange-800 dark:group-hover:text-orange-300',
-    },
-    RSVP: {
-      bg: 'bg-teal-500/20',
-      text: 'text-teal-700 dark:text-teal-400',
-      border: 'border-teal-500/40',
-      dot: 'bg-teal-500',
-      icon: 'i-lucide-mail',
-      cardBg: 'bg-teal-500/10',
-      cardHoverBg: 'hover:bg-teal-500/18',
-      cardBorder: 'border-teal-500/30',
-      cardHoverBorder: 'hover:border-teal-500/50',
-      hoverText: 'group-hover:text-teal-800 dark:group-hover:text-teal-300',
-    },
-    Playlist: {
-      bg: 'bg-lime-500/25',
-      text: 'text-lime-800 dark:text-lime-400',
-      border: 'border-lime-600/40',
-      dot: 'bg-lime-500',
-      icon: 'i-lucide-music',
-      cardBg: 'bg-lime-500/12',
-      cardHoverBg: 'hover:bg-lime-500/20',
-      cardBorder: 'border-lime-600/30',
-      cardHoverBorder: 'hover:border-lime-600/50',
-      hoverText: 'group-hover:text-lime-900 dark:group-hover:text-lime-300',
-    },
-    Schedules: {
-      bg: 'bg-cyan-500/20',
-      text: 'text-cyan-800 dark:text-cyan-400',
-      border: 'border-cyan-500/40',
-      dot: 'bg-cyan-500',
-      icon: 'i-lucide-calendar',
-      cardBg: 'bg-cyan-500/10',
-      cardHoverBg: 'hover:bg-cyan-500/18',
-      cardBorder: 'border-cyan-500/30',
-      cardHoverBorder: 'hover:border-cyan-500/50',
-      hoverText: 'group-hover:text-cyan-900 dark:group-hover:text-cyan-300',
-    },
-    Website: {
-      bg: 'bg-blue-500/20',
-      text: 'text-blue-700 dark:text-blue-400',
-      border: 'border-blue-500/40',
-      dot: 'bg-blue-500',
-      icon: 'i-lucide-globe',
-      cardBg: 'bg-blue-500/10',
-      cardHoverBg: 'hover:bg-blue-500/18',
-      cardBorder: 'border-blue-500/30',
-      cardHoverBorder: 'hover:border-blue-500/50',
-      hoverText: 'group-hover:text-blue-800 dark:group-hover:text-blue-300',
-    },
-    Invitation: {
-      bg: 'bg-violet-500/20',
-      text: 'text-violet-700 dark:text-violet-400',
-      border: 'border-violet-500/40',
-      dot: 'bg-violet-500',
-      icon: 'i-lucide-send',
-      cardBg: 'bg-violet-500/10',
-      cardHoverBg: 'hover:bg-violet-500/18',
-      cardBorder: 'border-violet-500/30',
-      cardHoverBorder: 'hover:border-violet-500/50',
-      hoverText: 'group-hover:text-violet-800 dark:group-hover:text-violet-300',
-    },
-    Gifts: {
-      bg: 'bg-pink-500/20',
-      text: 'text-pink-700 dark:text-pink-400',
-      border: 'border-pink-500/40',
-      dot: 'bg-pink-500',
-      icon: 'i-lucide-gift',
-      cardBg: 'bg-pink-500/10',
-      cardHoverBg: 'hover:bg-pink-500/18',
-      cardBorder: 'border-pink-500/30',
-      cardHoverBorder: 'hover:border-pink-500/50',
-      hoverText: 'group-hover:text-pink-800 dark:group-hover:text-pink-300',
-    },
-    Tasks: {
-      bg: 'bg-red-500/20',
-      text: 'text-red-700 dark:text-red-400',
-      border: 'border-red-500/40',
-      dot: 'bg-red-500',
-      icon: 'i-lucide-list-todo',
-      cardBg: 'bg-red-500/10',
-      cardHoverBg: 'hover:bg-red-500/18',
-      cardBorder: 'border-red-500/30',
-      cardHoverBorder: 'hover:border-red-500/50',
-      hoverText: 'group-hover:text-red-800 dark:group-hover:text-red-300',
-    },
-    Settings: {
-      bg: 'bg-slate-500/20',
-      text: 'text-slate-700 dark:text-slate-400',
-      border: 'border-slate-500/40',
-      dot: 'bg-slate-500',
-      icon: 'i-lucide-settings',
-      cardBg: 'bg-slate-500/10',
-      cardHoverBg: 'hover:bg-slate-500/18',
-      cardBorder: 'border-slate-500/30',
-      cardHoverBorder: 'hover:border-slate-500/50',
-      hoverText: 'group-hover:text-slate-800 dark:group-hover:text-slate-300',
-    },
-  }
-  return map[category] || {
+function getTaskDashboardTheme(_category?: string, priority?: 'urgent' | 'important') {
+  return {
     bg: 'bg-toast-500/20',
-    text: 'text-toast-700',
+    text: 'text-toast-700 dark:text-toast-400',
     border: 'border-toast-500/40',
-    dot: 'bg-toast-500',
+    dot: priority === 'important' ? 'bg-amber-500' : 'bg-red-500',
     icon: 'i-lucide-check-circle',
     cardBg: 'bg-toast-500/10',
     cardHoverBg: 'hover:bg-toast-500/18',
     cardBorder: 'border-toast-500/30',
     cardHoverBorder: 'hover:border-toast-500/50',
-    hoverText: 'group-hover:text-toast-900',
+    hoverText: 'group-hover:text-toast-900 dark:group-hover:text-toast-200',
   }
 }
 
-const urgentTasks = ref<PriorityDashboardTask[]>([
-  {
-    id: 'urgent-1',
-    title: 'Settle caterer balance payment',
-    priority: 'urgent',
-    category: 'Suppliers',
-    action: 'suppliers',
-    dueText: 'Due in 3 days',
-  },
-  {
-    id: 'urgent-2',
-    title: 'Submit church baptismal certificate',
-    priority: 'urgent',
-    category: 'Requirements',
-    action: 'churchRequirements',
-    dueText: 'Due this week',
-  },
-  {
-    id: 'urgent-3',
-    title: 'Follow up unconfirmed RSVPs',
-    priority: 'urgent',
-    category: 'RSVP',
-    action: 'rsvp',
-    dueText: '24 pending',
-  },
-  {
-    id: 'urgent-4',
-    title: 'Confirm reception styling & floral mockups',
-    priority: 'urgent',
-    category: 'Suppliers',
-    action: 'suppliers',
-    dueText: 'Due tomorrow',
-  },
-  {
-    id: 'urgent-5',
-    title: 'Finalize bridal entourage lineup',
-    priority: 'urgent',
-    category: 'Guest List',
-    action: 'guestList',
-    dueText: 'Due in 2 days',
-  },
-  {
-    id: 'urgent-6',
-    title: 'Submit marriage license application',
-    priority: 'urgent',
-    category: 'Requirements',
-    action: 'churchRequirements',
-    dueText: 'Due in 5 days',
-  },
-])
+function formatTaskDueText(deadlineStr?: string | null): string {
+  if (!deadlineStr) return ''
+  const date = new Date(deadlineStr)
+  if (Number.isNaN(date.getTime())) return ''
 
-const importantTasks = ref<PriorityDashboardTask[]>([
-  {
-    id: 'important-1',
-    title: 'Finalize reception seating arrangement',
-    priority: 'important',
-    category: 'Guest List',
-    action: 'guestList',
-    dueText: '12 unassigned',
-  },
-  {
-    id: 'important-2',
-    title: 'Review photographer & videographer shot list',
-    priority: 'important',
-    category: 'Suppliers',
-    action: 'suppliers',
-    dueText: 'Milestone review',
-  },
-  {
-    id: 'important-3',
-    title: 'Curate grand entrance & first dance songs',
-    priority: 'important',
-    category: 'Playlist',
-    action: 'playlist',
-    dueText: '3 songs needed',
-  },
-  {
-    id: 'important-4',
-    title: 'Review day-of timeline with coordinator',
-    priority: 'important',
-    category: 'Schedules',
-    action: 'schedules',
-    dueText: 'Pending review',
-  },
-  {
-    id: 'important-5',
-    title: 'Review wedding gift registry details',
-    priority: 'important',
-    category: 'Gifts',
-    action: 'wishlist',
-    dueText: '5 items pending',
-  },
-  {
-    id: 'important-6',
-    title: 'Publish event website & RSVP link',
-    priority: 'important',
-    category: 'Website',
-    action: 'website',
-    dueText: 'Ready to launch',
-  },
-])
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const startOfDueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const diffDays = Math.round((startOfDueDate - startOfToday) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays)
+    return overdueDays === 1 ? 'Overdue by 1 day' : `Overdue by ${overdueDays} days`
+  }
+  if (diffDays === 0) return 'Due today'
+  if (diffDays === 1) return 'Due tomorrow'
+  if (diffDays <= 14) return `Due in ${diffDays} days`
+  return df.format(date)
+}
+
+const urgentTasks = computed<PriorityDashboardTask[]>(() => {
+  const rawTasks = tasksSummary.value?.preview?.tasks || []
+  const now = Date.now()
+  const twoWeeksLater = new Date(now + 14 * 24 * 60 * 60 * 1000).setHours(23, 59, 59, 999)
+
+  const activeTasks = rawTasks
+    .filter((t: any) => {
+      if (t.status === 'COMPLETED' || t.status === 'CANCELLED') return false
+      if (!t.deadline) return false
+      const dueTime = new Date(t.deadline).getTime()
+      if (Number.isNaN(dueTime)) return false
+      return dueTime <= twoWeeksLater
+    })
+
+  // Sort ascending: tasks with the soonest due date displayed first
+  activeTasks.sort((a: any, b: any) => {
+    const timeA = new Date(a.deadline).getTime()
+    const timeB = new Date(b.deadline).getTime()
+    return timeA - timeB
+  })
+
+  return activeTasks.map((t: any) => {
+    const titleLower = (t.title || '').toLowerCase()
+    let category = 'Tasks'
+    let action: DashboardAction = 'tasks'
+    if (
+      titleLower.includes('cater') ||
+      titleLower.includes('photo') ||
+      titleLower.includes('supplier') ||
+      titleLower.includes('band') ||
+      titleLower.includes('florist') ||
+      titleLower.includes('pay') ||
+      titleLower.includes('budget') ||
+      titleLower.includes('fee') ||
+      titleLower.includes('deposit') ||
+      titleLower.includes('balance') ||
+      titleLower.includes('invoice') ||
+      titleLower.includes('finance')
+    ) {
+      category = 'Suppliers'; action = 'suppliers'
+    } else if (titleLower.includes('church') || titleLower.includes('cert') || titleLower.includes('license') || titleLower.includes('require')) {
+      category = 'Requirements'; action = 'churchRequirements'
+    } else if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
+      category = 'Guest List'; action = 'guestList'
+    } else if (titleLower.includes('rsvp') || titleLower.includes('invite') || titleLower.includes('response')) {
+      category = 'RSVP'; action = 'rsvp'
+    } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
+      category = 'Playlist'; action = 'playlist'
+    } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
+      category = 'Schedules'; action = 'schedules'
+    }
+    return {
+      id: t._id || t.id,
+      title: t.title,
+      priority: 'urgent' as const,
+      category,
+      action,
+      dueText: formatTaskDueText(t.deadline),
+    }
+  })
+})
+
+const importantTasks = computed<PriorityDashboardTask[]>(() => {
+  const rawTasks = tasksSummary.value?.preview?.tasks || []
+  const importantList = rawTasks
+    .filter((t: any) => Boolean(t.isImportant) && t.status !== 'COMPLETED' && t.status !== 'CANCELLED')
+
+  // Sort: tasks with deadlines first (soonest first), then tasks without deadlines
+  importantList.sort((a: any, b: any) => {
+    if (a.deadline && b.deadline) {
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+    }
+    if (a.deadline) return -1
+    if (b.deadline) return 1
+    return 0
+  })
+
+  return importantList.map((t: any) => {
+    const titleLower = (t.title || '').toLowerCase()
+    let category = 'Tasks'
+    let action: DashboardAction = 'tasks'
+    if (titleLower.includes('guest') || titleLower.includes('seat') || titleLower.includes('table')) {
+      category = 'Guest List'; action = 'guestList'
+    } else if (
+      titleLower.includes('cater') ||
+      titleLower.includes('photo') ||
+      titleLower.includes('supplier') ||
+      titleLower.includes('band') ||
+      titleLower.includes('florist') ||
+      titleLower.includes('pay') ||
+      titleLower.includes('budget') ||
+      titleLower.includes('fee') ||
+      titleLower.includes('deposit') ||
+      titleLower.includes('balance') ||
+      titleLower.includes('invoice') ||
+      titleLower.includes('finance')
+    ) {
+      category = 'Suppliers'; action = 'suppliers'
+    } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
+      category = 'Playlist'; action = 'playlist'
+    } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
+      category = 'Schedules'; action = 'schedules'
+    } else if (titleLower.includes('web') || titleLower.includes('site')) {
+      category = 'Website'; action = 'website'
+    }
+    return {
+      id: t._id || t.id,
+      title: t.title,
+      priority: 'important' as const,
+      category,
+      action,
+      dueText: t.deadline ? formatTaskDueText(t.deadline) : 'Important',
+    }
+  })
+})
 
 // Dynamic task count to fit container without scrollbar or partial clipping
 const priorityTasksListRef = ref<HTMLElement | null>(null)
@@ -1151,6 +1028,10 @@ const maxVisibleTasks = ref(urgentTasks.value.length)
 let tasksResizeObserver: ResizeObserver | null = null
 
 function updateVisibleTaskCount() {
+  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    maxVisibleTasks.value = 5
+    return
+  }
   const container = priorityTasksListRef.value
   if (!container) return
   const availableHeight = container.clientHeight
@@ -1171,47 +1052,8 @@ const displayedImportantTasks = computed(() => {
   return importantTasks.value.slice(0, maxVisibleTasks.value)
 })
 
-function onPriorityTaskClick(task: PriorityDashboardTask) {
-  if (isMobileViewport() && DESKTOP_ONLY_ACTIONS.includes(task.action)) {
-    selectedDesktopOnlyFeature.value = QUICK_NAV_ITEMS.find(i => i.action === task.action) || null
-    isDesktopOnlyModalOpen.value = true
-    return
-  }
-
-  switch (task.action) {
-    case 'payments':
-    case 'suppliers':
-      openSuppliersDashboard()
-      break
-    case 'churchRequirements':
-      openChurchRequirementsDashboard()
-      break
-    case 'guestList':
-      openGuestList()
-      break
-    case 'rsvp':
-      openRsvpDashboard()
-      break
-    case 'playlist':
-      openEventPlaylist()
-      break
-    case 'schedules':
-      openSchedulesDashboard()
-      break
-    case 'website':
-      openWebsiteMaker()
-      break
-    case 'invitation':
-      openInvitationMaker()
-      break
-    case 'wishlist':
-      openWishlistDashboard()
-      break
-    case 'tasks':
-    default:
-      openTasksDashboard()
-      break
-  }
+function onPriorityTaskClick(_task?: PriorityDashboardTask) {
+  openTasksDashboard()
 }
 </script>
 
@@ -1298,7 +1140,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
       :class="activeMobileTab === 'launcher' ? 'hidden md:grid' : 'grid'">
       <!-- ================= LEFT DIVISION: col-span-3 (Workspace) ================= -->
       <section
-        class="lg:col-span-3 p-3 sm:p-3.5 lg:p-4 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-full overflow-y-auto lg:overflow-hidden justify-between min-h-0">
+        class="lg:col-span-3 p-3 sm:p-3.5 lg:p-4 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-auto min-h-full lg:h-full overflow-y-auto lg:overflow-hidden justify-start lg:justify-between min-h-0">
         <!-- 1. Topmost Container: 3 Metric Groups (Days, Confirmed Guests, Task Completion col-span-2) -->
         <div class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-top-metrics shadow-sm shrink-0">
           <div
@@ -1353,12 +1195,12 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
         </div>
 
         <!-- 2. Main Workspace Split: Left = Priority Tasks & Tasks by Status stacked, Right = Financial Snapshot & Planning Health stacked -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-4 flex-1 w-full items-stretch min-h-0">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-4 lg:flex-1 w-full items-stretch min-h-fit lg:min-h-0">
           <!-- Left Column: Stacked Containers (Top: Priority Tasks, Bottom: Tasks by Status / Pie Chart) -->
-          <div class="flex flex-col gap-3.5 sm:gap-4 h-full w-full min-h-0">
+          <div class="flex flex-col gap-3.5 sm:gap-4 h-auto lg:h-full w-full min-h-fit lg:min-h-0">
             <!-- Top Container: Priority Tasks (Urgent & Important) -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-priority-tasks shadow-sm flex flex-col justify-between flex-2 w-full min-h-0">
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-priority-tasks shadow-sm flex flex-col justify-between shrink-0 w-full min-h-fit lg:min-h-0">
               <div class="dash-card-header flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Priority Tasks</h3>
@@ -1387,38 +1229,43 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                       <span class="size-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
                       <span>URGENT</span>
                     </div>
-                    <span class="task-column-header-count text-muted font-medium">{{ urgentTasks.length }} tasks</span>
+                    <span class="task-column-header-count text-muted font-medium">{{ urgentTasks.length }} task{{ urgentTasks.length === 1 ? '' : 's' }}</span>
                   </div>
                   <div ref="priorityTasksListRef" class="flex flex-col gap-1 sm:gap-1.5 flex-1 min-h-0 overflow-hidden">
-                    <button v-for="task in displayedUrgentTasks" :key="task.id" type="button"
-                      class="task-card-btn w-full text-left rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
-                      :class="[
-                        getTaskDashboardTheme(task.category).cardBg,
-                        getTaskDashboardTheme(task.category).cardHoverBg,
-                        getTaskDashboardTheme(task.category).cardBorder,
-                        getTaskDashboardTheme(task.category).cardHoverBorder,
-                      ]" @click="onPriorityTaskClick(task)">
-                      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                        <span class="size-2 rounded-full shrink-0"
-                          :class="getTaskDashboardTheme(task.category).dot" />
-                        <div class="min-w-0 flex-1">
-                          <p class="task-card-title font-sans font-semibold text-highlighted truncate transition-colors"
-                            :class="getTaskDashboardTheme(task.category).hoverText" :title="task.title">
-                            {{ task.title }}
-                          </p>
-                          <div class="task-card-meta flex items-center gap-1.5 text-muted">
-                            <span class="font-medium shrink-0" :class="getTaskDashboardTheme(task.category).text">
-                              {{ task.category }}
-                            </span>
-                            <span v-if="task.dueText" class="shrink-0">·</span>
-                            <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
+                    <template v-if="displayedUrgentTasks.length > 0">
+                      <button v-for="task in displayedUrgentTasks" :key="task.id" type="button"
+                        class="task-card-btn w-full text-left rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
+                        :class="[
+                          getTaskDashboardTheme(task.category).cardBg,
+                          getTaskDashboardTheme(task.category).cardHoverBg,
+                          getTaskDashboardTheme(task.category).cardBorder,
+                          getTaskDashboardTheme(task.category).cardHoverBorder,
+                        ]" @click="onPriorityTaskClick(task)">
+                        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                          <span class="size-2 rounded-full shrink-0 bg-red-500" />
+                          <div class="min-w-0 flex-1">
+                            <p class="task-card-title font-sans font-semibold text-highlighted truncate transition-colors"
+                              :class="getTaskDashboardTheme(task.category).hoverText" :title="task.title">
+                              {{ task.title }}
+                            </p>
+                            <div class="task-card-meta flex items-center gap-1.5 text-muted">
+                              <span class="font-medium shrink-0" :class="getTaskDashboardTheme(task.category).text">
+                                {{ task.category }}
+                              </span>
+                              <span v-if="task.dueText" class="shrink-0">·</span>
+                              <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <UIcon name="i-lucide-chevron-right"
-                        class="task-card-icon transition-all shrink-0 group-hover:translate-x-0.5"
-                        :class="getTaskDashboardTheme(task.category).text" />
-                    </button>
+                        <UIcon name="i-lucide-chevron-right"
+                          class="task-card-icon transition-all shrink-0 group-hover:translate-x-0.5"
+                          :class="getTaskDashboardTheme(task.category).text" />
+                      </button>
+                    </template>
+                    <div v-else class="flex-1 flex flex-col items-center justify-center py-6 text-center px-2">
+                      <p class="text-xs text-muted font-medium">No tasks</p>
+                      <p class="text-[11px] text-muted/75 mt-0.5 leading-tight">tasks that are due within 2 weeks will be listed here</p>
+                    </div>
                   </div>
                 </div>
 
@@ -1429,38 +1276,43 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
                       <span class="size-1.5 rounded-full bg-amber-500 shrink-0" />
                       <span>IMPORTANT</span>
                     </div>
-                    <span class="task-column-header-count text-muted font-medium">{{ importantTasks.length }} tasks</span>
+                    <span class="task-column-header-count text-muted font-medium">{{ importantTasks.length }} task{{ importantTasks.length === 1 ? '' : 's' }}</span>
                   </div>
                   <div class="flex flex-col gap-1 sm:gap-1.5 flex-1 min-h-0 overflow-hidden">
-                    <button v-for="task in displayedImportantTasks" :key="task.id" type="button"
-                      class="task-card-btn w-full text-left rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
-                      :class="[
-                        getTaskDashboardTheme(task.category).cardBg,
-                        getTaskDashboardTheme(task.category).cardHoverBg,
-                        getTaskDashboardTheme(task.category).cardBorder,
-                        getTaskDashboardTheme(task.category).cardHoverBorder,
-                      ]" @click="onPriorityTaskClick(task)">
-                      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                        <span class="size-2 rounded-full shrink-0"
-                          :class="getTaskDashboardTheme(task.category).dot" />
-                        <div class="min-w-0 flex-1">
-                          <p class="task-card-title font-sans font-semibold text-highlighted truncate transition-colors"
-                            :class="getTaskDashboardTheme(task.category).hoverText" :title="task.title">
-                            {{ task.title }}
-                          </p>
-                          <div class="task-card-meta flex items-center gap-1.5 text-muted">
-                            <span class="font-medium shrink-0" :class="getTaskDashboardTheme(task.category).text">
-                              {{ task.category }}
-                            </span>
-                            <span v-if="task.dueText" class="shrink-0">·</span>
-                            <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
+                    <template v-if="displayedImportantTasks.length > 0">
+                      <button v-for="task in displayedImportantTasks" :key="task.id" type="button"
+                        class="task-card-btn w-full text-left rounded-lg border transition-all flex items-center justify-between gap-2 group cursor-pointer"
+                        :class="[
+                          getTaskDashboardTheme(task.category).cardBg,
+                          getTaskDashboardTheme(task.category).cardHoverBg,
+                          getTaskDashboardTheme(task.category).cardBorder,
+                          getTaskDashboardTheme(task.category).cardHoverBorder,
+                        ]" @click="onPriorityTaskClick(task)">
+                        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                          <span class="size-2 rounded-full shrink-0 bg-amber-500" />
+                          <div class="min-w-0 flex-1">
+                            <p class="task-card-title font-sans font-semibold text-highlighted truncate transition-colors"
+                              :class="getTaskDashboardTheme(task.category).hoverText" :title="task.title">
+                              {{ task.title }}
+                            </p>
+                            <div class="task-card-meta flex items-center gap-1.5 text-muted">
+                              <span class="font-medium shrink-0" :class="getTaskDashboardTheme(task.category).text">
+                                {{ task.category }}
+                              </span>
+                              <span v-if="task.dueText" class="shrink-0">·</span>
+                              <span v-if="task.dueText" class="truncate">{{ task.dueText }}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <UIcon name="i-lucide-chevron-right"
-                        class="task-card-icon transition-all shrink-0 group-hover:translate-x-0.5"
-                        :class="getTaskDashboardTheme(task.category).text" />
-                    </button>
+                        <UIcon name="i-lucide-chevron-right"
+                          class="task-card-icon transition-all shrink-0 group-hover:translate-x-0.5"
+                          :class="getTaskDashboardTheme(task.category).text" />
+                      </button>
+                    </template>
+                    <div v-else class="flex-1 flex flex-col items-center justify-center py-6 text-center px-2">
+                      <p class="text-xs text-muted font-medium">No tasks</p>
+                      <p class="text-[11px] text-muted/75 mt-0.5 leading-tight">tasks marked as important will be listed here</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1468,9 +1320,9 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
             <!-- Bottom Container: Tasks by Status (Legend on Left, Pie Chart on Right spanning container height) -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-tasks-status shadow-sm flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-between flex-1 w-full min-h-0">
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-tasks-status shadow-sm flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-between h-auto lg:flex-1 w-full min-h-fit lg:min-h-0">
               <!-- Left: Header & 2-Col Legend -->
-              <div class="flex flex-col justify-between h-full flex-1 min-h-0 w-full">
+              <div class="flex flex-col justify-between h-auto sm:h-full flex-1 min-h-fit sm:min-h-0 w-full">
                 <div class="dash-card-header flex items-center justify-between gap-2 border-b border-bread-200/60 pb-2 shrink-0">
                   <div class="flex items-center gap-1.5 min-w-0">
                     <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Tasks by Status</h3>
@@ -1503,7 +1355,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
               <!-- Right: Pie Chart (Spans totality of container height, sans margins) -->
               <div
-                class="flex items-center justify-center h-full aspect-square min-h-0 shrink-0 relative overflow-hidden">
+                class="flex items-center justify-center h-40 sm:h-full aspect-square min-h-0 shrink-0 relative overflow-hidden">
                 <PieChart :data="taskStatusChartData" :colors="TASK_STATUS_COLORS" :show-legend="false" size="fill"
                   class="w-full h-full flex-1 min-h-0" chart-class="w-full h-full flex-1 min-h-0" />
               </div>
@@ -1511,10 +1363,10 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
           </div>
 
           <!-- Right Column: Stacked Containers (Occupies all vertical & horizontal vacant space with uniform gap) -->
-          <div class="flex flex-col gap-3.5 sm:gap-4 h-full w-full min-h-0">
+          <div class="flex flex-col gap-3.5 sm:gap-4 h-auto lg:h-full w-full min-h-fit lg:min-h-0">
             <!-- Top Container: Financial Snapshot -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-financial shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-financial shadow-sm flex flex-col justify-between h-auto lg:flex-1 w-full min-h-fit lg:min-h-0">
               <div class="dash-card-header flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Financial Snapshot</h3>
@@ -1534,7 +1386,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
               </div>
 
               <!-- Financial Metrics Grid -->
-              <div class="dash-financial-grid grid grid-cols-3 py-1 sm:py-1.5 flex-1 items-stretch w-full min-h-0">
+              <div class="dash-financial-grid grid grid-cols-2 sm:grid-cols-3 py-1 sm:py-1.5 h-auto lg:flex-1 items-stretch w-full min-h-fit lg:min-h-0">
                 <!-- 1. Target Budget -->
                 <div
                   class="dash-financial-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
@@ -1629,7 +1481,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
 
             <!-- Bottom Container: Planning Health -->
             <div
-              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-health shadow-sm flex flex-col justify-between flex-1 w-full min-h-0">
+              class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-health shadow-sm flex flex-col justify-between h-auto lg:flex-1 w-full min-h-fit lg:min-h-0">
               <div class="dash-card-header flex items-center justify-between border-b border-bread-200/60 pb-2 shrink-0">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <h3 class="dash-card-heading font-bold font-serif text-highlighted leading-tight truncate">Planning Health</h3>
@@ -1648,7 +1500,7 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
               </div>
 
               <!-- 3 Required Planning Health Indicators -->
-              <div class="dash-health-grid grid grid-cols-1 sm:grid-cols-3 py-1 sm:py-1.5 flex-1 items-stretch w-full min-h-0">
+              <div class="dash-health-grid grid grid-cols-1 sm:grid-cols-3 py-1 sm:py-1.5 h-auto lg:flex-1 items-stretch w-full min-h-fit lg:min-h-0">
                 <!-- 1. Overdue tasks -->
                 <div
                   class="dash-health-card rounded-lg bg-toast-50/50 border border-bread-200/40 hover:bg-toast-100/40 transition-colors">
@@ -2073,8 +1925,17 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 0;
-  height: 100%;
+  min-height: 5rem;
+  height: auto;
+  gap: 0.35rem;
+}
+
+@media (min-width: 1024px) {
+  .dash-financial-card {
+    min-height: 0;
+    height: 100%;
+    gap: 0;
+  }
 }
 
 .financial-card-title {
@@ -2123,8 +1984,17 @@ function onPriorityTaskClick(task: PriorityDashboardTask) {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 0;
-  height: 100%;
+  min-height: 5.5rem;
+  height: auto;
+  gap: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+  .dash-health-card {
+    min-height: 0;
+    height: 100%;
+    gap: 0;
+  }
 }
 
 .health-card-title {

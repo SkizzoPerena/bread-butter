@@ -258,9 +258,12 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
   if (!file) return
 
   uploadingEventId.value = event._id
+  // Show the picked image straight away; swap in the saved URL once the server answers.
+  const previousCover = event.coverImageURL ?? null
+  const previewUrl = URL.createObjectURL(file)
+  event.coverImageURL = previewUrl
   try {
     if (isUiOnlyMode.value) {
-      event.coverImageURL = URL.createObjectURL(file)
       toast.add({
         title: 'Image added',
         description: 'Event image updated successfully.',
@@ -269,7 +272,7 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
       return
     }
 
-    await updateEvent(event._id, {
+    const updatedEvent = await updateEvent(event._id, {
       eventName: event.eventName,
       eventType: event.eventType,
       venue: event.venue,
@@ -279,7 +282,10 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
       coverImage: file,
     })
 
-    event.coverImageURL = URL.createObjectURL(file)
+    if (updatedEvent?.coverImageURL) {
+      event.coverImageURL = updatedEvent.coverImageURL
+      URL.revokeObjectURL(previewUrl)
+    }
 
     toast.add({
       title: 'Image uploaded',
@@ -287,6 +293,8 @@ async function handleEventImageUpload(event: EventRecord, rawFile: unknown) {
       color: 'success',
     })
   } catch (error) {
+    event.coverImageURL = previousCover
+    URL.revokeObjectURL(previewUrl)
     reportApiError(toast, { title: 'Could not upload image', error })
   } finally {
     uploadingEventId.value = null

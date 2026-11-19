@@ -57,6 +57,8 @@ export function useEventPlaylists() {
             event: eventId,
             label: payload.label.trim(),
             spotifyURL: payload.spotifyURL.trim(),
+            description: payload.description?.trim() || undefined,
+            displayInWebsite: payload.displayInWebsite ?? true,
           }
           mockPlaylists.push(playlist)
           return {
@@ -91,6 +93,8 @@ export function useEventPlaylists() {
             ...current,
             label: payload.label.trim(),
             spotifyURL: payload.spotifyURL.trim(),
+            description: payload.description?.trim() || undefined,
+            displayInWebsite: payload.displayInWebsite !== undefined ? payload.displayInWebsite : (current.displayInWebsite ?? true),
           }
           mockPlaylists[index] = updated
           return {

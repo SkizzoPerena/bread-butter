@@ -76,4 +76,5 @@ export interface UpdateTaskDetailsPayload {
   details?: string
   deadline?: string
   keepImageURLs?: string[]
+  isImportant?: boolean
 }

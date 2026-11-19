@@ -238,7 +238,7 @@ async function chooseMode(next: 'MAKER' | 'IMAGE') {
       </UFormField>
       <UButton
         type="submit"
-        color="primary"
+        color="jam"
         size="sm"
         icon="i-lucide-save"
         :loading="saving"

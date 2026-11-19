@@ -8,8 +8,8 @@ useHead({ title: 'Seating unavailable' })
 </script>
 
 <template>
-  <div class="min-h-screen bg-toast-800 text-bread-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-2xl bg-bread-100 text-toast-900 p-6 space-y-4 text-center">
+  <div class="min-h-screen bg-jam-800 text-bread-100 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-2xl bg-bread-100 text-jam-900 p-6 space-y-4 text-center">
       <h1 class="text-3xl font-serif font-bold">
         Seating is not available right now
       </h1>
@@ -26,12 +26,13 @@ useHead({ title: 'Seating unavailable' })
         </p>
       </template>
       <div class="flex flex-wrap justify-center gap-2">
-        <UButton to="/contact-us">
+        <UButton to="/contact-us" color="jam">
           Contact us
         </UButton>
         <UButton
           to="/"
           variant="outline"
+          color="jam"
         >
           Back home
         </UButton>

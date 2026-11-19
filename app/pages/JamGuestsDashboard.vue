@@ -860,7 +860,7 @@ function getTableLabel(tableId: string | null): string {
                 <span class="text-[11px] font-semibold text-jam-700 font-sans">Email Credits</span>
                 <a
                   :href="`/user/jam-upgrade/${gatheringId}`"
-                  class="text-[10px] text-orange-600 hover:text-orange-700 font-semibold underline cursor-pointer"
+                  class="text-[10px] text-jam-700 hover:text-jam-800 font-semibold underline cursor-pointer"
                   @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
                 >
                   Upgrade
@@ -878,7 +878,7 @@ function getTableLabel(tableId: string | null): string {
               <span class="font-semibold text-jam-800">Response Rate</span>
               <span class="font-bold font-serif text-black text-sm">{{ responseRate }}%</span>
             </div>
-            <UProgress :model-value="responseRate" color="primary" size="xs" />
+            <UProgress :model-value="responseRate" color="jam" size="xs" />
             <div class="flex items-center justify-between text-[11px] text-muted font-sans pt-0.5">
               <span>{{ responseCount }} of {{ guestCount }} responded</span>
               <span v-if="goingCount > 0" class="text-emerald-700 font-semibold">
@@ -1116,104 +1116,116 @@ function getTableLabel(tableId: string | null): string {
               <div
                 v-for="guest in filteredGuests"
                 :key="guest._id"
-                class="bg-white rounded-2xl border transition-all p-3.5 shadow-2xs relative flex items-start justify-between gap-2.5"
+                class="bg-white rounded-2xl border transition-all p-3.5 shadow-2xs relative flex items-start gap-2.5"
                 :class="selectedGuestIds.has(guest._id)
                   ? 'bg-red-50/50 border-red-300 ring-2 ring-red-400/40 shadow-xs'
                   : 'border-bread-200/90 hover:border-bread-300'"
               >
-                <!-- Left Side: Checkbox, Avatar, Name & Party/Email -->
-                <div class="flex items-start gap-2.5 min-w-0 flex-1">
-                  <input
-                    type="checkbox"
-                    :checked="selectedGuestIds.has(guest._id)"
-                    class="mt-1 size-4.5 rounded border-jam-300 text-red-600 focus:ring-red-500 cursor-pointer shrink-0"
-                    @change="toggleGuestSelection(guest._id)"
-                  />
-                  <div class="size-8 rounded-full bg-jam-100 text-jam-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase mt-0.5">
-                    {{ (guest.firstName?.[0] || guest.email?.[0] || '?') }}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="font-bold text-sm text-highlighted truncate leading-tight">
+                <!-- Checkbox -->
+                <input
+                  type="checkbox"
+                  :checked="selectedGuestIds.has(guest._id)"
+                  class="mt-1 size-4.5 rounded border-jam-300 text-red-600 focus:ring-red-500 cursor-pointer shrink-0"
+                  @change="toggleGuestSelection(guest._id)"
+                />
+
+                <!-- Avatar -->
+                <div class="size-8 rounded-full bg-jam-100 text-jam-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase mt-0.5">
+                  {{ (guest.firstName?.[0] || guest.email?.[0] || '?') }}
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="min-w-0 flex-1 space-y-1">
+                  <!-- Row 1: Guest name (left) & Right button (right) -->
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="font-bold text-sm text-highlighted wrap-break-word leading-tight flex-1 min-w-0">
                       {{ guestDisplayName(guest) }}
                       <span v-if="guestNeedsName(guest)" class="text-[10px] text-amber-600 font-normal italic ml-1">
                         (Waiting for name)
                       </span>
                     </div>
-                    <p class="text-xs text-muted font-mono truncate mt-0.5">
+
+                    <!-- Right Button: Edit Button -->
+                    <div class="shrink-0 -mr-1 -mt-1">
+                      <UButton
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        icon="i-lucide-pencil"
+                        title="Edit Guest"
+                        class="cursor-pointer"
+                        @click="openEditGuestModal(guest)"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Row 2: Email & Badge statuses on one row -->
+                  <div class="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                    <p class="text-xs text-muted font-mono truncate min-w-0 flex-1">
                       {{ guest.email || 'No email' }}
                     </p>
-                    <p v-if="guest.companionOf" class="text-[11px] text-muted truncate mt-0.5" data-testid="companion-of">
+
+                    <!-- Badges -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <!-- Seated / Unseated Badge -->
+                      <span
+                        v-if="guest.tableId && guest.seatNumber"
+                        class="inline-flex items-center gap-1 font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[10.5px]"
+                      >
+                        <span class="size-1.5 rounded-full bg-emerald-500" />
+                        Seated
+                      </span>
+                      <span
+                        v-else
+                        class="inline-flex items-center font-medium text-muted bg-stone-100/90 border border-stone-200/70 px-2 py-0.5 rounded-full text-[10.5px]"
+                      >
+                        Unseated
+                      </span>
+
+                      <!-- RSVP Status Badge -->
+                      <div class="flex items-center">
+                        <span
+                          v-if="guest.companionOf"
+                          class="text-[10.5px] px-2 py-0.5 rounded-full font-semibold border"
+                          :class="guest.rsvpStatus === 'GOING' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
+                        >
+                          {{ guest.rsvpStatus === 'GOING' ? 'Going' : 'Pending' }}
+                        </span>
+                        <select
+                          v-else
+                          :value="guest.rsvpStatus || 'PENDING'"
+                          class="text-[10.5px] font-bold rounded-full px-2 py-0.5 border cursor-pointer focus:outline-none"
+                          :class="{
+                            'bg-emerald-50 text-emerald-800 border-emerald-200': guest.rsvpStatus === 'GOING',
+                            'bg-rose-50 text-rose-800 border-rose-200': guest.rsvpStatus === 'NOT_GOING',
+                            'bg-amber-50 text-amber-800 border-amber-200': !guest.rsvpStatus || guest.rsvpStatus === 'PENDING',
+                          }"
+                          @change="handleQuickStatusChange(guest, $event.target as HTMLSelectElement)"
+                        >
+                          <option value="GOING">Going</option>
+                          <option value="PENDING">Pending</option>
+                          <option value="NOT_GOING">Declined</option>
+                        </select>
+                      </div>
+
+                      <!-- Checked-in Badge (if present) -->
+                      <span
+                        v-if="guest.checkedInAt"
+                        class="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full"
+                      >
+                        <UIcon name="i-lucide-check" class="size-2.5" /> Checked In
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Extra details (Companion / Party) below if present -->
+                  <div v-if="guest.companionOf || guest.partyName" class="pt-0.5">
+                    <p v-if="guest.companionOf" class="text-[11px] text-muted wrap-break-word" data-testid="companion-of">
                       +1 of <strong class="font-medium text-jam-800">{{ companionOfName(guest) }}</strong>
                     </p>
-                    <p v-else-if="guest.partyName" class="text-[11px] text-muted truncate mt-0.5">
+                    <p v-else-if="guest.partyName" class="text-[11px] text-muted wrap-break-word">
                       Party: <strong class="font-medium text-jam-800">{{ guest.partyName }}</strong>
                     </p>
-                  </div>
-                </div>
-
-                <!-- Right Side: Edit Button on Top, Badges Right Below It -->
-                <div class="flex flex-col items-end gap-1.5 shrink-0">
-                  <!-- Only Edit Button -->
-                  <UButton
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    icon="i-lucide-pencil"
-                    title="Edit Guest"
-                    class="cursor-pointer -mr-1"
-                    @click="openEditGuestModal(guest)"
-                  />
-
-                  <!-- Badges right below Edit Button in one row -->
-                  <div class="flex items-center gap-1.5 justify-end flex-wrap">
-                    <!-- Seated / Unseated Badge -->
-                    <span
-                      v-if="guest.tableId && guest.seatNumber"
-                      class="inline-flex items-center gap-1 font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[10.5px]"
-                    >
-                      <span class="size-1.5 rounded-full bg-emerald-500" />
-                      Seated
-                    </span>
-                    <span
-                      v-else
-                      class="inline-flex items-center font-medium text-muted bg-stone-100/90 border border-stone-200/70 px-2 py-0.5 rounded-full text-[10.5px]"
-                    >
-                      Unseated
-                    </span>
-
-                    <!-- RSVP Status Badge -->
-                    <div class="flex items-center">
-                      <span
-                        v-if="guest.companionOf"
-                        class="text-[10.5px] px-2 py-0.5 rounded-full font-semibold border"
-                        :class="guest.rsvpStatus === 'GOING' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
-                      >
-                        {{ guest.rsvpStatus === 'GOING' ? 'Going' : 'Pending' }}
-                      </span>
-                      <select
-                        v-else
-                        :value="guest.rsvpStatus || 'PENDING'"
-                        class="text-[10.5px] font-bold rounded-full px-2 py-0.5 border cursor-pointer focus:outline-none"
-                        :class="{
-                          'bg-emerald-50 text-emerald-800 border-emerald-200': guest.rsvpStatus === 'GOING',
-                          'bg-rose-50 text-rose-800 border-rose-200': guest.rsvpStatus === 'NOT_GOING',
-                          'bg-amber-50 text-amber-800 border-amber-200': !guest.rsvpStatus || guest.rsvpStatus === 'PENDING',
-                        }"
-                        @change="handleQuickStatusChange(guest, $event.target as HTMLSelectElement)"
-                      >
-                        <option value="GOING">Going</option>
-                        <option value="PENDING">Pending</option>
-                        <option value="NOT_GOING">Declined</option>
-                      </select>
-                    </div>
-
-                    <!-- Checked-in Badge (if present) -->
-                    <span
-                      v-if="guest.checkedInAt"
-                      class="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full"
-                    >
-                      <UIcon name="i-lucide-check" class="size-2.5" /> Checked In
-                    </span>
                   </div>
                 </div>
               </div>
@@ -1267,16 +1279,16 @@ function getTableLabel(tableId: string | null): string {
                             {{ (guest.firstName?.[0] || guest.email?.[0] || '?') }}
                           </div>
                           <div class="min-w-0">
-                            <div class="font-bold text-highlighted truncate">
+                            <div class="font-bold text-highlighted wrap-break-word">
                               {{ guestDisplayName(guest) }}
                               <span v-if="guestNeedsName(guest)" class="text-[10px] text-amber-600 font-normal italic ml-1">
                                 (Waiting for name)
                               </span>
                             </div>
-                            <div v-if="guest.companionOf" class="text-[10.5px] text-muted truncate" data-testid="companion-of">
+                            <div v-if="guest.companionOf" class="text-[10.5px] text-muted wrap-break-word" data-testid="companion-of">
                               +1 of <strong class="font-medium text-jam-700">{{ companionOfName(guest) }}</strong>
                             </div>
-                            <div v-else-if="guest.partyName" class="text-[10.5px] text-muted truncate">
+                            <div v-else-if="guest.partyName" class="text-[10.5px] text-muted wrap-break-word">
                               Party: <strong class="font-medium text-jam-700">{{ guest.partyName }}</strong>
                             </div>
                           </div>
@@ -1472,7 +1484,7 @@ function getTableLabel(tableId: string | null): string {
                     class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-bread-50/20 transition-colors"
                   >
                     <div>
-                      <p class="font-medium text-highlighted">{{ guestDisplayName(guest) }}</p>
+                      <p class="font-medium text-highlighted wrap-break-word">{{ guestDisplayName(guest) }}</p>
                       <p class="text-xs text-muted">{{ guest.email || 'No email' }}</p>
                     </div>
                     <div class="flex items-center gap-2">
@@ -1554,7 +1566,7 @@ function getTableLabel(tableId: string | null): string {
                     class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-bread-50/20 transition-colors"
                   >
                     <div>
-                      <p class="font-medium text-highlighted">{{ guestDisplayName(guest) }}</p>
+                      <p class="font-medium text-highlighted wrap-break-word">{{ guestDisplayName(guest) }}</p>
                       <p class="text-xs text-muted">
                         {{ guest.email || 'No email' }}
                         <span v-if="guest.checkedInAt" class="text-emerald-700 font-semibold ml-2">

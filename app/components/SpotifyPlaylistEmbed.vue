@@ -19,9 +19,10 @@ const iframeHeight = computed(() => (props.compact ? 352 : props.height))
 </script>
 
 <template>
-  <div v-if="embedUrl" class="overflow-hidden rounded-xl border border-gray-200">
+  <div v-if="embedUrl" class="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-bread-200/80 shadow-2xs bg-black/5">
     <iframe
       :src="embedUrl"
+      class="w-full max-w-full block border-0"
       width="100%"
       :height="iframeHeight"
       frameborder="0"

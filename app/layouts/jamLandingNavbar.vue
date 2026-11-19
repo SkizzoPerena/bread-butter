@@ -11,7 +11,9 @@ const { triggerSlideTransition } = useJamSlideTransition()
 
 function onSwitchToEvents() {
   closeMobileMenu()
-  triggerSlideTransition('/', 'to-events')
+  const isLoggedIn = isAuthenticated.value || (import.meta.client && Boolean(getStoredAccessToken('user')))
+  const target = isLoggedIn ? '/?view=landing' : '/'
+  triggerSlideTransition(target, 'to-events')
 }
 
 const displayName = computed(() => {
@@ -145,9 +147,9 @@ onUnmounted(() => {
 const aboutItems: DropdownMenuItem[][] = [
   [
     {
-      label: 'What is Bread + Butter',
+      label: 'What is Jam?',
       icon: 'i-lucide-sparkles',
-      to: '/about',
+      to: '/jam/about',
       active: false
     },
     {
@@ -334,14 +336,14 @@ const links = [
             alt="Jam Logo" />
         </NuxtLink>
         <button type="button"
-          class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
-          aria-label="Switch to Events" title="Switch to Events" @click.prevent.stop="onSwitchToEvents">
+          class="group/jam inline-flex items-center h-7 sm:h-7.5 rounded-full bg-transparent hover:bg-toast hover:border-toast-400 border border-white/30 p-1.5 hover:px-2.5 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+          aria-label="Switch to B+B" title="Switch to B+B" @click.prevent.stop="onSwitchToEvents">
           <img src="~/assets/bpb-icons/B+B Logos-10.svg"
             class="size-3.5 sm:size-4 shrink-0 object-contain transition-transform duration-300 group-hover/jam:scale-110"
             alt="Events" />
           <span
             class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[11px] sm:text-xs font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1.5">
-            switch to events
+            Switch to B+B
           </span>
         </button>
       </div>
@@ -465,11 +467,11 @@ const links = [
                 <div class="text-[11px] font-bold uppercase tracking-wider text-bread-400 px-2 py-0.5">About</div>
                 <UButton variant="ghost"
                   class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-jam-500/40 rounded-lg"
-                  to="/about" @click="closeMobileMenu">
+                  to="/jam/about" @click="closeMobileMenu">
                   <template #leading>
                     <UIcon name="i-lucide-sparkles" class="size-4 text-bread-400 mr-2" />
                   </template>
-                  What is Bread + Butter
+                  What is Jam?
                 </UButton>
                 <UButton variant="ghost"
                   class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-jam-500/40 rounded-lg"
@@ -575,14 +577,14 @@ const links = [
               alt="Jam Logo" />
           </NuxtLink>
           <button type="button"
-            class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-white/10 border border-white/30 hover:border-white/60 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
-            aria-label="Switch to Events" title="Switch to Events" @click.prevent.stop="onSwitchToEvents">
+            class="group/jam inline-flex items-center h-6.5 rounded-full bg-transparent hover:bg-toast hover:border-toast-400 border border-white/30 p-1 hover:px-2 backdrop-blur-xs transition-all duration-300 ease-out overflow-hidden shadow-xs cursor-pointer select-none active:scale-95"
+            aria-label="Switch to B+B" title="Switch to B+B" @click.prevent.stop="onSwitchToEvents">
             <img src="~/assets/bpb-icons/Jam Logos-03.png"
               class="size-3.5 shrink-0 object-contain transition-transform duration-300 group-hover/jam:scale-110 brightness-0 invert"
               alt="Events" />
             <span
               class="max-w-0 opacity-0 group-hover/jam:max-w-28 group-hover/jam:opacity-100 overflow-hidden whitespace-nowrap text-[10px] font-semibold text-white tracking-wide transition-all duration-300 ease-out ml-0 group-hover/jam:ml-1">
-              switch to events
+              Switch to B+B
             </span>
           </button>
         </div>

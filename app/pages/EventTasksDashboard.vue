@@ -80,6 +80,7 @@ const {
   handleStatusChange,
   handlePriorityChange,
   handleDeadlineChange,
+  handleToggleImportant,
   handleFormSaved,
   handleAssigneesChanged,
   confirmRemoveTask,
@@ -109,67 +110,15 @@ const statusTabOptions: { key: StatusFilterTab; label: string }[] = [
 // Separate Important Filter (Orthogonal to status tabs and priority)
 const importantOnlyFilter = ref(false)
 
-// Important tasks state tracking (Separate metric from Priority)
-const importantTaskIds = ref<Set<string>>(new Set())
-
-function getStorageKey(id: string): string {
-  return `bpb_important_tasks_${id}`
-}
-
-function loadImportantTaskIds() {
-  if (!import.meta.client) return
-  const id = eventId.value || 'mock-event-id'
-  try {
-    const raw = localStorage.getItem(getStorageKey(id))
-    if (raw) {
-      const arr = JSON.parse(raw)
-      if (Array.isArray(arr)) {
-        importantTaskIds.value = new Set(arr)
-        return
-      }
-    }
-  } catch (err) {
-    console.error('Failed to load important tasks from localStorage', err)
-  }
-
-  // Fallback / seed from tasks if not set in localStorage
-  const initial = new Set<string>()
-  for (const t of tasks.value) {
-    if (t.isImportant) {
-      initial.add(t._id)
-    }
-  }
-  importantTaskIds.value = initial
-}
-
-function saveImportantTaskIds() {
-  if (!import.meta.client) return
-  const id = eventId.value || 'mock-event-id'
-  try {
-    localStorage.setItem(getStorageKey(id), JSON.stringify(Array.from(importantTaskIds.value)))
-  } catch (err) {
-    console.error('Failed to save important tasks to localStorage', err)
-  }
-}
-
+// Important is saved on the task (separate from priority).
 function isTaskImportant(task: TaskRecord): boolean {
-  if (importantTaskIds.value.has(task._id)) return true
   return Boolean(task.isImportant)
 }
 
 function toggleTaskImportant(task: TaskRecord) {
   if (mutationsDisabled.value) return
-  const current = isTaskImportant(task)
-  const next = !current
-  const updatedSet = new Set(importantTaskIds.value)
-  if (next) {
-    updatedSet.add(task._id)
-  } else {
-    updatedSet.delete(task._id)
-  }
-  importantTaskIds.value = updatedSet
-  task.isImportant = next
-  saveImportantTaskIds()
+  const next = !isTaskImportant(task)
+  handleToggleImportant(task._id, next)
 
   toast.add({
     title: next ? 'Marked as Important' : 'Removed from Important',
@@ -177,26 +126,6 @@ function toggleTaskImportant(task: TaskRecord) {
     color: next ? 'warning' : 'neutral',
   })
 }
-
-// Watch tasks so if localStorage was not set yet, we seed it from tasks
-watch(
-  tasks,
-  (newTasks) => {
-    if (!import.meta.client) return
-    const id = eventId.value || 'mock-event-id'
-    const stored = localStorage.getItem(getStorageKey(id))
-    if (!stored) {
-      const set = new Set<string>()
-      for (const t of newTasks) {
-        if (t.isImportant) {
-          set.add(t._id)
-        }
-      }
-      importantTaskIds.value = set
-    }
-  },
-  { immediate: true }
-)
 
 // Metric Computations for Left Side
 const totalTaskCount = computed(() => {
@@ -552,7 +481,6 @@ async function loadEventData() {
     eventRecord.value = detail.event
     setActiveEvent(detail.event)
     tasksSummary.value = detail.tasks
-    loadImportantTaskIds()
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -585,12 +513,10 @@ onMounted(async () => {
     importantOnlyFilter.value = true
   }
 
-  loadImportantTaskIds()
   loadEventData()
 })
 
 watch(eventId, () => {
-  loadImportantTaskIds()
   loadEventData()
 })
 </script>

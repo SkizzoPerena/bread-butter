@@ -581,7 +581,7 @@ async function downloadGuests() {
                   <p class="text-[10.5px] text-muted truncate">Attendance & headcount</p>
                 </div>
               </div>
-              <UBadge color="primary" variant="subtle" size="xs" class="font-semibold px-2 py-0.5 shrink-0">
+              <UBadge color="jam" variant="subtle" size="xs" class="font-semibold px-2 py-0.5 shrink-0">
                 {{ guests.length }} / {{ gathering.maxGuests }}
               </UBadge>
             </div>
@@ -877,7 +877,7 @@ async function downloadGuests() {
                     </div>
                     <UProgress
                       :model-value="guests.length ? (invitationsSentCount / guests.length) * 100 : 0"
-                      color="primary"
+                      color="jam"
                       size="xs"
                       class="w-full"
                     />
@@ -1222,7 +1222,7 @@ async function downloadGuests() {
           <div class="pt-1">
             <UButton
               block
-              color="primary"
+              color="jam"
               size="md"
               class="font-bold shadow-sm bg-jam-600 hover:bg-jam-700 text-white cursor-pointer"
               @click="isDesktopOnlyModalOpen = false"

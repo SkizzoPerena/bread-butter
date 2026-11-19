@@ -91,6 +91,8 @@ export interface CustomSiteMotifConfig {
   scheduleDescription?: string
   giftsTitle?: string
   giftsDescription?: string
+  playlistTitle?: string
+  playlistDescription?: string
 }
 
 export function parseMotifConfig(motif?: string | null): CustomSiteMotifConfig | null {
@@ -130,6 +132,8 @@ export interface BuildCustomSiteFormInput {
   scheduleDescription?: string
   giftsTitle?: string
   giftsDescription?: string
+  playlistTitle?: string
+  playlistDescription?: string
 }
 
 export interface WebsiteEditorContext {
@@ -142,6 +146,8 @@ export interface WebsiteEditorContext {
   scheduleDescription?: { value: string }
   giftsTitle?: { value: string }
   giftsDescription?: { value: string }
+  playlistTitle?: { value: string }
+  playlistDescription?: { value: string }
   scheduleItems: { value: WebsiteEditorScheduleItem[] }
   selectedComponents: { value: string[] }
   diyComponents: { value: WebsiteEditorDiyComponent[] }
@@ -273,6 +279,8 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
     scheduleDescription: input.scheduleDescription?.trim(),
     giftsTitle: input.giftsTitle?.trim(),
     giftsDescription: input.giftsDescription?.trim(),
+    playlistTitle: input.playlistTitle?.trim(),
+    playlistDescription: input.playlistDescription?.trim(),
   }
   formData.append('motif', JSON.stringify(motifPayload))
   if (input.gallery?.photos && input.gallery.photos.length > 0) {
@@ -493,6 +501,12 @@ export function applyCustomSiteToEditor(
   }
   if (ctx.giftsDescription) {
     ctx.giftsDescription.value = site.giftsDescription || motifConfig?.giftsDescription || ''
+  }
+  if (ctx.playlistTitle) {
+    ctx.playlistTitle.value = motifConfig?.playlistTitle || 'Soundtrack & Playlists'
+  }
+  if (ctx.playlistDescription) {
+    ctx.playlistDescription.value = motifConfig?.playlistDescription || 'Listen to our curated playlists and favorite tunes for the celebration.'
   }
   if (ctx.whereToStayAccommodations) {
     const rawAccs = site.whereToStay?.accommodations || motifConfig?.whereToStay?.accommodations || []
