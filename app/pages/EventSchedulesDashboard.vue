@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import {
-  CalendarDate,
+  type CalendarDate,
   DateFormatter,
   getLocalTimeZone,
   today,
@@ -20,7 +20,7 @@ definePageMeta({
   layout: 'event-sub-navbar',
   key: (route) => route.fullPath,
   useLogo: true,
-  title: 'Schedules',
+  title: 'Mini-Events',
   bgClass: 'bg-cyan-50',
 })
 
@@ -125,10 +125,10 @@ function openAddModal() {
 function validateAddForm(): string | null {
   const name = addForm.name.trim()
   if (!name) {
-    return 'Sub-event name is required.'
+    return 'Mini-event name is required.'
   }
   if (EMOJI_RE.test(name)) {
-    return 'Sub-event name must not contain emojis.'
+    return 'Mini-event name must not contain emojis.'
   }
   if (addForm.venue.trim() && EMOJI_RE.test(addForm.venue)) {
     return 'Venue must not contain emojis.'
@@ -137,7 +137,7 @@ function validateAddForm(): string | null {
     return 'Description must not contain emojis.'
   }
   if (!selectedDate.value) {
-    return 'Sub-event date is required.'
+    return 'Mini-event date is required.'
   }
   const parentIso = eventRecord.value?.eventDate
   if (!parentIso) {
@@ -145,7 +145,7 @@ function validateAddForm(): string | null {
   }
   const subEventIso = calendarDateToUtcIso(selectedDate.value)
   if (!isSubEventDateBeforeParent(subEventIso, parentIso)) {
-    return 'Sub-event date must be before the main event date.'
+    return 'Mini-event date must be before the main event date.'
   }
   return null
 }
@@ -155,7 +155,7 @@ async function loadSubEvents(targetEventId: string) {
   try {
     subEvents.value = await fetchSubEventsByEvent(targetEventId)
   } catch (error) {
-    reportApiError(toast, { title: 'Could not load schedules', error })
+    reportApiError(toast, { title: 'Could not load mini-events', error })
     subEvents.value = []
   } finally {
     isLoadingSubEvents.value = false
@@ -222,14 +222,14 @@ async function handleAddSubEvent() {
       eventDate: calendarDateToUtcIso(selectedDate.value),
     })
     toast.add({
-      title: 'Sub-event added',
-      description: 'The schedule has been updated.',
+      title: 'Mini-event added',
+      description: 'The mini-event list has been updated.',
       color: 'success',
     })
     isAddModalOpen.value = false
     await loadSubEvents(targetEventId)
   } catch (error) {
-    reportApiError(toast, { title: 'Could not add sub-event', error })
+    reportApiError(toast, { title: 'Could not add mini-event', error })
   } finally {
     isSubmitting.value = false
   }
@@ -269,7 +269,7 @@ watch(eventId, () => {
           :disabled="mutationsDisabled"
           @click="openAddModal"
         >
-          Add Sub-Event
+          Add Mini-Event
         </UButton>
       </Teleport>
     </ClientOnly>
@@ -288,7 +288,7 @@ watch(eventId, () => {
         color="warning"
         variant="subtle"
         title="Event cancelled"
-        description="Schedules cannot be modified for a cancelled event."
+        description="Mini-events cannot be modified for a cancelled event."
       />
 
       <div
@@ -296,7 +296,7 @@ watch(eventId, () => {
         class="flex items-center justify-center py-12 text-muted"
       >
         <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
-        <span class="ml-2 text-sm">Loading schedules...</span>
+        <span class="ml-2 text-sm">Loading mini-events...</span>
       </div>
 
       <div
@@ -304,9 +304,9 @@ watch(eventId, () => {
         class="flex flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 px-6 py-14 text-center"
       >
         <UIcon name="i-lucide-calendar-days" class="size-10 text-muted" />
-        <p class="mt-4 text-base font-medium">No sub-events yet</p>
+        <p class="mt-4 text-base font-medium">No mini-events yet</p>
         <p class="mt-1 max-w-sm text-sm text-muted">
-          Add schedule items like welcome parties or rehearsal dinners. Each sub-event date must be before your main event on {{ parentEventDateLabel }}.
+          Add mini-events like welcome parties or rehearsal dinners. Each mini-event date must be before your main event on {{ parentEventDateLabel }}.
         </p>
         <UButton
           v-if="!mutationsDisabled"
@@ -315,7 +315,7 @@ watch(eventId, () => {
           icon="i-lucide-plus"
           @click="openAddModal"
         >
-          Add Sub-Event
+          Add Mini-Event
         </UButton>
       </div>
 
@@ -352,7 +352,7 @@ watch(eventId, () => {
 
     <UModal
       v-model:open="isAddModalOpen"
-      title="Add Sub-Event"
+      title="Add Mini-Event"
       :dismissible="!isSubmitting"
       :ui="{ content: 'border-none ring-transparent max-w-md' }"
     >
@@ -427,7 +427,7 @@ watch(eventId, () => {
               :loading="isSubmitting"
               :disabled="isSubmitting"
             >
-              Add Sub-Event
+              Add Mini-Event
             </UButton>
           </div>
         </form>

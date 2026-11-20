@@ -664,7 +664,7 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
     ringClass: 'group-focus-visible:ring-rose-500',
   },
   {
-    label: 'Playlist',
+    label: 'Playlists',
     icon: 'i-lucide-music',
     action: 'playlist',
     description: 'Organize song requests, special dance music, and reception playlists.',
@@ -704,10 +704,10 @@ const DASHBOARD_ITEM_CATALOG: DashboardItem[] = [
 
   // Row 5: schedules - payments - settings
   {
-    label: 'Schedules',
+    label: 'Mini-events',
     icon: 'i-lucide-calendar',
     action: 'schedules',
-    description: 'Coordinate day-of timelines, bridal prep rundowns, and ceremony itineraries.',
+    description: 'Coordinate day-of timelines, bridal prep rundowns, and mini-event itineraries.',
     bgClass: 'bg-cyan-500',
     hoverClass: 'group-hover:bg-cyan-600',
     ringClass: 'group-focus-visible:ring-cyan-500',
@@ -760,7 +760,15 @@ const dashboardItems = computed(() => {
   return [...unlocked, ...locked]
 })
 
-const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'colorsDressCode', 'schedules']
+const DESKTOP_ONLY_ACTIONS: DashboardAction[] = [
+  'website',
+  'invitation',
+  'colorsDressCode',
+  'schedules',
+  'gallery',
+  'wishlist',
+  'suppliers',
+]
 const isDesktopOnlyModalOpen = ref(false)
 const selectedDesktopOnlyFeature = ref<DashboardItem | null>(null)
 
@@ -1196,8 +1204,14 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                       : selectedDesktopOnlyFeature?.action === 'colorsDressCode'
                         ? 'Color palette customizer, mood board & dress code guidelines'
                         : selectedDesktopOnlyFeature?.action === 'schedules'
-                          ? 'Detailed day-of timeline, ceremony itineraries & run-of-show'
-                          : 'Desktop view required for optimal management'
+                          ? 'Detailed day-of timeline, mini-event itineraries & run-of-show'
+                          : selectedDesktopOnlyFeature?.action === 'gallery'
+                            ? 'High-resolution photo gallery management & layout tools'
+                            : selectedDesktopOnlyFeature?.action === 'wishlist'
+                              ? 'Gift registry management, links & cash gift tracker'
+                              : selectedDesktopOnlyFeature?.action === 'suppliers'
+                                ? 'Vendor directory, contracts, contact directory & bookings'
+                                : 'Desktop view required for optimal management'
                 }}
               </div>
             </div>

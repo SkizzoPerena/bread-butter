@@ -6,9 +6,9 @@ export function useActiveEvent() {
   const activeEventId = useState<string | null>('bpb-active-event-id', () => null)
   const activeEventName = useState<string>('bpb-active-event-name', () => '')
 
-  function setActiveEvent(event: { _id?: string; eventName?: string } | null) {
+  function setActiveEvent(event: { _id?: string; eventName?: string; name?: string; title?: string } | null) {
     activeEventId.value = event?._id ?? null
-    activeEventName.value = event?.eventName?.trim() ?? ''
+    activeEventName.value = (event?.eventName || event?.name || event?.title || '').trim()
   }
 
   const displayName = computed(() => activeEventName.value)

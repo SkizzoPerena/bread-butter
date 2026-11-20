@@ -80,7 +80,7 @@ async function copyAccountNumber(accountNumber?: string, bankType?: string, inde
     <!-- Section Header -->
     <div class="space-y-3 max-w-2xl mx-auto">
       <div
-        class="font-bold text-5xl pt-2 sm:pt-4"
+        class="font-bold text-2xl sm:text-3xl md:text-5xl pt-2 sm:pt-4"
         :style="{ color: colors.heading, fontFamily: `'${headingFont}'` }"
       >
         {{ title || 'Gifts & Registry' }}

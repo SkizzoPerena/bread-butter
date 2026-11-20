@@ -311,6 +311,7 @@ async function load() {
 
     setActiveEvent({
       _id: gatheringData._id,
+      eventName: gatheringData.name,
       name: gatheringData.name,
       title: gatheringData.name,
       location: gatheringData.venue,
@@ -326,6 +327,17 @@ async function load() {
     finishPageTransition()
   }
 }
+
+watch(() => gathering.value?.name, (name) => {
+  if (name && gathering.value) {
+    setActiveEvent({
+      _id: gathering.value._id,
+      eventName: name,
+      name,
+      title: name,
+    } as any)
+  }
+})
 
 onMounted(load)
 
@@ -395,20 +407,6 @@ async function downloadGuests() {
 
 <template>
   <div class="jam-dashboard-root h-[calc(100vh-64px)] flex flex-col w-full max-w-full overflow-x-hidden bg-bread-100 overflow-y-auto lg:overflow-hidden select-none">
-    <!-- Top Teleport Header in Event Navbar -->
-    <ClientOnly>
-      <Teleport to="#event-navbar-center">
-        <div v-if="gathering" class="flex items-center gap-2 max-w-full min-w-0">
-          <span class="font-serif font-bold text-jam-900 text-sm sm:text-base truncate max-w-40 sm:max-w-64">
-            {{ gathering.name }}
-          </span>
-          <UBadge color="warning" variant="solid" size="xs" class="text-black font-semibold shrink-0">
-            {{ gathering.packageName }}
-          </UBadge>
-        </div>
-      </Teleport>
-    </ClientOnly>
-
     <!-- Loading Skeleton / Card -->
     <div v-if="loading" class="p-6 max-w-4xl mx-auto w-full my-auto">
       <div class="white-bread-container p-8 text-center space-y-3">

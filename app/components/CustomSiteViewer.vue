@@ -295,28 +295,11 @@ const headerNav = computed(() => {
 
   const selected = props.site.selectedComponents || []
   for (const id of selected) {
-    if (id === 'rsvp') continue
-    if (id === 'diy') {
-      for (const diy of props.site.diyComponents || []) {
-        middleLinks.push({
-          id: `diy-${diy.id}`,
-          name: diy.name || 'Custom',
-        })
-      }
-    } else if (availableComponentsMap[id]) {
+    if (id === 'rsvp' || id === 'diy') continue
+    if (availableComponentsMap[id]) {
       middleLinks.push({
         id,
         name: availableComponentsMap[id]!.name,
-      })
-    }
-  }
-
-  // Fallback for older sites where diyComponents existed without 'diy' in selectedComponents
-  if (!selected.includes('diy') && (props.site.diyComponents || []).length > 0) {
-    for (const diy of props.site.diyComponents || []) {
-      middleLinks.push({
-        id: `diy-${diy.id}`,
-        name: diy.name || 'Custom',
       })
     }
   }
@@ -461,6 +444,23 @@ const otherWeddingPartyMembers = computed(() => {
   return effectiveViewerPartyMembers.value.filter((m) => !matchedNames.has(m.name))
 })
 
+const weddingPartyColumns = computed(() => [
+  {
+    key: 'bride-side',
+    groups: [
+      { role: 'Maid of Honor', members: maidOfHonorMembers.value },
+      { role: 'Bridesmaids', members: bridesmaidsMembers.value },
+    ].filter((g) => g.members.length > 0),
+  },
+  {
+    key: 'groom-side',
+    groups: [
+      { role: 'Best Man', members: bestManMembers.value },
+      { role: 'Groomsmen', members: groomsmenMembers.value },
+    ].filter((g) => g.members.length > 0),
+  },
+])
+
 const effectiveAccommodations = computed(() => {
   const accs = props.site.whereToStayAccommodations
   if (accs && accs.length > 0) {
@@ -575,7 +575,7 @@ function getVenueGoogleMapsUrl(
           <!-- Header / Close -->
           <div class="flex items-center justify-between p-6 pb-4 border-b border-current/15">
             <div
-              class="font-bold text-xl truncate pr-2"
+              class="font-bold text-lg sm:text-xl truncate pr-2"
               :style="{
                 color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
                 fontFamily: `'${typography.headerFont}'`,
@@ -632,7 +632,7 @@ function getVenueGoogleMapsUrl(
           }80)`,
       }" />
       <div class="relative z-10">
-        <h1 id="viewer-hero-title-f2" class="font-medium text-3xl md:text-5xl text-white transition-all duration-300"
+        <h1 id="viewer-hero-title-f2" class="font-medium text-2xl sm:text-3xl md:text-5xl lg:text-6xl text-white transition-all duration-300"
           :style="{ fontFamily: `'${typography.headerFont}'` }">
           {{ site.siteTitle }}
         </h1>
@@ -664,7 +664,7 @@ function getVenueGoogleMapsUrl(
           }" />
           <div class="relative z-10">
             <div class="space-y-3">
-              <h1 id="viewer-hero-title" class="font-medium text-3xl md:text-5xl text-white transition-all duration-300"
+              <h1 id="viewer-hero-title" class="font-medium text-2xl sm:text-3xl md:text-5xl text-white transition-all duration-300"
                 :style="{ fontFamily: `'${typography.headerFont}'` }">
                 {{ site.siteTitle }}
               </h1>
@@ -678,26 +678,26 @@ function getVenueGoogleMapsUrl(
             (site.headingContent || site.siteDescription || site.paragraphContent) &&
             (site.singlePageSite || activeComponentId === 'about-us')
           " id="section-about-us"
-            class="flex flex-col justify-center px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 paper-textured-bg"
+            class="viewer-section"
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: site.invertColors ? paletteColors.text_color : paletteColors.primary,
             }">
-            <div class="space-y-3 max-w-2xl mx-auto w-full">
+            <div class="viewer-section-header">
               <UContainer v-if="site.headingContent"
-                class="font-bold italic text-5xl pt-2 sm:pt-4 transition-all duration-300" :style="{
+                class="viewer-section-title italic" :style="{
                   color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                 {{ site.headingContent }}
               </UContainer>
-              <div v-if="site.headingContent" class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
-                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
+              <div v-if="site.headingContent" class="viewer-divider" aria-hidden="true">
+                <div class="viewer-divider-line" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
+                <div class="viewer-divider-diamond" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
+                <div class="viewer-divider-line" :style="{ backgroundColor: site.invertColors ? paletteColors.primary : paletteColors.text_color }" />
               </div>
               <div v-if="site.siteDescription || site.paragraphContent"
-                class="prose max-w-none mx-auto text-center text-xl transition-all duration-300" :style="{
+                class="viewer-section-prose" :style="{
                   color: site.invertColors ? paletteColors.primary : paletteColors.text_color,
                 }">
                 {{ site.siteDescription || site.paragraphContent }}
@@ -712,27 +712,27 @@ function getVenueGoogleMapsUrl(
               compId === 'dress-code' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-dress-code"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
 
               <!-- Title & Formality -->
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   Colors &amp; Dress Code
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
                 <div v-if="effectiveDressCode?.formality"
-                  class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                  class="viewer-pill"
                   :style="{ color: getSectionStyle(index).heading }">
                   <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
                   <span>{{ effectiveDressCode.formality }}</span>
@@ -959,25 +959,25 @@ function getVenueGoogleMapsUrl(
               compId === 'gallery' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-gallery"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500 text-center paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
               <!-- Header -->
-              <div class="space-y-3 max-w-3xl mx-auto">
-                <div class="font-bold text-4xl sm:text-5xl pt-1" :style="{
+              <div class="viewer-section-header max-w-3xl">
+                <div class="viewer-section-title !pt-1" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ effectiveGallery.title || 'Captured Moments' }}
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
-                <p v-if="effectiveGallery.subtitle" class="text-sm sm:text-base opacity-80 max-w-xl mx-auto leading-relaxed"
+                <p v-if="effectiveGallery.subtitle" class="viewer-section-desc max-w-xl mx-auto"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ effectiveGallery.subtitle }}
                 </p>
@@ -1034,7 +1034,7 @@ function getVenueGoogleMapsUrl(
                   <img :src="effectiveGallery.photos[0].url" :alt="effectiveGallery.photos[0].caption || 'Hero photo'"
                     class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <div class="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
-                    <p v-if="effectiveGallery.photos[0].caption" class="text-lg sm:text-xl font-bold font-serif">{{ effectiveGallery.photos[0].caption }}</p>
+                    <p v-if="effectiveGallery.photos[0].caption" class="text-base sm:text-lg md:text-xl font-bold font-serif">{{ effectiveGallery.photos[0].caption }}</p>
                   </div>
                 </div>
 
@@ -1091,37 +1091,37 @@ function getVenueGoogleMapsUrl(
               site.tidbits.length > 0 &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-q-and-a"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 text-center pt-28 sm:pt-36 pb-20 scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ site.qaTitle || 'Q&A' }}
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
                 <p v-if="site.qaDescription?.trim()"
-                  class="text-base sm:text-lg leading-relaxed opacity-80"
+                  class="viewer-section-desc"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ site.qaDescription }}
                 </p>
               </div>
               <div v-for="(tidbit, tidbitIndex) in site.tidbits" :key="tidbitIndex" class="flex flex-col gap-3">
-                <h3 class="font-bold text-4xl" :style="{
+                <h3 class="viewer-item-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ tidbit.heading }}
                 </h3>
-                <div class="prose max-w-none mx-auto text-center text-xl"
+                <div class="viewer-section-prose"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ tidbit.paragraph }}
                 </div>
@@ -1134,25 +1134,25 @@ function getVenueGoogleMapsUrl(
               site.scheduleItems.length > 0 &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-schedule"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ site.scheduleTitle || 'Schedule' }}
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
                 <p v-if="site.scheduleDescription?.trim()"
-                  class="text-base sm:text-lg leading-relaxed opacity-80"
+                  class="viewer-section-desc"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ site.scheduleDescription }}
                 </p>
@@ -1178,17 +1178,17 @@ function getVenueGoogleMapsUrl(
                   </span>
                 </div>
 
-                <h3 class="font-bold text-4xl" :style="{
+                <h3 class="viewer-item-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ item.title }}
                 </h3>
-                <div class="prose max-w-none mx-auto text-center text-xl"
+                <div class="viewer-section-prose"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ item.description }}
                 </div>
-                <div v-if="item.location" class="font-semibold italic mt-2 text-lg"
+                <div v-if="item.location" class="font-semibold italic mt-1 sm:mt-2 text-sm sm:text-base"
                   :style="{ color: getSectionStyle(index).heading }">
                   <UIcon name="i-lucide-map-pin" class="mr-1 inline-block align-middle" />
                   {{ item.location }}
@@ -1212,25 +1212,25 @@ function getVenueGoogleMapsUrl(
               compId === 'where-to-stay' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-where-to-stay"
-              class="flex flex-col justify-center gap-8 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section !gap-8"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   Where to Stay
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
                 <div v-if="site.whereToStayLocation"
-                  class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current/20 text-xs sm:text-sm font-semibold tracking-wider uppercase opacity-90 backdrop-blur-xs"
+                  class="viewer-pill"
                   :style="{ color: getSectionStyle(index).heading }">
                   <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5" />
                   <span>{{ getVenueShortName(site.whereToStayLocation) }}</span>
@@ -1253,7 +1253,7 @@ function getVenueGoogleMapsUrl(
               <div v-if="effectiveAccommodations.length > 0" class="max-w-5xl mx-auto w-full pt-4 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-left">
                   <div>
-                    <h3 class="text-xl sm:text-2xl font-bold" :style="{
+                    <h3 class="text-lg sm:text-xl md:text-2xl font-bold" :style="{
                       color: getSectionStyle(index).heading,
                       fontFamily: `'${typography.subheaderFont}'`,
                     }">
@@ -1335,22 +1335,22 @@ function getVenueGoogleMapsUrl(
 
             <!-- Travel -->
             <div v-if="compId === 'travel' && (site.singlePageSite || activeComponentId === compId)" id="section-travel"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   Travel
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
               </div>
             </div>
@@ -1360,25 +1360,25 @@ function getVenueGoogleMapsUrl(
               compId === 'wedding-party' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-wedding-party"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }">
               <!-- Title & Subtitle -->
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   Wedding Party
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
-                <p v-if="site.weddingPartyIntro" class="text-base sm:text-lg leading-relaxed opacity-80"
+                <p v-if="site.weddingPartyIntro" class="viewer-section-desc"
                   :style="{ color: getSectionStyle(index).text }">
                   {{ site.weddingPartyIntro }}
                 </p>
@@ -1386,79 +1386,17 @@ function getVenueGoogleMapsUrl(
 
               <!-- 2 Columns: Maid of Honor & Bridesmaids on Left, Best Man & Groomsmen on Right -->
               <div class="max-w-5xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 gap-10 sm:gap-14 pt-2">
-                <!-- Left Column: Maid of Honor + Bridesmaids -->
-                <div class="flex flex-col gap-8 text-center">
-                  <!-- Maid of Honor -->
-                  <div v-if="maidOfHonorMembers.length > 0" class="space-y-2">
-                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80" :style="{
+                <div v-for="column in weddingPartyColumns" :key="column.key" class="flex flex-col gap-8 text-center">
+                  <div v-for="group in column.groups" :key="group.role" class="space-y-2">
+                    <h3 class="viewer-role-title" :style="{
                       color: getSectionStyle(index).heading,
                       fontFamily: `'${typography.subheaderFont}'`,
                     }">
-                      Maid of Honor
+                      {{ group.role }}
                     </h3>
                     <div class="space-y-1.5">
-                      <p v-for="member in maidOfHonorMembers" :key="member.id || member.name"
-                        class="text-base sm:text-lg font-medium" :style="{
-                          color: getSectionStyle(index).text,
-                          fontFamily: `'${typography.bodyFont}'`,
-                        }">
-                        {{ member.name }}
-                      </p>
-                    </div>
-                  </div>
-
-                  <!-- Bridesmaids -->
-                  <div v-if="bridesmaidsMembers.length > 0" class="space-y-2">
-                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80" :style="{
-                      color: getSectionStyle(index).heading,
-                      fontFamily: `'${typography.subheaderFont}'`,
-                    }">
-                      Bridesmaids
-                    </h3>
-                    <div class="space-y-1.5">
-                      <p v-for="member in bridesmaidsMembers" :key="member.id || member.name"
-                        class="text-base sm:text-lg font-medium" :style="{
-                          color: getSectionStyle(index).text,
-                          fontFamily: `'${typography.bodyFont}'`,
-                        }">
-                        {{ member.name }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Right Column: Best Man + Groomsmen -->
-                <div class="flex flex-col gap-8 text-center">
-                  <!-- Best Man -->
-                  <div v-if="bestManMembers.length > 0" class="space-y-2">
-                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80" :style="{
-                      color: getSectionStyle(index).heading,
-                      fontFamily: `'${typography.subheaderFont}'`,
-                    }">
-                      Best Man
-                    </h3>
-                    <div class="space-y-1.5">
-                      <p v-for="member in bestManMembers" :key="member.id || member.name"
-                        class="text-base sm:text-lg font-medium" :style="{
-                          color: getSectionStyle(index).text,
-                          fontFamily: `'${typography.bodyFont}'`,
-                        }">
-                        {{ member.name }}
-                      </p>
-                    </div>
-                  </div>
-
-                  <!-- Groomsmen -->
-                  <div v-if="groomsmenMembers.length > 0" class="space-y-2">
-                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80" :style="{
-                      color: getSectionStyle(index).heading,
-                      fontFamily: `'${typography.subheaderFont}'`,
-                    }">
-                      Groomsmen
-                    </h3>
-                    <div class="space-y-1.5">
-                      <p v-for="member in groomsmenMembers" :key="member.id || member.name"
-                        class="text-base sm:text-lg font-medium" :style="{
+                      <p v-for="member in group.members" :key="member.id || member.name"
+                        class="viewer-member-name" :style="{
                           color: getSectionStyle(index).text,
                           fontFamily: `'${typography.bodyFont}'`,
                         }">
@@ -1472,8 +1410,8 @@ function getVenueGoogleMapsUrl(
               <!-- Other Entourage Members (if any exist) -->
               <div v-if="otherWeddingPartyMembers.length > 0"
                 class="max-w-xl mx-auto w-full pt-4 space-y-6 text-center">
-                <div class="space-y-3 max-w-2xl mx-auto">
-                  <h3 class="text-xs sm:text-sm font-bold uppercase tracking-widest opacity-80" :style="{
+                <div class="viewer-section-header">
+                  <h3 class="viewer-role-title" :style="{
                     color: getSectionStyle(index).heading,
                     fontFamily: `'${typography.subheaderFont}'`,
                   }">
@@ -1481,7 +1419,7 @@ function getVenueGoogleMapsUrl(
                   </h3>
                   <div class="space-y-1.5">
                     <p v-for="member in otherWeddingPartyMembers" :key="member.id || member.name"
-                      class="text-base sm:text-lg font-medium" :style="{
+                      class="viewer-member-name" :style="{
                         color: getSectionStyle(index).text,
                         fontFamily: `'${typography.bodyFont}'`,
                       }">
@@ -1496,25 +1434,25 @@ function getVenueGoogleMapsUrl(
             <div
               v-if="compId === 'playlist' && (site.singlePageSite || activeComponentId === compId)"
               id="section-playlist"
-              class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+              class="viewer-section"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
               }"
             >
-              <div class="space-y-3 max-w-2xl mx-auto">
-                <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+              <div class="viewer-section-header">
+                <div class="viewer-section-title" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
                   {{ site.playlistTitle || 'Soundtrack & Playlists' }}
                 </div>
-                <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(index).heading }" />
-                  <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                <div class="viewer-divider" aria-hidden="true">
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(index).heading }" />
+                  <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(index).heading }" />
                 </div>
-                <p v-if="site.playlistDescription?.trim()" class="text-base sm:text-lg leading-relaxed opacity-80" :style="{ color: getSectionStyle(index).text }">
+                <p v-if="site.playlistDescription?.trim()" class="viewer-section-desc" :style="{ color: getSectionStyle(index).text }">
                   {{ site.playlistDescription }}
                 </p>
               </div>
@@ -1522,14 +1460,14 @@ function getVenueGoogleMapsUrl(
               <!-- Playlists Content: Gift Registry container style (less opacity containers) -->
               <div v-if="websitePlaylists.length > 0" class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                 <div v-for="playlist in websitePlaylists" :key="playlist._id"
-                  class="rounded-2xl border backdrop-blur-md shadow-xs p-5 flex flex-col gap-3 min-w-0 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+                  class="viewer-glass-card-interactive p-5 flex flex-col gap-3 min-w-0"
                   :style="{
                     backgroundColor: getSectionStyle(index).text + '0D',
                     borderColor: getSectionStyle(index).text + '25',
                     color: getSectionStyle(index).text,
                   }">
                   <div class="min-w-0">
-                    <h3 class="font-serif text-lg sm:text-xl font-bold truncate" :style="{ color: getSectionStyle(index).heading }">
+                    <h3 class="font-serif text-base sm:text-lg md:text-xl font-bold truncate" :style="{ color: getSectionStyle(index).heading }">
                       {{ playlist.label }}
                     </h3>
                     <p v-if="playlist.description?.trim()" class="text-xs sm:text-sm mt-1 whitespace-pre-wrap leading-relaxed opacity-85" :style="{ color: getSectionStyle(index).text }">
@@ -1543,7 +1481,7 @@ function getVenueGoogleMapsUrl(
               </div>
 
               <!-- Fallback / Empty state in CustomSiteViewer -->
-              <div v-else class="max-w-md mx-auto py-10 px-6 rounded-2xl border backdrop-blur-md shadow-xs text-center space-y-2"
+              <div v-else class="viewer-empty-card"
                 :style="{
                   backgroundColor: getSectionStyle(index).text + '0D',
                   borderColor: getSectionStyle(index).text + '25',
@@ -1559,22 +1497,22 @@ function getVenueGoogleMapsUrl(
 
           <!-- RSVP (Fixed component: always last before closing greeting and footer) -->
           <div v-if="site.singlePageSite || activeComponentId === 'rsvp'" id="section-rsvp"
-            class="flex flex-col justify-center gap-10 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center scroll-mt-0 transition-colors duration-500 paper-textured-bg"
+            class="viewer-section"
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: getSectionStyle(displayComponents.length).bg,
             }">
-            <div class="space-y-3 max-w-2xl mx-auto">
-              <div class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+            <div class="viewer-section-header">
+              <div class="viewer-section-title" :style="{
                 color: getSectionStyle(displayComponents.length).heading,
                 fontFamily: `'${typography.subheaderFont}'`,
               }">
                 RSVP
               </div>
-              <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
-                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
+              <div class="viewer-divider" aria-hidden="true">
+                <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
+                <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
+                <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(displayComponents.length).heading }" />
               </div>
             </div>
             <div class="flex flex-col items-center gap-5 text-sm" :style="{ color: getSectionStyle(displayComponents.length).text }">
@@ -1602,15 +1540,15 @@ function getVenueGoogleMapsUrl(
 
           <!-- Thank You / Ending Section -->
           <div v-if="site.singlePageSite || activeComponentId === 'about-us'"
-            class="flex flex-col justify-center gap-6 px-6 sm:px-10 lg:px-16 pt-28 sm:pt-36 pb-20 text-center transition-colors duration-500"
+            class="viewer-section !gap-6"
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: getSectionStyle(
                 displayComponents.length + 1
               ).bg,
             }">
-            <div class="space-y-3 max-w-2xl mx-auto">
-              <h2 class="font-bold text-5xl pt-2 sm:pt-4" :style="{
+            <div class="viewer-section-header">
+              <h2 class="viewer-section-title" :style="{
                 color: getSectionStyle(
                   displayComponents.length + 1
                 ).heading,
@@ -1618,13 +1556,13 @@ function getVenueGoogleMapsUrl(
               }">
                 {{ site.endingTitle }}
               </h2>
-              <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
-                <div class="size-1.5 rotate-45 opacity-70" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
-                <div class="w-12 sm:w-20 h-px opacity-40" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
+              <div class="viewer-divider" aria-hidden="true">
+                <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
+                <div class="viewer-divider-diamond" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
+                <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
               </div>
             </div>
-            <p class="prose max-w-none mx-auto text-center text-2xl" :style="{
+            <p class="viewer-section-prose !text-base sm:!text-lg md:!text-xl" :style="{
               color: getSectionStyle(
                 displayComponents.length + 1
               ).text,
@@ -1758,5 +1696,262 @@ function getVenueGoogleMapsUrl(
 .mask-logo {
   -webkit-mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
   mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
+}
+
+.viewer-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 7rem;
+  padding-bottom: 5rem;
+  text-align: center;
+  scroll-margin-top: 0;
+  transition-property: color, background-color, border-color;
+  transition-duration: 500ms;
+  background-image: url('/images/paper-texture.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-blend-mode: multiply;
+}
+
+@media (min-width: 640px) {
+  .viewer-section {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+    padding-top: 9rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .viewer-section {
+    background-image: url('/images/paper-texture-horizontal.webp');
+  }
+}
+
+@media (min-width: 1024px) {
+  .viewer-section {
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+}
+
+.viewer-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.viewer-section-title {
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  padding-top: 0.5rem;
+  transition-property: all;
+  transition-duration: 300ms;
+}
+
+@media (min-width: 640px) {
+  .viewer-section-title {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    padding-top: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .viewer-section-title {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+.viewer-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.viewer-divider-line {
+  width: 3rem;
+  height: 1px;
+  opacity: 0.4;
+}
+
+@media (min-width: 640px) {
+  .viewer-divider-line {
+    width: 5rem;
+  }
+}
+
+.viewer-divider-diamond {
+  width: 0.375rem;
+  height: 0.375rem;
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+.viewer-section-desc {
+  font-size: 0.875rem;
+  line-height: 1.625;
+  opacity: 0.8;
+}
+
+@media (min-width: 640px) {
+  .viewer-section-desc {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .viewer-section-desc {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+}
+
+.viewer-section-prose {
+  max-width: none;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition-property: all;
+  transition-duration: 300ms;
+}
+
+@media (min-width: 640px) {
+  .viewer-section-prose {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .viewer-section-prose {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+}
+
+.viewer-item-title {
+  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .viewer-item-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .viewer-item-title {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
+
+.viewer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 1rem;
+  border-radius: 9999px;
+  border-width: 1px;
+  border-color: color-mix(in srgb, currentColor 20%, transparent);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  backdrop-filter: blur(4px);
+}
+
+@media (min-width: 640px) {
+  .viewer-pill {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+}
+
+.viewer-glass-card {
+  border-radius: 1rem;
+  border-width: 1px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.viewer-glass-card-interactive {
+  border-radius: 1rem;
+  border-width: 1px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition-property: all;
+  transition-duration: 300ms;
+}
+
+.viewer-glass-card-interactive:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.viewer-empty-card {
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 2.5rem 1.5rem;
+  border-radius: 1rem;
+  border-width: 1px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.viewer-role-title {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}
+
+@media (min-width: 640px) {
+  .viewer-role-title {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+}
+
+.viewer-member-name {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+@media (min-width: 640px) {
+  .viewer-member-name {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
 }
 </style>

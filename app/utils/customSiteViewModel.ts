@@ -46,7 +46,7 @@ export interface CustomSiteViewModel {
     isAllDay?: boolean
   }[]
   selectedComponents: string[]
-  diyComponents: CustomSiteDiyComponent[]
+  diyComponents?: CustomSiteDiyComponent[]
   invertColors: boolean
   simplifiedColors: boolean
   singlePageSite: boolean
@@ -103,16 +103,7 @@ export function customSiteToViewModel(site: PublicCustomSiteRecord): CustomSiteV
   const rawSinglePage = site.singlePageSite ?? parsedPalette.singlePageSite ?? motifConfig?.singlePageSite
   const singlePageSite = rawSinglePage !== undefined ? Boolean(rawSinglePage) : true
 
-  const rawDiy = (site.diyComponents && site.diyComponents.length > 0)
-    ? site.diyComponents
-    : (motifConfig?.diyComponents ?? [])
-
-  const diyComponents: CustomSiteDiyComponent[] = rawDiy.map((c, i: number) => ({
-    id: String(c.id || `diy-${i}`),
-    name: String(c.name || 'Custom'),
-    header: String(c.header || 'Custom Header'),
-    description: String(c.content || c.description || ''),
-  }))
+  const diyComponents: CustomSiteDiyComponent[] = []
 
   const colorSource =
     extractCustomColors(site.colorPalette) ||

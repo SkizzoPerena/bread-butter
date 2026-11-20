@@ -443,7 +443,7 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     textClass: 'text-rose-600',
   },
   {
-    label: 'Playlist',
+    label: 'Playlists',
     icon: 'i-lucide-music',
     action: 'playlist',
     description: 'Curate reception tunes, entry songs, and dance tracks.',
@@ -487,10 +487,10 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
 
   // Row 5: schedules - payments - settings
   {
-    label: 'Schedules',
+    label: 'Mini-events',
     icon: 'i-lucide-calendar',
     action: 'schedules',
-    description: 'Coordinate day-of itineraries and ceremony schedules.',
+    description: 'Coordinate day-of itineraries and mini-event schedules.',
     bgClass: 'bg-cyan-500/10',
     hoverClass: 'group-hover:bg-cyan-500/20',
     ringClass: 'ring-1 ring-inset ring-cyan-500/25 group-focus-visible:ring-2 group-focus-visible:ring-cyan-500',
@@ -599,7 +599,15 @@ function openSuppliersDashboard() {
   startPageTransition({ path: '/event/suppliers', query: { eventId: getActiveEventQueryId() } })
 }
 
-const DESKTOP_ONLY_ACTIONS: DashboardAction[] = ['website', 'invitation', 'colorsDressCode', 'schedules']
+const DESKTOP_ONLY_ACTIONS: DashboardAction[] = [
+  'website',
+  'invitation',
+  'colorsDressCode',
+  'schedules',
+  'gallery',
+  'wishlist',
+  'suppliers',
+]
 const isDesktopOnlyModalOpen = ref(false)
 const selectedDesktopOnlyFeature = ref<QuickNavItem | null>(null)
 const activeMobileTab = ref<'launcher' | 'overview'>('launcher')
@@ -700,14 +708,26 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
     'Guest List': 'bg-orange-500',
     Gifts: 'bg-pink-500',
     Playlist: 'bg-lime-500',
+    Playlists: 'bg-lime-500',
     Tasks: 'bg-red-500',
     Schedules: 'bg-cyan-500',
+    'Mini-events': 'bg-cyan-500',
+    'Mini-Events': 'bg-cyan-500',
     Suppliers: 'bg-fuchsia-500',
     Requirements: 'bg-yellow-500',
     Payments: 'bg-emerald-500',
     Settings: 'bg-slate-500',
   }
-  return map[item.label] || 'bg-toast-600'
+  if (item?.label && map[item.label]) {
+    return map[item.label]
+  }
+  if (item?.action === 'playlist') {
+    return 'bg-lime-500'
+  }
+  if (item?.action === 'schedules') {
+    return 'bg-cyan-500'
+  }
+  return 'bg-toast-600'
 }
 
 // Hover pop-up tooltip state
@@ -953,9 +973,9 @@ const urgentTasks = computed<PriorityDashboardTask[]>(() => {
     } else if (titleLower.includes('rsvp') || titleLower.includes('invite') || titleLower.includes('response')) {
       category = 'RSVP'; action = 'rsvp'
     } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
-      category = 'Playlist'; action = 'playlist'
-    } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
-      category = 'Schedules'; action = 'schedules'
+      category = 'Playlists'; action = 'playlist'
+    } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary') || titleLower.includes('mini-event')) {
+      category = 'Mini-events'; action = 'schedules'
     }
     return {
       id: t._id || t.id,
@@ -1005,9 +1025,9 @@ const importantTasks = computed<PriorityDashboardTask[]>(() => {
     ) {
       category = 'Suppliers'; action = 'suppliers'
     } else if (titleLower.includes('music') || titleLower.includes('playlist') || titleLower.includes('song')) {
-      category = 'Playlist'; action = 'playlist'
-    } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary')) {
-      category = 'Schedules'; action = 'schedules'
+      category = 'Playlists'; action = 'playlist'
+    } else if (titleLower.includes('schedule') || titleLower.includes('timeline') || titleLower.includes('itinerary') || titleLower.includes('mini-event')) {
+      category = 'Mini-events'; action = 'schedules'
     } else if (titleLower.includes('web') || titleLower.includes('site')) {
       category = 'Website'; action = 'website'
     }
@@ -1659,8 +1679,14 @@ function onPriorityTaskClick(_task?: PriorityDashboardTask) {
                       : selectedDesktopOnlyFeature?.action === 'colorsDressCode'
                         ? 'Color palette customizer, mood board & dress code guidelines'
                         : selectedDesktopOnlyFeature?.action === 'schedules'
-                          ? 'Detailed day-of timeline, ceremony itineraries & run-of-show'
-                          : 'Desktop view required for optimal management'
+                          ? 'Detailed day-of timeline, mini-event itineraries & run-of-show'
+                          : selectedDesktopOnlyFeature?.action === 'gallery'
+                            ? 'High-resolution photo gallery management & layout tools'
+                            : selectedDesktopOnlyFeature?.action === 'wishlist'
+                              ? 'Gift registry management, links & cash gift tracker'
+                              : selectedDesktopOnlyFeature?.action === 'suppliers'
+                                ? 'Vendor directory, contracts, contact directory & bookings'
+                                : 'Desktop view required for optimal management'
                 }}
               </div>
             </div>

@@ -9,7 +9,7 @@ definePageMeta({
   layout: 'event-sub-navbar',
   key: (route) => route.fullPath,
   useLogo: true,
-  title: 'Playlist',
+  title: 'Playlists',
   bgClass: 'bg-lime-50',
 })
 
@@ -355,7 +355,7 @@ watch(eventId, async () => {
     <div v-else class="space-y-6">
       <div class="white-bread-container p-5 sm:p-6 border border-bread-200/90 rounded-2xl shadow-xs text-center space-y-1.5">
         <h2 class="text-xl font-bold font-serif text-highlighted">
-          Event playlists
+          Playlists
         </h2>
         <p class="text-sm text-muted max-w-xl mx-auto leading-relaxed">
           Add multiple Spotify playlists for different moments — ceremony, cocktail hour, reception, and more. Each playlist includes playback controls and a scrollable track list.

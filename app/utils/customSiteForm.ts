@@ -120,7 +120,7 @@ export interface BuildCustomSiteFormInput {
   selectedPalette: ColorPaletteColors
   selectedTypography: TypographySetInput
   selectedHeaderFile?: File
-  diyComponents: WebsiteEditorDiyComponent[]
+  diyComponents?: WebsiteEditorDiyComponent[]
   weddingPartyMembers?: Array<{ id: string; name: string; role: string; notes?: string }>
   weddingPartyIntro?: string
   whereToStayAccommodations?: CustomSiteAccommodation[]
@@ -150,7 +150,7 @@ export interface WebsiteEditorContext {
   playlistDescription?: { value: string }
   scheduleItems: { value: WebsiteEditorScheduleItem[] }
   selectedComponents: { value: string[] }
-  diyComponents: { value: WebsiteEditorDiyComponent[] }
+  diyComponents?: { value: WebsiteEditorDiyComponent[] }
   isLive: { value: boolean }
   customColors?: {
     primary: string
@@ -208,7 +208,7 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
     selectedPalette,
     selectedTypography,
     selectedHeaderFile,
-    diyComponents,
+    diyComponents = [],
     weddingPartyMembers,
     weddingPartyIntro,
     whereToStayAccommodations,
@@ -346,17 +346,19 @@ export function buildCustomSiteFormData(input: BuildCustomSiteFormInput): FormDa
       message: websiteData.endingMessage.trim(),
     })
   )
-  formData.append(
-    'diyComponents',
-    JSON.stringify(
-      diyComponents.map(c => ({
-        id: c.id,
-        name: c.name.trim(),
-        header: c.header.trim(),
-        content: c.description.trim(),
-      }))
+  if (diyComponents.length > 0) {
+    formData.append(
+      'diyComponents',
+      JSON.stringify(
+        diyComponents.map(c => ({
+          id: c.id,
+          name: c.name.trim(),
+          header: c.header.trim(),
+          content: c.description.trim(),
+        }))
+      )
     )
-  )
+  }
 
   if (selectedHeaderFile) {
     formData.append('headerImage', selectedHeaderFile)
@@ -460,14 +462,16 @@ export function applyCustomSiteToEditor(
     ? site.diyComponents
     : (motifConfig?.diyComponents ?? [])
 
-  diyComponents.value = rawDiy.map((c, i) => ({
-    id: c.id || `diy-${Date.now() + i}`,
-    name: c.name || 'Custom',
-    header: c.header || 'Custom Header',
-    description: c.content || c.description || '',
-  }))
+  if (diyComponents) {
+    diyComponents.value = rawDiy.map((c, i) => ({
+      id: c.id || `diy-${Date.now() + i}`,
+      name: c.name || 'Custom',
+      header: c.header || 'Custom Header',
+      description: c.content || c.description || '',
+    }))
+  }
 
-  selectedComponents.value = [...(site.enabledComponents ?? [])].filter(id => id !== 'rsvp')
+  selectedComponents.value = [...(site.enabledComponents ?? [])].filter(id => id !== 'rsvp' && id !== 'diy')
   isLive.value = Boolean(site.isPublished)
 
   if (ctx.customWeddingPartyMembers) {

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { TableColumn } from '@nuxt/ui'
 import {
-  CalendarDate,
+  type CalendarDate,
   DateFormatter,
   getLocalTimeZone,
   today,
@@ -28,7 +28,7 @@ definePageMeta({
   layout: 'event-sub-navbar',
   key: (route) => route.fullPath,
   useLogo: true,
-  title: 'Sub-Event',
+  title: 'Mini-Event',
   bgClass: 'bg-pink-50',
 })
 
@@ -287,10 +287,10 @@ function closeEditModal() {
 function validateEditForm(): string | null {
   const name = editForm.name.trim()
   if (!name) {
-    return 'Sub-event name is required.'
+    return 'Mini-event name is required.'
   }
   if (EMOJI_RE.test(name)) {
-    return 'Sub-event name must not contain emojis.'
+    return 'Mini-event name must not contain emojis.'
   }
   if (editForm.venue.trim() && EMOJI_RE.test(editForm.venue)) {
     return 'Venue must not contain emojis.'
@@ -299,7 +299,7 @@ function validateEditForm(): string | null {
     return 'Description must not contain emojis.'
   }
   if (!selectedDate.value) {
-    return 'Sub-event date is required.'
+    return 'Mini-event date is required.'
   }
   const parentIso = eventRecord.value?.eventDate
   if (!parentIso) {
@@ -307,7 +307,7 @@ function validateEditForm(): string | null {
   }
   const subEventIso = calendarDateToUtcIso(selectedDate.value)
   if (!isSubEventDateBeforeParent(subEventIso, parentIso)) {
-    return 'Sub-event date must be before the main event date.'
+    return 'Mini-event date must be before the main event date.'
   }
   return null
 }
@@ -318,7 +318,7 @@ async function loadSubEvent(targetEventId: string, targetSubEventId: string) {
     const subEvent = await findSubEventById(targetEventId, targetSubEventId)
     if (!subEvent) {
       toast.add({
-        title: 'Sub-event not found',
+        title: 'Mini-event not found',
         description: 'This schedule item may have been removed.',
         color: 'error',
       })
@@ -329,7 +329,7 @@ async function loadSubEvent(targetEventId: string, targetSubEventId: string) {
     populateEditForm(subEvent)
     await refreshRsvpSummary()
   } catch (error) {
-    reportApiError(toast, { title: 'Could not load sub-event', error })
+    reportApiError(toast, { title: 'Could not load mini-event', error })
     subEventRecord.value = null
   } finally {
     isLoadingSubEvent.value = false
@@ -406,12 +406,12 @@ async function handleSaveChanges() {
     populateEditForm(updated)
     isEditModalOpen.value = false
     toast.add({
-      title: 'Sub-event updated',
+      title: 'Mini-event updated',
       description: 'Your changes have been saved.',
       color: 'success',
     })
   } catch (error) {
-    reportApiError(toast, { title: 'Could not update sub-event', error })
+    reportApiError(toast, { title: 'Could not update mini-event', error })
   } finally {
     isSaving.value = false
   }
@@ -427,14 +427,14 @@ async function handleDeleteSubEvent() {
   try {
     await deleteSubEvent(targetSubEventId)
     toast.add({
-      title: 'Sub-event deleted',
+      title: 'Mini-event deleted',
       description: 'The schedule item has been removed.',
       color: 'success',
     })
     isDeleteModalOpen.value = false
     await navigateTo(schedulesLink.value)
   } catch (error) {
-    reportApiError(toast, { title: 'Could not delete sub-event', error })
+    reportApiError(toast, { title: 'Could not delete mini-event', error })
   } finally {
     isDeleting.value = false
   }
@@ -452,7 +452,7 @@ onMounted(() => {
   }
   if (!subEventId.value && !isUiOnlyMode.value) {
     toast.add({
-      title: 'Missing sub-event',
+      title: 'Missing mini-event',
       description: 'Select a schedule item from the schedules list.',
       color: 'error',
     })
@@ -474,7 +474,7 @@ watch([eventId, subEventId], () => {
       class="flex items-center justify-center py-16 text-muted"
     >
       <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
-      <span class="ml-2 text-sm">Loading sub-event...</span>
+      <span class="ml-2 text-sm">Loading mini-event...</span>
     </div>
 
     <template v-else-if="subEventRecord">
@@ -484,7 +484,7 @@ watch([eventId, subEventId], () => {
           color="warning"
           variant="subtle"
           title="Event cancelled"
-          description="Sub-event details and invitations cannot be modified for a cancelled event."
+          description="Mini-event details and invitations cannot be modified for a cancelled event."
         />
 
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -541,7 +541,7 @@ watch([eventId, subEventId], () => {
           <div>
             <p class="text-lg font-semibold text-highlighted">Invitations</p>
             <p class="text-sm text-muted">
-              Send sub-event RSVPs to guests on your main guest list. Responses track attendance status only.
+              Send mini-event RSVPs to guests on your main guest list. Responses track attendance status only.
             </p>
           </div>
           <UButton
@@ -590,7 +590,7 @@ watch([eventId, subEventId], () => {
           <div>
             <p class="text-lg font-semibold text-error">Danger Zone</p>
             <p class="text-sm text-muted">
-              Permanently delete this sub-event and its RSVP records. This cannot be undone.
+              Permanently delete this mini-event and its RSVP records. This cannot be undone.
             </p>
           </div>
           <UButton
@@ -600,7 +600,7 @@ watch([eventId, subEventId], () => {
             :disabled="mutationsDisabled"
             @click="isDeleteModalOpen = true"
           >
-            Delete Sub-Event
+            Delete Mini-Event
           </UButton>
         </div>
       </UPageCard>
@@ -816,7 +816,7 @@ watch([eventId, subEventId], () => {
 
     <UModal
       v-model:open="isDeleteModalOpen"
-      title="Delete Sub-Event"
+      title="Delete Mini-Event"
       :dismissible="!isDeleting"
       :ui="{ content: 'border-none ring-transparent max-w-md' }"
     >
@@ -824,7 +824,7 @@ watch([eventId, subEventId], () => {
         <p class="text-sm text-muted">
           Are you sure you want to delete
           <span class="font-medium text-highlighted">{{ subEventRecord?.name }}</span>?
-          All sub-event RSVP invitations and responses will be removed.
+          All mini-event RSVP invitations and responses will be removed.
         </p>
         <div class="mt-6 flex justify-end gap-2">
           <UButton
@@ -841,7 +841,7 @@ watch([eventId, subEventId], () => {
             :disabled="isDeleting"
             @click="handleDeleteSubEvent"
           >
-            Delete Sub-Event
+            Delete Mini-Event
           </UButton>
         </div>
       </template>
