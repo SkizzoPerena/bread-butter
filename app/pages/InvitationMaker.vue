@@ -20,6 +20,7 @@ import {
   toDateInputValue,
 } from '~/utils/invitationForm'
 import type { InvitationEmailData } from '~/utils/invitationEmailTemplate'
+import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -343,6 +344,9 @@ watch(
   [rsvpData, effectivePalette, effectiveTypography, effectiveBannerImageUrl, websiteSlug],
   () => {
     syncEstablishedInvitationToStorage()
+    if (currentEventId) {
+      markStepCompletedLocally(currentEventId, 'invitation', true)
+    }
   },
   { deep: true }
 )
@@ -502,10 +506,15 @@ onMounted(async () => {
           }
         }
         keysToRemove.forEach((k) => localStorage.removeItem(k))
-      } catch {}
+      } catch {
+        // Ignore local cleanup errors
+      }
     }
 
     syncEstablishedInvitationToStorage()
+    if (currentEventId) {
+      markStepCompletedLocally(currentEventId, 'invitation', true)
+    }
   } catch (error) {
     console.error('Error loading invitation details:', error)
   } finally {
@@ -573,6 +582,9 @@ async function saveInvitation() {
     }
 
     syncEstablishedInvitationToStorage()
+    if (currentEventId) {
+      markStepCompletedLocally(currentEventId, 'invitation', true)
+    }
 
     // Upload card image for invitation email
     if (existingInvitationId.value) {

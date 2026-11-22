@@ -16,6 +16,7 @@ import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
 import { useEventPlaylists } from '~/composables/useEventPlaylists'
 import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
 import { usePlaces, type GeocodeResult, type PlaceSearchResult } from '~/composables/usePlaces'
+import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
 import type { PlaylistRecord } from '~/types/playlist'
@@ -2429,6 +2430,9 @@ async function handleGoLive() {
         saveModalDescription.value = 'Making your website live...'
         await publishCustomSite(customSiteId.value)
         isLive.value = true
+        if (eventId.value) {
+            markStepCompletedLocally(eventId.value, 'website', true)
+        }
         toast.add({
             title: 'Website is live!',
             description: 'Your website is now published and accessible.',

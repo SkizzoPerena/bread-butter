@@ -24,6 +24,7 @@ import { useTasks } from '~/composables/useTasks'
 import { useEventChurchRequirements } from '~/composables/useEventChurchRequirements'
 import type { PartyTracking } from '~/types/churchRequirement'
 import { useGuests } from '~/composables/useGuests'
+import { useEventFlowProgress } from '~/composables/useEventFlowProgress'
 import {
   type DashboardAction,
   getAllowedFeaturesForEvent,
@@ -46,6 +47,7 @@ const { fetchSuppliers, fetchSupplierSummary } = useEventSuppliers()
 const { fetchTasksByEvent } = useTasks()
 const { fetchRequirementsByEvent } = useEventChurchRequirements()
 const { fetchGuestsByEvent } = useGuests()
+const { currentFlowStep, currentFlowStepAction, loadFlowStatus } = useEventFlowProgress()
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium',
@@ -349,7 +351,15 @@ async function loadEventData() {
       churchRequirementSummary.value = detail.churchRequirementSummary || null
     }
 
-    await loadPlanningHealthData()
+    await Promise.all([
+      loadPlanningHealthData(),
+      loadFlowStatus(eventId.value, {
+        eventRecord: detail?.event || eventRecord.value,
+        guestList: detail?.guestList || guestList.value,
+        guestStats: detail?.guestStats || guestStats.value,
+        rsvpSummary: detail?.rsvpSummary || rsvpSummary.value,
+      }),
+    ])
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -957,6 +967,11 @@ function navigateFromModal(item: QuickNavItem | null) {
   else if (item.action === 'guestList') openGuestList()
 }
 
+const hoveredDashboardItem = ref<QuickNavItem | null>(null)
+const hoveredContainerInfo = ref<ContainerInfoItem | null>(null)
+const cursorPosition = ref({ x: 0, y: 0 })
+const isHoverTooltipVisible = ref(false)
+
 function onQuickNavItemClick(item: QuickNavItem) {
   isHoverTooltipVisible.value = false
   hoveredDashboardItem.value = null
@@ -1054,8 +1069,9 @@ function getQuickNavSolidBgClass(item: QuickNavItem): string {
     Payments: 'bg-emerald-500',
     Settings: 'bg-slate-500',
   }
-  if (item?.label && map[item.label]) {
-    return map[item.label]
+  if (item?.label) {
+    const color = map[item.label]
+    if (color) return color
   }
   if (item?.action === 'playlist') {
     return 'bg-lime-500'
@@ -1073,6 +1089,7 @@ interface DashboardTooltipData {
   icon: string
   iconBgClass: string
   isBlocked?: boolean
+  action?: string
 }
 
 interface ContainerInfoItem {
@@ -1121,11 +1138,6 @@ const CONTAINER_INFO_ITEMS: Record<string, ContainerInfoItem> = {
   },
 }
 
-const hoveredDashboardItem = ref<QuickNavItem | null>(null)
-const hoveredContainerInfo = ref<ContainerInfoItem | null>(null)
-const cursorPosition = ref({ x: 0, y: 0 })
-const isHoverTooltipVisible = ref(false)
-
 function onDashboardItemMouseEnter(event: MouseEvent, item: QuickNavItem) {
   if (isMobileViewport()) return
   hoveredContainerInfo.value = null
@@ -1172,6 +1184,7 @@ const activeTooltipData = computed<DashboardTooltipData | null>(() => {
       icon: hoveredDashboardItem.value.icon,
       iconBgClass: getQuickNavSolidBgClass(hoveredDashboardItem.value),
       isBlocked: isDashboardItemBlocked(hoveredDashboardItem.value),
+      action: hoveredDashboardItem.value.action,
     }
   }
   if (hoveredContainerInfo.value) {
@@ -1506,10 +1519,12 @@ watch(eventId, () => {
       <div
         class="flex items-center gap-1.5 p-1 bg-white/70 backdrop-blur-xs rounded-xl w-full max-w-xs mx-auto border border-bread-300/40 shadow-xs">
         <button type="button"
-          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer relative"
           :class="activeMobileTab === 'launcher' ? 'bg-toast-500 text-white shadow-xs' : 'text-toast-800 hover:text-toast-950'"
           @click="activeMobileTab = 'launcher'">
           Quick Launch
+          <span v-if="currentFlowStepAction"
+            class="inline-flex size-2 rounded-full bg-rose-500 ml-1.5 align-middle animate-pulse" />
         </button>
         <button type="button"
           class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer"
@@ -1538,10 +1553,22 @@ watch(eventId, () => {
                   isDashboardItemBlocked(item)
                     ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                     : ['group-hover:scale-105 group-active:scale-95'],
+                  currentFlowStepAction === item.action ? 'ring-2 ring-rose-500 ring-offset-2' : '',
                 ]">
                 <UIcon :name="item.icon" class="size-5 sm:size-6 text-white shrink-0" />
               </div>
-              <div v-if="isDashboardItemBlocked(item)"
+              <!-- Current Flow Step Alert Badge -->
+              <div v-if="currentFlowStepAction === item.action"
+                class="absolute -top-1 -right-1 z-20 flex items-center justify-center pointer-events-none"
+                :title="`Current Step: ${item.label}`">
+                <span class="relative flex size-3.5 sm:size-4">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                  <span class="relative inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                    !
+                  </span>
+                </span>
+              </div>
+              <div v-if="isDashboardItemBlocked(item) && currentFlowStepAction !== item.action"
                 class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
                 title="Upgrade to unlock">
                 <UIcon name="i-lucide-lock" class="size-2 block" />
@@ -2042,16 +2069,27 @@ watch(eventId, () => {
         :ui="{ root: 'min-h-0 lg:h-full flex flex-col overflow-hidden p-3 sm:p-3.5 lg:p-4' }">
         <div class="my-auto flex flex-col items-center justify-center w-full px-1 sm:px-2">
           <!-- Panel Header -->
-          <div class="pb-3 sm:pb-4 flex items-center gap-1.5 shrink-0 text-center justify-center max-w-full min-w-0">
-            <h2 class="dash-container-header font-serif text-toast-500 font-bold leading-tight truncate">Quick
-              Navigation</h2>
-            <button type="button"
-              class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none shrink-0"
-              aria-label="Quick Navigation information"
-              @mouseenter="onContainerHelpMouseEnter($event, 'quick-navigation')"
-              @mousemove="onContainerHelpMouseMove($event)" @mouseleave="onContainerHelpMouseLeave">
-              <UIcon name="i-lucide-help-circle" class="size-3.5 sm:size-4" />
-            </button>
+          <div class="pb-3 sm:pb-4 flex flex-col items-center gap-1.5 shrink-0 text-center justify-center max-w-full min-w-0">
+            <div class="flex items-center gap-1.5 justify-center max-w-full min-w-0">
+              <h2 class="dash-container-header font-serif text-toast-500 font-bold leading-tight truncate">Quick
+                Navigation</h2>
+              <button type="button"
+                class="inline-flex items-center justify-center text-toast-400 hover:text-toast-600 hover:bg-toast-100/70 rounded-full p-0.5 transition-colors cursor-help focus:outline-none shrink-0"
+                aria-label="Quick Navigation information"
+                @mouseenter="onContainerHelpMouseEnter($event, 'quick-navigation')"
+                @mousemove="onContainerHelpMouseMove($event)" @mouseleave="onContainerHelpMouseLeave">
+                <UIcon name="i-lucide-help-circle" class="size-3.5 sm:size-4" />
+              </button>
+            </div>
+            <!-- Onboarding Flow Indicator Pill -->
+            <div v-if="currentFlowStep"
+              class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+              <span class="relative flex size-2 shrink-0">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                <span class="relative inline-flex size-2 rounded-full bg-rose-500" />
+              </span>
+              <span class="truncate">Next Step: {{ currentFlowStep.label }}</span>
+            </div>
           </div>
 
           <!-- 3-Column App Launcher Grid -->
@@ -2059,11 +2097,27 @@ watch(eventId, () => {
             class="grid grid-cols-3 gap-3 sm:gap-3.5 xl:gap-4 w-full max-w-60 sm:max-w-65 lg:max-w-62.5 xl:max-w-70 mx-auto">
             <button v-for="item in QUICK_NAV_ITEMS" :key="item.label" type="button"
               class="group relative flex flex-col items-center justify-center w-full aspect-square p-1 sm:p-1.5 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none select-none cursor-pointer"
-              :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
+              :class="[
+                item.bgClass,
+                currentFlowStepAction === item.action ? 'ring-2 ring-rose-500 shadow-sm shadow-rose-500/20' : item.ringClass,
+                item.hoverClass,
+                item.textClass
+              ]"
               @click="onQuickNavItemClick(item)" @mouseenter="onDashboardItemMouseEnter($event, item)"
               @mousemove="onDashboardItemMouseMove($event)" @mouseleave="onDashboardItemMouseLeave">
+              <!-- Current Flow Step Alert Badge -->
+              <div v-if="currentFlowStepAction === item.action"
+                class="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center pointer-events-none"
+                :title="`Current Step: ${item.label}`">
+                <span class="relative flex size-3.5 sm:size-4">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                  <span class="relative inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                    !
+                  </span>
+                </span>
+              </div>
               <!-- Feature Lock Indicator if blocked -->
-              <div v-if="isDashboardItemBlocked(item)"
+              <div v-if="isDashboardItemBlocked(item) && currentFlowStepAction !== item.action"
                 class="absolute top-1 right-1 size-3.5 rounded-full bg-black/40 text-white flex items-center justify-center">
                 <UIcon name="i-lucide-lock" class="size-2 text-white" />
               </div>
@@ -2191,6 +2245,10 @@ watch(eventId, () => {
                 <UBadge v-if="activeTooltipData.isBlocked" color="warning" size="xs" variant="solid"
                   class="text-[10px] text-black font-semibold">
                   Upgrade
+                </UBadge>
+                <UBadge v-else-if="currentFlowStepAction === activeTooltipData.action" color="error" size="xs" variant="solid"
+                  class="text-[10px] text-white font-semibold">
+                  Current Step
                 </UBadge>
               </div>
               <p class="text-sm text-bread-100/95 leading-relaxed">

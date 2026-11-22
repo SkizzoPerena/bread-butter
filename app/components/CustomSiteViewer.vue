@@ -966,7 +966,7 @@ function getVenueGoogleMapsUrl(
               }">
               <!-- Header -->
               <div class="viewer-section-header max-w-3xl">
-                <div class="viewer-section-title !pt-1" :style="{
+                <div class="viewer-section-title pt-1!" :style="{
                   color: getSectionStyle(index).heading,
                   fontFamily: `'${typography.subheaderFont}'`,
                 }">
@@ -1212,7 +1212,7 @@ function getVenueGoogleMapsUrl(
               compId === 'where-to-stay' &&
               (site.singlePageSite || activeComponentId === compId)
             " id="section-where-to-stay"
-              class="viewer-section !gap-8"
+              class="viewer-section gap-8!"
               :style="{
                 minHeight: componentMinHeight,
                 backgroundColor: getSectionStyle(index).bg,
@@ -1279,7 +1279,7 @@ function getVenueGoogleMapsUrl(
                     class="flex-1 min-w-0 flex flex-col justify-between p-4 sm:p-5 text-left">
                     <div class="space-y-2.5 flex-1 pb-1">
                       <!-- Topmost: Whole Name of the Venue -->
-                      <h4 class="font-bold text-base sm:text-lg leading-snug break-words"
+                      <h4 class="font-bold text-base sm:text-lg leading-snug wrap-break-word"
                         :style="{
                           color: getSectionStyle(index).heading,
                           fontFamily: `'${typography.subheaderFont}'`,
@@ -1540,7 +1540,7 @@ function getVenueGoogleMapsUrl(
 
           <!-- Thank You / Ending Section -->
           <div v-if="site.singlePageSite || activeComponentId === 'about-us'"
-            class="viewer-section !gap-6"
+            class="viewer-section gap-6!"
             :style="{
               minHeight: componentMinHeight,
               backgroundColor: getSectionStyle(
@@ -1562,7 +1562,7 @@ function getVenueGoogleMapsUrl(
                 <div class="viewer-divider-line" :style="{ backgroundColor: getSectionStyle(displayComponents.length + 1).heading }" />
               </div>
             </div>
-            <p class="viewer-section-prose !text-base sm:!text-lg md:!text-xl" :style="{
+            <p class="viewer-section-prose text-base! sm:text-lg! md:text-xl!" :style="{
               color: getSectionStyle(
                 displayComponents.length + 1
               ).text,

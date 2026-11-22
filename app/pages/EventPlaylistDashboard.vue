@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { EventRecord } from '~/types/event'
-import type { CreatePlaylistPayload, PlaylistRecord } from '~/types/playlist'
+import type { CreatePlaylistPayload, PlaylistRecord, UpdatePlaylistPayload } from '~/types/playlist'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { getSpotifyEmbedUrl } from '~/utils/spotify'
@@ -514,7 +514,7 @@ watch(eventId, async () => {
       <template #body>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
           <!-- Left Column: Form Fields & Bottom Actions -->
-          <div class="flex flex-col justify-between h-full min-h-[380px]">
+          <div class="flex flex-col justify-between h-full min-h-95">
             <div class="space-y-3.5">
               <UFormField label="Label" name="new-playlist-label" required>
                 <UInput
@@ -593,12 +593,12 @@ watch(eventId, async () => {
           <!-- Right Column: Live Spotify Preview or Placeholder -->
           <div class="flex flex-col space-y-1.5 h-full">
             <span class="block text-sm font-medium text-highlighted">Playlist Preview</span>
-            <div v-if="newPlaylistEmbedUrl" class="w-full overflow-hidden rounded-xl h-[354px]">
+            <div v-if="newPlaylistEmbedUrl" class="w-full overflow-hidden rounded-xl h-88.5">
               <SpotifyPlaylistEmbed :playlist-url="newPlaylistForm.spotifyURL" compact />
             </div>
             <div
               v-else
-              class="rounded-xl border-2 border-dashed border-bread-300 bg-bread-50/60 p-6 flex flex-col items-center justify-center text-center space-y-2.5 h-[354px]"
+              class="rounded-xl border-2 border-dashed border-bread-300 bg-bread-50/60 p-6 flex flex-col items-center justify-center text-center space-y-2.5 h-88.5"
             >
               <div class="size-12 rounded-full bg-lime-100 text-lime-700 flex items-center justify-center shadow-2xs">
                 <UIcon name="i-lucide-music" class="size-6" />
@@ -626,7 +626,7 @@ watch(eventId, async () => {
       <template #body>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
           <!-- Left Column: Form Fields & Bottom Actions -->
-          <div class="flex flex-col justify-between h-full min-h-[380px]">
+          <div class="flex flex-col justify-between h-full min-h-95">
             <div class="space-y-3.5">
               <UFormField label="Label" name="edit-playlist-label" required>
                 <UInput
@@ -705,12 +705,12 @@ watch(eventId, async () => {
           <!-- Right Column: Live Spotify Preview or Placeholder -->
           <div class="flex flex-col space-y-1.5 h-full">
             <span class="block text-sm font-medium text-highlighted">Playlist Preview</span>
-            <div v-if="editPlaylistEmbedUrl" class="w-full overflow-hidden rounded-xl h-[354px]">
+            <div v-if="editPlaylistEmbedUrl" class="w-full overflow-hidden rounded-xl h-88.5">
               <SpotifyPlaylistEmbed :playlist-url="editPlaylistForm.spotifyURL" compact />
             </div>
             <div
               v-else
-              class="rounded-xl border-2 border-dashed border-bread-300 bg-bread-50/60 p-6 flex flex-col items-center justify-center text-center space-y-2.5 h-[354px]"
+              class="rounded-xl border-2 border-dashed border-bread-300 bg-bread-50/60 p-6 flex flex-col items-center justify-center text-center space-y-2.5 h-88.5"
             >
               <div class="size-12 rounded-full bg-lime-100 text-lime-700 flex items-center justify-center shadow-2xs">
                 <UIcon name="i-lucide-music" class="size-6" />

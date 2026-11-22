@@ -19,6 +19,7 @@ import {
   resolveEventTierCode,
   resolveEventDashboardPath,
 } from '~/utils/eventTierFeatures'
+import { useEventFlowProgress } from '~/composables/useEventFlowProgress'
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -34,6 +35,7 @@ const { fetchEvent, getCachedEvent } = useEvents()
 const { updateTaskStatus } = useTasks()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
+const { currentFlowStep, currentFlowStepAction, loadFlowStatus } = useEventFlowProgress()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -331,6 +333,12 @@ async function loadEventData() {
     eventRecord.value = detail.event
     setActiveEvent(detail.event)
     tasksSummary.value = detail.tasks
+
+    await loadFlowStatus(eventId.value, {
+      eventRecord: detail.event,
+      guestList: detail.guestList,
+      rsvpSummary: detail.rsvpSummary,
+    })
   } catch (error) {
     reportApiError(toast, { title: 'Could not load event', error })
   } finally {
@@ -543,7 +551,7 @@ function openSuppliersDashboard() {
 }
 
 function openColorsDressCode() {
-  const id = getActiveEventQueryId()
+  const id = eventId.value || (isUiOnlyMode.value ? 'mock-event-id' : '')
   if (!id) {
     toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
     return
@@ -953,14 +961,25 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
                   class="size-11 sm:size-12 md:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
                   :class="[
                     item.bgClass,
-                    item.ringClass,
+                    currentFlowStepAction === item.action ? 'ring-2 ring-rose-500 ring-offset-2' : item.ringClass,
                     isDashboardItemBlocked(item)
                       ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                       : [item.hoverClass, 'group-hover:scale-105 group-active:scale-95'],
                   ]">
                   <UIcon :name="item.icon" class="size-5 sm:size-6 md:size-6.5 text-white shrink-0" />
                 </div>
-                <div v-if="isDashboardItemBlocked(item)"
+                <!-- Current Flow Step Alert Badge -->
+                <div v-if="currentFlowStepAction === item.action"
+                  class="absolute -top-1 -right-1 z-20 flex items-center justify-center pointer-events-none"
+                  :title="`Current Step: ${item.label}`">
+                  <span class="relative flex size-3.5 sm:size-4">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span class="relative inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                      !
+                    </span>
+                  </span>
+                </div>
+                <div v-if="isDashboardItemBlocked(item) && currentFlowStepAction !== item.action"
                   class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 sm:p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
                   title="Upgrade to unlock">
                   <UIcon name="i-lucide-lock" class="size-2 sm:size-2.5 block" />
@@ -1134,14 +1153,25 @@ const planBadgeColor = computed<'warning' | 'primary' | 'neutral' | 'success' | 
               class="size-11 sm:size-12 md:size-13 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-sm"
               :class="[
                 item.bgClass,
-                item.ringClass,
+                currentFlowStepAction === item.action ? 'ring-2 ring-rose-500 ring-offset-2' : item.ringClass,
                 isDashboardItemBlocked(item)
                   ? 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
                   : [item.hoverClass, 'group-hover:scale-105 group-active:scale-95'],
               ]">
               <UIcon :name="item.icon" class="size-5 sm:size-6 md:size-6.5 text-white shrink-0" />
             </div>
-            <div v-if="isDashboardItemBlocked(item)"
+            <!-- Current Flow Step Alert Badge -->
+            <div v-if="currentFlowStepAction === item.action"
+              class="absolute -top-1 -right-1 z-20 flex items-center justify-center pointer-events-none"
+              :title="`Current Step: ${item.label}`">
+              <span class="relative flex size-3.5 sm:size-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                <span class="relative inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                  !
+                </span>
+              </span>
+            </div>
+            <div v-if="isDashboardItemBlocked(item) && currentFlowStepAction !== item.action"
               class="absolute -top-0.5 -right-0.5 bg-amber-500 text-white rounded-full p-0.5 sm:p-1 shadow-md flex items-center justify-center pointer-events-none ring-2 ring-white"
               title="Upgrade to unlock">
               <UIcon name="i-lucide-lock" class="size-2 sm:size-2.5 block" />
