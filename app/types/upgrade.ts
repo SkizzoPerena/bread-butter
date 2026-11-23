@@ -58,6 +58,8 @@ export interface TierUpgradeOptionsResponse {
   success: boolean
   status: number
   eventFullyPaid: boolean
+  /** Free events can't be upgraded. */
+  isComplimentary?: boolean
   hasPendingUpgrade: boolean
   pendingUpgrade: PendingUpgradeInfo | null
   currentTier: CurrentTierInfo
