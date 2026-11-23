@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { JamPackageRecord } from '~/types/seating'
+import type { ComplimentaryGrantRecord } from '~/types/complimentary'
 import { getApiErrorMessage } from '~/types/auth'
+import { useComplimentary } from '~/composables/useComplimentary'
 import { EVENT_TYPE_OPTIONS } from '~/types/event'
 import {
   getUiPendingSeatingPayment,
@@ -16,7 +18,8 @@ type ViewStep = 'packages' | 'details'
 
 const route = useRoute()
 const toast = useToast()
-const { listPackages, getGathering, listGatherings, updateGathering } = useSeating()
+const { listPackages, getGathering, listGatherings, updateGathering, createGathering } = useSeating()
+const { loadGrants, findGrant } = useComplimentary()
 const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { startPageTransition, finishPageTransition } = usePageTransition()
 
@@ -31,6 +34,9 @@ const venue = ref('')
 const eventDate = ref('')
 const loading = ref(true)
 const saving = ref(false)
+
+// A free credit pays for the whole Jam, so it is created here with no payment step.
+const selectedGrant = ref<ComplimentaryGrantRecord | null>(null)
 
 const editingId = computed(() => String(route.query.gatheringId || ''))
 const selected = computed(() => packages.value.find((item) => item._id === selectedId.value) || null)
@@ -86,6 +92,20 @@ function switchView(view: ViewStep) {
 
 function choosePackage(packageId: string) {
   selectedId.value = packageId
+  // Picking a paid package directly means paying for it.
+  selectedGrant.value = null
+  currentView.value = 'details'
+}
+
+function chooseGrant(grant: ComplimentaryGrantRecord) {
+  const jamPackage = grant.jamPackage
+  if (!jamPackage) return
+  // The credit's package may have been taken off sale since. It still applies.
+  if (!packages.value.some((item) => item._id === jamPackage._id)) {
+    packages.value = [...packages.value, { ...jamPackage, isEnabled: true }]
+  }
+  selectedGrant.value = grant
+  selectedId.value = jamPackage._id
   currentView.value = 'details'
 }
 
@@ -97,6 +117,16 @@ onMounted(async () => {
   }
   try {
     packages.value = await listPackages()
+    // Arriving from "Create my free Jam" on the dashboard preselects that credit.
+    const requestedGrant = typeof route.query.grant === 'string' ? route.query.grant : ''
+    if (requestedGrant && !editingId.value) {
+      await loadGrants()
+      const grant = findGrant(requestedGrant)
+      if (grant && grant.product === 'JAM') {
+        chooseGrant(grant)
+        return
+      }
+    }
     if (editingId.value) {
       const gathering = await getGathering(editingId.value)
       selectedId.value = String(gathering.jamPackage || '')
@@ -172,6 +202,10 @@ async function submit() {
     venue: venue.value.trim(),
     eventDate: eventDateIso,
   }
+  if (selectedGrant.value && !editingId.value) {
+    await createFreeJam(details)
+    return
+  }
   if (!editingId.value) {
     await startPageTransition({ path: '/user/seating-payment', query: details })
     return
@@ -182,6 +216,22 @@ async function submit() {
     await startPageTransition({ path: '/user/seating-payment', query: { gatheringId: editingId.value } })
   } catch (error) {
     toast.add({ title: 'Could not save seating plan', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function createFreeJam(details: { packageId: string, name: string, eventType: string, venue: string, eventDate: string }) {
+  const grant = selectedGrant.value
+  if (!grant) return
+  saving.value = true
+  try {
+    const gathering = await createGathering({ ...details, complimentaryGrantId: grant._id })
+    toast.add({ title: 'Your free Jam is ready', description: `${grant.packageName} is on us.`, color: 'success' })
+    await loadGrants()
+    await startPageTransition({ path: `/jam/dashboard/${gathering._id}` })
+  } catch (error) {
+    toast.add({ title: 'Could not create your free Jam', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     saving.value = false
   }
@@ -262,6 +312,15 @@ async function submit() {
             <p class="text-xs text-white/80 max-w-lg mx-auto line-clamp-1">
               Every plan includes seating arrangements, stationery invitations, and live RSVP check-in.
             </p>
+          </div>
+
+          <div class="max-w-3xl w-full mx-auto shrink-0">
+            <ComplimentaryCredits
+              product="JAM"
+              tone="jam"
+              :selected-grant-id="selectedGrant?._id"
+              @use="chooseGrant"
+            />
           </div>
 
           <div
@@ -368,6 +427,15 @@ async function submit() {
                 <p class="text-xs text-jam-700">
                   Up to {{ selected?.maxGuests }} guests · ₱{{ selected?.pricePhp.toLocaleString() }}
                 </p>
+                <UBadge
+                  v-if="selectedGrant"
+                  color="success"
+                  variant="soft"
+                  size="sm"
+                  class="mt-1"
+                >
+                  Free with your credit · no payment needed
+                </UBadge>
               </div>
               <UButton
                 variant="outline"
@@ -449,7 +517,7 @@ async function submit() {
                   class="w-2/3 font-bold text-white bg-jam-700 hover:bg-jam-800 active:bg-jam-900 shadow-sm justify-center cursor-pointer"
                   :loading="saving"
                 >
-                  Continue to payment
+                  {{ selectedGrant && !editingId ? 'Create my free Jam' : 'Continue to payment' }}
                 </UButton>
               </div>
             </form>

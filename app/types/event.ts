@@ -24,6 +24,8 @@ export interface EventRecord {
   latestPayment?: PaymentRecord | null
   pendingPayment?: PendingPaymentSummary | null
   paymentSummary?: EventPaymentSummary | null
+  /** Set when the event was created with a free credit. Free events can't be upgraded. */
+  complimentary?: { grant: string, listPricePhp: number } | null
   priceTier?: PriceTierRecord | string | null
   tierPricePhp?: number | null
   remainingEmails?: number | null
@@ -174,6 +176,8 @@ export interface CreateEventPayload {
   amount?: number
   convenienceFeePhp?: number
   type?: string
+  /** A free credit to create the event with. No payment or proof is needed. */
+  complimentaryGrantId?: string
 }
 
 export interface UpdateEventPayload {

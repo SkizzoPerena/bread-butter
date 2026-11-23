@@ -2,6 +2,12 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { setUiUnpaidEvent } from '~/utils/paymentPendingGuard'
 import { EVENT_TYPE_OPTIONS } from '~/types/event'
+import type { ComplimentaryGrantRecord } from '~/types/complimentary'
+import { reportApiError } from '~/types/auth'
+import { useComplimentary } from '~/composables/useComplimentary'
+import { useEvents } from '~/composables/useEvents'
+import { resolvePackageSlug } from '~/composables/usePriceTiers'
+import { resolveEventDashboardPath } from '~/utils/eventTierFeatures'
 
 useHead({
   title: 'Create Event - Bread + Butter',
@@ -16,6 +22,21 @@ type ViewStep = 'packages' | 'details'
 
 const currentView = ref<ViewStep>('packages')
 const selectedPackage = ref<string>('bread-butter')
+
+const route = useRoute()
+const { createEvent } = useEvents()
+const { loadGrants, findGrant } = useComplimentary()
+// A free credit pays for the whole event, so the event is created here with no payment step.
+const selectedGrant = ref<ComplimentaryGrantRecord | null>(null)
+const isCreatingFree = ref(false)
+
+function chooseGrant(grant: ComplimentaryGrantRecord) {
+  const slug = resolvePackageSlug(grant.priceTier?.code ?? '')
+  if (!slug) return
+  selectedGrant.value = grant
+  selectedPackage.value = slug
+  switchView('details')
+}
 
 const plans = [
   {
@@ -133,6 +154,8 @@ function switchView(view: ViewStep) {
 
 function choosePackage(pkgId: string) {
   selectedPackage.value = pkgId
+  // Picking a paid package directly means paying for it.
+  selectedGrant.value = null
   switchView('details')
 }
 
@@ -184,6 +207,11 @@ function submitEventSetup() {
     return
   }
 
+  if (selectedGrant.value) {
+    createFreeEvent()
+    return
+  }
+
   const queryParams: Record<string, string> = {
     package: selectedPackage.value,
     eventName: eventForm.eventName.trim(),
@@ -204,9 +232,46 @@ function submitEventSetup() {
   })
 }
 
-onMounted(() => {
+async function createFreeEvent() {
+  const grant = selectedGrant.value
+  if (!grant?.priceTier || isCreatingFree.value) return
+  isCreatingFree.value = true
+  try {
+    const created = await createEvent({
+      eventType: eventForm.eventType,
+      eventName: eventForm.eventName.trim(),
+      description: buildDescription(),
+      venue: eventForm.venue.trim(),
+      eventDate: eventForm.eventDate,
+      isCatholicWedding: isWeddingEventType.value && eventForm.isCatholicWedding,
+      priceTierId: grant.priceTier._id,
+      payLater: true,
+      complimentaryGrantId: grant._id,
+    })
+    toast.add({
+      title: 'Your free event is ready',
+      description: `${grant.packageName} is on us. Enjoy planning!`,
+      color: 'success',
+    })
+    await loadGrants()
+    await navigateTo({ path: resolveEventDashboardPath(created), query: { eventId: created._id } })
+  } catch (error) {
+    reportApiError(toast, { title: 'Could not create your free event', error })
+  } finally {
+    isCreatingFree.value = false
+  }
+}
+
+onMounted(async () => {
   loadSeatingFeature()
   finishPageTransition()
+  // Arriving from "Create my free event" on the dashboard preselects that credit.
+  const requested = typeof route.query.grant === 'string' ? route.query.grant : ''
+  if (requested) {
+    await loadGrants()
+    const grant = findGrant(requested)
+    if (grant && grant.product === 'EVENT') chooseGrant(grant)
+  }
 })
 </script>
 
@@ -251,6 +316,10 @@ onMounted(() => {
         </div>
       </div>
 
+      <div v-if="currentView === 'packages'" class="max-w-3xl mx-auto w-full">
+        <ComplimentaryCredits product="EVENT" :selected-grant-id="selectedGrant?._id" @use="chooseGrant" />
+      </div>
+
       <!-- VIEW 1: PRODUCT PACKAGES SECTION (Compact UPricingPlans) -->
       <UPricingPlans v-if="currentView === 'packages'" class="gap-4">
         <UPricingPlan v-for="plan in plans" :key="plan.id" v-bind="plan"
@@ -277,6 +346,9 @@ onMounted(() => {
               <h3 class="text-lg font-bold font-serif text-toast-900">
                 {{plans.find(p => p.id === selectedPackage)?.title}}
               </h3>
+              <UBadge v-if="selectedGrant" color="success" variant="soft" size="sm" class="mt-1">
+                Free with your credit · no payment needed
+              </UBadge>
             </div>
             <UButton variant="outline" color="primary" size="xs" icon="i-lucide-arrow-left"
               @click="switchView('packages')">
@@ -326,8 +398,9 @@ onMounted(() => {
                 Back
               </UButton>
               <UButton type="button" color="primary" size="lg"
-                class="w-2/3 font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md" @click="submitEventSetup">
-                Proceed to Payment
+                class="w-2/3 font-bold text-white bg-toast-600 hover:bg-toast-700 shadow-md" :loading="isCreatingFree"
+                @click="submitEventSetup">
+                {{ selectedGrant ? 'Create My Free Event' : 'Proceed to Payment' }}
               </UButton>
             </div>
           </div>

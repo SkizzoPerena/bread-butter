@@ -58,6 +58,8 @@ const paymentPendingReview = computed(() =>
   hasPendingPaymentBlockingUpgrade(eventRecord.value),
 )
 
+const isComplimentaryEvent = ref(false)
+
 const hasPendingUpgrade = computed(() =>
   Boolean(pendingUpgrade.value) || paymentPendingReview.value,
 )
@@ -137,6 +139,7 @@ async function loadPage() {
     upgradeOptions.value = optionsResponse.upgrades ?? []
     pendingUpgrade.value = optionsResponse.pendingUpgrade ?? null
     eventFullyPaidFromApi.value = optionsResponse.eventFullyPaid !== false
+    isComplimentaryEvent.value = optionsResponse.isComplimentary === true
 
     if (hasPendingUpgrade.value) {
       currentStep.value = 'select'
@@ -433,7 +436,11 @@ onMounted(() => {
           class="white-bread-container p-6 text-center space-y-2"
         >
           <UIcon name="i-lucide-info" class="size-8 text-muted mx-auto" />
-          <p class="text-sm text-muted max-w-lg mx-auto">
+          <p v-if="isComplimentaryEvent" class="text-sm text-muted max-w-lg mx-auto">
+            This event was given to you for free, so it can't be upgraded to another package.
+            You can still buy extra email credits.
+          </p>
+          <p v-else class="text-sm text-muted max-w-lg mx-auto">
             No upgrades can be purchased right now. Check the reasons above for Butter and
             Bread + Butter. If you believe you are on Bread but see Bread + Butter as current,
             your event may already be on the highest tier in the database.

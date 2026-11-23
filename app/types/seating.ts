@@ -141,6 +141,8 @@ export interface JamUpgradeOptions {
   current: { packageId: string, packageName: string, pricePhp: number, maxGuests: number }
   options: JamUpgradeOption[]
   pendingUpgrade: SeatingPaymentRecord | null
+  /** Free Jams can't be upgraded, so they get no options. */
+  isComplimentary?: boolean
 }
 
 export interface SeatingGuestRecord {

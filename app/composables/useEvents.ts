@@ -175,6 +175,10 @@ export function useEvents() {
       formData.append('voucherCode', normalizedVoucher)
     }
 
+    if (payload.complimentaryGrantId) {
+      formData.append('complimentaryGrantId', payload.complimentaryGrantId)
+    }
+
     if (!payload.payLater) {
       if (payload.transactionId?.trim()) {
         formData.append('transactionId', payload.transactionId.trim())
