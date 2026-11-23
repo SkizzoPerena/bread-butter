@@ -192,12 +192,12 @@ test('deleting a sub-event returns to the schedules page', async ({ page }) => {
   })
 
   await page.goto(subEventUrl)
-  await page.getByRole('button', { name: 'Delete Sub-Event' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete Sub-Event' }).click()
+  await page.getByRole('button', { name: 'Delete Mini-Event' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete Mini-Event' }).click()
 
   await expect(page).toHaveURL(new RegExp(`/event/schedules\\?eventId=${EVENT_ID}`))
   expect(calls.some(call => call.method === 'DELETE' && call.url.includes(SUB_EVENT_ID))).toBe(true)
-  await expect(page.getByText('No sub-events yet')).toBeVisible()
+  await expect(page.getByText('No mini-events yet')).toBeVisible()
   await expect(page.getByText('Garden Terrace')).toHaveCount(0)
 })
 
