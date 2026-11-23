@@ -73,7 +73,8 @@ function copyHexToClipboard(hex: string) {
 }
 
 function handleRsvpButtonClick() {
-  const rsvpId = getRsvpId()
+  const siteName = typeof route.params.siteName === 'string' ? route.params.siteName : ''
+  const rsvpId = getRsvpId(siteName)
   if (rsvpId) {
     router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
   } else {
@@ -92,7 +93,7 @@ async function findRsvpByEmail() {
       rsvpLookupEmail.value,
       getSiteAccessToken(siteName),
     )
-    setRsvpId(rsvpId)
+    setRsvpId(rsvpId, siteName)
     isMissingRsvpModalOpen.value = false
     await router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
   } catch (error) {

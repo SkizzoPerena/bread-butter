@@ -121,6 +121,12 @@ const hiddenInboxSnippet = computed(() => {
             class="w-full h-auto block object-contain"
           />
         </div>
+        <p
+          v-if="invitation.cardImageUrl"
+          class="mt-3 text-center text-xs text-[#737373] select-none"
+        >
+          Can't see the invitation? <span class="underline">Open it here</span>
+        </p>
 
         <!-- Rendered Email Card Container Fallback -->
         <div
@@ -280,7 +286,8 @@ const hiddenInboxSnippet = computed(() => {
         <!-- Explanatory note below card -->
         <div class="mt-4 text-center text-xs text-stone-500 flex items-center justify-center gap-1.5 select-none">
           <UIcon name="i-lucide-mouse-pointer-click" class="w-4 h-4 text-violet-500" />
-          <span>Guests receive your banner and invitation details by email, and the RSVP button opens their RSVP page.</span>
+          <span v-if="invitation.cardImageUrl">Guests receive only your invitation card. Tapping it opens your website, where the RSVP button already knows who they are.</span>
+          <span v-else>Guests receive your banner and invitation details by email. The RSVP button opens your website, or their RSVP page if the website isn't published.</span>
         </div>
       </div>
 
