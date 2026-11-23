@@ -5,6 +5,7 @@ import type { GatheringRecord } from '~/types/seating'
 import { formatEventPriceTier, mapApiToEventTypeLabel } from '~/types/event'
 import { getEventBalanceDue, isEventFullyPaid, isTierUpgradePending, getPendingUpgradeStatusLabel } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
+import type { ComplimentaryGrantRecord } from '~/types/complimentary'
 import { useAuth } from '~/composables/useAuth'
 import { useEvents } from '~/composables/useEvents'
 import { defaultCover } from '~/utils/eventImage'
@@ -27,6 +28,11 @@ const { listGatherings } = useSeating()
 const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { loadPageData, isUiOnlyMode } = useApiMode()
 const { startPageTransition, followLink, finishPageTransition } = usePageTransition()
+
+function openFreeCredit(grant: ComplimentaryGrantRecord) {
+  const path = grant.product === 'JAM' ? '/user/create-seating' : '/user/create-event'
+  startPageTransition({ path, query: { grant: grant._id } })
+}
 
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
@@ -432,6 +438,11 @@ onUnmounted(() => {
           </UButton>
         </Teleport>
       </ClientOnly>
+
+      <ComplimentaryCredits
+        :show-redeem="true"
+        @use="openFreeCredit"
+      />
 
       <!-- Main Dashboard Container -->
       <div

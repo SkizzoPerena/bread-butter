@@ -212,7 +212,9 @@ async function payWithProof() {
             v-if="!options.options.length"
             class="white-bread-container p-6 text-center"
           >
-            You're on our largest plan.
+            {{ options.isComplimentary
+              ? "This Jam was given to you for free, so it can't be upgraded."
+              : "You're on our largest plan." }}
           </div>
           <div
             v-for="option in options.options"

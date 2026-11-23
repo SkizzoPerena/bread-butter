@@ -147,6 +147,8 @@ export function useSeating() {
     eventType?: string
     venue: string
     eventDate: string
+    /** A free credit: the Jam comes back active, with no payment step. */
+    complimentaryGrantId?: string
   }): Promise<GatheringRecord> {
     if (isUiOnlyMode.value) {
       const jamPackage = packages.value.find((item) => item._id === body.packageId)

@@ -155,6 +155,8 @@ export interface EventPaymentSummary {
   partnerCreditAppliedPhp?: number
   platformCreditAppliedPhp?: number
   totalDiscountPhp?: number
+  /** A free event from an admin or a redemption code: ₱0 and already paid. */
+  isComplimentary?: boolean
 }
 
 interface EventPaymentContext {
