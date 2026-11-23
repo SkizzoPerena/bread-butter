@@ -211,14 +211,14 @@ async function handlePinSubmit() {
 const { initFromRouteQuery } = useGuestRsvpSession()
 
 onMounted(() => {
-  initFromRouteQuery(route.query)
+  initFromRouteQuery(route.query, siteName.value)
   loadSite()
 })
 
 watch(
   () => route.query,
   (newQuery) => {
-    initFromRouteQuery(newQuery)
+    initFromRouteQuery(newQuery, siteName.value)
   },
   { deep: true }
 )
