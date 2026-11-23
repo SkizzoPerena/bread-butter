@@ -10,6 +10,7 @@ import type { GuestTableRow } from '~/composables/useEventGuestsManager'
 import { useEventGuestGroupsManager } from '~/composables/useEventGuestGroupsManager'
 import { useEventGuestRolesAndTablesManager } from '~/composables/useEventGuestRolesAndTablesManager'
 import type { GuestRoleRecord } from '~/types/guest_role'
+import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 
 definePageMeta({
   layout: 'event-sub-navbar',
@@ -510,6 +511,9 @@ async function loadGuestList(targetEventId: string) {
   isLoadingGuests.value = true
   try {
     guestList.value = await fetchGuestsByEvent(targetEventId)
+    if (guestList.value.length > 0) {
+      markStepCompletedLocally(targetEventId, 'guestList', true)
+    }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load guests', error })
     guestList.value = []

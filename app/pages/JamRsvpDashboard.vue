@@ -243,6 +243,7 @@ async function loadData() {
     guests.value = guestsData.guests
     setActiveEvent({
       _id: gatheringData._id,
+      eventName: gatheringData.name,
       name: gatheringData.name,
       title: gatheringData.name,
       location: gatheringData.venue,

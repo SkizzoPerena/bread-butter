@@ -16,6 +16,7 @@ import { useDressCode, defaultDressCodeData } from '~/composables/useDressCode'
 import { useEventPlaylists } from '~/composables/useEventPlaylists'
 import { useEventGallery, defaultGalleryRecord, defaultGallerySuggestions, sampleGalleryPhotos } from '~/composables/useEventGallery'
 import { usePlaces, type GeocodeResult, type PlaceSearchResult } from '~/composables/usePlaces'
+import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 import { compressImageFiles, failedImagesMessage, fitImagesToBudget, pendingImageBytes } from '~/utils/imageCompression'
 import type { DressCodeRecord, UploadedDressCodeImage } from '~/types/dressCode'
 import type { PlaylistRecord } from '~/types/playlist'
@@ -1063,7 +1064,7 @@ function scrollPreviewToTop() {
     topTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-let previewScrollTimeout: any = null
+let previewScrollTimeout: ReturnType<typeof setTimeout> | null = null
 
 function syncLivePreviewForStep(stepId: string | undefined) {
     if (typeof document === 'undefined' || !stepId) return
@@ -1257,6 +1258,12 @@ function toggleEditorSchedule(key: string | number) {
 
 function toggleEditorGifts(key: string | number) {
     activeEditorGiftsKey.value = activeEditorGiftsKey.value === key ? null : key
+}
+
+const activeEditorPlaylistKey = ref<string | number | null>('header')
+
+function toggleEditorPlaylist(key: string | number) {
+    activeEditorPlaylistKey.value = activeEditorPlaylistKey.value === key ? null : key
 }
 
 const addTidbit = () => {
@@ -1566,7 +1573,7 @@ const fallbackAccommodations = computed(() =>
     }))
 )
 
-type PickerHotel = Omit<PlaceSearchResult, 'id' | 'distanceKm'> & { distanceKm?: number }
+type PickerHotel = Omit<PlaceSearchResult, 'id' | 'distanceKm'> & { distanceKm?: number; tags?: string[] }
 
 const displayAccommodationsList = computed<PickerHotel[]>(() => {
     const list: PickerHotel[] = placesSearchResults.value.length > 0
@@ -1704,15 +1711,6 @@ function removeAccommodation(idx: number) {
         })
     }
 }
-
-// 6. DIY Component Section
-interface DiyComponent {
-    id: string;
-    name: string;
-    header: string;
-    description: string;
-}
-const diyComponents = ref<DiyComponent[]>([]);
 
 // 6. Wedding Party Section (Linked to Guest List entourage roles)
 interface WeddingPartyMember {
@@ -2195,7 +2193,6 @@ async function loadCustomSite() {
                         playlistDescription,
                         scheduleItems,
                         selectedComponents,
-                        diyComponents,
                         isLive,
                         customColors,
                         customWeddingPartyMembers,
@@ -2316,7 +2313,6 @@ async function saveCustomSite(options?: SaveCustomSiteOptions): Promise<boolean>
             selectedPalette: selectedPalette.value.colors,
             selectedTypography: selectedTypography.value,
             selectedHeaderFile: selectedHeaderFile.value,
-            diyComponents: diyComponents.value,
             weddingPartyMembers: effectiveWeddingPartyMembers.value,
             weddingPartyIntro: weddingPartyIntro.value,
             whereToStayAccommodations: whereToStayAccommodations.value,
@@ -2434,6 +2430,9 @@ async function handleGoLive() {
         saveModalDescription.value = 'Making your website live...'
         await publishCustomSite(customSiteId.value)
         isLive.value = true
+        if (eventId.value) {
+            markStepCompletedLocally(eventId.value, 'website', true)
+        }
         toast.add({
             title: 'Website is live!',
             description: 'Your website is now published and accessible.',
@@ -3367,10 +3366,10 @@ function togglePreview() {
                             <!-- Dynamic Step: Q&A (formerly Tidbits) -->
                             <div v-if="currentStepData?.id === 'q-and-a'" class="flex flex-col gap-6 ">
                                 <!-- Section Details Accordion (Title & Description) -->
-                                <div class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                <div class="maker-accordion-card">
                                     <div
-                                        class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
-                                        :class="{ 'border-b border-toast-100': activeEditorQaKey === 'header' }"
+                                        class="maker-accordion-header"
+                                        :class="{ 'is-open': activeEditorQaKey === 'header' }"
                                         @click="toggleEditorQa('header')">
                                         <div class="flex items-center gap-2 min-w-0 pr-1">
                                             <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
@@ -3384,13 +3383,13 @@ function togglePreview() {
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0">
-                                            <div class="p-1 text-toast-400 hover:text-toast-700 transition-transform duration-200"
-                                                :class="{ 'rotate-180': activeEditorQaKey === 'header' }">
+                                            <div class="maker-accordion-chevron"
+                                                :class="{ 'is-open': activeEditorQaKey === 'header' }">
                                                 <UIcon name="i-lucide-chevron-down" class="size-4" />
                                             </div>
                                         </div>
                                     </div>
-                                    <div v-show="activeEditorQaKey === 'header'" class="p-4 flex flex-col gap-3">
+                                    <div v-show="activeEditorQaKey === 'header'" class="maker-accordion-body">
                                         <UFormField label="Section Title">
                                             <UInput v-model="qaTitle" placeholder="e.g. Q&A or Frequently Asked Questions" class="w-full" />
                                         </UFormField>
@@ -3405,11 +3404,11 @@ function togglePreview() {
                                         No questions added yet.
                                     </div>
                                     <div v-for="(tidbit, tIdx) in tidbits" :key="tidbit.id"
-                                        class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                        class="maker-accordion-card">
                                         <!-- Accordion Header Button -->
                                         <div
-                                            class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
-                                            :class="{ 'border-b border-toast-100': activeEditorQaKey === tidbit.id }"
+                                            class="maker-accordion-header"
+                                            :class="{ 'is-open': activeEditorQaKey === tidbit.id }"
                                             @click="toggleEditorQa(tidbit.id)">
                                             <div class="flex items-center gap-2 min-w-0 pr-1">
                                                 <UIcon name="i-lucide-help-circle" class="size-4 text-toast-500 shrink-0" />
@@ -3420,8 +3419,8 @@ function togglePreview() {
                                             <div class="flex items-center gap-1 shrink-0" @click.stop>
                                                 <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
                                                     @click="removeTidbit(tidbit.id)" />
-                                                <div class="p-1 cursor-pointer text-toast-400 hover:text-toast-700 transition-transform duration-200"
-                                                    :class="{ 'rotate-180': activeEditorQaKey === tidbit.id }"
+                                                <div class="maker-accordion-chevron cursor-pointer"
+                                                    :class="{ 'is-open': activeEditorQaKey === tidbit.id }"
                                                     @click="toggleEditorQa(tidbit.id)">
                                                     <UIcon name="i-lucide-chevron-down" class="size-4" />
                                                 </div>
@@ -3429,7 +3428,7 @@ function togglePreview() {
                                         </div>
 
                                         <!-- Accordion Body -->
-                                        <div v-show="activeEditorQaKey === tidbit.id" class="p-4 flex flex-col gap-3">
+                                        <div v-show="activeEditorQaKey === tidbit.id" class="maker-accordion-body">
                                             <UFormField label="Question">
                                                 <UInput v-model="tidbit.heading" placeholder="Enter question"
                                                     class="w-full" />
@@ -3446,10 +3445,10 @@ function togglePreview() {
                             <!-- Dynamic Step: Schedule -->
                             <div v-if="currentStepData?.id === 'schedule'" class="flex flex-col gap-6 ">
                                 <!-- Section Details Accordion (Title & Description) -->
-                                <div class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                <div class="maker-accordion-card">
                                     <div
-                                        class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
-                                        :class="{ 'border-b border-toast-100': activeEditorScheduleKey === 'header' }"
+                                        class="maker-accordion-header"
+                                        :class="{ 'is-open': activeEditorScheduleKey === 'header' }"
                                         @click="toggleEditorSchedule('header')">
                                         <div class="flex items-center gap-2 min-w-0 pr-1">
                                             <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
@@ -3463,13 +3462,13 @@ function togglePreview() {
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0">
-                                            <div class="p-1 text-toast-400 hover:text-toast-700 transition-transform duration-200"
-                                                :class="{ 'rotate-180': activeEditorScheduleKey === 'header' }">
+                                            <div class="maker-accordion-chevron"
+                                                :class="{ 'is-open': activeEditorScheduleKey === 'header' }">
                                                 <UIcon name="i-lucide-chevron-down" class="size-4" />
                                             </div>
                                         </div>
                                     </div>
-                                    <div v-show="activeEditorScheduleKey === 'header'" class="p-4 flex flex-col gap-3">
+                                    <div v-show="activeEditorScheduleKey === 'header'" class="maker-accordion-body">
                                         <UFormField label="Section Title">
                                             <UInput v-model="scheduleTitle" placeholder="e.g. Schedule or Order of Events" class="w-full" />
                                         </UFormField>
@@ -3484,11 +3483,11 @@ function togglePreview() {
                                         class="text-center text-toast-500 italic py-4">No
                                         events added yet.</div>
                                     <div v-for="(item, sIdx) in scheduleItems" :key="item.id"
-                                        class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                        class="maker-accordion-card">
                                         <!-- Accordion Header Button -->
                                         <div
-                                            class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
-                                            :class="{ 'border-b border-toast-100': activeEditorScheduleKey === item.id }"
+                                            class="maker-accordion-header"
+                                            :class="{ 'is-open': activeEditorScheduleKey === item.id }"
                                             @click="toggleEditorSchedule(item.id)">
                                             <div class="flex items-center gap-2 min-w-0 pr-1">
                                                 <UIcon name="i-lucide-calendar" class="size-4 text-toast-500 shrink-0" />
@@ -3502,8 +3501,8 @@ function togglePreview() {
                                             <div class="flex items-center gap-1 shrink-0" @click.stop>
                                                 <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs"
                                                     @click="removeScheduleItem(item.id)" />
-                                                <div class="p-1 cursor-pointer text-toast-400 hover:text-toast-700 transition-transform duration-200"
-                                                    :class="{ 'rotate-180': activeEditorScheduleKey === item.id }"
+                                                <div class="maker-accordion-chevron cursor-pointer"
+                                                    :class="{ 'is-open': activeEditorScheduleKey === item.id }"
                                                     @click="toggleEditorSchedule(item.id)">
                                                     <UIcon name="i-lucide-chevron-down" class="size-4" />
                                                 </div>
@@ -3511,7 +3510,7 @@ function togglePreview() {
                                         </div>
 
                                         <!-- Accordion Body -->
-                                        <div v-show="activeEditorScheduleKey === item.id" class="p-4 flex flex-col gap-3">
+                                        <div v-show="activeEditorScheduleKey === item.id" class="maker-accordion-body">
                                             <UFormField label="Title">
                                                 <UInput v-model="item.title" placeholder="e.g., Main Program"
                                                     class="w-full" />
@@ -3784,10 +3783,10 @@ function togglePreview() {
                             <!-- Dynamic Step: Gifts -->
                             <div v-if="currentStepData?.id === 'gifts'" class="flex flex-col gap-6">
                                 <!-- Section Details Accordion (Title & Description) -->
-                                <div class="flex flex-col border border-toast-200/80 rounded-xl bg-white shadow-xs overflow-hidden transition-all">
+                                <div class="maker-accordion-card">
                                     <div
-                                        class="w-full flex items-center justify-between gap-3 p-3.5 bg-toast-50/50 hover:bg-toast-50 transition-colors cursor-pointer select-none text-left"
-                                        :class="{ 'border-b border-toast-100': activeEditorGiftsKey === 'header' }"
+                                        class="maker-accordion-header"
+                                        :class="{ 'is-open': activeEditorGiftsKey === 'header' }"
                                         @click="toggleEditorGifts('header')">
                                         <div class="flex items-center gap-2 min-w-0 pr-1">
                                             <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
@@ -3801,13 +3800,13 @@ function togglePreview() {
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0">
-                                            <div class="p-1 text-toast-400 hover:text-toast-700 transition-transform duration-200"
-                                                :class="{ 'rotate-180': activeEditorGiftsKey === 'header' }">
+                                            <div class="maker-accordion-chevron"
+                                                :class="{ 'is-open': activeEditorGiftsKey === 'header' }">
                                                 <UIcon name="i-lucide-chevron-down" class="size-4" />
                                             </div>
                                         </div>
                                     </div>
-                                    <div v-show="activeEditorGiftsKey === 'header'" class="p-4 flex flex-col gap-3">
+                                    <div v-show="activeEditorGiftsKey === 'header'" class="maker-accordion-body">
                                         <UFormField label="Section Title">
                                             <UInput v-model="giftsTitle" placeholder="e.g. Gifts & Registry or Wishlist" class="w-full" />
                                         </UFormField>
@@ -3984,7 +3983,41 @@ function togglePreview() {
                             </div>
 
                             <!-- Dynamic Step: Playlists Config -->
-                            <div v-if="currentStepData?.id === 'playlist'" class="flex flex-col gap-5">
+                            <div v-if="currentStepData?.id === 'playlist'" class="flex flex-col gap-6">
+                                <!-- Section Details Accordion (Title & Description) -->
+                                <div class="maker-accordion-card">
+                                    <div
+                                        class="maker-accordion-header"
+                                        :class="{ 'is-open': activeEditorPlaylistKey === 'header' }"
+                                        @click="toggleEditorPlaylist('header')">
+                                        <div class="flex items-center gap-2 min-w-0 pr-1">
+                                            <UIcon name="i-lucide-heading" class="size-4 text-toast-500 shrink-0" />
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span class="font-semibold text-sm text-toast-900 truncate">
+                                                    Section Details
+                                                </span>
+                                                <span v-if="playlistTitle && playlistTitle !== 'Soundtrack & Playlists'" class="text-xs text-toast-500 truncate font-normal">
+                                                    ({{ playlistTitle }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <div class="maker-accordion-chevron"
+                                                :class="{ 'is-open': activeEditorPlaylistKey === 'header' }">
+                                                <UIcon name="i-lucide-chevron-down" class="size-4" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-show="activeEditorPlaylistKey === 'header'" class="maker-accordion-body">
+                                        <UFormField label="Section Title">
+                                            <UInput v-model="playlistTitle" placeholder="e.g., Soundtrack & Playlists" class="w-full" />
+                                        </UFormField>
+                                        <UFormField label="Description (Optional)" description="Only displayed when filled in.">
+                                            <UTextarea v-model="playlistDescription" placeholder="Write a short intro to your event soundtrack." class="w-full" :rows="2" />
+                                        </UFormField>
+                                    </div>
+                                </div>
+
                                 <!-- Live Sync Status & CTA Banner -->
                                 <div class="p-5 rounded-2xl border border-lime-300 bg-lime-50/80 space-y-4">
                                     <!-- Header: Live Pulse + Title -->
@@ -4006,7 +4039,7 @@ function togglePreview() {
                                     <!-- Bottom Action Buttons (Both Block) -->
                                     <div class="pt-2 space-y-2 border-t border-lime-200">
                                         <UButton
-                                            :to="'/event/playlists' + (eventId ? '?eventId=' + eventId : '')"
+                                            :to="'/event/playlist' + (eventId ? '?eventId=' + eventId : '')"
                                             target="_blank"
                                             icon="i-lucide-external-link"
                                             size="sm"
@@ -4031,17 +4064,6 @@ function togglePreview() {
                                     </div>
                                 </div>
 
-                                <!-- Section Details (Title & Description) -->
-                                <div class="space-y-4">
-                                    <UFormField label="Section Title">
-                                        <UInput v-model="playlistTitle" placeholder="e.g., Soundtrack & Playlists" class="w-full" />
-                                    </UFormField>
-
-                                    <UFormField label="Section Description">
-                                        <UTextarea v-model="playlistDescription" placeholder="Write a short intro to your event soundtrack." class="w-full" />
-                                    </UFormField>
-                                </div>
-
                                 <!-- Synced Playlists Summary -->
                                 <div class="space-y-2.5 pt-2 border-t border-toast-100">
                                     <div class="flex items-center justify-between text-xs font-semibold text-toast-700">
@@ -4054,7 +4076,7 @@ function togglePreview() {
                                         <UIcon name="i-lucide-music" class="w-6 h-6 mx-auto text-toast-400" />
                                         <p>No playlists added yet.</p>
                                         <UButton
-                                            :to="'/event/playlists' + (eventId ? '?eventId=' + eventId : '')"
+                                            :to="'/event/playlist' + (eventId ? '?eventId=' + eventId : '')"
                                             target="_blank"
                                             size="xs"
                                             color="lime"
@@ -4337,7 +4359,7 @@ function togglePreview() {
                             <div class="relative z-10">
                                 <h1 class="font-medium transition-all duration-300 text-white"
                                     :style="{ fontFamily: `'${selectedTypography.headerFont}'` }"
-                                    :class="isLive || isPreviewing ? 'text-4xl md:text-6xl' : 'text-3xl md:text-4xl'">
+                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-4xl md:text-6xl' : 'text-xl sm:text-3xl md:text-4xl'">
                                     {{ previewSiteTitle }}
                                 </h1>
                             </div>
@@ -4370,7 +4392,7 @@ function togglePreview() {
                                         <div class="space-y-3">
                                             <h1 class="font-medium transition-all duration-300 text-white"
                                                 :style="{ fontFamily: `'${selectedTypography.headerFont}'` }"
-                                                :class="isLive || isPreviewing ? 'text-4xl md:text-6xl' : 'text-3xl md:text-4xl'">
+                                                :class="isLive || isPreviewing ? 'text-2xl sm:text-4xl md:text-6xl' : 'text-xl sm:text-3xl md:text-4xl'">
                                                 {{ previewSiteTitle }}
                                             </h1>
 
@@ -4389,7 +4411,7 @@ function togglePreview() {
                                         <div class="space-y-3 max-w-2xl mx-auto w-full">
                                             <UContainer v-if="headingSectionContent"
                                                 class="font-bold italic transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                 :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 {{ headingSectionContent }}
                                             </UContainer>
@@ -4400,7 +4422,7 @@ function togglePreview() {
                                             </div>
                                             <div v-if="websiteData.siteDescription"
                                                 class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                                :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
+                                                :class="isLive || isPreviewing ? 'text-sm sm:text-base md:text-lg' : 'text-xs sm:text-sm md:text-base'"
                                                 :style="{ color: websiteData.invertColors ? selectedPalette.colors.primary : selectedPalette.colors.text_color }">
                                                 {{ websiteData.siteDescription }}
                                             </div>
@@ -4420,7 +4442,7 @@ function togglePreview() {
                                             <!-- Header & Formality Pill -->
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Colors &amp; Dress Code
                                                 </h2>
@@ -4660,7 +4682,7 @@ function togglePreview() {
                                             <!-- Title & Subtitle Header -->
                                             <div class="space-y-3 max-w-3xl mx-auto">
                                                 <h2 class="font-bold transition-all duration-300 pt-1"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ galleryData.title || 'Captured Moments' }}
                                                 </h2>
@@ -4846,7 +4868,7 @@ function togglePreview() {
                                             }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ qaTitle || 'Q&A' }}</div>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
@@ -4863,12 +4885,12 @@ function togglePreview() {
 
                                             <div v-for="tidbit in tidbits" :key="tidbit.id" class="flex flex-col gap-3">
                                                 <h3 class="font-bold transition-all duration-300"
-                                                    :class="isLive || isPreviewing ? 'text-4xl' : 'text-2xl'"
+                                                    :class="isLive || isPreviewing ? 'text-lg sm:text-xl md:text-2xl' : 'text-base sm:text-lg md:text-xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ tidbit.heading }}
                                                 </h3>
                                                 <div class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                                    :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
+                                                    :class="isLive || isPreviewing ? 'text-sm sm:text-base md:text-lg' : 'text-xs sm:text-sm md:text-base'"
                                                     :style="{ color: previewDynamicStyle(index).text }">
                                                     {{ tidbit.paragraph }}
                                                 </div>
@@ -4883,7 +4905,7 @@ function togglePreview() {
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ scheduleTitle || 'Schedule' }}</div>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
@@ -4923,18 +4945,18 @@ function togglePreview() {
                                                 </div>
 
                                                 <h3 class="font-bold transition-all duration-300"
-                                                    :class="isLive || isPreviewing ? 'text-4xl' : 'text-2xl'"
+                                                    :class="isLive || isPreviewing ? 'text-lg sm:text-xl md:text-2xl' : 'text-base sm:text-lg md:text-xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ item.title }}
                                                 </h3>
                                                 <div class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                                    :class="isLive || isPreviewing ? 'text-xl' : 'text-base'"
+                                                    :class="isLive || isPreviewing ? 'text-sm sm:text-base md:text-lg' : 'text-xs sm:text-sm md:text-base'"
                                                     :style="{ color: previewDynamicStyle(index).text }">
                                                     {{ item.description }}
                                                 </div>
                                                 <div v-if="item.location"
                                                     class="font-semibold italic mt-2 transition-all duration-300"
-                                                    :class="isLive || isPreviewing ? 'text-lg' : 'text-sm'"
+                                                    :class="isLive || isPreviewing ? 'text-sm sm:text-base' : 'text-xs sm:text-sm'"
                                                     :style="{ color: previewDynamicStyle(index).heading }">
                                                     <UIcon name="i-lucide-map-pin"
                                                         class="mr-1 inline-block align-middle" />
@@ -4951,7 +4973,7 @@ function togglePreview() {
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Where to Stay
                                                 </div>
@@ -5078,7 +5100,7 @@ function togglePreview() {
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Travel</div>
                                                 <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
@@ -5116,7 +5138,7 @@ function togglePreview() {
                                             <!-- Title & Subtitle -->
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     Wedding Party
                                                 </h2>
@@ -5145,7 +5167,7 @@ function togglePreview() {
                                                         </h3>
                                                         <div class="space-y-1.5">
                                                             <p v-for="member in maidOfHonorMembers" :key="member.id"
-                                                                class="text-base sm:text-lg font-medium"
+                                                                class="text-sm sm:text-base font-medium"
                                                                 :style="{ color: previewDynamicStyle(index).text, fontFamily: `'${selectedTypography.bodyFont}'` }">
                                                                 {{ member.name }}
                                                             </p>
@@ -5160,7 +5182,7 @@ function togglePreview() {
                                                         </h3>
                                                         <div class="space-y-1.5">
                                                             <p v-for="member in bridesmaidsMembers" :key="member.id"
-                                                                class="text-base sm:text-lg font-medium"
+                                                                class="text-sm sm:text-base font-medium"
                                                                 :style="{ color: previewDynamicStyle(index).text, fontFamily: `'${selectedTypography.bodyFont}'` }">
                                                                 {{ member.name }}
                                                             </p>
@@ -5178,7 +5200,7 @@ function togglePreview() {
                                                         </h3>
                                                         <div class="space-y-1.5">
                                                             <p v-for="member in bestManMembers" :key="member.id"
-                                                                class="text-base sm:text-lg font-medium"
+                                                                class="text-sm sm:text-base font-medium"
                                                                 :style="{ color: previewDynamicStyle(index).text, fontFamily: `'${selectedTypography.bodyFont}'` }">
                                                                 {{ member.name }}
                                                             </p>
@@ -5193,7 +5215,7 @@ function togglePreview() {
                                                         </h3>
                                                         <div class="space-y-1.5">
                                                             <p v-for="member in groomsmenMembers" :key="member.id"
-                                                                class="text-base sm:text-lg font-medium"
+                                                                class="text-sm sm:text-base font-medium"
                                                                 :style="{ color: previewDynamicStyle(index).text, fontFamily: `'${selectedTypography.bodyFont}'` }">
                                                                 {{ member.name }}
                                                             </p>
@@ -5212,7 +5234,7 @@ function togglePreview() {
                                                     </h3>
                                                     <div class="space-y-1.5">
                                                         <p v-for="member in otherWeddingPartyMembers" :key="member.id"
-                                                            class="text-base sm:text-lg font-medium"
+                                                            class="text-sm sm:text-base font-medium"
                                                             :style="{ color: previewDynamicStyle(index).text, fontFamily: `'${selectedTypography.bodyFont}'` }">
                                                             {{ member.name }}
                                                         </p>
@@ -5229,7 +5251,7 @@ function togglePreview() {
                                             :style="{ backgroundColor: previewDynamicStyle(index).bg }">
                                             <div class="space-y-3 max-w-2xl mx-auto">
                                                 <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                    :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                    :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                     :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                     {{ playlistTitle || 'Soundtrack & Playlists' }}
                                                 </div>
@@ -5298,7 +5320,7 @@ function togglePreview() {
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
                                             <div class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                 :style="{ color: previewDynamicStyle(displayComponents.length).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
                                                 RSVP</div>
                                             <div class="flex items-center justify-center gap-3 py-1.5" aria-hidden="true">
@@ -5337,7 +5359,7 @@ function togglePreview() {
                                         :style="{ backgroundColor: previewDynamicStyle(displayComponents.length + 1).bg }">
                                         <div class="space-y-3 max-w-2xl mx-auto">
                                             <h2 class="font-bold transition-all duration-300 pt-2 sm:pt-4"
-                                                :class="isLive || isPreviewing ? 'text-5xl' : 'text-3xl'"
+                                                :class="isLive || isPreviewing ? 'text-2xl sm:text-3xl md:text-5xl' : 'text-xl sm:text-2xl md:text-3xl'"
                                                 :style="{ color: previewDynamicStyle(displayComponents.length + 1).heading, fontFamily: `'${selectedTypography.headerFont}'` }">
                                                 {{ websiteData.endingTitle }}
                                             </h2>
@@ -5348,7 +5370,7 @@ function togglePreview() {
                                             </div>
                                         </div>
                                         <p class="prose max-w-none mx-auto text-center transition-all duration-300"
-                                            :class="isLive || isPreviewing ? 'text-2xl' : 'text-lg'"
+                                            :class="isLive || isPreviewing ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base md:text-lg'"
                                             :style="{ color: previewDynamicStyle(displayComponents.length + 1).text }">
                                             {{ websiteData.endingMessage }}
                                         </p>
@@ -5627,8 +5649,8 @@ function togglePreview() {
                                     <p v-if="hotel.description" class="text-xs text-toast-600 mt-1 line-clamp-2">
                                         {{ hotel.description }}
                                     </p>
-                                    <div v-if="'tags' in hotel && Array.isArray((hotel as any).tags) && (hotel as any).tags.length" class="flex flex-wrap gap-1.5 mt-2">
-                                        <span v-for="tag in (hotel as any).tags" :key="tag"
+                                    <div v-if="hotel.tags && hotel.tags.length" class="flex flex-wrap gap-1.5 mt-2">
+                                        <span v-for="tag in hotel.tags" :key="tag"
                                             class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-toast-100 text-toast-600">
                                             {{ tag }}
                                         </span>
@@ -5694,10 +5716,9 @@ function togglePreview() {
         >
             <div
                 v-if="isSaving"
-                class="fixed inset-0 z-99999 flex items-center justify-center p-4 bg-toast-950/50 backdrop-blur-xs select-none overflow-hidden"
-                style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; margin: 0; box-sizing: border-box;"
+                class="maker-save-overlay"
             >
-                <div class="w-[90vw] sm:max-w-md bg-white border border-toast-200/80 shadow-2xl rounded-2xl overflow-hidden p-6 sm:p-8 relative z-10 flex flex-col items-center justify-center text-center space-y-5">
+                <div class="maker-save-modal">
                     <!-- Animated Spinner & Icon -->
                     <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 shadow-inner">
                         <UIcon
@@ -5733,7 +5754,104 @@ function togglePreview() {
 </template>
 
 <style scoped>
-/* Add any specific styles for WebsiteMaker here if needed */
+/* Reusable Maker UI Components */
+.maker-accordion-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(215, 174, 153, 0.8);
+    border-radius: 0.75rem;
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.maker-accordion-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    background-color: rgba(245, 234, 229, 0.5);
+    cursor: pointer;
+    user-select: none;
+    text-align: left;
+    transition: background-color 0.15s ease;
+}
+
+.maker-accordion-header:hover {
+    background-color: #f5eae5;
+}
+
+.maker-accordion-header.is-open {
+    border-bottom: 1px solid #ebd6cc;
+}
+
+.maker-accordion-chevron {
+    padding: 0.25rem;
+    color: #af5d32;
+    transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.maker-accordion-chevron:hover {
+    color: #5d1f00;
+}
+
+.maker-accordion-chevron.is-open {
+    transform: rotate(180deg);
+}
+
+.maker-accordion-body {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Save / Publish Overlay & Dialog */
+.maker-save-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: rgba(15, 5, 0, 0.5);
+    backdrop-filter: blur(4px);
+    user-select: none;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+.maker-save-modal {
+    width: 90vw;
+    background-color: #ffffff;
+    border: 1px solid rgba(215, 174, 153, 0.8);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border-radius: 1rem;
+    overflow: hidden;
+    padding: 1.5rem;
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+    .maker-save-modal {
+        max-width: 28rem;
+        padding: 2rem;
+    }
+}
+
+/* Specific styles for WebsiteMaker */
 .mask-logo {
     -webkit-mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;
     mask: url('../assets/B+B Logos-03.svg') no-repeat center / contain;

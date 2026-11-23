@@ -5,6 +5,7 @@ import type { RsvpRecord, RsvpStatusFilter } from '~/types/rsvp'
 import { reportApiError } from '~/types/auth'
 import { useEvents } from '~/composables/useEvents'
 import { useEventQuestions } from '~/composables/useEventQuestions'
+import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 import {
   aggregateQuestionAnswerChartData,
   countQuestionAnswers,
@@ -157,7 +158,7 @@ const filteredPaginatedRsvps = computed(() => {
   return paginatedRsvps.value.filter((rsvp) =>
     rsvp.name.toLowerCase().includes(q) ||
     rsvp.email.toLowerCase().includes(q) ||
-    rsvp.answers.some((a) => a.question.toLowerCase().includes(q) || a.answer.toLowerCase().includes(q))
+    rsvp.answers.some((a) => a.question.toLowerCase().includes(q) || String(a.answer ?? '').toLowerCase().includes(q))
   )
 })
 
@@ -334,11 +335,18 @@ function removeDraftQuestion(index: number) {
 }
 
 function addOption(qIndex: number) {
-  draftQuestions.value[qIndex].options.push('')
+  const q = draftQuestions.value[qIndex]
+  if (q) {
+    if (!q.options) q.options = []
+    q.options.push('')
+  }
 }
 
 function removeOption(qIndex: number, optIndex: number) {
-  draftQuestions.value[qIndex].options.splice(optIndex, 1)
+  const q = draftQuestions.value[qIndex]
+  if (q?.options) {
+    q.options.splice(optIndex, 1)
+  }
 }
 
 function onQuestionTypeChange(q: DraftQuestion) {
@@ -383,9 +391,9 @@ async function handleSaveQuestions() {
         eventRecord.value.questions = payload
       }
     } else if (eventId.value) {
-      const updated = await updateEventQuestions(eventId.value, payload)
+      await updateEventQuestions(eventId.value, payload)
       if (eventRecord.value) {
-        eventRecord.value.questions = updated
+        eventRecord.value.questions = payload
       }
     }
 
@@ -394,6 +402,7 @@ async function handleSaveQuestions() {
       description: 'RSVP questions have been updated successfully.',
       color: 'success',
     })
+    markStepCompletedLocally(eventId.value || 'mock-event-id', 'rsvp', true)
     isQuestionsModalOpen.value = false
   } catch (error) {
     reportApiError(toast, { title: 'Could not save questions', error })
@@ -840,7 +849,7 @@ watch(eventId, () => {
                   >
                     <div class="flex items-center justify-between gap-1">
                       <span class="font-semibold text-highlighted">{{ answer.question }}</span>
-                      <UBadge v-if="isRetiredQuestion(answer.question, questions)" color="warning" variant="subtle" size="2xs">
+                      <UBadge v-if="isRetiredQuestion(answer.question, questions)" color="warning" variant="subtle" size="xs">
                         Previous question
                       </UBadge>
                     </div>

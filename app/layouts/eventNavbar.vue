@@ -4,19 +4,59 @@ import { resolveProfileImageUrl } from '~/utils/profileImage'
 
 const route = useRoute()
 const { isUiOnlyMode } = useApiMode()
-const { displayName: eventDisplayName } = useActiveEvent()
+const { displayName: eventDisplayName, setActiveEvent } = useActiveEvent()
 const { followLink } = usePageTransition()
+const seating = useSeating()
 const isJam = computed(() => route.path.startsWith('/seating') || route.path.startsWith('/jam'))
+
+const gatheringId = computed(() => {
+  const param = route.params.gatheringId
+  if (typeof param === 'string' && param) return param
+  const query = route.query.gatheringId
+  if (typeof query === 'string' && query) return query
+  return ''
+})
+
+const jamGatheringName = ref('')
+
+watch(
+  [gatheringId, isJam],
+  async ([id, jam]) => {
+    if (!id || !jam) {
+      jamGatheringName.value = ''
+      return
+    }
+    if (eventDisplayName.value) return
+    try {
+      const g = await seating.getGathering(id)
+      if (g?.name) {
+        jamGatheringName.value = g.name
+        if (!eventDisplayName.value) {
+          setActiveEvent({ _id: g._id, eventName: g.name, name: g.name })
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  },
+  { immediate: true },
+)
 
 const headerEventTitle = computed(() => {
   if (eventDisplayName.value) {
     return eventDisplayName.value
   }
+  if (jamGatheringName.value) {
+    return jamGatheringName.value
+  }
   const id = route.query.eventId
   if (typeof id === 'string' && id && isUiOnlyMode.value) {
     return "Jane & John's Wedding"
   }
-  return isJam.value ? 'Seating Plan' : 'Your event'
+  if (isJam.value && isUiOnlyMode.value) {
+    return "Jane & John's Wedding"
+  }
+  return isJam.value ? (jamGatheringName.value || '') : 'Your event'
 })
 
 const { user, logout } = useAuth()

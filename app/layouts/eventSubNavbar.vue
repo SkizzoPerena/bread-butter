@@ -44,7 +44,9 @@ const titleThemeClass = computed(() => {
     'bg-pink-50': 'text-pink-500',
     'bg-indigo-50': 'text-indigo-500',
     'bg-slate-50': 'text-slate-500',
-    'bg-rose-50': 'text-rose-500'
+    'bg-rose-50': 'text-rose-500',
+    'bg-lime-50': 'text-lime-600',
+    'bg-cyan-50': 'text-cyan-600',
   }
   return colorMap[bgClass] || 'text-toast-500'
 })
