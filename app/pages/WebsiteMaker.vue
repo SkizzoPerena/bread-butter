@@ -2201,6 +2201,9 @@ async function loadCustomSite() {
                         publishedDressCode,
                         galleryData: { value: galleryData },
                     })
+                    if (eventId.value) {
+                        markStepCompletedLocally(eventId.value, 'website', Boolean(isLive.value))
+                    }
                     if (websiteData.colorPalette === 'Custom') {
                         colorTabSelected.value = 'custom'
                         syncCustomColorState(customColors)

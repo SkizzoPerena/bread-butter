@@ -46,6 +46,7 @@ const { currentFlowStep, currentFlowStepAction, loadFlowStatus } = useEventFlowP
 
 onMounted(() => {
   loadFlowStatus(eventId.value, {
+    eventRecord: eventRecord.value,
     guestList: guestList.value,
     rsvpSummary: rsvpSummary.value,
   })

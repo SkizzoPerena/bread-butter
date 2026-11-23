@@ -20,28 +20,28 @@ export const EVENT_FLOW_STEPS: EventFlowStep[] = [
     action: 'website',
     label: 'Website',
     route: '/website-maker',
-    description: 'Design and publish your personalized event website.',
+    description: 'Save and publish your custom event website.',
   },
   {
     stepNumber: 2,
     action: 'invitation',
     label: 'Invitation',
     route: '/invitation-maker',
-    description: 'Create and save your digital event invitation.',
+    description: 'Save and publish your personalized digital invitation.',
   },
   {
     stepNumber: 3,
     action: 'rsvp',
     label: 'RSVP',
     route: '/event/rsvp',
-    description: 'Configure RSVP questions and attendance tracking.',
+    description: 'Configure and save your RSVP questions.',
   },
   {
     stepNumber: 4,
     action: 'guestList',
     label: 'Guest List',
     route: '/event/guests',
-    description: 'Add your guests and manage attendee details.',
+    description: 'Insert at least one guest into your guest list.',
   },
 ]
 
@@ -112,60 +112,84 @@ export function useEventFlowProgress() {
     isLoadingFlow.value = true
 
     try {
-      // 1. Check Website completion
-      let isWebsiteDone = isLocalStepMarkedCompleted(activeId, 'website')
-      if (!isWebsiteDone) {
-        if (overrides?.customSites) {
-          isWebsiteDone = overrides.customSites.some((s) => Boolean(s.isPublished))
-        } else {
-          try {
-            const sites = await fetchCustomSitesByEvent(activeId)
+      // 1. Check Website completion:
+      // "to clear the website alert, the user should save and publish a website."
+      let isWebsiteDone = false
+      if (overrides?.customSites) {
+        isWebsiteDone = overrides.customSites.some((s) => Boolean(s.isPublished))
+      } else {
+        try {
+          const sites = await fetchCustomSitesByEvent(activeId)
+          if (sites && sites.length > 0) {
             isWebsiteDone = sites.some((s) => Boolean(s.isPublished))
-          } catch {
-            // Check fallback in uiMockSitesStore
-            const mockSites = Object.values(uiMockSitesStore.value).filter((s) => s.event === activeId)
-            isWebsiteDone = mockSites.some((s) => Boolean(s.isPublished))
           }
+        } catch {
+          // Check fallback in uiMockSitesStore
+          const mockSites = Object.values(uiMockSitesStore.value).filter((s) => s.event === activeId)
+          isWebsiteDone = mockSites.some((s) => Boolean(s.isPublished))
         }
       }
-
-      // 2. Check Invitation completion
-      let isInvitationDone = isLocalStepMarkedCompleted(activeId, 'invitation')
-      if (!isInvitationDone) {
-        if (overrides?.invitation !== undefined) {
-          const inv = overrides.invitation
-          isInvitationDone = Boolean(inv && (inv._id || inv.cardImageUrl || inv.requestLine || inv.eventVenue))
-        } else {
-          try {
-            const inv = await fetchInvitationByEvent(activeId)
-            isInvitationDone = Boolean(inv && (inv._id || inv.cardImageUrl || inv.requestLine || inv.eventVenue))
-          } catch {
-            isInvitationDone = false
-          }
-        }
+      if (isWebsiteDone) {
+        markStepCompletedLocally(activeId, 'website', true)
+      } else if (isLocalStepMarkedCompleted(activeId, 'website')) {
+        isWebsiteDone = true
       }
 
-      // 3. Check RSVP completion
+      // 2. Check Invitation completion:
+      // "to clear the invitation alert, the user should save and publish their own invitation, not the pre-filled template."
+      let isInvitationDone = false
+      const isCustomizedInvitation = (inv?: InvitationRecord | null) => {
+        if (!inv || !inv._id) return false
+        const label = inv.eventLabel?.trim().toLowerCase()
+        if (!label || label === 'alex & jordan are getting married!') {
+          return false
+        }
+        return true
+      }
+
+      if (overrides?.invitation !== undefined) {
+        isInvitationDone = isCustomizedInvitation(overrides.invitation)
+      } else {
+        try {
+          const inv = await fetchInvitationByEvent(activeId)
+          isInvitationDone = isCustomizedInvitation(inv)
+        } catch {
+          isInvitationDone = false
+        }
+      }
+      if (isInvitationDone) {
+        markStepCompletedLocally(activeId, 'invitation', true)
+      } else if (isLocalStepMarkedCompleted(activeId, 'invitation')) {
+        isInvitationDone = true
+      }
+
+      // 3. Check RSVP completion:
+      // "to clear the rsvp alert, the user should have saved questions at least once"
       let isRsvpDone = isLocalStepMarkedCompleted(activeId, 'rsvp')
       if (!isRsvpDone) {
-        const hasQuestions = Boolean(overrides?.eventRecord?.questions && overrides.eventRecord.questions.length > 0)
-        const summary = overrides?.rsvpSummary
-        const hasRsvps = Boolean(
-          summary &&
-          (Number(summary.totalSent) > 0 ||
-            Number(summary.going) > 0 ||
-            Number(summary.pending) > 0 ||
-            Number(summary.notGoing) > 0)
+        const hasSavedQuestions = Boolean(
+          overrides?.eventRecord?.questions && overrides.eventRecord.questions.length > 0
         )
-        isRsvpDone = hasQuestions || hasRsvps
+        isRsvpDone = hasSavedQuestions
+        if (isRsvpDone) {
+          markStepCompletedLocally(activeId, 'rsvp', true)
+        }
       }
 
-      // 4. Check Guest List completion
-      let isGuestListDone = isLocalStepMarkedCompleted(activeId, 'guestList')
-      if (!isGuestListDone) {
-        const guestCount = overrides?.guestList?.length ?? 0
-        const totalGuests = overrides?.guestStats?.total ?? 0
-        isGuestListDone = guestCount > 0 || totalGuests > 0
+      // 4. Check Guest List completion:
+      // "to clear the guest list alert, the user should have inserted at least a single guest"
+      let isGuestListDone = false
+      if (overrides?.guestList !== undefined && overrides.guestList !== null) {
+        isGuestListDone = overrides.guestList.length > 0
+      } else if (overrides?.guestStats?.total !== undefined && overrides.guestStats.total !== null) {
+        isGuestListDone = overrides.guestStats.total > 0
+      } else {
+        isGuestListDone = isLocalStepMarkedCompleted(activeId, 'guestList')
+      }
+      if (isGuestListDone) {
+        markStepCompletedLocally(activeId, 'guestList', true)
+      } else {
+        markStepCompletedLocally(activeId, 'guestList', false)
       }
 
       stepStatus.value = {

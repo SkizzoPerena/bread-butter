@@ -344,9 +344,6 @@ watch(
   [rsvpData, effectivePalette, effectiveTypography, effectiveBannerImageUrl, websiteSlug],
   () => {
     syncEstablishedInvitationToStorage()
-    if (currentEventId) {
-      markStepCompletedLocally(currentEventId, 'invitation', true)
-    }
   },
   { deep: true }
 )
@@ -513,7 +510,11 @@ onMounted(async () => {
 
     syncEstablishedInvitationToStorage()
     if (currentEventId) {
-      markStepCompletedLocally(currentEventId, 'invitation', true)
+      const isCustomized = Boolean(
+        existingInvitationId.value &&
+        rsvpData.eventLabel?.trim().toLowerCase() !== 'alex & jordan are getting married!'
+      )
+      markStepCompletedLocally(currentEventId, 'invitation', isCustomized)
     }
   } catch (error) {
     console.error('Error loading invitation details:', error)
@@ -583,7 +584,11 @@ async function saveInvitation() {
 
     syncEstablishedInvitationToStorage()
     if (currentEventId) {
-      markStepCompletedLocally(currentEventId, 'invitation', true)
+      const isCustomized = Boolean(
+        existingInvitationId.value &&
+        rsvpData.eventLabel?.trim().toLowerCase() !== 'alex & jordan are getting married!'
+      )
+      markStepCompletedLocally(currentEventId, 'invitation', isCustomized)
     }
 
     // Upload card image for invitation email

@@ -150,6 +150,9 @@ export function validateInvitationForSave(
   if (!rsvpData.eventLabel?.trim()) {
     return 'Event headline is required.'
   }
+  if (rsvpData.eventLabel.trim().toLowerCase() === 'alex & jordan are getting married!') {
+    return 'Please customize the invitation headline with your own details before saving and publishing.'
+  }
   if (!rsvpData.eventDate?.trim()) {
     return 'Event date is required.'
   }
