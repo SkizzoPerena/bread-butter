@@ -117,8 +117,18 @@ export async function openGuestsPage(page: Page, options: WorkspaceOptions = {})
 export async function openInvitationPage(page: Page, options: WorkspaceOptions = {}) {
   const calls = await stubWorkspace(page, options)
   await page.goto(`/jam/invitation/${GATHERING_ID}`)
-  await expect(page.getByText('1. Event Details')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '1. Presentation Mode' })).toBeVisible()
   return calls
+}
+
+/**
+ * The invitation page has six steps: 1. Presentation Mode, 2. Event Details, 3. Date & Schedule,
+ * 4. Color Palette, 5. Typography Pairing, 6. Access & Sharing. The rail buttons carry each label
+ * as their title.
+ */
+export async function goToInvitationStep(page: Page, label: string) {
+  await page.getByTitle(label, { exact: true }).click()
+  await expect(page.getByRole('heading', { name: label })).toBeVisible()
 }
 
 export async function openRsvpPage(page: Page, options: WorkspaceOptions = {}) {
@@ -131,6 +141,11 @@ export async function openSettingsPage(page: Page, options: WorkspaceOptions = {
   const calls = await stubWorkspace(page, options)
   await page.goto(`/jam/settings/${GATHERING_ID}`)
   return calls
+}
+
+/** Settings are split into tabs: Plan & Package Details, Event Details, Access & Seating Permissions. */
+export async function openSettingsTab(page: Page, name: string) {
+  await page.getByRole('tab', { name }).click()
 }
 
 export async function openCheckIn(page: Page) {

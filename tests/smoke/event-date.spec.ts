@@ -62,10 +62,12 @@ test('a rejected date change leaves stored due dates alone', async ({ page }) =>
   })
 
   await page.goto(`/event/settings?eventId=${EVENT_ID}`)
+  // The date is changed inside the dialog now: a warning, then the date field and its own save.
   await page.getByRole('button', { name: 'Change Date' }).click()
-  await page.getByRole('dialog').getByRole('button').last().click()
-  await page.locator('input[type="date"]').fill('2030-08-01')
-  await page.getByRole('button', { name: 'Save Settings' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Proceed' }).click()
+  await dialog.locator('input[type="date"]').fill('2030-08-01')
+  await dialog.getByRole('button', { name: 'Save Changed Date' }).click()
 
   await expect(page.getByText('Could not update event').first()).toBeVisible()
   expect(await page.evaluate(key => localStorage.getItem(key), OVERRIDE_KEY)).toBeNull()
