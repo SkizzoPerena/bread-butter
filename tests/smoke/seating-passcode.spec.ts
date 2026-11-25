@@ -1,6 +1,6 @@
 import { GATHERING_ID, PASS_TOKEN, expect, test } from './helpers'
 import { stubApi } from './helpers'
-import { openInvitationPage, openSettingsPage } from './seating-fixtures'
+import { goToInvitationStep, openInvitationPage, openSettingsPage, openSettingsTab } from './seating-fixtures'
 
 const invitation = {
   success: true,
@@ -76,7 +76,7 @@ test('a host can remove a passcode from the invitation page', async ({ page }) =
       }),
     },
   })
-  await page.getByRole('button', { name: 'Next Step' }).click()
+  await goToInvitationStep(page, '6. Access & Sharing')
   await page.getByPlaceholder('e.g. CELEBRATE2026').fill('')
   await page.getByRole('button', { name: 'Save Draft' }).click()
 
@@ -96,6 +96,7 @@ test('a host can remove a passcode from settings', async ({ page }) => {
       }),
     },
   })
+  await openSettingsTab(page, 'Access & Seating Permissions')
   await page.getByPlaceholder('e.g. CELEBRATE2026').fill('')
   await page.getByRole('button', { name: 'Save Jam Settings' }).click()
 

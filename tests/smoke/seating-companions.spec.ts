@@ -1,5 +1,5 @@
 import { GATHERING_ID, PASS_TOKEN, expect, stubApi, test } from './helpers'
-import { openGuestsPage, openSettingsPage } from './seating-fixtures'
+import { openGuestsPage, openSettingsPage, openSettingsTab } from './seating-fixtures'
 
 const COMPANIONS_URL = `/guest/seating/rsvp/${PASS_TOKEN}/companions`
 const SEATS_URL = `/guest/seating/rsvp/${PASS_TOKEN}/seats`
@@ -185,6 +185,7 @@ test('a host sets how many companions each guest can bring', async ({ page }) =>
       }),
     },
   })
+  await openSettingsTab(page, 'Access & Seating Permissions')
   await expect(page.getByTestId('max-companions')).toHaveText('1')
 
   await page.getByRole('button', { name: 'Allow more companions' }).click()

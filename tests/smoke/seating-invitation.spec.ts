@@ -1,5 +1,5 @@
 import { GATHERING_ID, PASS_TOKEN, expect, stubApi, test } from './helpers'
-import { BLANK_PNG, openInvitationPage, png } from './seating-fixtures'
+import { BLANK_PNG, goToInvitationStep, openInvitationPage, png } from './seating-fixtures'
 
 const design = {
   requestLine: 'Please join us for',
@@ -100,13 +100,16 @@ test('a host uploads their own image, and can go back to the maker', async ({ pa
       }),
     },
   })
-  await page.getByRole('button', { name: 'Next Step' }).click()
-  await page.getByRole('button', { name: 'Next Step' }).click()
+  // Choosing between the maker and your own image is now the first step.
   await page.getByRole('button', { name: /Custom Image/ }).click()
 
   await page.locator('input[type="file"]').setInputFiles(png(BLANK_PNG, 'card.png'))
-  await expect(page.getByRole('img', { name: 'Stationery', exact: true }).first()).toHaveAttribute('src', 'https://files.example.com/card.png')
+  // After the upload the page skips to the last step, and the preview shows the image as the card.
+  await expect(page.getByRole('heading', { name: '6. Access & Sharing' })).toBeVisible()
+  await expect(page.getByTestId('jam-invitation-card').getByRole('img', { name: 'Invitation to Damson supper' }))
+    .toHaveAttribute('src', 'https://files.example.com/card.png')
 
+  await goToInvitationStep(page, '1. Presentation Mode')
   await page.getByRole('button', { name: /Built-in Maker/ }).click()
   await page.getByRole('button', { name: 'Save Draft' }).click()
   await expect.poll(() => calls.find(call => call.method === 'PATCH' && call.url.endsWith(GATHERING_ID))?.body).toMatchObject({
@@ -127,15 +130,16 @@ test('a host designs the invitation with a live preview, and saves it', async ({
     },
   })
 
+  await goToInvitationStep(page, '2. Event Details')
   await page.getByLabel('Event Headline').fill('Ana turns 30')
-  // The default template has a ceremony and a reception. One time field shows for a single location.
-  await page.getByRole('button', { name: 'Single Location' }).click()
-  await page.getByLabel('Event Time').fill('6:00 PM')
   await expect(page.getByRole('heading', { name: 'Ana turns 30' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Next Step' }).click()
-  await page.getByRole('button', { name: 'Next Step' }).click()
-  await page.getByRole('button', { name: 'Next Step' }).click()
+  // The default template has a ceremony and a reception. One time field shows for a single location.
+  await goToInvitationStep(page, '3. Date & Schedule')
+  await page.getByRole('button', { name: 'Single Location' }).click()
+  await page.getByLabel('Event Time').fill('6:00 PM')
+
+  await goToInvitationStep(page, '4. Color Palette')
   await page.getByRole('button', { name: /Cabernet/ }).click()
 
   await page.getByRole('button', { name: 'Save Draft' }).click()
@@ -143,7 +147,8 @@ test('a host designs the invitation with a live preview, and saves it', async ({
     invitationDesign: { headline: 'Ana turns 30', eventTime: '6:00 PM', paletteName: 'Cabernet' },
   })
 
-  await page.getByRole('button', { name: 'Previous', exact: true }).click()
+  // The banner is uploaded on the first step, in maker mode.
+  await goToInvitationStep(page, '1. Presentation Mode')
   await page.locator('input[type="file"]').setInputFiles(png(BLANK_PNG, 'banner.png'))
   // The form shows a thumbnail too, so this checks the invitation guests see.
   await expect(page.getByTestId('jam-invitation-card').getByRole('img', { name: 'Banner', exact: true }))
@@ -171,6 +176,7 @@ test('saving the maker uploads a picture of the card for the invitation email', 
     },
   })
 
+  await goToInvitationStep(page, '2. Event Details')
   await page.getByLabel('Event Headline').fill('Ana turns 30')
   await page.getByRole('button', { name: 'Save Draft' }).click()
 
@@ -199,11 +205,10 @@ test('saving in own-image mode doesn\'t upload a card, because the image is the 
       }),
     },
   })
-  await page.getByRole('button', { name: 'Next Step' }).click()
-  await page.getByRole('button', { name: 'Next Step' }).click()
   await page.getByRole('button', { name: /Custom Image/ }).click()
   await page.locator('input[type="file"]').setInputFiles(png(BLANK_PNG, 'own.png'))
-  await expect(page.getByRole('img', { name: 'Stationery', exact: true }).first()).toHaveAttribute('src', ownImage.imageUrl)
+  await expect(page.getByTestId('jam-invitation-card').getByRole('img', { name: 'Invitation to Damson supper' }))
+    .toHaveAttribute('src', ownImage.imageUrl)
 
   await page.getByRole('button', { name: 'Save Draft' }).click()
   await expect.poll(() => calls.find(call => call.method === 'PATCH' && call.url.endsWith(GATHERING_ID))?.body).toMatchObject({
