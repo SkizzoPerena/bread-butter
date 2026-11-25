@@ -145,6 +145,8 @@ async function handleSubmit(event: FormSubmitEvent<TaskSchema>) {
           title: event.data.title,
           details: event.data.details,
           keepImageURLs: keptImageUrls.value,
+          // Saved on the task, so the star survives a reload.
+          isImportant: event.data.isImportant,
         },
         imageFiles.value
       )
