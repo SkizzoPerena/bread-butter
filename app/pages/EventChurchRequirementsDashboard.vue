@@ -826,11 +826,23 @@ watch(eventId, async () => {
     <ClientOnly>
       <Teleport to="#navbar-actions">
         <div class="flex flex-wrap items-center gap-2">
-          <UButton icon="i-lucide-plus" color="yellow" :disabled="mutationsDisabled || isSubmitting"
+          <UButton icon="i-lucide-plus" color="yellow" size="sm" :disabled="mutationsDisabled || isSubmitting"
             @click="openAddRequirementModal()">
             Add Requirement
           </UButton>
-          <UButton icon="i-lucide-file-down" color="neutral" variant="outline" :loading="isExporting"
+          <UButton icon="i-lucide-file-down" color="neutral" variant="outline" size="sm" :loading="isExporting"
+            :disabled="!eventId || isExporting" @click="exportEventPdf(eventId, 'church-requirements')">
+            Export PDF
+          </UButton>
+        </div>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton icon="i-lucide-plus" color="yellow" size="sm" block :disabled="mutationsDisabled || isSubmitting"
+            @click="openAddRequirementModal()">
+            Add Requirement
+          </UButton>
+          <UButton icon="i-lucide-file-down" color="neutral" variant="outline" size="sm" block :loading="isExporting"
             :disabled="!eventId || isExporting" @click="exportEventPdf(eventId, 'church-requirements')">
             Export PDF
           </UButton>

@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import type { InvitationRecord } from '~/types/invitation'
 import type { CustomSiteRecord } from '~/types/customSite'
+import type { ColorPalette, TypographySet } from '~/utils/websiteTheme'
 import { formatDateWithWeekday, formatTime } from '~/utils/invitationDisplay'
 import { resolveCustomSiteTheme } from '~/utils/websiteTheme'
 
@@ -14,6 +15,7 @@ useWeddingFonts()
 
 const { fetchCustomSitesByEvent } = useCustomSite()
 const siteRecord = ref<CustomSiteRecord | null>(props.customSite || null)
+const cachedInvitation = ref<any>(null)
 
 const eventId = computed(() => {
   const ev = props.invitation?.event
@@ -23,6 +25,29 @@ const eventId = computed(() => {
   }
   return ''
 })
+
+function loadLocalEstablishedInvitation() {
+  if (typeof window === 'undefined') return
+  try {
+    const id = eventId.value
+    if (id) {
+      const raw = localStorage.getItem(`bpb_invitation_established_${id}`)
+      if (raw) {
+        cachedInvitation.value = JSON.parse(raw)
+        return
+      }
+    }
+    const latestRaw = localStorage.getItem('bpb_invitation_established_latest')
+    if (latestRaw) {
+      const parsed = JSON.parse(latestRaw)
+      if (!id || parsed.eventId === id) {
+        cachedInvitation.value = parsed
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
 
 async function loadCustomSite() {
   if (props.customSite) {
@@ -43,6 +68,7 @@ async function loadCustomSite() {
 
 onMounted(() => {
   loadCustomSite()
+  loadLocalEstablishedInvitation()
 })
 
 watch(
@@ -60,69 +86,67 @@ watch(
     if (!props.customSite) {
       loadCustomSite()
     }
+    loadLocalEstablishedInvitation()
   }
 )
 
 const theme = computed(() => resolveCustomSiteTheme(siteRecord.value))
-const palette = computed(() => theme.value.palette)
-const typography = computed(() => theme.value.typography)
 
-// Custom Website Destination (RSVP Section)
-const websiteSlug = computed(() => {
-  if (siteRecord.value?.siteName?.trim()) {
-    return siteRecord.value.siteName.trim()
+const palette = computed<ColorPalette>(() => {
+  if (cachedInvitation.value?.palette) {
+    return cachedInvitation.value.palette
   }
-  if (siteRecord.value?.title?.trim()) {
-    return siteRecord.value.title
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 50)
-  }
-  return ''
-})
-
-const websiteUrl = computed(() => {
-  if (websiteSlug.value) {
-    return `/sites/${encodeURIComponent(websiteSlug.value)}`
-  }
-  return ''
-})
-
-
-function handleRsvpClick() {
-  if (websiteUrl.value) {
-    window.open(websiteUrl.value, '_blank')
-  } else if (typeof document !== 'undefined') {
-    const formElement = document.getElementById('rsvp-question-form') || document.querySelector('form')
-    if (formElement) {
-      formElement.scrollIntoView({ behavior: 'smooth' })
+  const base = theme.value.palette
+  if (theme.value.invertColors) {
+    return {
+      name: `${base.name} (Inverted)`,
+      colors: {
+        primary: base.colors.text_color,
+        text_color: base.colors.primary,
+        secondary: base.colors.secondary_text_color,
+        secondary_text_color: base.colors.secondary
+      }
     }
   }
-}
-
-const eventDateInput = computed(() => {
-  const iso = props.invitation?.eventDate
-  if (!iso) {
-    return ''
-  }
-  return iso.split('T')[0] ?? iso
+  return base
 })
 
-const deadlineDateInput = computed(() => {
-  const iso = props.invitation?.deadlineDate
-  if (!iso) {
-    return ''
+const typography = computed<TypographySet>(() => {
+  if (cachedInvitation.value?.typography) {
+    return cachedInvitation.value.typography
   }
-  return iso.split('T')[0] ?? iso
+  return theme.value.typography
+})
+
+const bannerImageUrl = computed(() => {
+  return props.invitation?.bannerImageUrl || cachedInvitation.value?.bannerImageUrl || ''
+})
+
+const requestLine = computed(() => {
+  return props.invitation?.requestLine || cachedInvitation.value?.requestLine || 'Together with their families'
+})
+
+const eventLabel = computed(() => {
+  return props.invitation?.eventLabel || cachedInvitation.value?.eventLabel || 'Alex & Jordan are getting married!'
+})
+
+const eventVenue = computed(() => {
+  return props.invitation?.eventVenue || cachedInvitation.value?.eventVenue || ''
+})
+
+const eventTime = computed(() => {
+  return props.invitation?.eventTime || cachedInvitation.value?.eventTime || ''
+})
+
+const eventDateInput = computed(() => {
+  return props.invitation?.eventDate || cachedInvitation.value?.eventDate || ''
 })
 </script>
 
 <template>
   <div
     class="relative rounded-2xl transition-all duration-300 shadow-xl overflow-hidden text-center"
-    :class="invitation.bannerImageUrl ? '' : 'p-8 sm:p-12'"
+    :class="bannerImageUrl ? '' : 'p-8 sm:p-12'"
     :style="{
       backgroundColor: palette.colors.primary,
       borderColor: palette.colors.secondary,
@@ -132,12 +156,12 @@ const deadlineDateInput = computed(() => {
   >
     <!-- Top Banner Image Component (Flush Top & Sides, 1:5 Horizontal Banner) -->
     <div
-      v-if="invitation.bannerImageUrl"
+      v-if="bannerImageUrl"
       class="w-full overflow-hidden border-b"
       :style="{ borderColor: `${palette.colors.secondary}40` }"
     >
       <img
-        :src="invitation.bannerImageUrl"
+        :src="bannerImageUrl"
         alt="Invitation Banner"
         class="w-full aspect-5/1 object-cover object-center block"
       />
@@ -146,7 +170,7 @@ const deadlineDateInput = computed(() => {
     <!-- Inner Content Area -->
     <div
       class="relative"
-      :class="invitation.bannerImageUrl ? 'p-6 sm:p-10' : ''"
+      :class="bannerImageUrl ? 'p-6 sm:p-10' : ''"
     >
       <!-- Inner Stationery Double Border Frame -->
       <div
@@ -168,7 +192,7 @@ const deadlineDateInput = computed(() => {
             fontFamily: typography.subheaderFont
           }"
         >
-          {{ invitation.requestLine || 'Together with their families' }}
+          {{ requestLine }}
         </p>
 
         <h1
@@ -178,7 +202,7 @@ const deadlineDateInput = computed(() => {
             fontFamily: typography.headerFont
           }"
         >
-          {{ invitation.eventLabel || 'Alex & Jordan are getting married!' }}
+          {{ eventLabel }}
         </h1>
 
         <!-- Date, Time, and Venue -->
@@ -194,18 +218,18 @@ const deadlineDateInput = computed(() => {
           </div>
 
           <div
-            v-if="invitation.eventTime"
+            v-if="eventTime"
             class="text-sm sm:text-base font-normal"
             :style="{
               color: palette.colors.secondary_text_color,
               fontFamily: typography.bodyFont
             }"
           >
-            {{ formatTime(invitation.eventTime) }}
+            {{ formatTime(eventTime) }}
           </div>
 
           <div
-            v-if="invitation.eventVenue"
+            v-if="eventVenue"
             class="flex items-center text-sm sm:text-base font-medium pt-2"
             :style="{
               color: palette.colors.text_color,
@@ -213,7 +237,7 @@ const deadlineDateInput = computed(() => {
             }"
           >
             <UIcon name="i-lucide-map-pin" class="w-4 h-4 mr-1.5 opacity-70" />
-            {{ invitation.eventVenue }}
+            {{ eventVenue }}
           </div>
         </div>
       </div>
@@ -234,70 +258,6 @@ const deadlineDateInput = computed(() => {
           class="w-16 h-[1.5px]"
           :style="{ backgroundColor: `${palette.colors.secondary}70` }"
         />
-      </div>
-
-      <!-- 2. Prominent "RSVP Here" CTA Button (Replacing schedules) -->
-      <div class="my-3 flex flex-col items-center justify-center gap-2">
-        <a
-          v-if="websiteUrl"
-          :href="websiteUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="group relative inline-flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-full font-semibold text-sm sm:text-base transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          :style="{
-            backgroundColor: palette.colors.secondary,
-            color: palette.colors.secondary_text_color,
-            fontFamily: typography.subheaderFont
-          }"
-        >
-          <span>RSVP Here</span>
-          <UIcon name="i-lucide-arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1" />
-        </a>
-
-        <button
-          v-else
-          type="button"
-          class="group relative inline-flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-full font-semibold text-sm sm:text-base transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          :style="{
-            backgroundColor: palette.colors.secondary,
-            color: palette.colors.secondary_text_color,
-            fontFamily: typography.subheaderFont
-          }"
-          @click="handleRsvpClick"
-        >
-          <span>RSVP Here</span>
-          <UIcon name="i-lucide-arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1" />
-        </button>
-      </div>
-
-      <!-- 3. Footer Area (RSVP Deadline) -->
-      <div
-        class="mt-2 pt-5 border-t"
-        :style="{ borderColor: `${palette.colors.secondary}40` }"
-      >
-        <div
-          v-if="invitation.deadlineText"
-          class="prose max-w-md mx-auto text-center text-xs sm:text-sm"
-          :style="{
-            color: palette.colors.secondary_text_color,
-            fontFamily: typography.bodyFont
-          }"
-          v-html="invitation.deadlineText"
-        />
-
-        <div
-          v-if="deadlineDateInput"
-          class="mt-4 inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full font-medium text-xs sm:text-sm border transition-transform shadow-xs"
-          :style="{
-            backgroundColor: `${palette.colors.secondary}20`,
-            color: palette.colors.secondary_text_color,
-            borderColor: `${palette.colors.secondary}60`,
-            fontFamily: typography.subheaderFont
-          }"
-        >
-          <UIcon name="i-lucide-calendar" class="w-4 h-4 shrink-0" />
-          <span>RSVP Deadline: {{ formatDateWithWeekday(deadlineDateInput) }}</span>
-        </div>
       </div>
     </div>
     </div>

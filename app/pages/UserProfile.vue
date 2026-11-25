@@ -3,12 +3,14 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { reportApiError } from '~/types/auth'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
+import { usePageTransition } from '~/composables/usePageTransition'
 
 definePageMeta({
   layout: 'user-navbar',
 })
 
 const toast = useToast()
+const { finishPageTransition } = usePageTransition()
 const {
   fetchAccount,
   saveAccount,
@@ -247,7 +249,11 @@ async function onEmailNotifToggle(enabled: boolean) {
 }
 
 onMounted(async () => {
-  await loadProfile()
+  try {
+    await loadProfile()
+  } finally {
+    finishPageTransition()
+  }
 })
 </script>
 

@@ -27,6 +27,13 @@ export interface DressCodePaletteColors {
   neutral: string
 }
 
+export interface DressCodeColorNames {
+  primary?: string
+  secondary?: string
+  accent?: string
+  neutral?: string
+}
+
 export type PaletteDisplayType = 'image' | 'editor' | 'both'
 
 export interface DressCodeRecord {
@@ -39,6 +46,7 @@ export interface DressCodeRecord {
   presetPaletteName: string
   invertColors: boolean
   colors: DressCodePaletteColors
+  colorNames?: DressCodeColorNames
   formality: AttireFormality
   guestNotes: string
   menAttire: string

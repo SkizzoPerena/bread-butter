@@ -305,6 +305,41 @@ onMounted(() => {
           </UButton>
         </div>
       </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            :to="{ path: '/website-maker', query: { eventId } }"
+            icon="i-lucide-globe"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            block
+          >
+            Website Maker
+          </UButton>
+          <UButton
+            icon="i-lucide-qr-code"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            block
+            :disabled="mutationsDisabled || isSubmitting"
+            @click="openCreateQrModal"
+          >
+            Add QR Code
+          </UButton>
+          <UButton
+            icon="i-lucide-gift"
+            color="pink"
+            size="sm"
+            block
+            :disabled="mutationsDisabled || isSubmitting"
+            @click="openCreateGiftModal"
+          >
+            Add Gift Item
+          </UButton>
+        </div>
+      </Teleport>
     </ClientOnly>
 
     <!-- ================= LEFT DIVISION (col-span-1): Event Details & Registry Metrics ================= -->

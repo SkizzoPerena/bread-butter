@@ -85,6 +85,9 @@ export function useCardCapture() {
       clone.style.pointerEvents = 'none'
       clone.style.opacity = '1'
       clone.style.display = 'block'
+      if (options.backgroundColor) {
+        clone.style.backgroundColor = options.backgroundColor
+      }
       document.body.appendChild(clone)
 
       // Ensure clone images are ready

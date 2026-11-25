@@ -315,6 +315,30 @@ function openWebsiteMaker() {
           </UButton>
         </div>
       </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            icon="i-lucide-globe"
+            variant="outline"
+            color="neutral"
+            size="sm"
+            block
+            class="cursor-pointer"
+            @click="openWebsiteMaker">
+            Website Maker
+          </UButton>
+          <UButton
+            icon="i-lucide-check-circle"
+            color="rose"
+            size="sm"
+            block
+            class="font-semibold text-white cursor-pointer"
+            :loading="isSaving || isAddingPhotos"
+            @click="handleSave">
+            Save Gallery
+          </UButton>
+        </div>
+      </Teleport>
     </ClientOnly>
 
     <!-- Main Workspace: Retains the layout style of Website Maker & Dress Code Dashboard -->

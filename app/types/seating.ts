@@ -39,6 +39,7 @@ export interface JamInvitationDesign {
   deadlineText?: string
   paletteName?: string
   typographyName?: string
+  invertColors?: boolean
   accentColor?: string
   bannerImageUrl?: string
   templateId?: string

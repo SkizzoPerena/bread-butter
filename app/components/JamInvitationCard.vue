@@ -22,10 +22,18 @@ useWeddingFonts()
 
 const palette = computed(() => {
   const base = resolvePalette(props.design?.paletteName).colors
-  if (props.design?.accentColor) {
-    return { ...base, secondary: props.design.accentColor }
+  const withAccent = props.design?.accentColor
+    ? { ...base, secondary: props.design.accentColor }
+    : base
+  if (props.design?.invertColors) {
+    return {
+      primary: withAccent.text_color,
+      text_color: withAccent.primary,
+      secondary: withAccent.secondary_text_color,
+      secondary_text_color: withAccent.secondary,
+    }
   }
-  return base
+  return withAccent
 })
 const typography = computed(() => resolveTypography(props.design?.typographyName))
 const usesOwnImage = computed(() => props.design?.mode === 'IMAGE' && Boolean(props.design.imageUrl))

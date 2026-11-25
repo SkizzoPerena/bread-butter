@@ -336,6 +336,19 @@ watch(eventId, async () => {
         <UButton
           icon="i-lucide-plus"
           color="lime"
+          size="sm"
+          :disabled="mutationsDisabled || isSubmitting"
+          @click="openAddModal"
+        >
+          Add playlist
+        </UButton>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <UButton
+          icon="i-lucide-plus"
+          color="lime"
+          size="sm"
+          block
           :disabled="mutationsDisabled || isSubmitting"
           @click="openAddModal"
         >

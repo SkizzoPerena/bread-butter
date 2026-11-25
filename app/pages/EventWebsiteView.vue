@@ -4,6 +4,7 @@ import { PublicCustomSiteError } from '~/types/customSite'
 import { reportApiError } from '~/types/auth'
 import { customSiteToViewModel } from '~/utils/customSiteViewModel'
 import { usePageTransition } from '~/composables/usePageTransition'
+import { SITE_URL } from '#shared/seo'
 
 definePageMeta({
   layout: false,
@@ -25,8 +26,65 @@ const siteName = computed(() => {
   return typeof value === 'string' ? value : ''
 })
 
-const pageState = ref<PageState>('loading')
-const siteRecord = ref<PublicCustomSiteRecord | null>(null)
+const DEFAULT_OG_IMAGE = `${SITE_URL}/images/og-image.png`
+
+function resolveSitePreviewImage(site: PublicCustomSiteRecord | null): { url: string; isFallback: boolean } {
+  const candidates = [
+    site?.headerImageURL,
+    site?.gallery?.[0]?.imageURL,
+  ]
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim()
+    if (!trimmed) continue
+    if (/^https?:\/\//i.test(trimmed)) {
+      return { url: trimmed, isFallback: false }
+    }
+    if (trimmed.startsWith('/')) {
+      return { url: `${SITE_URL}${trimmed}`, isFallback: false }
+    }
+  }
+  return { url: DEFAULT_OG_IMAGE, isFallback: true }
+}
+
+type InitialSiteFetchResult =
+  | { kind: 'ready'; customSite: PublicCustomSiteRecord }
+  | { kind: 'locked' }
+  | { kind: 'unavailable' }
+  | { kind: 'not-found' }
+
+const { data: initialSiteData } = await useAsyncData<InitialSiteFetchResult>(
+  () => `public-site-${siteName.value}`,
+  async () => {
+    if (!siteName.value) {
+      return { kind: 'not-found' }
+    }
+    try {
+      const accessToken = getSiteAccessToken(siteName.value)
+      const response = await fetchPublicSiteMeta(siteName.value, accessToken)
+      if (response.passwordProtected && !response.customSite) {
+        return { kind: 'locked' }
+      }
+      if (response.customSite) {
+        return { kind: 'ready', customSite: response.customSite }
+      }
+      return { kind: 'not-found' }
+    } catch (error) {
+      if (error instanceof PublicCustomSiteError && error.availability === 'UNPUBLISHED') {
+        return { kind: 'unavailable' }
+      }
+      return { kind: 'not-found' }
+    }
+  }
+)
+
+const pageState = ref<PageState>(
+  import.meta.server
+    ? (initialSiteData.value?.kind ?? 'not-found')
+    : 'loading'
+)
+const siteRecord = ref<PublicCustomSiteRecord | null>(
+  initialSiteData.value?.kind === 'ready' ? initialSiteData.value.customSite : null
+)
 const pinInput = ref('')
 const pinError = ref('')
 const isSubmittingPin = ref(false)
@@ -76,15 +134,30 @@ async function preloadSiteAssets(site: ReturnType<typeof customSiteToViewModel> 
   ])
 }
 
+const previewImage = computed(() => resolveSitePreviewImage(siteRecord.value))
+const pageTitle = computed(() =>
+  siteRecord.value?.title ? `${siteRecord.value.title} | Bread + Butter` : 'Event Website'
+)
+const pageDescription = computed(() =>
+  siteRecord.value?.subtitle || 'Welcome to our website.'
+)
+
 useHead(() => ({
-  title: siteRecord.value?.title ? `${siteRecord.value.title} | Bread + Butter` : 'Event Website',
-  meta: [
-    {
-      name: 'description',
-      content: siteRecord.value?.subtitle || 'Welcome to our website.',
-    },
-  ],
+  title: pageTitle.value,
 }))
+
+useSeoMeta({
+  description: pageDescription,
+  ogTitle: () => siteRecord.value?.title || 'Bread + Butter Event Website',
+  ogDescription: pageDescription,
+  ogImage: () => previewImage.value.url,
+  ogImageWidth: () => (previewImage.value.isFallback ? 1200 : undefined),
+  ogImageHeight: () => (previewImage.value.isFallback ? 630 : undefined),
+  ogImageAlt: () => siteRecord.value?.title || 'Bread + Butter',
+  twitterTitle: () => siteRecord.value?.title || 'Bread + Butter Event Website',
+  twitterDescription: pageDescription,
+  twitterImage: () => previewImage.value.url,
+})
 
 async function loadSite(tokenOverride?: string | null) {
   if (!siteName.value) {
@@ -210,8 +283,22 @@ async function handlePinSubmit() {
 
 const { initFromRouteQuery } = useGuestRsvpSession()
 
-onMounted(() => {
+onMounted(async () => {
   initFromRouteQuery(route.query, siteName.value)
+  const initial = initialSiteData.value
+  if (initial?.kind === 'ready') {
+    siteRecord.value = initial.customSite
+    startPageTransition()
+    await preloadSiteAssets(viewModel.value)
+    pageState.value = 'ready'
+    finishPageTransition({ minDuration: 600 })
+    return
+  }
+  if (initial?.kind === 'locked' || initial?.kind === 'unavailable') {
+    pageState.value = initial.kind
+    finishPageTransition()
+    return
+  }
   loadSite()
 })
 

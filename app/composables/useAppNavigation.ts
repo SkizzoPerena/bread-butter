@@ -2,6 +2,20 @@ import type { RouteLocationRaw } from 'vue-router'
 
 const STORAGE_KEY = 'bpb_page_history'
 
+export const MAIN_EVENT_DASHBOARD_PATHS = [
+  '/event/dashboard-butter',
+  '/event/dashboard-bread',
+  '/event/dashboard-bread-butter',
+  '/event/dashboard-testing',
+  '/user/event-dashboard',
+]
+
+export const ALL_DASHBOARD_PATHS = [
+  '/',
+  '/user/dashboard',
+  ...MAIN_EVENT_DASHBOARD_PATHS,
+]
+
 export function normalizeRoutePath(url?: string | null): string {
   if (!url) return '/'
   try {
@@ -113,10 +127,46 @@ export function useAppNavigation() {
     await startPageTransition(destination)
   }
 
+  function getLastMatchingHistoryEntry(allowedPaths: string[]): string | null {
+    const currentNorm = normalizeRoutePath(route.fullPath || route.path)
+    const allowedSet = new Set(allowedPaths.map((p) => normalizeRoutePath(p)))
+
+    for (let i = historyStack.value.length - 1; i >= 0; i--) {
+      const entry = historyStack.value[i]
+      if (!entry) continue
+      const entryNorm = normalizeRoutePath(entry)
+      if (entryNorm !== currentNorm && allowedSet.has(entryNorm)) {
+        return entry
+      }
+    }
+    return null
+  }
+
+  function getMostRecentEventDashboardTarget(eventId?: string): RouteLocationRaw {
+    const recent = getLastMatchingHistoryEntry(MAIN_EVENT_DASHBOARD_PATHS)
+    if (recent) {
+      return recent
+    }
+    if (eventId) {
+      return {
+        path: '/event/dashboard-butter',
+        query: { eventId },
+      }
+    }
+    return '/'
+  }
+
+  async function navigateBackTo(target: RouteLocationRaw) {
+    await startPageTransition(target)
+  }
+
   return {
     historyStack,
     recordPageVisit,
     getPreviousDifferentPage,
+    getLastMatchingHistoryEntry,
+    getMostRecentEventDashboardTarget,
     goBackToPreviousPage,
+    navigateBackTo,
   }
 }

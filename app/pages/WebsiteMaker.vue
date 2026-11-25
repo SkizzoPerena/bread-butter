@@ -136,17 +136,6 @@ async function refreshPublishedPlaylists() {
     })
 }
 
-function copyHexToClipboard(hex: string) {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        navigator.clipboard.writeText(hex)
-        toast.add({
-            title: `Copied ${hex}`,
-            description: 'Hex code copied to clipboard.',
-            color: 'rose',
-        })
-    }
-}
-
 function onWindowFocus() {
     if (eventId.value) {
         const latestDressCode = getLocalDressCode(eventId.value)
@@ -2479,21 +2468,47 @@ function togglePreview() {
                     </div>
 
                     <UButton v-if="isLive && liveSiteLink" :to="liveSiteLink" target="_blank"
-                        icon="i-lucide-external-link" variant="outline" color="blue">
+                        icon="i-lucide-external-link" variant="outline" color="blue" size="sm">
                         View Live Site
                     </UButton>
                     <UButton :icon="isPreviewing ? 'i-lucide-edit' : 'i-lucide-eye'"
-                        :color="isPreviewing ? 'neutral' : 'blue'" variant="outline" :disabled="isSaving"
+                        :color="isPreviewing ? 'neutral' : 'blue'" variant="outline" size="sm" :disabled="isSaving"
                         @click="togglePreview">
                         {{ isPreviewing ? 'Editor View' : 'Live Preview' }}
                     </UButton>
 
-                    <UButton color="blue" :loading="isSaving" :disabled="isLoadingSite || isLoadingEvent || isSaving"
+                    <UButton color="blue" size="sm" :loading="isSaving" :disabled="isLoadingSite || isLoadingEvent || isSaving"
                         @click="handleSaveWebsite">
                         Save Website
                     </UButton>
                     <UButton :icon="isLive ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
-                        :color="isLive ? 'neutral' : 'blue'" :loading="isSaving"
+                        :color="isLive ? 'neutral' : 'blue'" size="sm" :loading="isSaving"
+                        :disabled="isLoadingSite || isLoadingEvent || isSaving || (!isLive && !canPublishWebsite)"
+                        @click="handleGoLive">
+                        {{ isLive ? 'Edit Website' : 'Go Live' }}
+                    </UButton>
+                </div>
+            </Teleport>
+            <Teleport to="#navbar-mobile-actions">
+                <div class="space-y-2 w-full">
+                    <div v-if="isLive" class="text-xs font-medium text-success-700 bg-success-50 border border-success-200/80 rounded-xl p-2.5 text-center">
+                        ✨ Your website is live!
+                    </div>
+                    <UButton v-if="isLive && liveSiteLink" :to="liveSiteLink" target="_blank"
+                        icon="i-lucide-external-link" variant="outline" color="blue" size="sm" block>
+                        View Live Site
+                    </UButton>
+                    <UButton :icon="isPreviewing ? 'i-lucide-edit' : 'i-lucide-eye'"
+                        :color="isPreviewing ? 'neutral' : 'blue'" variant="outline" size="sm" block :disabled="isSaving"
+                        @click="togglePreview">
+                        {{ isPreviewing ? 'Editor View' : 'Live Preview' }}
+                    </UButton>
+                    <UButton color="blue" size="sm" block :loading="isSaving" :disabled="isLoadingSite || isLoadingEvent || isSaving"
+                        @click="handleSaveWebsite">
+                        Save Website
+                    </UButton>
+                    <UButton :icon="isLive ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
+                        :color="isLive ? 'neutral' : 'blue'" size="sm" block :loading="isSaving"
                         :disabled="isLoadingSite || isLoadingEvent || isSaving || (!isLive && !canPublishWebsite)"
                         @click="handleGoLive">
                         {{ isLive ? 'Edit Website' : 'Go Live' }}
@@ -4463,13 +4478,12 @@ function togglePreview() {
 
                                             <!-- Section 1: Color Palette (Image, Editor, or Both) -->
                                             <div class="max-w-5xl mx-auto w-full space-y-3.5">
-                                                <div class="flex items-center justify-between text-xs uppercase tracking-wider font-semibold opacity-80"
-                                                    :style="{ color: previewDynamicStyle(index).heading }">
-                                                    <span class="inline-flex items-center gap-1.5">
-                                                        <UIcon name="i-lucide-swatch-book" class="size-4" />
+                                                <div class="flex items-center text-base sm:text-lg font-bold text-left"
+                                                    :style="{ color: previewDynamicStyle(index).heading, fontFamily: `'${selectedTypography.subheaderFont}'` }">
+                                                    <span class="inline-flex items-center gap-2">
+                                                        <UIcon name="i-lucide-swatch-book" class="size-5" />
                                                         Color Palette
                                                     </span>
-                                                    <span>{{ (publishedDressCode?.paletteType === 'image' && publishedDressCode?.paletteImage) ? 'Pre-made Graphic' : (publishedDressCode?.presetPaletteName || 'Curated Colors') }}</span>
                                                 </div>
 
                                                 <!-- Option: Both Image & Swatches in a Single Row -->
@@ -4496,18 +4510,12 @@ function togglePreview() {
                                                     <div class="sm:col-span-1 flex flex-col justify-between gap-2.5 h-full">
                                                         <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
                                                             :key="key"
-                                                            class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 cursor-pointer flex-1 min-h-12"
-                                                            :style="{ backgroundColor: hex }"
-                                                            @click="copyHexToClipboard(hex)">
-                                                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                                                                {{ key }}
+                                                            class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 flex-1 min-h-12"
+                                                            :style="{ backgroundColor: hex }">
+                                                            <span v-if="publishedDressCode?.colorNames?.[key]"
+                                                                class="text-xs font-semibold px-2 py-0.5 rounded bg-black/40 text-white w-max truncate max-w-full shadow-2xs backdrop-blur-2xs">
+                                                                {{ publishedDressCode.colorNames[key] }}
                                                             </span>
-                                                            <div class="flex items-center gap-1.5">
-                                                                <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                                                                    {{ hex }}
-                                                                </span>
-                                                                <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4535,18 +4543,12 @@ function togglePreview() {
                                                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                         <div v-for="(hex, key) in (publishedDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
                                                             :key="key"
-                                                            class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-22 sm:h-24 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                                                            :style="{ backgroundColor: hex }"
-                                                            @click="copyHexToClipboard(hex)">
-                                                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                                                                {{ key }}
+                                                            class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-end h-22 sm:h-24 transition-transform hover:-translate-y-0.5"
+                                                            :style="{ backgroundColor: hex }">
+                                                            <span v-if="publishedDressCode?.colorNames?.[key]"
+                                                                class="text-xs font-semibold px-2 py-0.5 rounded bg-black/40 text-white w-max truncate max-w-full shadow-2xs backdrop-blur-2xs">
+                                                                {{ publishedDressCode.colorNames[key] }}
                                                             </span>
-                                                            <div class="flex items-center justify-between">
-                                                                <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                                                                    {{ hex }}
-                                                                </span>
-                                                                <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

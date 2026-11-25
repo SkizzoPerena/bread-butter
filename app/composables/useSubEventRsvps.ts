@@ -3,6 +3,12 @@ import type { SendInviteResponse } from '~/types/guest'
 import type { RsvpSummary } from '~/types/event'
 import { formatGuestDisplayName } from '~/utils/guestName'
 
+export interface ExternalSubEventRecipient {
+  firstName: string
+  lastName: string
+  email: string
+}
+
 const MOCK_SUB_EVENT_RSVPS = new Map<string, RsvpRecord[]>([
   [
     'mock-sub-event-1',
@@ -271,6 +277,53 @@ export function useSubEventRsvps() {
     )
   }
 
+  async function sendSubEventExternalInvites(
+    subEventId: string,
+    recipients: ExternalSubEventRecipient[]
+  ): Promise<SendInviteResponse> {
+    const normalized = recipients.map((recipient) => ({
+      firstName: recipient.firstName.trim(),
+      lastName: recipient.lastName.trim(),
+      name: formatGuestDisplayName(recipient.firstName, recipient.lastName),
+      email: recipient.email.trim().toLowerCase(),
+    }))
+
+    if (isUiOnlyMode.value) {
+      let created = 0
+      let skippedAlreadyInvited = 0
+
+      for (const [index, recipient] of normalized.entries()) {
+        const existing = findMockSubEventRsvpByEmail(subEventId, recipient.email)
+        if (existing) {
+          skippedAlreadyInvited += 1
+          continue
+        }
+        addMockSubEventRsvp(subEventId, {
+          _id: `external-${Date.now()}-${index}`,
+          firstName: recipient.firstName,
+          lastName: recipient.lastName,
+          email: recipient.email,
+        })
+        created += 1
+      }
+
+      return {
+        success: true,
+        status: 201,
+        message: 'Sub-event RSVP invites processed.',
+        requested: normalized.length,
+        created,
+        skippedAlreadyInvited,
+        notFound: 0,
+      }
+    }
+
+    return apiRequest<SendInviteResponse>(`/user/rsvps/sub-event/${subEventId}/send`, {
+      method: 'POST',
+      body: { externalGuests: normalized },
+    })
+  }
+
   async function deleteSubEventRsvp(rsvpId: string): Promise<{ success: boolean; message: string }> {
     if (isUiOnlyMode.value) {
       removeMockSubEventRsvp(rsvpId)
@@ -287,6 +340,7 @@ export function useSubEventRsvps() {
     fetchAllSubEventRsvps,
     sendSubEventInvites,
     sendSubEventGuestInvite,
+    sendSubEventExternalInvites,
     deleteSubEventRsvp,
     rsvpsToSummary,
   }

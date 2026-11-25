@@ -2,7 +2,7 @@
 const route = useRoute()
 const router = useRouter()
 const { startPageTransition } = usePageTransition()
-const { goBackToPreviousPage } = useAppNavigation()
+const { navigateBackTo } = useAppNavigation()
 
 const isMobileMenuOpen = ref(false)
 
@@ -19,10 +19,10 @@ const gatheringId = computed(() => {
 })
 
 async function handleBack() {
-  const fallback = gatheringId.value
+  const target = gatheringId.value
     ? `/jam/dashboard/${gatheringId.value}`
     : '/jam'
-  await goBackToPreviousPage(fallback)
+  await navigateBackTo(target)
 }
 
 const titleThemeClass = computed(() => {
@@ -41,6 +41,9 @@ const titleThemeClass = computed(() => {
     'bg-amber-50': 'text-amber-600',
     'bg-red-50': 'text-red-600',
     'bg-yellow-50': 'text-yellow-700',
+    'bg-lime-50': 'text-lime-600',
+    'bg-cyan-50': 'text-cyan-600',
+    'bg-fuchsia-50': 'text-fuchsia-600',
   }
   return colorMap[bgClass] || 'text-jam-700'
 })
@@ -56,17 +59,13 @@ const titleThemeClass = computed(() => {
           <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" class="rounded-lg cursor-pointer"
             aria-label="Back to Dashboard" @click="handleBack" />
 
-          <!-- Logo & Jam Badge -->
+          <!-- Logo -->
           <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <button type="button" class="flex items-center cursor-pointer" @click="handleBack">
               <img v-if="route.meta.useLogo" src="~/assets/bpb-icons/Jam Logos-04.png" class="h-6 sm:h-7"
                 alt="Bread & Butter" />
               <img v-else src="~/assets/bpb-icons/Jam Logos-02.png" class="h-6 sm:h-7" alt="Bread & Butter" />
             </button>
-            <UBadge color="jam" variant="solid" size="xs"
-              class="hidden min-[420px]:inline-flex text-[10px] sm:text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-full text-jam-700 bg-jam-50 border border-jam-200">
-              Jam Seating
-            </UBadge>
           </div>
 
           <div class="h-4 w-px bg-bread-200 hidden sm:block" />

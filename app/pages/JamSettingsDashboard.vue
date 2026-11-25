@@ -14,8 +14,29 @@ const route = useRoute()
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { setActiveEvent } = useActiveEvent()
-const { followLink, finishPageTransition } = usePageTransition()
+const { startPageTransition, followLink, finishPageTransition } = usePageTransition()
 const seating = useSeating()
+
+type SettingsSection = 'plan' | 'details' | 'access'
+const activeSection = ref<SettingsSection>('plan')
+
+const SETTINGS_SECTIONS: { id: SettingsSection; label: string; icon: string }[] = [
+  {
+    id: 'plan',
+    label: 'Plan & Package Details',
+    icon: 'i-lucide-credit-card',
+  },
+  {
+    id: 'details',
+    label: 'Event Details',
+    icon: 'i-lucide-calendar',
+  },
+  {
+    id: 'access',
+    label: 'Access & Seating Permissions',
+    icon: 'i-lucide-lock',
+  },
+]
 
 const gatheringId = computed(() => String(route.params.gatheringId || route.query.gatheringId || ''))
 const gathering = ref<GatheringRecord | null>(null)
@@ -127,7 +148,7 @@ async function saveAllSettings() {
             :to="`/user/jam-upgrade/${gatheringId}`"
             color="jam"
             variant="solid"
-            size="xs"
+            size="sm"
             icon="i-lucide-sparkles"
             class="cursor-pointer"
             @click="followLink($event, `/user/jam-upgrade/${gatheringId}`)"
@@ -160,9 +181,40 @@ async function saveAllSettings() {
       <p class="font-serif text-lg font-bold text-jam-800">Loading settings & plan details...</p>
     </div>
 
-    <div v-else-if="gathering" class="max-w-4xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
-      <!-- 1. Plan Details & Capacity Breakdown -->
-      <div class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
+    <div v-else-if="gathering" class="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <!-- Column 1: Navigation Button Group -->
+        <aside class="lg:col-span-1 white-bread-container p-3 sm:p-4 shadow-xs lg:sticky lg:top-20">
+          <div class="pb-2.5 mb-2.5 border-b border-bread-200/60 px-1">
+            <h2 class="font-serif font-bold text-sm text-jam-900">Settings & Plan</h2>
+            <p class="text-[11px] text-muted">Choose a section to view or edit</p>
+          </div>
+          <div class="flex flex-col gap-1.5" role="tablist" aria-label="Jam settings sections">
+            <UButton
+              v-for="section in SETTINGS_SECTIONS"
+              :key="section.id"
+              :icon="section.icon"
+              :color="activeSection === section.id ? 'jam' : 'neutral'"
+              :variant="activeSection === section.id ? 'soft' : 'ghost'"
+              size="sm"
+              block
+              class="justify-start text-left px-3 py-2.5 rounded-xl cursor-pointer transition-all"
+              :class="activeSection === section.id ? 'font-bold ring-1 ring-inset ring-jam-300/80 shadow-2xs' : 'text-jam-800 hover:bg-jam-50/70'"
+              role="tab"
+              :aria-selected="activeSection === section.id"
+              @click="activeSection = section.id"
+            >
+              <div class="min-w-0 flex-1">
+                <span class="block text-xs sm:text-sm leading-tight truncate">{{ section.label }}</span>
+              </div>
+            </UButton>
+          </div>
+        </aside>
+
+        <!-- Columns 2-3: Active Section Container -->
+        <div class="lg:col-span-2 min-w-0">
+          <!-- 1. Plan Details & Capacity Breakdown -->
+          <div v-if="activeSection === 'plan'" class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
         <div class="flex items-center justify-between border-b border-bread-200/60 pb-2">
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-credit-card" class="size-4 text-jam-600" />
@@ -240,7 +292,7 @@ async function saveAllSettings() {
       </div>
 
       <!-- 2. Gathering Information Form -->
-      <div class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
+      <div v-else-if="activeSection === 'details'" class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
         <div class="flex items-center gap-2 border-b border-bread-200/60 pb-2">
           <UIcon name="i-lucide-calendar" class="size-4 text-jam-600" />
           <h3 class="font-serif font-bold text-base text-jam-900">Event Details</h3>
@@ -288,11 +340,24 @@ async function saveAllSettings() {
               class="w-full bg-jam-50/50 border border-bread-200/90 rounded-lg px-3 py-1.5 text-xs text-jam-900 focus:outline-none focus:ring-1 focus:ring-jam-500"
             />
           </div>
+
+          <div class="flex justify-end pt-3 border-t border-bread-200/60">
+            <UButton
+              color="jam"
+              variant="solid"
+              size="sm"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer"
+              :loading="saving"
+              @click="saveAllSettings"
+            >
+              Save Jam Settings
+            </UButton>
+          </div>
         </div>
       </div>
 
       <!-- 3. Security, Passcode & Seating Preferences -->
-      <div class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
+      <div v-else class="white-bread-container p-4 sm:p-5 space-y-4 shadow-xs">
         <div class="flex items-center gap-2 border-b border-bread-200/60 pb-2">
           <UIcon name="i-lucide-lock" class="size-4 text-jam-600" />
           <h3 class="font-serif font-bold text-base text-jam-900">Access & Seating Permissions</h3>
@@ -347,13 +412,15 @@ async function saveAllSettings() {
               color="jam"
               variant="solid"
               size="sm"
-              class="bg-jam-800 hover:bg-jam-900 text-white font-bold"
+              class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer"
               :loading="saving"
               @click="saveAllSettings"
             >
               Save Jam Settings
             </UButton>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

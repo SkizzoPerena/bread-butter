@@ -22,7 +22,7 @@ import {
   isDashboardActionAllowed,
   resolveEventTierCode,
 } from '~/utils/eventTierFeatures'
-import { useEventFlowProgress } from '~/composables/useEventFlowProgress'
+import { useEventFlowProgress, EVENT_FLOW_STEPS } from '~/composables/useEventFlowProgress'
 
 definePageMeta({
   layout: 'event-navbar',
@@ -42,7 +42,7 @@ const eventId = computed(() => {
   return typeof value === 'string' ? value : 'testing-event-id'
 })
 
-const { currentFlowStep, currentFlowStepAction, loadFlowStatus } = useEventFlowProgress()
+const { currentFlowStep, currentFlowStepAction, stepStatus, loadFlowStatus } = useEventFlowProgress()
 
 onMounted(() => {
   loadFlowStatus(eventId.value, {
@@ -522,7 +522,7 @@ function openColorsDressCode() {
     toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
     return
   }
-  navigateTo({ path: '/event/dress-code', query: { eventId: id } })
+  startPageTransition({ path: '/event/dress-code', query: { eventId: id } })
 }
 
 function openGallery() {
@@ -531,7 +531,7 @@ function openGallery() {
     toast.add({ title: 'Missing event', description: 'Open an event from your dashboard first.', color: 'error' })
     return
   }
-  navigateTo({ path: '/event/gallery', query: { eventId: id } })
+  startPageTransition({ path: '/event/gallery', query: { eventId: id } })
 }
 
 function openBakerDatabase() {
@@ -686,6 +686,80 @@ function onQuickNavItemClick(item: QuickNavItem) {
     case 'suppliers':
       openSuppliersDashboard()
       break
+  }
+}
+
+const isWorkspaceFlowLocked = computed(() => {
+  return Boolean(currentFlowStep.value)
+})
+
+const currentFlowStepIndex = computed(() => {
+  if (!currentFlowStep.value) return 4
+  return currentFlowStep.value.stepNumber - 1
+})
+
+const flowStepperItems = computed(() => {
+  return EVENT_FLOW_STEPS.map((step, idx) => ({
+    title: step.label,
+    icon: (currentFlowStepIndex.value > idx || stepStatus.value[step.action]) ? 'i-lucide-check' : undefined,
+  }))
+})
+
+const flowStepDetails = computed(() => {
+  switch (currentFlowStepAction.value) {
+    case 'website':
+      return {
+        icon: 'i-lucide-globe',
+        iconBgClass: 'bg-blue-500/10 border-blue-200/80',
+        iconTextClass: 'text-blue-600',
+        title: 'Create & Publish Your Website',
+        prompt: 'Make and publish your event website to unlock the rest of your event dashboard and planning tools.',
+        buttonLabel: 'Move to Website Maker',
+      }
+    case 'invitation':
+      return {
+        icon: 'i-lucide-send',
+        iconBgClass: 'bg-violet-500/10 border-violet-200/80',
+        iconTextClass: 'text-violet-600',
+        title: 'Design Your Digital Invitation',
+        prompt: 'Customize and publish your own digital invitation (not the default template) to proceed to the next step.',
+        buttonLabel: 'Move to Invitation Maker',
+      }
+    case 'rsvp':
+      return {
+        icon: 'i-lucide-clipboard-check',
+        iconBgClass: 'bg-teal-500/10 border-teal-200/80',
+        iconTextClass: 'text-teal-600',
+        title: 'Set Up Your RSVP Questions',
+        prompt: 'Configure and save your RSVP questions at least once to prepare for guest responses and headcounts.',
+        buttonLabel: 'Move to RSVP Manager',
+      }
+    case 'guestList':
+      return {
+        icon: 'i-lucide-users',
+        iconBgClass: 'bg-orange-500/10 border-orange-200/80',
+        iconTextClass: 'text-orange-600',
+        title: 'Add Your First Guests',
+        prompt: 'Insert at least one guest into your guest list to complete initial event setup and unlock your full workspace.',
+        buttonLabel: 'Move to Guest List',
+      }
+    default:
+      return {
+        icon: 'i-lucide-sparkles',
+        iconBgClass: 'bg-toast-50 border-toast-200/80',
+        iconTextClass: 'text-toast-600',
+        title: 'Complete Event Setup',
+        prompt: 'Complete your pending event setup steps to unlock all workspace tools.',
+        buttonLabel: 'Continue Setup',
+      }
+  }
+})
+
+function navigateToCurrentFlowStep() {
+  if (!currentFlowStep.value) return
+  const item = QUICK_NAV_ITEMS.find((nav) => nav.action === currentFlowStep.value?.action)
+  if (item) {
+    onQuickNavItemClick(item)
   }
 }
 
@@ -1106,7 +1180,7 @@ onBeforeUnmount(() => {
             class="font-semibold text-black" @click="openUpgradeModal">
             Upgrade
           </UButton>
-          <UBadge color="warning" variant="solid" size="xl" class="text-black rounded-full shadow-sm font-medium">
+          <UBadge color="warning" variant="solid" size="md" class="text-black rounded-full shadow-sm font-medium">
             {{ priceTierLabel }}
           </UBadge>
         </div>
@@ -1158,11 +1232,8 @@ onBeforeUnmount(() => {
               <div v-if="currentFlowStepAction === item.action"
                 class="absolute -top-1 -right-1 z-20 flex items-center justify-center pointer-events-none"
                 :title="`Current Step: ${item.label}`">
-                <span class="relative flex size-3.5 sm:size-4">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span class="relative inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
-                    !
-                  </span>
+                <span class="inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                  !
                 </span>
               </div>
               <div v-if="isDashboardItemBlocked(item) && currentFlowStepAction !== item.action"
@@ -1186,7 +1257,64 @@ onBeforeUnmount(() => {
       :class="activeMobileTab === 'launcher' ? 'hidden md:grid' : 'grid'">
       <!-- ================= LEFT DIVISION: col-span-3 (Workspace) ================= -->
       <section
-        class="lg:col-span-3 p-3 sm:p-3.5 lg:p-4 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-auto min-h-full lg:min-h-0 lg:h-full overflow-y-auto lg:overflow-hidden justify-start lg:justify-between">
+        class="relative lg:col-span-3 p-3 sm:p-3.5 lg:p-4 flex flex-col gap-3.5 sm:gap-4 bg-toast-50/20 h-auto min-h-full lg:min-h-0 lg:h-full overflow-y-auto lg:overflow-hidden justify-start lg:justify-between"
+        :class="isWorkspaceFlowLocked ? 'overflow-hidden' : ''">
+        <!-- Flow Onboarding Workspace Overlay -->
+        <div
+          v-if="isWorkspaceFlowLocked"
+          class="absolute inset-0 z-30 bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+        >
+          <div
+            class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-toast-200/90 p-5 sm:p-6 flex flex-col items-center text-center my-auto shrink-0 pointer-events-auto"
+          >
+            <!-- 4-Step Progress Indicator (Nuxt UI native UStepper) -->
+            <div class="w-full mb-5 px-1">
+              <UStepper
+                :items="flowStepperItems"
+                :model-value="currentFlowStepIndex"
+                color="primary"
+                size="xs"
+                class="w-full select-none pointer-events-none"
+                :ui="{
+                  title: 'text-[10.5px] sm:text-xs font-medium group-data-[state=active]:font-bold text-toast-900 group-data-[state=active]:text-toast-950 group-data-[state=completed]:text-toast-700'
+                }"
+              />
+            </div>
+
+            <!-- Active Step Icon Badge -->
+            <div class="relative mb-3">
+              <div
+                class="size-14 sm:size-16 rounded-2xl border flex items-center justify-center shadow-inner transition-colors"
+                :class="[flowStepDetails.iconBgClass, flowStepDetails.iconTextClass]"
+              >
+                <UIcon :name="flowStepDetails.icon" class="size-7 sm:size-8" />
+              </div>
+              <span class="absolute -top-1.5 -right-1.5 flex size-4">
+                <span class="inline-flex items-center justify-center size-4 rounded-full bg-rose-500 text-white text-[9px] font-bold shadow-xs">!</span>
+              </span>
+            </div>
+
+            <!-- Title & Description -->
+            <h3 class="font-serif text-lg sm:text-xl font-bold text-toast-950 tracking-tight mb-2">
+              {{ flowStepDetails.title }}
+            </h3>
+            <p class="text-xs sm:text-sm text-toast-600 max-w-sm mb-5 leading-relaxed">
+              {{ flowStepDetails.prompt }}
+            </p>
+
+            <!-- Action Button -->
+            <UButton
+              color="primary"
+              size="lg"
+              class="w-full sm:w-auto px-6 py-2.5 font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer bg-toast-600 hover:bg-toast-700 active:bg-toast-800 text-white rounded-xl"
+              trailing-icon="i-lucide-arrow-right"
+              @click="navigateToCurrentFlowStep"
+            >
+              {{ flowStepDetails.buttonLabel }}
+            </UButton>
+          </div>
+        </div>
+
         <!-- 1. Topmost Container: 3 Metric Groups (Days, Confirmed Guests, Task Completion col-span-2) -->
         <div class="white-bread-container p-3 sm:p-3.5 lg:p-4 dash-container-top-metrics shadow-sm shrink-0">
           <div
@@ -1633,10 +1761,7 @@ onBeforeUnmount(() => {
             <!-- Onboarding Flow Indicator Pill -->
             <div v-if="currentFlowStep"
               class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-[10px] sm:text-[11px] font-semibold shadow-2xs">
-              <span class="relative flex size-2 shrink-0">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                <span class="relative inline-flex size-2 rounded-full bg-rose-500" />
-              </span>
+              <span class="size-2 rounded-full bg-rose-500 shrink-0" />
               <span class="truncate">Next Step: {{ currentFlowStep.label }}</span>
             </div>
           </div>
@@ -1657,11 +1782,8 @@ onBeforeUnmount(() => {
               <div v-if="currentFlowStepAction === item.action"
                 class="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center pointer-events-none"
                 :title="`Current Step: ${item.label}`">
-                <span class="relative flex size-3.5 sm:size-4">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span class="relative inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
-                    !
-                  </span>
+                <span class="inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                  !
                 </span>
               </div>
               <!-- Feature Lock Indicator if blocked -->

@@ -9,6 +9,7 @@ definePageMeta({
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { fetchDashboardSummary } = usePartnerDashboard()
+const { finishPageTransition } = usePageTransition()
 
 const isLoading = ref(true)
 const summary = ref({
@@ -59,6 +60,7 @@ async function loadDashboard() {
     })
   } finally {
     isLoading.value = false
+    finishPageTransition()
   }
 }
 

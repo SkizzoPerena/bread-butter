@@ -1,17 +1,10 @@
 <script setup lang="ts">
 import { usePageTransition } from '~/composables/usePageTransition'
 
-const route = useRoute()
 const { isTransitionActive, isTransitionVisible, isJamTransition } = usePageTransition()
 
 const isJam = computed(() => {
-  return Boolean(
-    isJamTransition.value ||
-    route.path.startsWith('/jam') ||
-    route.path.startsWith('/user/create-seating') ||
-    route.path.startsWith('/user/seating-payment') ||
-    route.path.startsWith('/seat/')
-  )
+  return Boolean(isJamTransition.value)
 })
 </script>
 

@@ -1,7 +1,13 @@
 <script setup lang="ts">
+import { MAIN_EVENT_DASHBOARD_PATHS } from '~/composables/useAppNavigation'
+
 const route = useRoute()
 const { followLink } = usePageTransition()
-const { goBackToPreviousPage } = useAppNavigation()
+const {
+  getLastMatchingHistoryEntry,
+  getMostRecentEventDashboardTarget,
+  navigateBackTo,
+} = useAppNavigation()
 const { activeEventId } = useActiveEvent()
 
 const isMobileMenuOpen = ref(false)
@@ -18,18 +24,33 @@ const eventId = computed(() => {
   return activeEventId.value || ''
 })
 
-const defaultFallback = computed(() => {
-  if (eventId.value) {
-    return {
-      path: '/event/dashboard-butter',
-      query: { eventId: eventId.value },
-    }
-  }
-  return '/'
-})
-
 async function handleBack() {
-  await goBackToPreviousPage(defaultFallback.value)
+  const currentNorm = normalizeRoutePath(route.path)
+  const query = eventId.value ? { eventId: eventId.value } : {}
+
+  // Nested pages linked from another sub-page return to their parent page
+  if (currentNorm === '/event/sub-event') {
+    await navigateBackTo({ path: '/event/schedules', query })
+    return
+  }
+
+  if (currentNorm === '/event/add-guests-bulk') {
+    await navigateBackTo({ path: '/event/guests', query })
+    return
+  }
+
+  if (currentNorm === '/event/email-credits') {
+    const parent = getLastMatchingHistoryEntry([
+      '/event/guests',
+      '/event/sub-event',
+      ...MAIN_EVENT_DASHBOARD_PATHS,
+    ])
+    await navigateBackTo(parent || getMostRecentEventDashboardTarget(eventId.value))
+    return
+  }
+
+  // All other dashboard-linked sub-pages return directly to the main event dashboard
+  await navigateBackTo(getMostRecentEventDashboardTarget(eventId.value))
 }
 
 const titleThemeClass = computed(() => {
@@ -47,6 +68,11 @@ const titleThemeClass = computed(() => {
     'bg-rose-50': 'text-rose-500',
     'bg-lime-50': 'text-lime-600',
     'bg-cyan-50': 'text-cyan-600',
+    'bg-yellow-50': 'text-yellow-600',
+    'bg-fuchsia-50': 'text-fuchsia-500',
+    'bg-red-50': 'text-red-500',
+    'bg-amber-50': 'text-amber-600',
+    'bg-bread-50/30': 'text-pink-500',
   }
   return colorMap[bgClass] || 'text-toast-500'
 })

@@ -14,6 +14,12 @@ export const defaultDressCodeData: Omit<DressCodeRecord, 'event'> = {
     accent: '#9CA986',
     neutral: '#3A4A29',
   },
+  colorNames: {
+    primary: 'Warm Ivory',
+    secondary: 'Vintage Gold',
+    accent: 'Sage Leaf',
+    neutral: 'Deep Moss',
+  },
   formality: 'Formal / Black Tie Optional',
   guestNotes: 'We request our honored guests dress in tones celebrating our color palette. Elegant suits, formal dresses, or modern Filipiniana / Barong are warmly encouraged.',
   menAttire: 'Dark suit, tuxedo, or Barong Tagalog with formal dress trousers and leather dress shoes.',
@@ -35,6 +41,14 @@ export function getLocalDressCode(eventId: string): DressCodeRecord {
         return {
           ...defaultDressCodeData,
           ...parsed,
+          colors: {
+            ...defaultDressCodeData.colors,
+            ...(parsed.colors || {}),
+          },
+          colorNames: {
+            ...defaultDressCodeData.colorNames,
+            ...(parsed.colorNames || {}),
+          },
           event: eventId,
         }
       }

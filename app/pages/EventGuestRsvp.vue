@@ -12,6 +12,7 @@ import {
   formatRsvpAnswerNotes,
   mapRsvpStatusToLabel,
 } from '~/utils/rsvpDisplay'
+import { usePageTransition } from '~/composables/usePageTransition'
 
 definePageMeta({
   layout: false,
@@ -27,6 +28,7 @@ type PageState =
 const route = useRoute()
 const toast = useToast()
 const { fetchGuestRsvpForm, submitGuestRsvpResponse } = useGuestRsvp()
+const { finishPageTransition } = usePageTransition()
 
 const rsvpId = computed(() => {
   const value = route.params.rsvpId
@@ -45,6 +47,7 @@ async function loadForm() {
   if (!rsvpId.value || !isValidRsvpObjectId(rsvpId.value)) {
     pageState.value = 'not-found'
     formData.value = null
+    finishPageTransition()
     return
   }
 
@@ -72,6 +75,8 @@ async function loadForm() {
     }
     reportApiError(toast, { title: 'Could not load RSVP', error })
     pageState.value = 'not-found'
+  } finally {
+    finishPageTransition()
   }
 }
 

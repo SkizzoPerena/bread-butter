@@ -4,6 +4,7 @@ import type { GatheringRecord, RsvpStatus, SeatingGuestRecord } from '~/types/se
 import { guestDisplayName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import PieChart from '~/components/PieChart.vue'
+import { markJamStepCompletedLocally } from '~/composables/useJamFlowProgress'
 import {
   isChartableQuestionType,
   formatRsvpAnswerValue,
@@ -338,6 +339,7 @@ async function handleSaveQuestions() {
     if (gathering.value) {
       gathering.value.questions = payload
     }
+    markJamStepCompletedLocally(gatheringId.value, 'rsvp', true)
 
     toast.add({
       title: 'Questions saved',
