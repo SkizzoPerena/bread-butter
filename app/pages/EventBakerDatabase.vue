@@ -63,9 +63,12 @@ const {
   refresh
 } = useSuppliersDirectory()
 
-onMounted(() => {
-  fetchSuppliersDirectory()
-  finishPageTransition()
+onMounted(async () => {
+  try {
+    await fetchSuppliersDirectory()
+  } finally {
+    finishPageTransition()
+  }
 })
 
 const searchQuery = ref('')
@@ -381,12 +384,27 @@ function getCategoryTheme(catId: string): CategoryTheme {
             trailing-icon="i-lucide-arrow-right"
             color="primary"
             variant="solid"
+            size="sm"
             class="font-semibold cursor-pointer shadow-xs text-xs sm:text-sm"
           >
             <span class="hidden sm:inline">Go to My Suppliers</span>
             <span class="sm:hidden">My Suppliers</span>
           </UButton>
         </div>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <UButton
+          :to="suppliersDashboardUrl"
+          icon="i-lucide-briefcase"
+          trailing-icon="i-lucide-arrow-right"
+          color="primary"
+          variant="solid"
+          size="sm"
+          block
+          class="font-semibold cursor-pointer shadow-xs"
+        >
+          Go to My Suppliers
+        </UButton>
       </Teleport>
     </ClientOnly>
 

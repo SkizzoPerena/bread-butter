@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/types/auth'
 import { useIssues } from '~/composables/useIssues'
+import { usePageTransition } from '~/composables/usePageTransition'
 
 definePageMeta({
   layout: 'user-navbar',
@@ -9,6 +10,11 @@ definePageMeta({
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { createIssue } = useIssues()
+const { finishPageTransition } = usePageTransition()
+
+onMounted(() => {
+  finishPageTransition()
+})
 
 const report = reactive({
   title: '',

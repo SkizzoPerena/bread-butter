@@ -12,6 +12,7 @@ const df = new DateFormatter('en-US', { dateStyle: 'medium' })
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { fetchUserEvents } = useEvents()
+const { finishPageTransition } = usePageTransition()
 
 const events = ref<EventRecord[]>([])
 const isLoading = ref(true)
@@ -24,6 +25,7 @@ async function loadEvents() {
     reportApiError(toast, { title: 'Could not load events', error })
   } finally {
     isLoading.value = false
+    finishPageTransition()
   }
 }
 

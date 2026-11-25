@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, shallowRef, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { EventRecord } from '~/types/event'
 import type { CustomSiteRecord } from '~/types/customSite'
@@ -19,7 +19,6 @@ import {
   validateInvitationForSave,
   toDateInputValue,
 } from '~/utils/invitationForm'
-import type { InvitationEmailData } from '~/utils/invitationEmailTemplate'
 import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 
 definePageMeta({
@@ -37,7 +36,7 @@ const toast = useToast()
 const { startPageTransition, finishPageTransition } = usePageTransition()
 
 const { activeEventId } = useActiveEvent()
-const { fetchEvent, getCachedEvent } = useEvents()
+const { fetchEvent, getCachedEvent, updateEvent } = useEvents()
 const { fetchCustomSitesByEvent } = useCustomSite()
 const { fetchInvitationByEvent, createInvitation, updateInvitation, uploadInvitationCardImage } = useInvitation()
 const { captureCardAsBlob, isCapturing: isCapturingCard } = useCardCapture()
@@ -63,6 +62,9 @@ const eventRecord = ref<EventRecord | null>(null)
 // Style Sync State: Automatically link to Website Maker by default
 const isSyncedWithWebsite = ref(true)
 
+// Invert Colors (Option to rearrange background and text colors)
+const invertColors = ref(false)
+
 // Manual Overrides (Active when user disables sync)
 const customPaletteName = ref('Gilded Flora')
 const customColors = reactive({
@@ -83,8 +85,8 @@ const websiteTheme = computed(() => resolveCustomSiteTheme(customSiteRecord.valu
 const websitePalette = computed(() => websiteTheme.value.palette)
 const websiteTypography = computed(() => websiteTheme.value.typography)
 
-// Effective palette used for the live invitation
-const effectivePalette = computed<ColorPalette>(() => {
+// Base palette before inversion
+const basePalette = computed<ColorPalette>(() => {
   if (isSyncedWithWebsite.value) {
     return websitePalette.value
   }
@@ -96,6 +98,23 @@ const effectivePalette = computed<ColorPalette>(() => {
   }
   const preset = colorPalettes.find((p) => p.name === customPaletteName.value)
   return preset || websitePalette.value
+})
+
+// Effective palette used for the live invitation (re-arranges color values if inverted)
+const effectivePalette = computed<ColorPalette>(() => {
+  const base = basePalette.value
+  if (!invertColors.value) {
+    return base
+  }
+  return {
+    name: base.name.includes('(Inverted)') ? base.name : `${base.name} (Inverted)`,
+    colors: {
+      primary: base.colors.text_color,
+      text_color: base.colors.primary,
+      secondary: base.colors.secondary_text_color,
+      secondary_text_color: base.colors.secondary
+    }
+  }
 })
 
 // Effective typography used for the live invitation
@@ -239,25 +258,14 @@ function clearCustomBanner() {
   }
 }
 
-// Preview Mode Switcher (Web Stationery vs Resend Email Client)
-const previewMode = ref<'stationery' | 'email'>('stationery')
-
-const invitationEmailPayload = computed<InvitationEmailData>(() => ({
-  requestLine: rsvpData.requestLine,
-  eventLabel: rsvpData.eventLabel,
-  eventDate: rsvpData.eventDate,
-  eventTime: rsvpData.eventTime,
-  eventVenue: rsvpData.eventVenue,
-  deadlineText: rsvpData.deadlineText,
-  deadlineDate: rsvpData.deadlineDate,
-  websiteUrl: absoluteWebsiteUrl.value,
-  guestName: 'Valued Guest',
-  bannerImageUrl: effectiveBannerImageUrl.value,
-  cardImageUrl: cardImageUrl.value
-}))
-
 // Stationery Card Node for HTML-to-Image Generation
-const stationeryCardRef = ref<HTMLElement | null>(null)
+const stationeryCardRef = shallowRef<HTMLElement | null>(null)
+const {
+  containerRef: previewPaneRef,
+  contentRef: previewScaleContentRef,
+  scale: previewScale,
+  scaledHeight: previewScaledHeight,
+} = usePreviewFitScale(computed(() => !isPublished.value))
 
 function syncEstablishedInvitationToStorage() {
   if (typeof window === 'undefined') return
@@ -266,9 +274,11 @@ function syncEstablishedInvitationToStorage() {
     eventId: currentEventId,
     palette: effectivePalette.value,
     typography: effectiveTypography.value,
+    invertColors: invertColors.value,
+    isSyncedWithWebsite: isSyncedWithWebsite.value,
     websiteSlug: websiteSlug.value,
     bannerImageUrl: effectiveBannerImageUrl.value,
-  cardImageUrl: cardImageUrl.value,
+    cardImageUrl: cardImageUrl.value,
     bannerImageSource: bannerImageSource.value,
     requestLine: rsvpData.requestLine,
     eventLabel: rsvpData.eventLabel,
@@ -290,24 +300,15 @@ function syncEstablishedInvitationToStorage() {
 }
 
 async function captureStationeryCard(): Promise<Blob | null> {
-  const previousMode = previewMode.value
-  let switched = false
-  if (!stationeryCardRef.value && previewMode.value !== 'stationery') {
-    previewMode.value = 'stationery'
-    switched = true
-    await nextTick()
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
   try {
     if (!stationeryCardRef.value) return null
-    return await captureCardAsBlob(stationeryCardRef.value, { fixedWidth: 580, backgroundColor: '#f7f4ef' })
+    return await captureCardAsBlob(stationeryCardRef.value, {
+      fixedWidth: 580,
+      backgroundColor: effectivePalette.value.colors.primary
+    })
   } catch (err) {
     console.warn('Could not capture stationery card:', err)
     return null
-  } finally {
-    if (switched) {
-      previewMode.value = previousMode
-    }
   }
 }
 
@@ -341,12 +342,9 @@ async function retryUploadCardImage() {
 }
 
 watch(
-  [rsvpData, effectivePalette, effectiveTypography, effectiveBannerImageUrl, websiteSlug],
+  [rsvpData, effectivePalette, effectiveTypography, effectiveBannerImageUrl, websiteSlug, invertColors],
   () => {
     syncEstablishedInvitationToStorage()
-    if (currentEventId) {
-      markStepCompletedLocally(currentEventId, 'invitation', true)
-    }
   },
   { deep: true }
 )
@@ -357,6 +355,7 @@ interface StepDef {
   id: string
   icon: string
   label: string
+  shortLabel: string
   description: string
 }
 
@@ -365,24 +364,28 @@ const invitationSteps = computed<StepDef[]>(() => [
     id: 'core-details',
     icon: 'i-lucide-info',
     label: '1. Event Details',
+    shortLabel: 'Details',
     description: 'Provide the introductory line, event headline, date, and venue.'
   },
   {
     id: 'rsvp-deadline',
     icon: 'i-lucide-calendar-clock',
     label: '2. RSVP & Deadline',
+    shortLabel: 'RSVP',
     description: 'Set your response deadline and configure your custom website RSVP link.'
   },
   {
     id: 'banner-image',
     icon: 'i-lucide-image',
     label: '3. Header Banner',
+    shortLabel: 'Banner',
     description: 'Add an optional 1:5 horizontal panoramic banner image to the top of your invitation.'
   },
   {
     id: 'style-cohesion',
     icon: 'i-lucide-palette',
     label: '4. Style & Cohesion',
+    shortLabel: 'Style',
     description: 'Link your invitation design with your website colors and typography.'
   }
 ])
@@ -451,6 +454,9 @@ onMounted(async () => {
       customPaletteName.value = websitePalette.value.name
       Object.assign(customColors, websitePalette.value.colors)
     }
+    if (websiteTheme.value?.invertColors !== undefined) {
+      invertColors.value = Boolean(websiteTheme.value.invertColors)
+    }
     if (websiteTypography.value) {
       customTypographyName.value = websiteTypography.value.name
       customFonts.headerFont = websiteTypography.value.headerFont
@@ -464,6 +470,9 @@ onMounted(async () => {
         const rawCached = localStorage.getItem(`bpb_invitation_established_${currentEventId}`)
         if (rawCached) {
           const cached = JSON.parse(rawCached)
+          if (cached.invertColors !== undefined) {
+            invertColors.value = Boolean(cached.invertColors)
+          }
           if (!rsvpData.bannerImageUrl && cached.bannerImageUrl) {
             rsvpData.bannerImageUrl = cached.bannerImageUrl
             if (cached.bannerImageSource === 'custom') {
@@ -513,7 +522,11 @@ onMounted(async () => {
 
     syncEstablishedInvitationToStorage()
     if (currentEventId) {
-      markStepCompletedLocally(currentEventId, 'invitation', true)
+      const isCustomized = Boolean(
+        existingInvitationId.value &&
+        rsvpData.eventLabel?.trim().toLowerCase() !== 'alex & jordan are getting married!'
+      )
+      markStepCompletedLocally(currentEventId, 'invitation', isCustomized)
     }
   } catch (error) {
     console.error('Error loading invitation details:', error)
@@ -557,7 +570,6 @@ async function saveInvitation() {
       rsvpData: {
         ...rsvpData,
         bannerImageUrl: effectiveBannerImageUrl.value,
-  cardImageUrl: cardImageUrl.value
       },
       blocks: []
     })
@@ -581,9 +593,32 @@ async function saveInvitation() {
       existingInvitationId.value = created._id
     }
 
+    // Synchronize event details so Event, Seating, and RSVP endpoints reflect the same date and title
+    try {
+      if (eventRecord.value) {
+        await updateEvent(currentEventId, {
+          eventType: eventRecord.value.eventType || 'WEDDING',
+          eventName: payload.eventLabel,
+          description: eventRecord.value.description || '',
+          venue: payload.eventVenue,
+          eventDate: payload.eventDate,
+          isCatholicWedding: eventRecord.value.isCatholicWedding,
+        })
+        eventRecord.value.eventName = payload.eventLabel
+        eventRecord.value.eventDate = payload.eventDate
+        eventRecord.value.venue = payload.eventVenue
+      }
+    } catch (eventErr) {
+      console.warn('Could not sync event details with invitation:', eventErr)
+    }
+
     syncEstablishedInvitationToStorage()
     if (currentEventId) {
-      markStepCompletedLocally(currentEventId, 'invitation', true)
+      const isCustomized = Boolean(
+        existingInvitationId.value &&
+        rsvpData.eventLabel?.trim().toLowerCase() !== 'alex & jordan are getting married!'
+      )
+      markStepCompletedLocally(currentEventId, 'invitation', isCustomized)
     }
 
     // Upload card image for invitation email
@@ -591,6 +626,8 @@ async function saveInvitation() {
       isUploadingCard.value = true
       cardUploadFailed.value = false
       try {
+        await nextTick()
+        await new Promise((resolve) => setTimeout(resolve, 150))
         const blob = await captureStationeryCard()
         if (blob) {
           const updated = await uploadInvitationCardImage(existingInvitationId.value, blob, effectivePalette.value.colors.secondary)
@@ -651,11 +688,34 @@ function selectPresetPalette(palette: ColorPalette) {
   Object.assign(customColors, palette.colors)
 }
 
+function onBackgroundColorInput(colorHex: string) {
+  if (!colorHex || !colorHex.trim()) return
+  const hex = colorHex.trim()
+  if (isSyncedWithWebsite.value) {
+    isSyncedWithWebsite.value = false
+    Object.assign(customColors, basePalette.value.colors)
+  }
+  if (invertColors.value) {
+    customColors.text_color = hex
+  } else {
+    customColors.primary = hex
+  }
+  customPaletteName.value = 'Custom'
+}
+
 function onAccentColorInput(colorHex: string) {
   if (!colorHex || !colorHex.trim()) return
-  customColors.secondary = colorHex.trim()
+  const hex = colorHex.trim()
+  if (isSyncedWithWebsite.value) {
+    isSyncedWithWebsite.value = false
+    Object.assign(customColors, basePalette.value.colors)
+  }
+  if (invertColors.value) {
+    customColors.secondary_text_color = hex
+  } else {
+    customColors.secondary = hex
+  }
   customPaletteName.value = 'Custom'
-  isSyncedWithWebsite.value = false
 }
 
 function selectPresetTypography(typography: TypographySet) {
@@ -667,6 +727,9 @@ function selectPresetTypography(typography: TypographySet) {
 
 function reSyncWebsiteTheme() {
   isSyncedWithWebsite.value = true
+  if (websiteTheme.value?.invertColors !== undefined) {
+    invertColors.value = Boolean(websiteTheme.value.invertColors)
+  }
   if (websitePalette.value) {
     customPaletteName.value = websitePalette.value.name
     Object.assign(customColors, websitePalette.value.colors)
@@ -763,6 +826,7 @@ function copyWebsiteRsvpLink() {
             icon="i-lucide-save"
             color="violet"
             variant="outline"
+            size="sm"
             :loading="isSaving"
             @click="saveInvitation"
           >
@@ -772,6 +836,71 @@ function copyWebsiteRsvpLink() {
           <UButton
             :icon="isPublished ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
             color="violet"
+            size="sm"
+            :loading="isSaving"
+            @click="togglePublish"
+          >
+            {{ isPublished ? 'Edit Invitation' : 'Save & Publish' }}
+          </UButton>
+        </div>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <div v-if="isPublished" class="text-xs font-medium text-violet-700 bg-violet-50 border border-violet-200/80 rounded-xl p-2.5 text-center">
+            ✨ Your invitation is live!
+          </div>
+          <UButton
+            v-if="isPublished && websiteUrl"
+            icon="i-lucide-copy"
+            color="violet"
+            variant="outline"
+            size="sm"
+            block
+            @click="copyWebsiteRsvpLink"
+          >
+            Copy RSVP Link
+          </UButton>
+          <UButton
+            v-if="isPublished && websiteUrl"
+            icon="i-lucide-external-link"
+            color="violet"
+            variant="soft"
+            size="sm"
+            block
+            :to="websiteUrl"
+            target="_blank"
+          >
+            Visit Website
+          </UButton>
+          <UButton
+            v-if="cardUploadFailed"
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="sm"
+            block
+            :loading="isUploadingCard"
+            @click="retryUploadCardImage"
+          >
+            Retry Email Card
+          </UButton>
+          <UButton
+            v-if="!isPublished"
+            icon="i-lucide-save"
+            color="violet"
+            variant="outline"
+            size="sm"
+            block
+            :loading="isSaving"
+            @click="saveInvitation"
+          >
+            Save Draft
+          </UButton>
+          <UButton
+            :icon="isPublished ? 'i-lucide-pencil' : 'i-lucide-check-circle'"
+            color="violet"
+            size="sm"
+            block
             :loading="isSaving"
             @click="togglePublish"
           >
@@ -781,44 +910,77 @@ function copyWebsiteRsvpLink() {
       </Teleport>
     </ClientOnly>
 
-    <!-- Main Content Container -->
-    <UContainer>
-      <div class="mb-6"></div>
-
-      <UPageGrid
-        class="items-start"
-        :class="{ 'max-w-3xl mx-auto': isPublished }"
-        :grid="{ cols: isPublished ? 1 : '1 md:3' }"
+    <!-- Main Content Layout (WebsiteMaker Sidebar + Live Preview) -->
+    <div
+      class="w-full items-start"
+      :class="isPublished ? 'flex flex-col' : 'grid grid-cols-1 lg:grid-cols-3 lg:h-[calc(100vh-64px)] lg:overflow-hidden'"
+    >
+      <!-- LEFT SIDE: Step Navigation Sidebar with Vertical Steps Rail -->
+      <UDashboardSidebar
+        v-if="!isPublished"
+        id="invitation-maker-sidebar"
+        :resizable="false"
+        :collapsible="false"
+        :toggle="false"
+        class="col-span-1 lg:col-span-1 w-full rounded-none overflow-hidden flex flex-row lg:sticky lg:top-16 h-145 sm:h-160 lg:h-[calc(100vh-64px)] z-20"
+        :ui="{
+          root: 'flex! flex-row! w-full! h-145 sm:h-160 lg:h-[calc(100vh-64px)] lg:sticky lg:top-16 bg-white border-r border-toast-200/80 rounded-none z-20 min-h-0 shadow-none overflow-hidden',
+          header: 'hidden',
+          body: 'p-0 overflow-hidden flex flex-row flex-1 min-h-0 w-full h-full bg-white',
+          footer: 'hidden'
+        }"
       >
-        <!-- LEFT SIDE: Content Blocks & Theme Form -->
-        <UPageCard
-          v-if="!isPublished"
-          class="bread-container col-span-1 p-0 sm:p-0 overflow-hidden flex flex-col max-h-[calc(100vh-125px)] border border-violet-200/80 dark:border-violet-900/60 shadow-sm"
-          :ui="{ container: 'p-0 sm:p-0 lg:p-0 flex flex-col w-full min-h-0 gap-0' }"
-        >
-          <!-- Static Header -->
-          <div class="px-6 pt-5 pb-4 shrink-0 border-b border-violet-100 dark:border-violet-900/40">
-            <div class="relative flex justify-center items-center text-lg font-semibold mb-1">
-              <UButton
-                v-if="currentStep > 0"
-                icon="i-lucide-arrow-left"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="absolute left-0"
-                aria-label="Previous Step"
-                @click="currentStep--"
-              />
-              <span>{{ currentStepData?.label }}</span>
-            </div>
-            <p class="text-center text-xs mx-2 text-stone-500 dark:text-stone-400">
+        <!-- 1. LEFTMOST PART: Vertical Steps Rail -->
+        <div class="w-14 -mr-4 sm:w-16 shrink-0 h-full border-r border-bread-400 bg-white flex flex-col items-center justify-center select-none z-10 font-sans">
+          <div class="w-full max-h-full overflow-y-auto p-1 sm:p-1.5 my-auto flex flex-col items-center justify-start gap-1 sm:gap-1.5 scrollbar-none font-sans">
+            <button
+              v-for="(step, idx) in invitationSteps"
+              :key="step.id"
+              type="button"
+              :title="step.label"
+              class="w-full aspect-square flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 cursor-pointer relative group text-center font-sans shrink-0"
+              :class="currentStep === idx
+                ? 'bg-violet-500 text-white font-semibold shadow-xs hover:bg-violet-600'
+                : 'text-toast-600 hover:text-violet-600 hover:bg-violet-50/70'"
+              @click="currentStep = idx"
+            >
+              <div class="relative flex items-center justify-center">
+                <UIcon
+                  :name="step.icon"
+                  class="size-4 shrink-0 transition-transform duration-150 group-hover:scale-110"
+                />
+                <span
+                  v-if="currentStep === idx"
+                  class="absolute -top-1 -right-2 size-3.5 rounded-full bg-white text-violet-600 text-[8px] font-bold flex items-center justify-center shadow-xs"
+                >
+                  {{ idx + 1 }}
+                </span>
+              </div>
+              <span class="text-[9px] sm:text-[10px] font-sans leading-tight mt-1 truncate max-w-12 sm:max-w-14">
+                {{ step.shortLabel }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. RIGHT PART OF CONTAINER: Separated Step Header + Scrollable Controls + Footer -->
+        <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white m-0 p-0">
+          <!-- Separated Step Header -->
+          <div class="px-6 pt-6 pb-4 shrink-0 border-b border-toast-200/60 bg-white text-left">
+            <h3 class="text-lg sm:text-xl font-bold font-serif text-toast-900 text-left">
+              {{ currentStepData?.label }}
+            </h3>
+            <p class="text-left text-xs text-toast-600 line-clamp-2 mt-1">
               {{ currentStepData?.description }}
             </p>
           </div>
 
-          <!-- Step Body -->
-          <UScrollArea class="w-full shrink min-h-0 my-0 py-0">
-            <div class="px-6 py-4">
+          <!-- Scrollable Body -->
+          <UScrollArea
+            class="w-full flex-1 min-h-0 m-0 p-0"
+            :ui="{ root: 'w-full flex-1 min-h-0 m-0 p-0', viewport: 'w-full h-full m-0 p-0' }"
+          >
+            <div class="w-full p-4 sm:p-6">
               <!-- Step 1: Core Details -->
               <div v-if="currentStepData?.id === 'core-details'" class="flex flex-col gap-4">
                 <UFormField label="Introductory Line">
@@ -1161,8 +1323,46 @@ function copyWebsiteRsvpLink() {
                   </div>
                 </div>
 
-                <!-- Dedicated Invitation Accent Color Section -->
-                <div class="p-3.5 rounded-xl border border-violet-200 dark:border-violet-800/60 bg-white dark:bg-stone-900 shadow-xs space-y-2.5">
+                <!-- Dedicated Invitation Color Customization Section -->
+                <div class="p-3.5 rounded-xl border border-violet-200 dark:border-violet-800/60 bg-white dark:bg-stone-900 shadow-xs space-y-3">
+                  <!-- Background Color -->
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                      <label class="relative cursor-pointer shrink-0">
+                        <span
+                          class="block w-7 h-7 rounded-lg border border-black/15 shadow-xs transition-transform hover:scale-105"
+                          :style="{ backgroundColor: effectivePalette.colors.primary }"
+                        />
+                        <input
+                          type="color"
+                          :value="effectivePalette.colors.primary"
+                          class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          @input="e => onBackgroundColorInput((e.target as HTMLInputElement).value)"
+                        />
+                      </label>
+                      <div>
+                        <h4 class="text-xs font-bold text-stone-900 dark:text-white">Invitation Background</h4>
+                        <p class="text-[10px] text-stone-500 dark:text-stone-400">
+                          Card paper background color
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="text"
+                        :value="effectivePalette.colors.primary"
+                        maxlength="7"
+                        class="w-20 px-2 py-1 text-xs font-mono uppercase bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 text-center font-semibold"
+                        @change="e => onBackgroundColorInput((e.target as HTMLInputElement).value)"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Divider between colors -->
+                  <div class="border-t border-stone-200/60 dark:border-stone-800/60" />
+
+                  <!-- Accent Color -->
                   <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2.5">
                       <label class="relative cursor-pointer shrink-0">
@@ -1180,7 +1380,7 @@ function copyWebsiteRsvpLink() {
                       <div>
                         <h4 class="text-xs font-bold text-stone-900 dark:text-white">Invitation Accent Color</h4>
                         <p class="text-[10px] text-stone-500 dark:text-stone-400">
-                          {{ isSyncedWithWebsite ? 'Retrieved from Website Maker' : 'Customized Accent Color' }}
+                          Borders, RSVP button, and divider star
                         </p>
                       </div>
                     </div>
@@ -1196,8 +1396,8 @@ function copyWebsiteRsvpLink() {
                     </div>
                   </div>
 
-                  <p class="text-[11px] text-stone-600 dark:text-stone-400 leading-normal">
-                    This accent color styles the <strong>"RSVP Here"</strong> button, stationery borders, star divider, and the response deadline badge.
+                  <p class="text-[11px] text-stone-600 dark:text-stone-400 leading-normal pt-1 border-t border-stone-200/40 dark:border-stone-800/40">
+                    The background styles the full stationery card and email image, while the accent color styles the <strong>"RSVP Here"</strong> button and borders.
                   </p>
                 </div>
 
@@ -1258,92 +1458,99 @@ function copyWebsiteRsvpLink() {
             </div>
           </UScrollArea>
 
-          <!-- Static Footer -->
-          <div class="pb-5 px-6 pt-4 shrink-0 border-t border-violet-100 dark:border-violet-900/40">
-            <div class="flex justify-between items-center gap-3">
-              <UButton
-                v-if="currentStep > 0"
-                variant="ghost"
-                color="neutral"
-                @click="currentStep--"
-              >
-                Back
-              </UButton>
-              <div class="ml-auto flex items-center gap-2">
-                <UButton
-                  v-if="currentStep < invitationSteps.length - 1"
-                  icon="i-lucide-arrow-right"
-                  color="violet"
-                  @click="currentStep++"
-                >
-                  Next Step
-                </UButton>
-                <UButton
-                  v-else
-                  icon="i-lucide-check-circle"
-                  color="violet"
-                  :loading="isSaving"
-                  @click="saveInvitation"
-                >
-                  Save & Publish
-                </UButton>
-              </div>
-            </div>
-          </div>
-        </UPageCard>
-
-        <!-- RIGHT SIDE: Live Preview Styled with Website Cohesion -->
-        <div :class="isPublished ? 'col-span-full' : 'col-span-2'" class="flex flex-col gap-4">
-          <!-- Preview Mode Switcher (Aligned to Right) -->
-          <div class="flex items-center justify-end px-1">
-            <div class="flex items-center gap-2">
-              <UButton
-                v-if="cardUploadFailed"
-                icon="i-lucide-refresh-cw"
-                color="warning"
-                variant="soft"
-                size="xs"
-                :loading="isUploadingCard"
-                @click="retryUploadCardImage"
-              >
-                Retry Email Card
-              </UButton>
-              <div class="inline-flex p-1 rounded-xl bg-stone-100 dark:bg-stone-800/90 border border-stone-200/80 dark:border-stone-700/80 shadow-xs">
-                <button
-                  type="button"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                  :class="previewMode === 'stationery'
-                    ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-xs'
-                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'"
-                  @click="previewMode = 'stationery'"
-                >
-                  <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                  <span>Web Stationery</span>
-                </button>
-                <button
-                  type="button"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                  :class="previewMode === 'email'
-                    ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-xs'
-                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'"
-                  @click="previewMode = 'email'"
-                >
-                  <UIcon name="i-lucide-mail" class="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                  <span>Email Client (Resend)</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 1. Luxury Stationery Invitation Card (Web View) -->
+          <!-- Static Invert Colors Option (Static at bottom of scroll area for Step 4) -->
           <div
-            v-if="previewMode === 'stationery'"
-            ref="stationeryCardRef"
-            class="relative rounded-2xl transition-all duration-300 shadow-xl overflow-hidden"
-            :class="[
-              isPublished ? 'max-w-2xl mx-auto w-full my-4' : 'w-full',
-              effectiveBannerImageUrl ? '' : 'p-8 sm:p-12'
-            ]"
+            v-if="currentStepData?.id === 'style-cohesion'"
+            class="px-6 py-2.5 bg-stone-50 dark:bg-stone-900 border-t border-stone-200/80 dark:border-stone-800 flex items-center justify-between shrink-0"
+          >
+            <div class="pr-2">
+              <div class="flex items-center gap-1.5">
+                <UIcon name="i-lucide-arrow-left-right" class="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                <h4 class="text-xs font-bold text-stone-900 dark:text-white">Invert Colors</h4>
+              </div>
+              <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                Swap background and text colors for dark or vibrant stationery styling.
+              </p>
+            </div>
+            <USwitch v-model="invertColors" color="violet" size="sm" />
+          </div>
+
+          <!-- Separated Footer: Action Controls -->
+          <div class="w-full p-3 border-t border-bread-400 bg-white flex items-center gap-2 shrink-0">
+            <UButton
+              v-if="currentStep > 0"
+              icon="i-lucide-arrow-left"
+              variant="outline"
+              color="neutral"
+              block
+              class="flex-1 cursor-pointer justify-center"
+              @click="currentStep--"
+            >
+              Back
+            </UButton>
+            <UButton
+              v-if="currentStep < invitationSteps.length - 1"
+              icon="i-lucide-arrow-right"
+              color="violet"
+              block
+              class="flex-1 text-white font-semibold cursor-pointer justify-center"
+              @click="currentStep++"
+            >
+              Next
+            </UButton>
+            <UButton
+              v-else
+              icon="i-lucide-check-circle"
+              color="violet"
+              block
+              class="flex-1 text-white font-semibold cursor-pointer justify-center"
+              :loading="isSaving"
+              @click="saveInvitation"
+            >
+              Save &amp; Publish
+            </UButton>
+          </div>
+        </div>
+      </UDashboardSidebar>
+
+      <!-- RIGHT SIDE: Live Preview Styled with Website Cohesion -->
+      <div
+        ref="previewPaneRef"
+        :class="isPublished
+          ? 'max-w-3xl mx-auto w-full p-4 sm:p-6 lg:p-8 flex flex-col gap-4'
+          : 'col-span-1 lg:col-span-2 w-full p-4 sm:p-6 flex flex-col items-center justify-center lg:h-[calc(100vh-64px)] lg:overflow-hidden'"
+      >
+        <div v-if="cardUploadFailed" class="w-full flex items-center justify-end px-1 shrink-0">
+          <UButton
+            icon="i-lucide-refresh-cw"
+            color="warning"
+            variant="soft"
+            size="xs"
+            :loading="isUploadingCard"
+            @click="retryUploadCardImage"
+          >
+            Retry Email Card
+          </UButton>
+        </div>
+
+        <!-- Proportionally scaled wrapper so the stationery card fits viewport without scrollbars -->
+        <div
+          class="w-full flex items-center justify-center"
+          :style="!isPublished && previewScaledHeight ? { height: `${previewScaledHeight}px` } : undefined"
+        >
+          <div
+            ref="previewScaleContentRef"
+            class="w-full max-w-2xl transition-transform duration-150 origin-center"
+            :style="!isPublished && previewScale < 1 ? { transform: `scale(${previewScale})` } : undefined"
+          >
+            <!-- Luxury Stationery Invitation Card (Web View) -->
+            <div
+              ref="stationeryCardRef"
+              class="relative rounded-2xl transition-all duration-300 shadow-xl overflow-hidden w-full"
+              :class="[
+                isPublished ? 'my-4' : '',
+                effectiveBannerImageUrl ? '' : 'p-8 sm:p-12'
+              ]"
             :style="{
               backgroundColor: effectivePalette.colors.primary,
               borderColor: effectivePalette.colors.secondary,
@@ -1530,17 +1737,9 @@ function copyWebsiteRsvpLink() {
             </div>
           </div>
         </div>
-
-          <!-- 2. Email Client Preview (Resend View) -->
-          <InvitationEmailPreview
-            v-else
-            :invitation="invitationEmailPayload"
-            :palette="effectivePalette"
-            :typography="effectiveTypography"
-            :website-url="absoluteWebsiteUrl"
-          />
+          </div>
         </div>
-      </UPageGrid>
-    </UContainer>
+      </div>
+    </div>
   </div>
 </template>

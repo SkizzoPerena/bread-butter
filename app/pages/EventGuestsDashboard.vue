@@ -513,6 +513,8 @@ async function loadGuestList(targetEventId: string) {
     guestList.value = await fetchGuestsByEvent(targetEventId)
     if (guestList.value.length > 0) {
       markStepCompletedLocally(targetEventId, 'guestList', true)
+    } else {
+      markStepCompletedLocally(targetEventId, 'guestList', false)
     }
   } catch (error) {
     reportApiError(toast, { title: 'Could not load guests', error })

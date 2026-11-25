@@ -29,10 +29,37 @@ definePageMeta({
   key: (route) => route.fullPath,
   useLogo: true,
   title: 'Mini-Event',
-  bgClass: 'bg-pink-50',
+  bgClass: 'bg-cyan-50',
 })
 
-const RSVP_CHART_COLORS = ['#ec4899', '#f43f5e', '#f59e0b']
+const RSVP_CHART_COLORS = ['#06b6d4', '#f43f5e', '#f59e0b']
+
+const miniDashboardButtons = [
+  {
+    label: 'Invitation',
+    icon: 'i-lucide-send',
+    bgClass: 'bg-violet-500',
+    hoverClass: 'group-hover:bg-violet-600',
+  },
+  {
+    label: 'RSVP',
+    icon: 'i-lucide-mail',
+    bgClass: 'bg-teal-500',
+    hoverClass: 'group-hover:bg-teal-600',
+  },
+  {
+    label: 'Guestlist',
+    icon: 'i-lucide-users',
+    bgClass: 'bg-orange-500',
+    hoverClass: 'group-hover:bg-orange-600',
+  },
+  {
+    label: 'Mini-event settings',
+    icon: 'i-lucide-settings',
+    bgClass: 'bg-slate-500',
+    hoverClass: 'group-hover:bg-slate-600',
+  },
+] as const
 const EMOJI_RE = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/u
 
 const toast = useToast()
@@ -151,6 +178,7 @@ const {
   toggleSelectAllUninvited,
   clearInviteSelection,
   handleBulkInvite,
+  handleExternalInvite,
   handleUninvite,
 } = useSubEventGuestsManager({
   eventId,
@@ -163,14 +191,31 @@ const {
 
 const selectedInviteCount = computed(() => selectedInviteGuestIds.value.size)
 
+const inviteModalTab = ref<'guestlist' | 'external'>('guestlist')
+const externalPersonForm = reactive({
+  firstName: '',
+  lastName: '',
+  email: '',
+})
+const externalPersonError = ref('')
+
 const uninviteHasResponse = computed(
   () =>
     guestToUninvite.value?.rsvpStatus === 'Attending'
     || guestToUninvite.value?.rsvpStatus === 'Not Attending'
 )
 
+function resetExternalPersonForm() {
+  externalPersonForm.firstName = ''
+  externalPersonForm.lastName = ''
+  externalPersonForm.email = ''
+  externalPersonError.value = ''
+}
+
 function openInviteGuestModal() {
   clearInviteSelection()
+  resetExternalPersonForm()
+  inviteModalTab.value = 'guestlist'
   isInviteGuestModalOpen.value = true
 }
 
@@ -180,6 +225,7 @@ function closeInviteGuestModal() {
   }
   isInviteGuestModalOpen.value = false
   clearInviteSelection()
+  resetExternalPersonForm()
 }
 
 async function confirmBulkInvite() {
@@ -190,6 +236,32 @@ async function confirmBulkInvite() {
   await handleBulkInvite(guestIds)
   isInviteGuestModalOpen.value = false
   clearInviteSelection()
+}
+
+async function confirmExternalInvite() {
+  const firstName = externalPersonForm.firstName.trim()
+  const lastName = externalPersonForm.lastName.trim()
+  const email = externalPersonForm.email.trim()
+
+  if (!firstName) {
+    externalPersonError.value = 'First name is required.'
+    return
+  }
+  if (!lastName) {
+    externalPersonError.value = 'Last name is required.'
+    return
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    externalPersonError.value = 'Please enter a valid email address.'
+    return
+  }
+
+  externalPersonError.value = ''
+  const sent = await handleExternalInvite([{ firstName, lastName, email }])
+  if (sent) {
+    isInviteGuestModalOpen.value = false
+    resetExternalPersonForm()
+  }
 }
 
 function openUninviteModal(person: SubEventGuestTableRow) {
@@ -219,8 +291,16 @@ const columns: TableColumn<SubEventGuestTableRow>[] = [
   {
     accessorKey: 'displayName',
     header: 'Name',
-    cell: ({ row }) =>
-      h('span', { class: 'font-medium' }, row.getValue('displayName') as string),
+    cell: ({ row }) => {
+      const name = row.getValue('displayName') as string
+      if (row.original.isNonGuestlist) {
+        return h('div', { class: 'flex items-center gap-2' }, [
+          h('span', { class: 'font-medium' }, name),
+          h(UBadge, { size: 'xs', variant: 'subtle', color: 'neutral' }, () => 'Non-guestlist'),
+        ])
+      }
+      return h('span', { class: 'font-medium' }, name)
+    },
   },
   { accessorKey: 'email', header: 'Email' },
   {
@@ -507,7 +587,7 @@ watch([eventId, subEventId], () => {
             </p>
           </div>
           <UButton
-            color="pink"
+            color="cyan"
             variant="outline"
             icon="i-lucide-pencil"
             :disabled="mutationsDisabled"
@@ -517,13 +597,13 @@ watch([eventId, subEventId], () => {
           </UButton>
         </div>
 
-        <UPageCard class="bg-pink-50 dark:bg-pink-900/20 ring ring-inset ring-pink-500/25">
+        <UPageCard class="bg-cyan-50 dark:bg-cyan-900/20 ring ring-inset ring-cyan-500/25">
           <div class="grid gap-6 sm:grid-cols-2 sm:items-center">
             <div class="space-y-1">
-              <p class="text-sm font-medium text-pink-600/70 dark:text-pink-400/70">
+              <p class="text-sm font-medium text-cyan-600/70 dark:text-cyan-400/70">
                 RSVPs Sent
               </p>
-              <p class="text-3xl font-bold text-pink-600 dark:text-pink-400">
+              <p class="text-3xl font-bold text-cyan-600 dark:text-cyan-400">
                 {{ rsvpSummary?.totalSent?.toLocaleString() ?? 0 }}
               </p>
             </div>
@@ -537,6 +617,33 @@ watch([eventId, subEventId], () => {
       </UPageCard>
 
       <UPageCard class="white-bread-container space-y-4">
+        <div>
+          <p class="text-lg font-semibold text-highlighted">Mini Dashboard</p>
+          <p class="text-sm text-muted">
+            Quick tools for managing this mini-event.
+          </p>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-5 py-2 max-w-2xl mx-auto w-full items-start justify-items-center">
+          <button
+            v-for="item in miniDashboardButtons"
+            :key="item.label"
+            type="button"
+            class="group flex flex-col items-center justify-center w-full p-1.5 rounded-xl focus-visible:outline-none text-center cursor-pointer select-none"
+          >
+            <div
+              class="size-12 sm:size-13 flex items-center justify-center rounded-full transition-all duration-200 aspect-square shrink-0 shadow-sm group-hover:scale-105 group-active:scale-95"
+              :class="[item.bgClass, item.hoverClass]"
+            >
+              <UIcon :name="item.icon" class="size-5 sm:size-6 text-white shrink-0" />
+            </div>
+            <span class="font-medium mt-1.5 text-center text-xs sm:text-sm leading-tight text-highlighted">
+              {{ item.label }}
+            </span>
+          </button>
+        </div>
+      </UPageCard>
+
+      <UPageCard class="white-bread-container space-y-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="text-lg font-semibold text-highlighted">Invitations</p>
@@ -545,7 +652,7 @@ watch([eventId, subEventId], () => {
             </p>
           </div>
           <UButton
-            color="pink"
+            color="cyan"
             icon="i-lucide-user-plus"
             :disabled="!canInviteGuests || isSendingInvites"
             @click="openInviteGuestModal"
@@ -569,12 +676,12 @@ watch([eventId, subEventId], () => {
           <UIcon name="i-lucide-mail" class="size-10 text-muted" />
           <p class="mt-4 text-base font-medium">No invitations sent yet</p>
           <p class="mt-1 max-w-sm text-sm text-muted">
-            Use Invite Guest to pick guests from your main guest list.
+            Use Invite Guest to pick guests from your main guest list or invite someone outside your guest list.
           </p>
           <UButton
             v-if="canInviteGuests"
             class="mt-4"
-            color="pink"
+            color="cyan"
             icon="i-lucide-user-plus"
             @click="openInviteGuestModal"
           >
@@ -678,7 +785,7 @@ watch([eventId, subEventId], () => {
             </UButton>
             <UButton
               type="submit"
-              color="pink"
+              color="cyan"
               :loading="isSaving"
               :disabled="isSaving || mutationsDisabled"
             >
@@ -696,82 +803,168 @@ watch([eventId, subEventId], () => {
       :ui="{ content: 'border-none ring-transparent max-w-lg' }"
     >
       <template #body>
-        <p class="text-sm text-muted">
-          Select guests from your main guest list to invite to this schedule.
-        </p>
-
-        <UInput
-          v-model="inviteSearchQuery"
-          class="mt-4 w-full"
-          icon="i-lucide-search"
-          placeholder="Search by name or email"
-          :disabled="isSendingInvites"
-        />
-
-        <div
-          v-if="filteredUninvitedGuests.length === 0"
-          class="mt-6 rounded-lg border border-dashed border-default bg-muted/20 px-4 py-10 text-center text-sm text-muted"
-        >
-          No guests available to invite. Add guests on the Guest List page first.
-        </div>
-
-        <div v-else class="mt-4 max-h-80 overflow-y-auto rounded-lg border border-default">
-          <table class="w-full text-sm">
-            <thead class="sticky top-0 bg-muted/50 text-left">
-              <tr>
-                <th class="w-10 px-3 py-2">
-                  <UCheckbox
-                    :model-value="allUninvitedSelected"
-                    :indeterminate="someUninvitedSelected"
-                    :disabled="isSendingInvites"
-                    aria-label="Select all guests"
-                    @update:model-value="(value) => toggleSelectAllUninvited(value === true)"
-                  />
-                </th>
-                <th class="px-3 py-2 font-medium">Name</th>
-                <th class="px-3 py-2 font-medium">Email</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="guest in filteredUninvitedGuests"
-                :key="guest._id"
-                class="border-t border-default"
-              >
-                <td class="px-3 py-2">
-                  <UCheckbox
-                    :model-value="selectedInviteGuestIds.has(guest._id)"
-                    :disabled="isSendingInvites"
-                    :aria-label="`Select ${formatGuestDisplayName(guest.firstName, guest.lastName)}`"
-                    @update:model-value="(value) => toggleInviteSelection(guest._id, value === true)"
-                  />
-                </td>
-                <td class="px-3 py-2 font-medium">{{ formatGuestDisplayName(guest.firstName, guest.lastName) }}</td>
-                <td class="px-3 py-2 text-muted">{{ guest.email }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="mt-6 flex justify-end gap-2">
-          <UButton
-            variant="outline"
-            color="neutral"
+        <div class="grid grid-cols-2 gap-1 rounded-lg bg-muted/40 p-1">
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="inviteModalTab === 'guestlist'
+              ? 'bg-white text-highlighted shadow-xs'
+              : 'text-muted hover:text-highlighted'"
             :disabled="isSendingInvites"
-            @click="closeInviteGuestModal"
+            @click="inviteModalTab = 'guestlist'"
           >
-            Cancel
-          </UButton>
-          <UButton
-            color="pink"
-            icon="i-lucide-send"
-            :loading="isSendingInvites"
-            :disabled="selectedInviteCount === 0 || isSendingInvites || !canBulkInvite"
-            @click="confirmBulkInvite"
+            Main Guest List
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="inviteModalTab === 'external'
+              ? 'bg-white text-highlighted shadow-xs'
+              : 'text-muted hover:text-highlighted'"
+            :disabled="isSendingInvites"
+            @click="inviteModalTab = 'external'"
           >
-            Send Invitations{{ selectedInviteCount > 0 ? ` (${selectedInviteCount})` : '' }}
-          </UButton>
+            Non-Guestlist Person
+          </button>
         </div>
+
+        <template v-if="inviteModalTab === 'guestlist'">
+          <p class="mt-4 text-sm text-muted">
+            Select guests from your main guest list to invite to this schedule.
+          </p>
+
+          <UInput
+            v-model="inviteSearchQuery"
+            class="mt-3 w-full"
+            icon="i-lucide-search"
+            placeholder="Search by name or email"
+            :disabled="isSendingInvites"
+          />
+
+          <div
+            v-if="filteredUninvitedGuests.length === 0"
+            class="mt-6 rounded-lg border border-dashed border-default bg-muted/20 px-4 py-10 text-center text-sm text-muted"
+          >
+            No uninvited guests from your main guest list. Switch to Non-Guestlist Person to invite someone by email.
+          </div>
+
+          <div v-else class="mt-4 max-h-80 overflow-y-auto rounded-lg border border-default">
+            <table class="w-full text-sm">
+              <thead class="sticky top-0 bg-muted/50 text-left">
+                <tr>
+                  <th class="w-10 px-3 py-2">
+                    <UCheckbox
+                      :model-value="allUninvitedSelected"
+                      :indeterminate="someUninvitedSelected"
+                      :disabled="isSendingInvites"
+                      aria-label="Select all guests"
+                      @update:model-value="(value) => toggleSelectAllUninvited(value === true)"
+                    />
+                  </th>
+                  <th class="px-3 py-2 font-medium">Name</th>
+                  <th class="px-3 py-2 font-medium">Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="guest in filteredUninvitedGuests"
+                  :key="guest._id"
+                  class="border-t border-default"
+                >
+                  <td class="px-3 py-2">
+                    <UCheckbox
+                      :model-value="selectedInviteGuestIds.has(guest._id)"
+                      :disabled="isSendingInvites"
+                      :aria-label="`Select ${formatGuestDisplayName(guest.firstName, guest.lastName)}`"
+                      @update:model-value="(value) => toggleInviteSelection(guest._id, value === true)"
+                    />
+                  </td>
+                  <td class="px-3 py-2 font-medium">{{ formatGuestDisplayName(guest.firstName, guest.lastName) }}</td>
+                  <td class="px-3 py-2 text-muted">{{ guest.email }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-2">
+            <UButton
+              variant="outline"
+              color="neutral"
+              :disabled="isSendingInvites"
+              @click="closeInviteGuestModal"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="cyan"
+              icon="i-lucide-send"
+              :loading="isSendingInvites"
+              :disabled="selectedInviteCount === 0 || isSendingInvites || !canBulkInvite"
+              @click="confirmBulkInvite"
+            >
+              Send Invitations{{ selectedInviteCount > 0 ? ` (${selectedInviteCount})` : '' }}
+            </UButton>
+          </div>
+        </template>
+
+        <form v-else class="mt-4 space-y-4" @submit.prevent="confirmExternalInvite">
+          <p class="text-sm text-muted">
+            Invite someone who is not on your main event guest list to this mini-event. They will receive an email invitation and RSVP link without being added to your main guest list.
+          </p>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <UFormField label="First Name" required>
+              <UInput
+                v-model="externalPersonForm.firstName"
+                class="w-full"
+                placeholder="e.g., Maria"
+                :disabled="isSendingInvites"
+              />
+            </UFormField>
+            <UFormField label="Last Name" required>
+              <UInput
+                v-model="externalPersonForm.lastName"
+                class="w-full"
+                placeholder="e.g., Santos"
+                :disabled="isSendingInvites"
+              />
+            </UFormField>
+          </div>
+
+          <UFormField label="Email Address" required>
+            <UInput
+              v-model="externalPersonForm.email"
+              type="email"
+              class="w-full"
+              placeholder="e.g., maria@example.com"
+              :disabled="isSendingInvites"
+            />
+          </UFormField>
+
+          <p v-if="externalPersonError" class="text-sm text-error">
+            {{ externalPersonError }}
+          </p>
+
+          <div class="mt-6 flex justify-end gap-2">
+            <UButton
+              variant="outline"
+              color="neutral"
+              :disabled="isSendingInvites"
+              @click="closeInviteGuestModal"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              type="submit"
+              color="cyan"
+              icon="i-lucide-send"
+              :loading="isSendingInvites"
+              :disabled="isSendingInvites || !hasEmailCredits"
+            >
+              Send Invitation
+            </UButton>
+          </div>
+        </form>
       </template>
     </UModal>
 

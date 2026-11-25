@@ -21,6 +21,7 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
   const isSubmitting = ref(false)
   const isDateEditEnabled = ref(false)
   const isDateWarningModalOpen = ref(false)
+  const dateModalStep = ref<'warning' | 'edit'>('warning')
 
   const form = reactive<{
     eventName: string
@@ -70,27 +71,30 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     form.isCatholicWedding = Boolean(record.isCatholicWedding)
     isDateEditEnabled.value = false
     isDateWarningModalOpen.value = false
+    dateModalStep.value = 'warning'
   }
 
   function promptEnableDateEdit() {
-    if (isDateEditEnabled.value) {
-      return
-    }
+    dateModalStep.value = 'warning'
     isDateWarningModalOpen.value = true
   }
 
   function confirmEnableDateEdit() {
-    isDateWarningModalOpen.value = false
-    isDateEditEnabled.value = true
+    dateModalStep.value = 'edit'
   }
 
   function cancelEnableDateEdit() {
     isDateWarningModalOpen.value = false
+    dateModalStep.value = 'warning'
     const record = options.eventRecord.value
     if (record?.eventDate) {
       form.eventDate = toDateInputValue(record.eventDate)
     }
     isDateEditEnabled.value = false
+  }
+
+  async function saveChangedDate() {
+    await submit()
   }
 
   watch(
@@ -173,6 +177,27 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
           venue: form.venue.trim(),
           isCatholicWedding: nextCatholic,
         })
+
+        try {
+          const { fetchInvitationByEvent, updateInvitation } = useInvitation()
+          const existingInv = await fetchInvitationByEvent(targetEventId)
+          if (existingInv?._id) {
+            await updateInvitation(existingInv._id, {
+              event: targetEventId,
+              requestLine: existingInv.requestLine,
+              eventLabel: form.eventName.trim() || existingInv.eventLabel,
+              eventDate: nextDateIso,
+              eventTime: existingInv.eventTime,
+              eventVenue: form.venue.trim() || existingInv.eventVenue,
+              blocks: existingInv.blocks || [],
+              deadlineText: existingInv.deadlineText,
+              deadlineDate: existingInv.deadlineDate,
+              bannerImageUrl: existingInv.bannerImageUrl,
+            })
+          }
+        } catch (invErr) {
+          console.warn('Could not sync invitation with updated event settings:', invErr)
+        }
       }
 
       const updated: EventRecord = {
@@ -209,10 +234,12 @@ export function useEventSettingsForm(options: UseEventSettingsFormOptions) {
     isWeddingEvent,
     isDateEditEnabled,
     isDateWarningModalOpen,
+    dateModalStep,
     dateShiftDays,
     promptEnableDateEdit,
     confirmEnableDateEdit,
     cancelEnableDateEdit,
+    saveChangedDate,
     resetFormFromEvent,
     submit,
   }

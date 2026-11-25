@@ -258,7 +258,7 @@ function removeKeptImage(url: string) {
               <template #content="{ close }">
                 <UCalendar
                   :model-value="deadlineDate"
-                  :min-value="minDeadline"
+                  :min-value="isEditMode ? undefined : minDeadline"
                   class="p-2"
                   @update:model-value="(value) => { deadlineDate = calendarDateFromDateValue(value as import('@internationalized/date').DateValue | null); close() }"
                 />

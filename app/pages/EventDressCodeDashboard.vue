@@ -4,6 +4,7 @@ import { compressImageFile, compressImageFiles, failedImagesMessage, fitImagesTo
 import type { EventRecord } from '~/types/event'
 import type {
   AttireFormality,
+  DressCodeColorNames,
   DressCodePaletteColors,
   DressCodeRecord,
   UploadedDressCodeImage,
@@ -70,6 +71,12 @@ const dressCode = reactive<DressCodeRecord>({
     accent: '#9CA986',
     neutral: '#3A4A29',
   },
+  colorNames: {
+    primary: 'Warm Ivory',
+    secondary: 'Vintage Gold',
+    accent: 'Sage Leaf',
+    neutral: 'Deep Moss',
+  },
   formality: 'Formal / Black Tie Optional',
   guestNotes:
     'We request our guests dress in tones celebrating our color palette. Elegant suits, formal dresses, or modern Filipiniana / Barong are warmly encouraged.',
@@ -108,46 +115,55 @@ const paletteFileInputRef = ref<HTMLInputElement | null>(null)
 const weddingPaletteTemplates: Array<{
   name: string
   colors: DressCodePaletteColors
+  colorNames: DressCodeColorNames
   category: string
 }> = [
     {
       name: 'Gilded Flora',
       colors: { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' },
+      colorNames: { primary: 'Warm Ivory', secondary: 'Vintage Gold', accent: 'Sage Leaf', neutral: 'Deep Moss' },
       category: 'Botanical Gold',
     },
     {
       name: 'Sirocco Earth',
       colors: { primary: '#FBF6EB', secondary: '#F4C7AB', accent: '#C25934', neutral: '#5C2816' },
+      colorNames: { primary: 'Sandy White', secondary: 'Peach Clay', accent: 'Terracotta', neutral: 'Rust Brown' },
       category: 'Terracotta Warmth',
     },
     {
       name: 'Coastal Maritime',
       colors: { primary: '#F0F6FC', secondary: '#BDDDFC', accent: '#3E7BBE', neutral: '#112236' },
+      colorNames: { primary: 'Sea Mist', secondary: 'Sky Blue', accent: 'Ocean Blue', neutral: 'Navy Night' },
       category: 'Serene Blue',
     },
     {
       name: 'Blush & Cabernet',
       colors: { primary: '#FAF2F4', secondary: '#F2D0D9', accent: '#9E3245', neutral: '#3B1015' },
+      colorNames: { primary: 'Soft Petal', secondary: 'Dusty Rose', accent: 'Cabernet Red', neutral: 'Plum Wine' },
       category: 'Romantic Berry',
     },
     {
       name: 'Eucalyptus & Sage',
       colors: { primary: '#F6F8F5', secondary: '#C8D6C0', accent: '#62805A', neutral: '#233320' },
+      colorNames: { primary: 'Crisp Linen', secondary: 'Pale Sage', accent: 'Eucalyptus', neutral: 'Forest Pine' },
       category: 'Garden Botanical',
     },
     {
       name: 'Deco Monolith',
       colors: { primary: '#FFFFFF', secondary: '#E6DFD3', accent: '#6E675F', neutral: '#1A1A1A' },
+      colorNames: { primary: 'Pure White', secondary: 'Alabaster', accent: 'Graphite', neutral: 'Obsidian' },
       category: 'Timeless Minimal',
     },
     {
       name: 'Midnight Glamour',
       colors: { primary: '#0D1424', secondary: '#C5A059', accent: '#4F709C', neutral: '#FFFFFF' },
+      colorNames: { primary: 'Midnight Navy', secondary: 'Champagne Gold', accent: 'Slate Indigo', neutral: 'Star White' },
       category: 'Starry Evening',
     },
     {
       name: 'Sunset Terracotta',
       colors: { primary: '#FFF8F4', secondary: '#E9A178', accent: '#A84420', neutral: '#38160B' },
+      colorNames: { primary: 'Warm Cream', secondary: 'Apricot', accent: 'Burnt Sienna', neutral: 'Dark Espresso' },
       category: 'Autumn Glow',
     },
   ]
@@ -346,9 +362,12 @@ function onHexInput(key: 'primary' | 'secondary' | 'accent' | 'neutral', raw: st
   }
 }
 
-function selectPresetTemplate(preset: { name: string; colors: DressCodePaletteColors }) {
+function selectPresetTemplate(preset: { name: string; colors: DressCodePaletteColors; colorNames?: DressCodeColorNames }) {
   dressCode.presetPaletteName = preset.name
   dressCode.colors = { ...preset.colors }
+  if (preset.colorNames) {
+    dressCode.colorNames = { ...preset.colorNames }
+  }
   syncAllHslStates()
   toast.add({
     title: `Applied "${preset.name}"`,
@@ -576,27 +595,16 @@ async function handleSave() {
   }
 }
 
-function copyHex(hex: string) {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    navigator.clipboard.writeText(hex)
-    toast.add({
-      title: `Copied ${hex}`,
-      description: 'Hex code copied to clipboard.',
-      color: 'rose',
-    })
-  }
-}
-
 function copySummaryText() {
   const summary = `
 💍 ${eventRecord.value?.eventName || 'Wedding'} - Colors & Dress Code
 ----------------------------------------
 ✨ Formality: ${dressCode.formality}
 🎨 Color Palette: ${dressCode.presetPaletteName}
-- Primary: ${dressCode.colors.primary}
-- Secondary: ${dressCode.colors.secondary}
-- Accent: ${dressCode.colors.accent}
-- Neutral: ${dressCode.colors.neutral}
+- Primary: ${dressCode.colorNames?.primary ? `${dressCode.colorNames.primary} (${dressCode.colors.primary})` : dressCode.colors.primary}
+- Secondary: ${dressCode.colorNames?.secondary ? `${dressCode.colorNames.secondary} (${dressCode.colors.secondary})` : dressCode.colors.secondary}
+- Accent: ${dressCode.colorNames?.accent ? `${dressCode.colorNames.accent} (${dressCode.colors.accent})` : dressCode.colors.accent}
+- Neutral: ${dressCode.colorNames?.neutral ? `${dressCode.colorNames.neutral} (${dressCode.colors.neutral})` : dressCode.colors.neutral}
 
 👔 Gentlemen: ${dressCode.menAttire}
 👗 Ladies: ${dressCode.womenAttire}
@@ -640,6 +648,14 @@ onMounted(async () => {
         if (!dressCode.paletteType) {
           dressCode.paletteType = dressCode.paletteImage ? 'image' : (dressCode.hasPreMadeColor ? 'image' : 'editor')
         }
+        if (!dressCode.colorNames) {
+          dressCode.colorNames = {
+            primary: 'Warm Ivory',
+            secondary: 'Vintage Gold',
+            accent: 'Sage Leaf',
+            neutral: 'Deep Moss',
+          }
+        }
         currentStep.value = 0
       } else {
         // Initial state: ask the user first
@@ -673,6 +689,19 @@ onMounted(async () => {
 
           <UButton icon="i-lucide-check-circle" color="rose" size="sm"
             class="font-semibold text-xs sm:text-sm text-white" :loading="isSaving || isAddingImages"
+            :disabled="isLoadingData || isSaving" @click="handleSave">
+            Publish Changes
+          </UButton>
+        </div>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <div v-if="dressCode.hasPreMadeColor !== null" class="space-y-2 w-full">
+          <UButton variant="ghost" color="neutral" size="sm" block icon="i-lucide-arrow-left-right"
+            @click="resetToChoicePrompt">
+            Change Option
+          </UButton>
+          <UButton icon="i-lucide-check-circle" color="rose" size="sm" block
+            class="font-semibold text-white" :loading="isSaving || isAddingImages"
             :disabled="isLoadingData || isSaving" @click="handleSave">
             Publish Changes
           </UButton>
@@ -1087,6 +1116,32 @@ onMounted(async () => {
                     </span>
                   </div>
                 </div>
+
+                <!-- Palette Color Names for Selected Template -->
+                <div class="p-3.5 bg-white rounded-xl border border-toast-200 shadow-xs space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-toast-900 flex items-center gap-1.5">
+                      <UIcon name="i-lucide-tag" class="size-3.5 text-rose-500" />
+                      Name Your Colors
+                    </span>
+                    <span class="text-[10px] text-toast-500">Visible on website &amp; lookbook</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div v-for="role in (['primary', 'secondary', 'accent', 'neutral'] as const)" :key="role" class="space-y-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class="size-2.5 rounded-full border border-black/15 shadow-2xs shrink-0" :style="{ backgroundColor: dressCode.colors[role] }" />
+                        <span class="text-[10px] font-semibold text-toast-700 capitalize">{{ role }}</span>
+                      </div>
+                      <input
+                        v-if="dressCode.colorNames"
+                        v-model="dressCode.colorNames[role]"
+                        type="text"
+                        :placeholder="role + ' name'"
+                        class="w-full text-xs px-2 py-1 rounded-md border border-toast-200 bg-toast-50/50 text-toast-900 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Tab 2: Custom Colors HSL Sliders -->
@@ -1162,6 +1217,21 @@ onMounted(async () => {
                     </div>
                   </div>
 
+                  <!-- Custom Color Name -->
+                  <div class="space-y-1 pt-2 border-t border-toast-100">
+                    <div class="flex items-center justify-between text-[11px] text-toast-600 font-medium">
+                      <span>Color Name</span>
+                      <span class="text-[10px] text-toast-400">e.g. Champagne Gold, Sage</span>
+                    </div>
+                    <input
+                      v-if="dressCode.colorNames"
+                      v-model="dressCode.colorNames[activeColorPickerKey]"
+                      type="text"
+                      placeholder="Name this color..."
+                      class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-toast-200 bg-toast-50/50 text-toast-900 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                    />
+                  </div>
+
                   <!-- Hue Spectrum Slider -->
                   <div class="space-y-1">
                     <div class="flex justify-between text-[11px] text-toast-600 font-medium">
@@ -1232,6 +1302,32 @@ onMounted(async () => {
                   </div>
                 </div>
 
+                <!-- Palette Color Names for Custom Mode -->
+                <div class="p-3.5 bg-white rounded-xl border border-toast-200 shadow-xs space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-toast-900 flex items-center gap-1.5">
+                      <UIcon name="i-lucide-tag" class="size-3.5 text-rose-500" />
+                      Name Your Colors
+                    </span>
+                    <span class="text-[10px] text-toast-500">Visible on website &amp; lookbook</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div v-for="role in (['primary', 'secondary', 'accent', 'neutral'] as const)" :key="role" class="space-y-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class="size-2.5 rounded-full border border-black/15 shadow-2xs shrink-0" :style="{ backgroundColor: dressCode.colors[role] }" />
+                        <span class="text-[10px] font-semibold text-toast-700 capitalize">{{ role }}</span>
+                      </div>
+                      <input
+                        v-if="dressCode.colorNames"
+                        v-model="dressCode.colorNames[role]"
+                        type="text"
+                        :placeholder="role + ' name'"
+                        class="w-full text-xs px-2 py-1 rounded-md border border-toast-200 bg-toast-50/50 text-toast-900 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Live Palette Harmony Preview -->
                 <div class="p-3.5 rounded-xl border border-toast-200 bg-white space-y-2">
                   <span class="text-[11px] font-bold uppercase tracking-wider text-toast-500">
@@ -1239,13 +1335,13 @@ onMounted(async () => {
                   </span>
                   <div class="grid grid-cols-4 gap-2">
                     <div v-for="(hex, keyName) in dressCode.colors" :key="keyName"
-                      class="p-2 rounded-lg text-center border border-black/10 flex flex-col items-center justify-center gap-1 cursor-pointer hover:scale-105 transition-transform"
-                      :style="{ backgroundColor: hex }" @click="copyHex(hex)">
-                      <span class="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-black/40 text-white">
-                        {{ hex }}
-                      </span>
-                      <span class="text-[9px] font-semibold capitalize px-1 rounded bg-white/70 text-black">
+                      class="p-2 rounded-lg text-center border border-black/10 flex flex-col items-center justify-between gap-1 transition-transform hover:scale-105 min-h-12"
+                      :style="{ backgroundColor: hex }">
+                      <span class="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-black/40 text-white">
                         {{ keyName }}
+                      </span>
+                      <span v-if="dressCode.colorNames?.[keyName]" class="text-[9px] font-semibold truncate max-w-full px-1 rounded bg-white/80 text-black">
+                        {{ dressCode.colorNames[keyName] }}
                       </span>
                     </div>
                   </div>
@@ -1475,106 +1571,29 @@ onMounted(async () => {
         : 'col-span-1 lg:col-span-2 w-full p-4 sm:p-6 lg:p-8 flex flex-col justify-start min-h-[calc(100vh-70px)]'
         ">
         <UPageCard
-          class="w-full rounded-2xl shadow-lg border border-toast-200/80 ring-1 ring-black/5 overflow-hidden transition-colors duration-500"
-          :ui="{ container: 'p-0 sm:p-0 lg:p-0 flex flex-col' }">
-          <!-- Live Lookbook Showcase Canvas -->
-          <div class="w-full flex-1 flex flex-col p-6 sm:p-8 lg:p-10 transition-colors duration-500 relative min-h-125"
-            :style="{
-              backgroundColor: dressCode.invertColors
-                ? dressCode.colors.neutral
-                : dressCode.colors.primary,
-              color: dressCode.invertColors
-                ? dressCode.colors.primary
-                : dressCode.colors.neutral,
-            }">
-            <!-- Lookbook Top Bar: Event Title, Formality & Date -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-black/10">
-              <div>
-                <span
-                  class="text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border shadow-2xs inline-block mb-1"
-                  :style="{
-                    borderColor: dressCode.colors.secondary,
-                    backgroundColor: `${dressCode.colors.secondary}20`,
-                    color: dressCode.invertColors
-                      ? dressCode.colors.primary
-                      : dressCode.colors.neutral,
-                  }">
-                  {{ dressCode.formality }}
-                </span>
-                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-serif font-bold tracking-tight">
-                  {{ eventRecord?.eventName || 'Elena & Matthew Wedding' }}
-                </h1>
-                <p class="text-xs sm:text-sm opacity-80 mt-1 flex items-center gap-2">
-                  <UIcon name="i-lucide-calendar" class="size-3.5" />
-                  <span>{{ eventRecord?.eventDate || 'Saturday, December 14, 2024' }}</span>
-                  <span v-if="eventRecord?.venue" class="inline-flex items-center gap-1">
-                    &bull;
-                    <UIcon name="i-lucide-map-pin" class="size-3.5" /> {{ eventRecord.venue }}
-                  </span>
-                </p>
-              </div>
-
-              <!-- Action buttons in lookbook -->
-              <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                <button type="button"
-                  class="px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:opacity-90 bg-rose-600 text-white"
-                  :disabled="isSaving"
-                  @click="handleSave">
-                  <UIcon name="i-lucide-sparkles" class="size-3.5" />
-                  <span>{{ isSaving ? 'Publishing...' : 'Publish to Website' }}</span>
-                </button>
-
-                <button type="button"
-                  class="px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:opacity-90 border border-black/15"
-                  :style="{
-                    backgroundColor: dressCode.colors.secondary,
-                    color: '#ffffff',
-                  }" @click="copySummaryText">
-                  <UIcon name="i-lucide-share-2" class="size-3.5" />
-                  <span>Share Guide</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Website Maker integration banner -->
-            <div class="p-3.5 rounded-xl border border-rose-200/80 bg-rose-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-              <div class="flex items-start sm:items-center gap-2 text-rose-950">
-                <UIcon name="i-lucide-palette" class="size-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
-                <span>
-                  <strong>Synced with Website Maker:</strong> Insert the <strong>"Colors &amp; Dress Code"</strong> component in Website Maker to showcase this palette and attire guidelines to your guests.
-                </span>
-              </div>
-              <NuxtLink :to="'/website-maker' + (eventId ? '?eventId=' + eventId : '')"
-                class="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-800 underline shrink-0">
-                <span>Open Website Maker</span>
-                <UIcon name="i-lucide-arrow-right" class="size-3" />
-              </NuxtLink>
-            </div>
-
-            <!-- SECTION 1: Event Color Palette (Image, Editor, or Both) -->
-            <div class="py-6 border-b border-black/10">
-              <div class="flex items-center justify-between mb-3">
-                <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider opacity-90 flex items-center gap-2">
-                  <UIcon name="i-lucide-swatch-book" class="size-4" />
-                  <span>Event Color Palette</span>
-                </h2>
-                <span class="text-xs font-medium opacity-75">
-                  {{ (dressCode.paletteType === 'image' && dressCode.paletteImage) ? 'Pre-made Palette Graphic' : dressCode.presetPaletteName }}
+          class="w-full min-w-0 max-w-full rounded-2xl shadow-lg border border-toast-200/80 ring-1 ring-black/5 overflow-hidden bg-white"
+          :ui="{ container: 'p-0 flex flex-col min-w-0' }">
+          <!-- Canvas CDC Content Area (Plain White with Colored Border) -->
+          <div class="w-full flex-1 flex flex-col p-6 sm:p-10 lg:p-14 space-y-10 bg-white relative min-h-125 min-w-0">
+            <!-- Section 1: Color Palette (Image, Editor, or Both) -->
+            <div class="max-w-5xl mx-auto w-full space-y-3.5">
+              <div class="flex items-center text-base sm:text-lg font-bold text-toast-900">
+                <span class="inline-flex items-center gap-2">
+                  <UIcon name="i-lucide-swatch-book" class="size-5 text-toast-500" />
+                  Color Palette
                 </span>
               </div>
 
               <!-- Option: Both Image & Swatches in a Single Row -->
               <div v-if="dressCode.paletteType === 'both' && dressCode.paletteImage"
-                class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch mb-4">
+                class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch">
                 <!-- Col-span-2: Color Palette Image -->
                 <div class="sm:col-span-2 h-full">
-                  <div
-                    class="relative h-full min-h-60 sm:min-h-64 rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2"
-                    @click="openImageLightboxUrl(dressCode.paletteImage, 'Event Color Palette')">
-                    <img :src="dressCode.paletteImage" alt="Event Color Palette Graphic"
+                  <div class="relative h-full min-h-64 sm:min-h-72 rounded-2xl overflow-hidden border border-toast-200 shadow-xs cursor-pointer group flex items-center justify-center p-3 bg-toast-50/50"
+                    @click="openImageLightboxUrl(dressCode.paletteImage, 'Color Palette')">
+                    <img :src="dressCode.paletteImage" alt="Color Palette Graphic"
                       class="w-full h-full max-h-72 object-contain rounded-xl" />
-                    <div
-                      class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                    <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
                       <UIcon name="i-lucide-zoom-in" class="size-4" />
                       <span>Click to view full palette graphic</span>
                     </div>
@@ -1582,135 +1601,141 @@ onMounted(async () => {
                 </div>
 
                 <!-- Col-span-1: Color Breakdown (Vertical) -->
-                <div class="sm:col-span-1 flex flex-col justify-between gap-2 h-full">
-                  <div v-for="(hex, key) in dressCode.colors" :key="key"
-                    class="p-2.5 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 cursor-pointer flex-1 min-h-11"
-                    :style="{ backgroundColor: hex }"
-                    @click="copyHex(hex)">
-                    <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                      {{ key }}
+                <div class="sm:col-span-1 flex flex-col justify-between gap-2.5 h-full">
+                  <div v-for="(hex, key) in dressCode.colors"
+                    :key="key"
+                    class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 flex-1 min-h-12"
+                    :style="{ backgroundColor: hex }">
+                    <span v-if="dressCode.colorNames?.[key]"
+                      class="text-xs font-semibold px-2 py-0.5 rounded bg-black/40 text-white w-max truncate max-w-full shadow-2xs backdrop-blur-2xs">
+                      {{ dressCode.colorNames[key] }}
                     </span>
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                        {{ hex }}
-                      </span>
-                      <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Option 1: Pre-made Palette Graphic (Image Only) -->
+              <!-- Option: Pre-made Palette Image Only -->
               <div v-else-if="dressCode.paletteType === 'image' && dressCode.paletteImage"
-                class="mb-4">
-                <div
-                  class="relative rounded-2xl overflow-hidden border border-black/15 shadow-sm bg-white cursor-pointer group flex items-center justify-center p-2"
-                  @click="openImageLightboxUrl(dressCode.paletteImage, 'Event Color Palette')">
-                  <img :src="dressCode.paletteImage" alt="Event Color Palette Graphic"
+                class="w-full">
+                <div class="relative rounded-2xl overflow-hidden border border-toast-200 shadow-xs cursor-pointer group flex items-center justify-center p-3 bg-toast-50/50"
+                  @click="openImageLightboxUrl(dressCode.paletteImage, 'Color Palette')">
+                  <img :src="dressCode.paletteImage" alt="Color Palette Graphic"
                     class="w-full max-h-72 object-contain rounded-xl" />
-                  <div
-                    class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
+                  <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-medium backdrop-blur-2xs">
                     <UIcon name="i-lucide-zoom-in" class="size-4" />
                     <span>Click to view full palette graphic</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Prompt if image mode selected but no image uploaded yet -->
-              <div v-else-if="dressCode.paletteType === 'image' && !dressCode.paletteImage"
-                class="p-6 rounded-2xl border-2 border-dashed border-toast-300 bg-toast-50/50 text-center space-y-2 mb-4">
-                <UIcon name="i-lucide-image" class="size-8 text-toast-400 mx-auto" />
-                <p class="text-xs font-medium text-toast-700">No color palette image uploaded yet.</p>
-                <UButton size="xs" color="rose" variant="subtle" @click="currentStep = 0">
-                  Upload Palette Graphic
-                </UButton>
-              </div>
-
-              <!-- Option 2: 4 Interactive Swatches (Editor Mode or Fallback) -->
-              <div v-else>
-                <!-- 4 Interactive Swatches -->
+              <!-- Option: 4 Color Swatches (Editor Mode or Fallback) -->
+              <div v-else class="space-y-2">
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <!-- Primary -->
-                  <div
-                    class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-24 sm:h-28 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                    :style="{ backgroundColor: dressCode.colors.primary }" @click="copyHex(dressCode.colors.primary)">
-                    <span
-                      class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                      Primary
+                  <div v-for="(hex, key) in dressCode.colors"
+                    :key="key"
+                    class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-end h-22 sm:h-24 transition-transform hover:-translate-y-0.5"
+                    :style="{ backgroundColor: hex }">
+                    <span v-if="dressCode.colorNames?.[key]"
+                      class="text-xs font-semibold px-2 py-0.5 rounded bg-black/40 text-white w-max truncate max-w-full shadow-2xs backdrop-blur-2xs">
+                      {{ dressCode.colorNames[key] }}
                     </span>
-                    <div class="flex items-center justify-between">
-                      <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                        {{ dressCode.colors.primary }}
-                      </span>
-                      <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                    </div>
-                  </div>
-
-                  <!-- Secondary -->
-                  <div
-                    class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-24 sm:h-28 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                    :style="{ backgroundColor: dressCode.colors.secondary }" @click="copyHex(dressCode.colors.secondary)">
-                    <span
-                      class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                      Secondary
-                    </span>
-                    <div class="flex items-center justify-between">
-                      <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                        {{ dressCode.colors.secondary }}
-                      </span>
-                      <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                    </div>
-                  </div>
-
-                  <!-- Accent -->
-                  <div
-                    class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-24 sm:h-28 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                    :style="{ backgroundColor: dressCode.colors.accent }" @click="copyHex(dressCode.colors.accent)">
-                    <span
-                      class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                      Accent
-                    </span>
-                    <div class="flex items-center justify-between">
-                      <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                        {{ dressCode.colors.accent }}
-                      </span>
-                      <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                    </div>
-                  </div>
-
-                  <!-- Neutral -->
-                  <div
-                    class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-24 sm:h-28 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                    :style="{ backgroundColor: dressCode.colors.neutral }" @click="copyHex(dressCode.colors.neutral)">
-                    <span
-                      class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                      Neutral
-                    </span>
-                    <div class="flex items-center justify-between">
-                      <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                        {{ dressCode.colors.neutral }}
-                      </span>
-                      <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- SECTION 2: Attire Moodboard Gallery (Multiple images preview) -->
-            <div class="py-6 border-b border-black/10">
-              <div class="flex items-center justify-between mb-3">
-                <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider opacity-90 flex items-center gap-2">
-                  <UIcon name="i-lucide-image" class="size-4" />
-                  <span>Attire Inspiration & Moodboard</span>
-                </h2>
-                <span v-if="dressCode.images.length > 0" class="text-xs opacity-75">
+            <!-- Section 2: Attire Guidelines (Gentlemen & Ladies) & Guest Guidance / Colors to Avoid -->
+            <div class="max-w-5xl mx-auto w-full divide-y divide-toast-200/80 text-left">
+              <!-- Row 1: Gentlemen & Ladies Attire -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10 pb-6">
+                <!-- Gentlemen -->
+                <div class="flex flex-col justify-between space-y-2">
+                  <div class="flex items-center gap-2.5 text-toast-900">
+                    <div class="size-8 rounded-lg bg-toast-100 flex items-center justify-center shrink-0 text-toast-700">
+                      <UIcon name="i-lucide-user" class="size-4" />
+                    </div>
+                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-toast-900">
+                      Gentlemen / Men's Attire
+                    </h3>
+                  </div>
+                  <p class="text-xs sm:text-sm leading-relaxed text-toast-700">
+                    {{ dressCode.menAttire || 'Dark suit, tuxedo, or formal Barong Tagalog with dress trousers and polished shoes.' }}
+                  </p>
+                </div>
+
+                <!-- Ladies -->
+                <div class="flex flex-col justify-between space-y-2">
+                  <div class="flex items-center gap-2.5 text-toast-900">
+                    <div class="size-8 rounded-lg bg-rose-50 flex items-center justify-center shrink-0 text-rose-600">
+                      <UIcon name="i-lucide-heart" class="size-4" />
+                    </div>
+                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-toast-900">
+                      Ladies / Women's Attire
+                    </h3>
+                  </div>
+                  <p class="text-xs sm:text-sm leading-relaxed text-toast-700">
+                    {{ dressCode.womenAttire || 'Floor-length evening gown, midi cocktail dress, or chic formal attire complementing the palette.' }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Row 2: Guest Guidance & Colors to Avoid -->
+              <div v-if="dressCode.guestNotes || dressCode.avoidColors"
+                class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10 pt-6">
+                <!-- Guest Notes -->
+                <div v-if="dressCode.guestNotes"
+                  class="flex flex-col justify-between space-y-2"
+                  :class="{ 'sm:col-span-2': !dressCode.avoidColors }">
+                  <div class="flex items-center gap-2.5 text-toast-900">
+                    <div class="size-8 rounded-lg bg-toast-100 flex items-center justify-center shrink-0 text-toast-700">
+                      <UIcon name="i-lucide-info" class="size-4" />
+                    </div>
+                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-toast-900">
+                      Guest Guidance
+                    </h3>
+                  </div>
+                  <p class="text-xs sm:text-sm leading-relaxed text-toast-700">
+                    {{ dressCode.guestNotes }}
+                  </p>
+                </div>
+
+                <!-- Colors to Avoid -->
+                <div v-if="dressCode.avoidColors"
+                  class="flex flex-col justify-between space-y-2"
+                  :class="{ 'sm:col-span-2': !dressCode.guestNotes }">
+                  <div class="flex items-center gap-2.5 text-red-900">
+                    <div class="size-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0 text-red-600">
+                      <UIcon name="i-lucide-ban" class="size-4" />
+                    </div>
+                    <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-red-900">
+                      Colors to Avoid
+                    </h3>
+                  </div>
+                  <p class="text-xs sm:text-sm leading-relaxed text-red-800">
+                    {{ dressCode.avoidColors }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 3: Moodboard Inspiration Gallery -->
+            <div v-if="dressCode.images && dressCode.images.length > 0"
+              class="max-w-5xl mx-auto w-full space-y-4 pt-2">
+              <div class="flex items-center justify-between text-left">
+                <div>
+                  <h3 class="text-base sm:text-lg font-bold text-toast-900">
+                    Attire Inspiration &amp; Moodboard
+                  </h3>
+                  <p class="text-xs text-toast-500">
+                    Visual lookbook celebrating our event style.
+                  </p>
+                </div>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border border-toast-200 bg-toast-50 text-toast-700">
                   {{ dressCode.images.length }} photo{{ dressCode.images.length > 1 ? 's' : '' }}
                 </span>
               </div>
 
-              <!-- Has uploaded images -->
-              <div v-if="dressCode.images.length > 0" class="grid gap-3.5"
+              <div class="grid gap-3.5"
                 :class="{
                   'grid-cols-1': dressCode.images.length === 1,
                   'grid-cols-1 sm:grid-cols-2': dressCode.images.length === 2,
@@ -1718,13 +1743,12 @@ onMounted(async () => {
                   'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4': dressCode.images.length >= 4,
                 }">
                 <div v-for="img in dressCode.images" :key="img.id"
-                  class="group relative rounded-xl overflow-hidden bg-black/5 border border-black/10 shadow-sm cursor-pointer"
+                  class="group relative rounded-xl overflow-hidden bg-toast-100 border border-toast-200/80 shadow-sm cursor-pointer"
                   :class="dressCode.images.length === 1 ? 'aspect-video sm:aspect-21/9 max-h-112' : 'aspect-4/5'"
                   @click="openImageLightbox(img)">
                   <img :src="img.dataUrl" :alt="img.name"
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div
-                    class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5">
+                  <div class="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5 text-left">
                     <span class="text-[10px] font-bold text-white uppercase tracking-wider">
                       {{ img.tag }}
                     </span>
@@ -1734,88 +1758,24 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
-
-              <!-- Empty moodboard state with quick action -->
-              <div v-else
-                class="p-6 rounded-xl border-2 border-dashed border-black/15 text-center flex flex-col items-center justify-center gap-2">
-                <div class="size-10 rounded-full bg-black/5 flex items-center justify-center">
-                  <UIcon name="i-lucide-images" class="size-5 opacity-60" />
-                </div>
-                <p class="text-sm font-semibold opacity-90">
-                  No moodboard photos uploaded yet
-                </p>
-                <p class="text-xs opacity-70 max-w-sm">
-                  Upload photos, swatches, or outfit inspiration to enrich your lookbook.
-                </p>
-                <button type="button" class="mt-1 text-xs font-bold underline cursor-pointer hover:opacity-80"
-                  @click="currentStep = 0; dressCode.mode = 'upload'; dressCode.hasPreMadeColor = true">
-                  Upload Photos Now
-                </button>
-              </div>
             </div>
 
-            <!-- SECTION 3: Attire Guidelines Cards -->
-            <div class="pt-6 space-y-4">
-              <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider opacity-90 flex items-center gap-2">
-                <UIcon name="i-lucide-shirt" class="size-4" />
-                <span>Attire Guidelines & Guest Advice</span>
-              </h2>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Gentlemen -->
-                <div class="p-4 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between"
-                  :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)' }">
-                  <div class="flex items-center gap-2 mb-2">
-                    <div class="size-7 rounded-lg bg-black/10 flex items-center justify-center">
-                      <UIcon name="i-lucide-user" class="size-4" />
-                    </div>
-                    <h3 class="text-xs font-bold uppercase tracking-wide">
-                      Gentlemen / Men's Attire
-                    </h3>
-                  </div>
-                  <p class="text-xs leading-relaxed opacity-90">
-                    {{ dressCode.menAttire || 'Formal suit, tuxedo, or Barong Tagalog with dress shoes.' }}
-                  </p>
-                </div>
-
-                <!-- Ladies -->
-                <div class="p-4 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between"
-                  :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)' }">
-                  <div class="flex items-center gap-2 mb-2">
-                    <div class="size-7 rounded-lg bg-black/10 flex items-center justify-center">
-                      <UIcon name="i-lucide-heart" class="size-4 text-rose-500" />
-                    </div>
-                    <h3 class="text-xs font-bold uppercase tracking-wide">
-                      Ladies / Women's Attire
-                    </h3>
-                  </div>
-                  <p class="text-xs leading-relaxed opacity-90">
-                    {{ dressCode.womenAttire || 'Floor-length evening gown, midi cocktail dress, or formal wear.' }}
-                  </p>
-                </div>
+            <!-- Empty moodboard state if no images yet -->
+            <div v-else
+              class="p-6 rounded-xl border-2 border-dashed border-toast-200 text-center flex flex-col items-center justify-center gap-2 bg-toast-50/40">
+              <div class="size-10 rounded-full bg-toast-100 flex items-center justify-center">
+                <UIcon name="i-lucide-images" class="size-5 text-toast-400" />
               </div>
-
-              <!-- General Notes -->
-              <div class="p-4 rounded-xl border border-black/10 shadow-xs"
-                :style="{ backgroundColor: 'rgba(255, 255, 255, 0.45)' }">
-                <div class="flex items-start gap-2.5">
-                  <UIcon name="i-lucide-info" class="size-4 shrink-0 mt-0.5 opacity-80" />
-                  <div class="text-xs leading-relaxed">
-                    <p class="font-bold mb-0.5">Guest Notes:</p>
-                    <p class="opacity-90">{{ dressCode.guestNotes }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Colors to Avoid -->
-              <div v-if="dressCode.avoidColors"
-                class="p-3.5 rounded-xl border border-red-300 bg-red-50/70 text-red-950 flex items-start gap-2.5">
-                <UIcon name="i-lucide-alert-triangle" class="size-4 text-red-600 shrink-0 mt-0.5" />
-                <div class="text-xs leading-relaxed">
-                  <span class="font-bold text-red-900">Colors to Avoid: </span>
-                  <span class="text-red-800">{{ dressCode.avoidColors }}</span>
-                </div>
-              </div>
+              <p class="text-sm font-semibold text-toast-800">
+                No moodboard photos uploaded yet
+              </p>
+              <p class="text-xs text-toast-500 max-w-sm">
+                Upload photos, swatches, or outfit inspiration to enrich your lookbook.
+              </p>
+              <button type="button" class="mt-1 text-xs font-bold text-rose-600 underline cursor-pointer hover:text-rose-700"
+                @click="currentStep = 0; dressCode.mode = 'upload'; dressCode.hasPreMadeColor = true">
+                Upload Photos Now
+              </button>
             </div>
           </div>
         </UPageCard>

@@ -1191,7 +1191,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
             :icon="gathering?.seatSelectionLocked ? 'i-lucide-lock' : 'i-lucide-unlock'"
             color="neutral"
             variant="outline"
-            size="xs"
+            size="sm"
             class="hidden sm:inline-flex cursor-pointer text-xs font-semibold"
             :title="gathering?.seatSelectionLocked ? 'Guests cannot pick seats' : 'Guests can pick seats'"
             @click="toggleSeatSelectionLock"
@@ -1201,7 +1201,7 @@ async function toggleSeat(table: SeatingTable, seat: SeatingSeat) {
           <UButton
             color="jam"
             variant="solid"
-            size="xs"
+            size="sm"
             icon="i-lucide-sparkles"
             :loading="saving"
             class="bg-jam-800 hover:bg-jam-900 text-white font-bold cursor-pointer shadow-xs"

@@ -243,7 +243,12 @@ watch(eventId, () => {
 
     <ClientOnly>
       <Teleport to="#navbar-actions">
-        <UButton icon="i-lucide-plus" color="rose" @click="openAddModal" :disabled="isEventCancelled">
+        <UButton icon="i-lucide-plus" color="rose" size="sm" @click="openAddModal" :disabled="isEventCancelled">
+          Add Task
+        </UButton>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <UButton icon="i-lucide-plus" color="rose" size="sm" block @click="openAddModal" :disabled="isEventCancelled">
           Add Task
         </UButton>
       </Teleport>

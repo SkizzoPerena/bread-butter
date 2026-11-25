@@ -266,6 +266,19 @@ watch(eventId, () => {
         <UButton
           icon="i-lucide-plus"
           color="cyan"
+          size="sm"
+          :disabled="mutationsDisabled"
+          @click="openAddModal"
+        >
+          Add Mini-Event
+        </UButton>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <UButton
+          icon="i-lucide-plus"
+          color="cyan"
+          size="sm"
+          block
           :disabled="mutationsDisabled"
           @click="openAddModal"
         >

@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { resolveProfileImageUrl } from '~/utils/profileImage'
+import { ALL_DASHBOARD_PATHS } from '~/composables/useAppNavigation'
 
 const route = useRoute()
 const router = useRouter()
 const { user, logout } = useAuth()
-const { goBackToPreviousPage } = useAppNavigation()
+const {
+  getLastMatchingHistoryEntry,
+  getMostRecentEventDashboardTarget,
+  navigateBackTo,
+} = useAppNavigation()
 
 const activeDashboardTab = useState<'events' | 'seating'>('user-dashboard-tab', () =>
   route.query.tab === 'seating' ? 'seating' : 'events'
@@ -22,7 +27,13 @@ const isUserDashboard = computed(() => {
 })
 
 async function goBack() {
-  await goBackToPreviousPage('/')
+  const queryEventId = typeof route.query.eventId === 'string' ? route.query.eventId : ''
+  if (queryEventId) {
+    await navigateBackTo(getMostRecentEventDashboardTarget(queryEventId))
+    return
+  }
+  const recentDashboard = getLastMatchingHistoryEntry(ALL_DASHBOARD_PATHS)
+  await navigateBackTo(recentDashboard || '/')
 }
 
 const displayName = computed(() => {

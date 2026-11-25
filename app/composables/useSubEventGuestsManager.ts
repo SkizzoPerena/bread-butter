@@ -1,4 +1,5 @@
 import type { EventRecord, GuestRecord, RsvpSummary } from '~/types/event'
+import type { RsvpRecord } from '~/types/rsvp'
 import { reportApiError } from '~/types/auth'
 import {
   applyBulkSendInvitesToGuestList,
@@ -7,12 +8,14 @@ import {
   inviteResultToast,
 } from '~/utils/guestListUpdates'
 import type { GuestTableRow } from '~/composables/useEventGuestsManager'
+import type { ExternalSubEventRecipient } from '~/composables/useSubEventRsvps'
 import { mapRsvpStatusToBadgeColor, mapRsvpStatusToLabel } from '~/utils/rsvpDisplay'
 import { formatGuestDisplayName } from '~/utils/guestName'
 import { guestRowMatchesDirectSearch } from '~/utils/guestSearch'
 
 export interface SubEventGuestTableRow extends GuestTableRow {
   rsvpId: string
+  isNonGuestlist?: boolean
 }
 
 export interface UseSubEventGuestsManagerOptions {
@@ -28,9 +31,15 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
   const toast = useToast()
   const { isUiOnlyMode } = useApiMode()
   const { fetchGuestsByEvent } = useGuests()
-  const { sendSubEventInvites, deleteSubEventRsvp } = useSubEventRsvps()
+  const {
+    fetchAllSubEventRsvps,
+    sendSubEventInvites,
+    sendSubEventExternalInvites,
+    deleteSubEventRsvp,
+  } = useSubEventRsvps()
 
   const guestList = ref<GuestRecord[]>([])
+  const subEventRsvps = ref<RsvpRecord[]>([])
   const isLoadingGuests = ref(false)
   const uninvitingGuestId = ref<string | null>(null)
   const isSendingInvites = ref(false)
@@ -70,8 +79,8 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     guestList.value.filter((guest) => !guest.rsvp?.invitedAt)
   )
 
-  const tableRows = computed<SubEventGuestTableRow[]>(() =>
-    invitedGuests.value.map((guest) => ({
+  const tableRows = computed<SubEventGuestTableRow[]>(() => {
+    const guestRows: SubEventGuestTableRow[] = invitedGuests.value.map((guest) => ({
       guestId: guest._id,
       rsvpId: guest.rsvp!._id,
       firstName: guest.firstName,
@@ -85,8 +94,38 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
       rsvpStatus: mapRsvpStatusToLabel(guest.rsvp?.status),
       invitationSent: true,
       inviteDelivery: inviteDeliveryLabel(guest.rsvp),
+      isNonGuestlist: false,
     }))
-  )
+
+    const knownRsvpIds = new Set(guestRows.map((row) => row.rsvpId))
+    const knownEmails = new Set(guestRows.map((row) => row.email.trim().toLowerCase()))
+
+    const externalRows: SubEventGuestTableRow[] = subEventRsvps.value
+      .filter((rsvp) => {
+        if (knownRsvpIds.has(rsvp._id)) return false
+        const normalizedEmail = (rsvp.email || '').trim().toLowerCase()
+        if (normalizedEmail && knownEmails.has(normalizedEmail)) return false
+        return true
+      })
+      .map((rsvp) => ({
+        guestId: `external-${rsvp._id}`,
+        rsvpId: rsvp._id,
+        firstName: rsvp.name || '',
+        lastName: '',
+        displayName: formatGuestDisplayName(rsvp.name || '', ''),
+        mailingAddress: '',
+        contactNumber: '',
+        envelopeName: '',
+        email: rsvp.email || '',
+        guests: rsvp.status === 'GOING' ? 1 : 0,
+        rsvpStatus: mapRsvpStatusToLabel(rsvp.status),
+        invitationSent: true,
+        inviteDelivery: inviteDeliveryLabel(rsvp),
+        isNonGuestlist: true,
+      }))
+
+    return [...guestRows, ...externalRows]
+  })
 
   const filteredUninvitedGuests = computed(() => {
     const query = inviteSearchQuery.value.trim().toLowerCase()
@@ -115,8 +154,7 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
 
   const canInviteGuests = computed(
     () =>
-      uninvitedGuests.value.length > 0
-      && !mutationsDisabled.value
+      !mutationsDisabled.value
       && hasEmailCredits.value
       && Boolean(options.subEventId.value || isUiOnlyMode.value)
   )
@@ -146,13 +184,20 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
 
     isLoadingGuests.value = true
     try {
-      guestList.value = await fetchGuestsByEvent(
-        options.eventId.value || 'mock-event-id',
-        options.subEventId.value || undefined
-      )
+      const targetSubEventId = options.subEventId.value || 'mock-sub-event-1'
+      const [guests, rsvps] = await Promise.all([
+        fetchGuestsByEvent(
+          options.eventId.value || 'mock-event-id',
+          options.subEventId.value || undefined
+        ),
+        fetchAllSubEventRsvps(targetSubEventId).catch(() => [] as RsvpRecord[]),
+      ])
+      guestList.value = guests
+      subEventRsvps.value = rsvps
     } catch (error) {
       reportApiError(toast, { title: 'Could not load guests', error })
       guestList.value = []
+      subEventRsvps.value = []
     } finally {
       isLoadingGuests.value = false
     }
@@ -253,6 +298,62 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     }
   }
 
+  async function handleExternalInvite(recipients: ExternalSubEventRecipient[]): Promise<boolean> {
+    if (isSendingInvites.value || recipients.length === 0) {
+      return false
+    }
+    if (!hasEmailCredits.value) {
+      toast.add({
+        title: 'No email credits remaining',
+        description: 'You have used all invitation emails included in your event plan.',
+        color: 'error',
+      })
+      return false
+    }
+    if (remainingEmails.value != null && recipients.length > remainingEmails.value) {
+      toast.add({
+        title: 'Not enough email credits',
+        description: `You need ${recipients.length} credits but only ${remainingEmails.value} remain.`,
+        color: 'error',
+      })
+      return false
+    }
+    if (mutationsDisabled.value) {
+      toast.add({
+        title: 'Event cancelled',
+        description: 'Cannot send invitations for a cancelled event.',
+        color: 'error',
+      })
+      return false
+    }
+
+    isSendingInvites.value = true
+    try {
+      const response = await sendSubEventExternalInvites(
+        options.subEventId.value || 'mock-sub-event-1',
+        recipients
+      )
+      if (
+        options.eventRecord.value &&
+        typeof response.remainingEmails === 'number'
+      ) {
+        options.eventRecord.value = {
+          ...options.eventRecord.value,
+          remainingEmails: response.remainingEmails,
+        }
+      }
+      await loadGuests()
+      await options.onInvitesSent?.()
+      toast.add(inviteResultToast(response))
+      return true
+    } catch (error) {
+      reportApiError(toast, { title: 'Could not send invitation', error })
+      return false
+    } finally {
+      isSendingInvites.value = false
+    }
+  }
+
   async function handleUninvite(guestId: string, rsvpId: string) {
     if (!guestId || !rsvpId || uninvitingGuestId.value || isSendingInvites.value) {
       return
@@ -313,6 +414,7 @@ export function useSubEventGuestsManager(options: UseSubEventGuestsManagerOption
     toggleSelectAllUninvited,
     clearInviteSelection,
     handleBulkInvite,
+    handleExternalInvite,
     handleUninvite,
     mapRsvpStatusToBadgeColor,
   }

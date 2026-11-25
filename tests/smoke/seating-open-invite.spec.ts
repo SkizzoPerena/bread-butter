@@ -1,5 +1,5 @@
 import { GATHERING_ID, PASS_TOKEN, expect, stubApi, test } from './helpers'
-import { openInvitationPage } from './seating-fixtures'
+import { goToInvitationStep, openInvitationPage } from './seating-fixtures'
 
 const OPEN_TOKEN = PASS_TOKEN
 const GUEST_TOKEN = 'f'.repeat(48)
@@ -135,7 +135,7 @@ test('a host turns the link on, sees it, and can replace it', async ({ page }) =
       },
     },
   })
-  await page.getByRole('button', { name: 'Next Step' }).click()
+  await goToInvitationStep(page, '6. Access & Sharing')
 
   await page.getByRole('switch', { name: 'Open Registration' }).click()
   await expect(page.getByTestId('open-invite-link')).toContainText(`/jam/open/${OPEN_TOKEN}`)

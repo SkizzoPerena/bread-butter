@@ -27,7 +27,7 @@ function parseLocalDate(value: string | Date): Date | null {
   const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (dateOnlyMatch) {
     const [, year, month, day] = dateOnlyMatch
-    const date = new Date(Number(year), Number(month) - 1, Number(day))
+    const date = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0)
     return Number.isNaN(date.getTime()) ? null : date
   }
   const date = new Date(trimmed)
@@ -35,8 +35,23 @@ function parseLocalDate(value: string | Date): Date | null {
 }
 
 export function toDateInputValue(isoOrDate: string | Date): string {
-  const date = parseLocalDate(isoOrDate)
-  if (!date) {
+  if (!isoOrDate) {
+    return ''
+  }
+  if (isoOrDate instanceof Date) {
+    if (Number.isNaN(isoOrDate.getTime())) return ''
+    const year = isoOrDate.getFullYear()
+    const month = String(isoOrDate.getMonth() + 1).padStart(2, '0')
+    const day = String(isoOrDate.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  const trimmed = String(isoOrDate).trim()
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (dateOnlyMatch) {
+    return `${dateOnlyMatch[1]}-${dateOnlyMatch[2]}-${dateOnlyMatch[3]}`
+  }
+  const date = new Date(trimmed)
+  if (Number.isNaN(date.getTime())) {
     return ''
   }
   const year = date.getFullYear()
@@ -125,9 +140,12 @@ export function applyInvitationToEditor(
 function toIsoDate(dateString: string): string {
   if (!dateString || !dateString.trim()) return ''
   const trimmed = dateString.trim()
-  if (trimmed.includes('T')) return trimmed
-  const d = parseLocalDate(trimmed)
-  return d && !Number.isNaN(d.getTime()) ? d.toISOString() : trimmed
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch
+    return `${year}-${month}-${day}T00:00:00.000Z`
+  }
+  return trimmed
 }
 
 function toIsoTime(timeString: string, dateString?: string): string {
@@ -149,6 +167,9 @@ export function validateInvitationForSave(
   }
   if (!rsvpData.eventLabel?.trim()) {
     return 'Event headline is required.'
+  }
+  if (rsvpData.eventLabel.trim().toLowerCase() === 'alex & jordan are getting married!') {
+    return 'Please customize the invitation headline with your own details before saving and publishing.'
   }
   if (!rsvpData.eventDate?.trim()) {
     return 'Event date is required.'

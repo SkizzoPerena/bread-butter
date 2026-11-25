@@ -152,6 +152,9 @@ export function useCustomSite() {
 
   async function publishCustomSite(customSiteId: string): Promise<void> {
     if (isUiOnlyMode.value) {
+      if (uiMockSitesStore.value[customSiteId]) {
+        uiMockSitesStore.value[customSiteId].isPublished = true
+      }
       return
     }
     await tracked(actorRole(), () => apiRequest<CustomSiteMutationResponse>(
@@ -165,6 +168,9 @@ export function useCustomSite() {
 
   async function unpublishCustomSite(customSiteId: string): Promise<void> {
     if (isUiOnlyMode.value) {
+      if (uiMockSitesStore.value[customSiteId]) {
+        uiMockSitesStore.value[customSiteId].isPublished = false
+      }
       return
     }
     await apiRequest<CustomSiteMutationResponse>(

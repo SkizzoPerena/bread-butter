@@ -3,6 +3,7 @@ import type { PaymentRecord, PaymentStatus, RefundStatus } from '~/types/payment
 import { formatPaymentPurpose } from '~/types/payment'
 import { reportApiError } from '~/types/auth'
 import { usePayments } from '~/composables/usePayments'
+import { usePageTransition } from '~/composables/usePageTransition'
 
 definePageMeta({
   layout: 'user-navbar',
@@ -11,6 +12,7 @@ definePageMeta({
 const toast = useToast()
 const { isUiOnlyMode, loadPageData } = useApiMode()
 const { getMyPayments } = usePayments()
+const { finishPageTransition } = usePageTransition()
 
 const payments = ref<PaymentRecord[]>([])
 
@@ -109,6 +111,8 @@ onMounted(async () => {
     payments.value = response.payments
   } catch (error) {
     reportApiError(toast, { title: 'Could not load transactions', error })
+  } finally {
+    finishPageTransition()
   }
 })
 </script>

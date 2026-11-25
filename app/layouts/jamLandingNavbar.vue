@@ -123,7 +123,7 @@ watch(() => route.path, () => {
 })
 
 onMounted(async () => {
-  if (Boolean(getStoredAccessToken('user'))) {
+  if (getStoredAccessToken('user')) {
     await ensureSession('user').catch(() => null)
   }
   handleScroll()
@@ -417,6 +417,15 @@ const links = [
             trailingIcon: ['transition-transform duration-200 size-4', open ? 'rotate-180' : undefined].filter(Boolean).join(' ')
           }" />
       </UDropdownMenu>
+
+      <!-- "Bread+Butter" Button (Rightmost Middle Item) -->
+      <UButton
+        :to="isAuthenticated ? '/?view=landing' : '/'"
+        label="Bread+Butter"
+        variant="ghost"
+        class="text-sm font-medium text-white hover:text-bread-400 hover:bg-white/10 rounded-lg transition-colors px-2.5 py-1.5 cursor-pointer"
+        @click.prevent="onSwitchToEvents"
+      />
     </div>
 
     <template #right>
@@ -568,6 +577,21 @@ const links = [
                   Contact us
                 </UButton>
               </div>
+
+              <div class="h-px bg-jam-500/50 -mx-1" />
+
+              <!-- "Bread+Butter" Item in Mobile Navigation -->
+              <UButton
+                variant="ghost"
+                class="w-full justify-start text-sm text-white hover:text-bread-400 hover:bg-jam-500/40 rounded-lg"
+                :to="isAuthenticated ? '/?view=landing' : '/'"
+                @click="onSwitchToEvents"
+              >
+                <template #leading>
+                  <UIcon name="i-lucide-sparkles" class="size-4 text-bread-400 mr-2" />
+                </template>
+                Bread+Butter
+              </UButton>
             </div>
           </template>
         </UPopover>

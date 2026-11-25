@@ -14,6 +14,7 @@ import {
 } from '~/utils/guestListUpdates'
 import { formatTableLabel } from '~/utils/tableCode'
 import { formatGuestDisplayName } from '~/utils/guestName'
+import { markStepCompletedLocally } from '~/composables/useEventFlowProgress'
 
 const rsvpOptions = ['Attending', 'Pending', 'Not Attending', 'No Response'] as const
 
@@ -331,6 +332,7 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
       for (const guest of [response.guest, ...companions]) {
         guestList.value = appendGuestToList(guestList.value, guest)
       }
+      markStepCompletedLocally(targetEventId, 'guestList', true)
 
       const primaryFullName = `${payload.data.firstName.trim()} ${payload.data.lastName.trim()}`.trim()
       toast.add({
@@ -452,6 +454,9 @@ export function useEventGuestsManager(options: UseEventGuestsManagerOptions) {
         person.guestId
       )
       guestList.value = updated.guestList
+      if (guestList.value.length === 0) {
+        markStepCompletedLocally(options.eventId.value || 'mock-event-id', 'guestList', false)
+      }
       if (options.rsvpSummary) {
         options.rsvpSummary.value = updated.rsvpSummary
       }

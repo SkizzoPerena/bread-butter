@@ -26,6 +26,7 @@ useWeddingFonts()
 
 const router = useRouter()
 const route = useRoute()
+const { startPageTransition } = usePageTransition()
 const { getRsvpId, setRsvpId } = useGuestRsvpSession()
 const { lookupRsvpForSite } = useGuestRsvp()
 const { getSiteAccessToken } = useSiteAccessCookie()
@@ -66,17 +67,11 @@ const effectiveDressCode = computed<DressCodeRecord | null>(() => {
   return null
 })
 
-function copyHexToClipboard(hex: string) {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    navigator.clipboard.writeText(hex)
-  }
-}
-
 function handleRsvpButtonClick() {
   const siteName = typeof route.params.siteName === 'string' ? route.params.siteName : ''
   const rsvpId = getRsvpId(siteName)
   if (rsvpId) {
-    router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
+    startPageTransition(`/rsvp/${encodeURIComponent(rsvpId)}`)
   } else {
     rsvpLookupError.value = ''
     isMissingRsvpModalOpen.value = true
@@ -95,7 +90,7 @@ async function findRsvpByEmail() {
     )
     setRsvpId(rsvpId, siteName)
     isMissingRsvpModalOpen.value = false
-    await router.push(`/rsvp/${encodeURIComponent(rsvpId)}`)
+    await startPageTransition(`/rsvp/${encodeURIComponent(rsvpId)}`)
   } catch (error) {
     rsvpLookupError.value = error instanceof GuestRsvpError && error.notFound
       ? "We couldn't find an invitation for that email. Use the address your invitation was sent to, or ask your host."
@@ -742,13 +737,12 @@ function getVenueGoogleMapsUrl(
 
               <!-- Section 1: Color Palette (Image, Editor, or Both) -->
               <div class="max-w-5xl mx-auto w-full space-y-3.5">
-                <div class="flex items-center justify-between text-xs uppercase tracking-wider font-semibold opacity-80"
-                  :style="{ color: getSectionStyle(index).heading }">
-                  <span class="inline-flex items-center gap-1.5">
-                    <UIcon name="i-lucide-swatch-book" class="size-4" />
+                <div class="flex items-center text-base sm:text-lg font-bold text-left"
+                  :style="{ color: getSectionStyle(index).heading, fontFamily: `'${typography.subheaderFont}'` }">
+                  <span class="inline-flex items-center gap-2">
+                    <UIcon name="i-lucide-swatch-book" class="size-5" />
                     Color Palette
                   </span>
-                  <span>{{ (effectiveDressCode?.paletteType === 'image' && effectiveDressCode?.paletteImage) ? 'Pre-made Graphic' : (effectiveDressCode?.presetPaletteName || 'Curated Colors') }}</span>
                 </div>
 
                 <!-- Option: Both Image & Swatches in a Single Row -->
@@ -775,18 +769,12 @@ function getVenueGoogleMapsUrl(
                   <div class="sm:col-span-1 flex flex-col justify-between gap-2.5 h-full">
                     <div v-for="(hex, key) in (effectiveDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
                       :key="key"
-                      class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 cursor-pointer flex-1 min-h-12"
-                      :style="{ backgroundColor: hex }"
-                      @click="copyHexToClipboard(hex)">
-                      <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                        {{ key }}
+                      class="p-2.5 sm:p-3 rounded-xl border border-black/10 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 flex-1 min-h-12"
+                      :style="{ backgroundColor: hex }">
+                      <span v-if="effectiveDressCode?.colorNames?.[key]"
+                        class="text-xs font-semibold px-2 py-0.5 rounded bg-black/40 text-white w-max truncate max-w-full shadow-2xs backdrop-blur-2xs">
+                        {{ effectiveDressCode.colorNames[key] }}
                       </span>
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                          {{ hex }}
-                        </span>
-                        <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -814,18 +802,12 @@ function getVenueGoogleMapsUrl(
                   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div v-for="(hex, key) in (effectiveDressCode?.colors || { primary: '#FDFBF7', secondary: '#D4AF37', accent: '#9CA986', neutral: '#3A4A29' })"
                       :key="key"
-                      class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-between h-22 sm:h-24 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                      :style="{ backgroundColor: hex }"
-                      @click="copyHexToClipboard(hex)">
-                      <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white w-max">
-                        {{ key }}
+                      class="p-3 rounded-xl border border-black/10 shadow-xs flex flex-col justify-end h-22 sm:h-24 transition-transform hover:-translate-y-0.5"
+                      :style="{ backgroundColor: hex }">
+                      <span v-if="effectiveDressCode?.colorNames?.[key]"
+                        class="text-xs font-semibold px-2 py-0.5 rounded bg-black/40 text-white w-max truncate max-w-full shadow-2xs backdrop-blur-2xs">
+                        {{ effectiveDressCode.colorNames[key] }}
                       </span>
-                      <div class="flex items-center justify-between">
-                        <span class="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-white/80 text-black">
-                          {{ hex }}
-                        </span>
-                        <UIcon name="i-lucide-copy" class="size-3 text-black/60" />
-                      </div>
                     </div>
                   </div>
                 </div>

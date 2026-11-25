@@ -6,6 +6,7 @@ import {
   resolveAbsoluteWebsiteUrl,
   type InvitationEmailData
 } from '~/utils/invitationEmailTemplate'
+import { formatDateWithWeekday, formatTime } from '~/utils/invitationDisplay'
 
 const props = defineProps<{
   invitation: InvitationEmailData
@@ -113,7 +114,8 @@ const hiddenInboxSnippet = computed(() => {
         <!-- Uploaded Card Image if available -->
         <div
           v-if="invitation.cardImageUrl"
-          class="w-full max-w-145 rounded-2xl shadow-md overflow-hidden bg-white border border-stone-200 text-center"
+          class="w-full max-w-145 rounded-2xl shadow-md overflow-hidden text-center"
+          :style="{ backgroundColor: palette.colors.primary }"
         >
           <img
             :src="invitation.cardImageUrl"
@@ -202,7 +204,7 @@ const hiddenInboxSnippet = computed(() => {
                   fontFamily: typography.subheaderFont
                 }"
               >
-                {{ invitation.eventDate || 'Saturday, October 24, 2026' }}
+                {{ formatDateWithWeekday(invitation.eventDate || '') || 'Saturday, October 24, 2026' }}
               </div>
               <div
                 v-if="invitation.eventTime"
@@ -212,7 +214,7 @@ const hiddenInboxSnippet = computed(() => {
                   fontFamily: typography.bodyFont
                 }"
               >
-                {{ invitation.eventTime }}
+                {{ formatTime(invitation.eventTime) }}
               </div>
               <div
                 v-if="invitation.eventVenue"
@@ -275,7 +277,7 @@ const hiddenInboxSnippet = computed(() => {
                 }"
               >
                 <UIcon name="i-lucide-calendar" class="w-3.5 h-3.5" />
-                <span>RSVP Deadline: {{ invitation.deadlineDate }}</span>
+                <span>RSVP Deadline: {{ formatDateWithWeekday(invitation.deadlineDate) }}</span>
               </div>
             </div>
 

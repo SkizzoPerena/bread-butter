@@ -5,6 +5,7 @@ import { guestDisplayName, guestNeedsName } from '~/types/seating'
 import { getApiErrorMessage } from '~/types/auth'
 import JamBulkInvite from '~/components/JamBulkInvite.vue'
 import JamGuestImport from '~/components/JamGuestImport.vue'
+import { markJamStepCompletedLocally } from '~/composables/useJamFlowProgress'
 
 definePageMeta({
   layout: 'jam-sub-navbar',
@@ -341,6 +342,7 @@ async function handleAddGuest() {
       email: addForm.email.trim().toLowerCase(),
       partyName: primaryParty,
     })
+    markJamStepCompletedLocally(gatheringId.value, 'guests', true)
 
     if (addForm.rsvpStatus && addForm.rsvpStatus !== 'PENDING') {
       await seating.updateGuest(gatheringId.value, newGuest._id, {

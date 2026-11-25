@@ -18,6 +18,7 @@ const toast = useToast()
 const route = useRoute()
 const { createGuestsBulk } = useGuests()
 const { isUiOnlyMode } = useApiMode()
+const { finishPageTransition } = usePageTransition()
 
 const eventId = computed(() => {
   const value = route.query.eventId
@@ -55,6 +56,7 @@ const rowSchema = z.object({
 })
 
 onMounted(() => {
+  finishPageTransition()
   if (!eventId.value && !isUiOnlyMode.value) {
     toast.add({
       title: 'Missing event',

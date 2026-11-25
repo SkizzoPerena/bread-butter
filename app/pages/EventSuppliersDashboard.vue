@@ -875,6 +875,7 @@ watch(eventId, async () => {
           <UButton
             icon="i-lucide-plus"
             color="fuchsia"
+            size="sm"
             :disabled="mutationsDisabled || isSubmitting"
             @click="openAddSupplierModal"
           >
@@ -884,6 +885,33 @@ watch(eventId, async () => {
             icon="i-lucide-file-down"
             color="neutral"
             variant="outline"
+            size="sm"
+            :loading="isExporting"
+            :disabled="!eventId || isExporting"
+            @click="exportEventPdf(eventId, 'suppliers')"
+          >
+            Export PDF
+          </UButton>
+        </div>
+      </Teleport>
+      <Teleport to="#navbar-mobile-actions">
+        <div class="space-y-2 w-full">
+          <UButton
+            icon="i-lucide-plus"
+            color="fuchsia"
+            size="sm"
+            block
+            :disabled="mutationsDisabled || isSubmitting"
+            @click="openAddSupplierModal"
+          >
+            Add Supplier
+          </UButton>
+          <UButton
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            block
             :loading="isExporting"
             :disabled="!eventId || isExporting"
             @click="exportEventPdf(eventId, 'suppliers')"

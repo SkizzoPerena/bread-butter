@@ -3,6 +3,11 @@ import type { GatheringRecord, RsvpStatus, SeatingGuestRecord } from '~/types/se
 import { getApiErrorMessage } from '~/types/auth'
 import { currentOriginPath } from '~/utils/seatingQr'
 import JamBulkInvite from '~/components/JamBulkInvite.vue'
+import {
+  useJamFlowProgress,
+  JAM_FLOW_STEPS,
+  markJamStepCompletedLocally,
+} from '~/composables/useJamFlowProgress'
 
 definePageMeta({ layout: 'event-navbar', middleware: 'seating-enabled' })
 
@@ -129,18 +134,12 @@ interface QuickNavItem {
   badge?: string
 }
 
+const { stepStatus, currentJamFlowStep, currentJamFlowStepAction, evaluateJamFlowStatus } = useJamFlowProgress()
+
 // Quick navigation styling matching EventDashboard v2 exact palette
+// Row 1: invitation - rsvp
+// Row 2: guest list - tables & seats ... proceed as usual
 const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
-  {
-    id: 'guests',
-    label: 'Guest List',
-    icon: 'i-lucide-users',
-    bgClass: 'bg-red-500/10',
-    hoverClass: 'hover:bg-red-500/20',
-    ringClass: 'ring-1 ring-inset ring-red-500/25',
-    textClass: 'text-red-600',
-    badge: guests.value.length ? String(guests.value.length) : undefined,
-  },
   {
     id: 'invite',
     label: 'Invitation',
@@ -160,6 +159,16 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
     ringClass: 'ring-1 ring-inset ring-yellow-500/30',
     textClass: 'text-yellow-700',
     badge: goingCount.value ? `${goingCount.value} going` : undefined,
+  },
+  {
+    id: 'guests',
+    label: 'Guest List',
+    icon: 'i-lucide-users',
+    bgClass: 'bg-red-500/10',
+    hoverClass: 'hover:bg-red-500/20',
+    ringClass: 'ring-1 ring-inset ring-red-500/25',
+    textClass: 'text-red-600',
+    badge: guests.value.length ? String(guests.value.length) : undefined,
   },
   {
     id: 'tables',
@@ -210,6 +219,81 @@ const QUICK_NAV_ITEMS = computed<QuickNavItem[]>(() => [
     textClass: 'text-amber-700',
   },
 ])
+
+const isWorkspaceFlowLocked = computed(() => {
+  return !loading.value && Boolean(currentJamFlowStep.value)
+})
+
+const currentJamFlowStepIndex = computed(() => {
+  if (!currentJamFlowStep.value) return 3
+  return currentJamFlowStep.value.stepNumber - 1
+})
+
+const flowStepperItems = computed(() => [
+  {
+    title: 'Invitation',
+    icon: (currentJamFlowStepIndex.value > 0 || stepStatus.value.invite) ? 'i-lucide-check' : undefined,
+  },
+  {
+    title: 'RSVP',
+    icon: (currentJamFlowStepIndex.value > 1 || stepStatus.value.rsvp) ? 'i-lucide-check' : undefined,
+  },
+  {
+    title: 'Guest List',
+    icon: (currentJamFlowStepIndex.value > 2 || stepStatus.value.guests) ? 'i-lucide-check' : undefined,
+  },
+])
+
+const flowStepDetails = computed(() => {
+  switch (currentJamFlowStepAction.value) {
+    case 'invite':
+      return {
+        icon: 'i-lucide-mail',
+        iconBgClass: 'bg-blue-500/10 border-blue-200/80',
+        iconTextClass: 'text-blue-600',
+        title: 'Design Your Digital Invitation',
+        prompt: 'Customize and save your digital invitation to proceed to the next step.',
+        buttonLabel: 'Move to Invitation Maker',
+      }
+    case 'rsvp':
+      return {
+        icon: 'i-lucide-clipboard-check',
+        iconBgClass: 'bg-yellow-500/15 border-yellow-200/80',
+        iconTextClass: 'text-yellow-700',
+        title: 'Set Up Your RSVP Questions',
+        prompt: 'Configure and save your RSVP questions at least once to prepare for guest responses.',
+        buttonLabel: 'Move to RSVP Manager',
+      }
+    case 'guests':
+      return {
+        icon: 'i-lucide-users',
+        iconBgClass: 'bg-red-500/10 border-red-200/80',
+        iconTextClass: 'text-red-600',
+        title: 'Add Your First Guests',
+        prompt: 'Insert at least one guest into your guest list to complete setup and unlock your full workspace.',
+        buttonLabel: 'Move to Guest List',
+      }
+    default:
+      return {
+        icon: 'i-lucide-sparkles',
+        iconBgClass: 'bg-toast-50 border-toast-200/80',
+        iconTextClass: 'text-toast-600',
+        title: 'Complete Jam Setup',
+        prompt: 'Complete your pending setup steps to unlock all workspace tools.',
+        buttonLabel: 'Continue Setup',
+      }
+  }
+})
+
+function navigateToCurrentFlowStep() {
+  if (!currentJamFlowStep.value) return
+  const item = QUICK_NAV_ITEMS.value.find((nav) => nav.id === currentJamFlowStep.value?.action)
+  if (item) {
+    onQuickNavItemClick(item)
+  } else {
+    navigateToFeature(currentJamFlowStep.value.action)
+  }
+}
 
 const DESKTOP_ONLY_ITEMS = ['tables', 'invite']
 const isDesktopOnlyModalOpen = ref(false)
@@ -308,6 +392,7 @@ async function load() {
     ])
     gathering.value = gatheringData
     guests.value = guestsData.guests
+    evaluateJamFlowStatus(gatheringId.value, gatheringData, guestsData.guests)
 
     setActiveEvent({
       _id: gatheringData._id,
@@ -365,6 +450,7 @@ async function addGuest() {
       email: guestForm.email.trim(),
       partyName: guestForm.partyName.trim() || undefined,
     })
+    markJamStepCompletedLocally(gatheringId.value, 'guests', true)
     toast.add({ title: 'Guest added', color: 'success' })
     guestForm.firstName = ''
     guestForm.lastName = ''
@@ -407,6 +493,23 @@ async function downloadGuests() {
 
 <template>
   <div class="jam-dashboard-root h-[calc(100vh-64px)] flex flex-col w-full max-w-full overflow-x-hidden bg-bread-100 overflow-y-auto lg:overflow-hidden select-none">
+    <!-- Navbar Actions Teleport -->
+    <ClientOnly>
+      <Teleport to="#event-navbar-actions">
+        <div v-if="gathering?.packageName" class="flex items-center gap-2">
+          <UBadge color="warning" variant="solid" size="md" class="text-black rounded-full shadow-sm font-medium">
+            {{ gathering.packageName }}
+          </UBadge>
+        </div>
+      </Teleport>
+      <Teleport to="#event-mobile-navbar-actions">
+        <div v-if="gathering?.packageName" class="flex items-center gap-2">
+          <UBadge color="warning" variant="solid" size="md" class="text-black rounded-full shadow-sm font-medium">
+            {{ gathering.packageName }}
+          </UBadge>
+        </div>
+      </Teleport>
+    </ClientOnly>
     <!-- Loading Skeleton / Card -->
     <div v-if="loading" class="p-6 max-w-4xl mx-auto w-full my-auto">
       <div class="white-bread-container p-8 text-center space-y-3">
@@ -461,9 +564,20 @@ async function downloadGuests() {
               <div class="relative flex items-center justify-center w-fit mx-auto">
                 <div
                   class="size-15 sm:size-17 flex items-center justify-center rounded-full transition-all duration-200 group-focus-visible:ring-2 aspect-square shrink-0 shadow-md group-hover:scale-105 group-active:scale-95"
-                  :class="getQuickNavSolidBgClass(item)"
+                  :class="[
+                    getQuickNavSolidBgClass(item),
+                    currentJamFlowStepAction === item.id ? 'ring-2 ring-rose-500 ring-offset-2' : ''
+                  ]"
                 >
                   <UIcon :name="item.icon" class="size-7.5 sm:size-8.5 text-white shrink-0" />
+                </div>
+                <!-- Current Flow Step Alert Badge -->
+                <div v-if="currentJamFlowStepAction === item.id"
+                  class="absolute -top-1 -right-1 z-20 flex items-center justify-center pointer-events-none"
+                  :title="`Current Step: ${item.label}`">
+                  <span class="inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                    !
+                  </span>
                 </div>
               </div>
               <div class="font-semibold mt-2 text-center text-xs sm:text-sm text-jam-900 leading-tight max-w-24 sm:max-w-28 truncate">
@@ -481,8 +595,65 @@ async function downloadGuests() {
       >
       <!-- ================= LEFT DIVISION: col-span-3 (Workspace Area: Overview & 2x2 Grid) ================= -->
       <section
-        class="lg:col-span-3 p-2.5 sm:p-3 lg:p-3.5 pb-8 sm:pb-6 lg:pb-3.5 flex flex-col gap-2.5 sm:gap-3 bg-jam-50/20 w-full max-w-full min-w-0 h-full overflow-y-auto lg:overflow-hidden lg:justify-between"
+        class="relative lg:col-span-3 p-2.5 sm:p-3 lg:p-3.5 pb-8 sm:pb-6 lg:pb-3.5 flex flex-col gap-2.5 sm:gap-3 bg-jam-50/20 w-full max-w-full min-w-0 h-full overflow-y-auto lg:overflow-hidden lg:justify-between"
+        :class="isWorkspaceFlowLocked ? 'overflow-hidden' : ''"
       >
+        <!-- Flow Onboarding Workspace Overlay -->
+        <div
+          v-if="isWorkspaceFlowLocked"
+          class="absolute inset-0 z-30 bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+        >
+          <div
+            class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-toast-200/90 p-5 sm:p-6 flex flex-col items-center text-center my-auto shrink-0 pointer-events-auto"
+          >
+            <!-- 3-Step Progress Indicator (Nuxt UI native UStepper) -->
+            <div class="w-full mb-5 px-1">
+              <UStepper
+                :items="flowStepperItems"
+                :model-value="currentJamFlowStepIndex"
+                color="primary"
+                size="xs"
+                class="w-full select-none pointer-events-none"
+                :ui="{
+                  title: 'text-[10.5px] sm:text-xs font-medium group-data-[state=active]:font-bold text-toast-900 group-data-[state=active]:text-toast-950 group-data-[state=completed]:text-toast-700'
+                }"
+              />
+            </div>
+
+            <!-- Active Step Icon Badge -->
+            <div class="relative mb-3">
+              <div
+                class="size-14 sm:size-16 rounded-2xl border flex items-center justify-center shadow-inner transition-colors"
+                :class="[flowStepDetails.iconBgClass, flowStepDetails.iconTextClass]"
+              >
+                <UIcon :name="flowStepDetails.icon" class="size-7 sm:size-8" />
+              </div>
+              <span class="absolute -top-1.5 -right-1.5 flex size-4">
+                <span class="inline-flex items-center justify-center size-4 rounded-full bg-rose-500 text-white text-[9px] font-bold shadow-xs">!</span>
+              </span>
+            </div>
+
+            <!-- Title & Description -->
+            <h3 class="font-serif text-lg sm:text-xl font-bold text-toast-950 tracking-tight mb-2">
+              {{ flowStepDetails.title }}
+            </h3>
+            <p class="text-xs sm:text-sm text-toast-600 max-w-sm mb-5 leading-relaxed">
+              {{ flowStepDetails.prompt }}
+            </p>
+
+            <!-- Action Button -->
+            <UButton
+              color="primary"
+              size="lg"
+              class="w-full sm:w-auto px-6 py-2.5 font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer bg-toast-600 hover:bg-toast-700 active:bg-toast-800 text-white rounded-xl"
+              trailing-icon="i-lucide-arrow-right"
+              @click="navigateToCurrentFlowStep"
+            >
+              {{ flowStepDetails.buttonLabel }}
+            </UButton>
+          </div>
+        </div>
+
         <!-- 1. Topmost Container: 3 Metric Groups (Days, Confirmed Guests, Seating Assignment) -->
         <div class="white-bread-container p-2.5 sm:p-3 shadow-xs rounded-xl shrink-0 w-full max-w-full min-w-0 overflow-hidden">
           <div
@@ -1033,11 +1204,19 @@ async function downloadGuests() {
       >
         <div class="my-auto flex flex-col items-center justify-center w-full px-1 sm:px-2">
           <!-- Panel Header matching Event Dashboard v2 -->
-          <div class="pb-3 sm:pb-4 flex items-center gap-1.5 shrink-0 text-center justify-center max-w-full min-w-0 border-b border-bread-200/70 w-full">
-            <UIcon name="i-lucide-compass" class="size-4 sm:size-5 text-jam-500 shrink-0" />
-            <h2 class="dash-container-header font-serif text-jam-500 font-bold leading-tight truncate">
-              Quick Navigation
-            </h2>
+          <div class="pb-3 sm:pb-4 flex flex-col items-center gap-1.5 shrink-0 text-center justify-center max-w-full min-w-0 border-b border-bread-200/70 w-full">
+            <div class="flex items-center gap-1.5 justify-center">
+              <UIcon name="i-lucide-compass" class="size-4 sm:size-5 text-jam-500 shrink-0" />
+              <h2 class="dash-container-header font-serif text-jam-500 font-bold leading-tight truncate">
+                Quick Navigation
+              </h2>
+            </div>
+            <!-- Onboarding Flow Indicator Pill -->
+            <div v-if="currentJamFlowStep"
+              class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-[10px] sm:text-[11px] font-semibold shadow-2xs">
+              <span class="size-2 rounded-full bg-rose-500 shrink-0" />
+              <span class="truncate">Next Step: {{ currentJamFlowStep.label }}</span>
+            </div>
           </div>
 
           <!-- 2-Column App Launcher Grid Styled after Event Dashboard -->
@@ -1047,15 +1226,22 @@ async function downloadGuests() {
               :key="item.id"
               variant="ghost"
               class="group relative flex flex-col items-center justify-center w-full aspect-square p-2.5 sm:p-3 rounded-xl shadow-xs transition-all duration-200 active:scale-95 cursor-pointer select-none hover:shadow-sm hover:-translate-y-0.5"
-              :class="[item.bgClass, item.ringClass, item.hoverClass, item.textClass]"
+              :class="[
+                item.bgClass,
+                currentJamFlowStepAction === item.id ? 'ring-2 ring-rose-500 shadow-sm shadow-rose-500/20' : item.ringClass,
+                item.hoverClass,
+                item.textClass
+              ]"
               @click="onQuickNavItemClick(item)"
             >
-              <span
-                v-if="item.badge"
-                class="absolute -top-1 -right-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-jam-900 text-white shadow-xs z-10 transition-colors"
-              >
-                {{ item.badge }}
-              </span>
+              <!-- Current Flow Step Alert Badge -->
+              <div v-if="currentJamFlowStepAction === item.id"
+                class="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center pointer-events-none"
+                :title="`Current Step: ${item.label}`">
+                <span class="inline-flex items-center justify-center size-3.5 sm:size-4 rounded-full bg-rose-500 text-white shadow-xs text-[9px] font-bold ring-2 ring-white">
+                  !
+                </span>
+              </div>
               <UIcon
                 :name="item.icon"
                 class="size-6 sm:size-6.5 shrink-0 mb-1 transition-transform duration-200 group-hover:scale-110"

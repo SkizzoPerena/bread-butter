@@ -2,21 +2,26 @@ export function formatDateWithWeekday(dateString: string): string {
   if (!dateString) {
     return ''
   }
-  const dateOnly = dateString.includes('T') ? (dateString.split('T')[0] ?? dateString) : dateString
-  const date = new Date(dateOnly.replace(/-/g, '/'))
-  if (Number.isNaN(date.getTime())) {
-    const directDate = new Date(dateString)
-    if (Number.isNaN(directDate.getTime())) {
-      return ''
+  const trimmed = dateString.trim()
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch
+    // Midday (12:00:00) in local browser time completely prevents UTC offset/midnight boundary shifts
+    const date = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0)
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
     }
-    return directDate.toLocaleDateString(undefined, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
   }
-  return date.toLocaleDateString(undefined, {
+  const directDate = new Date(trimmed)
+  if (Number.isNaN(directDate.getTime())) {
+    return ''
+  }
+  return directDate.toLocaleDateString(undefined, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
