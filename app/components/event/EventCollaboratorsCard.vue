@@ -9,6 +9,7 @@ import type {
 import { reportApiError } from '~/types/auth'
 import { useApiRole } from '~/composables/useApiRole'
 import { resolveEventTierCode } from '~/utils/eventTierFeatures'
+import { userIdFromAccessToken } from '~/utils/analytics'
 
 /**
  * Who is helping plan an event: the host, collaborators, and coordinators (partners).
@@ -22,7 +23,9 @@ const props = defineProps<{
 const toast = useToast()
 const { isUiOnlyMode } = useApiMode()
 const { role } = useApiRole()
-const { user: viewer } = useAuth(role.value === 'partner' ? 'partner' : 'user')
+const { token } = useAuth(role.value === 'partner' ? 'partner' : 'user')
+// The signed-in account's id, read from the access token so it survives a page reload.
+const viewerId = computed(() => userIdFromAccessToken(token.value))
 const {
   listEventCollaborators,
   listEventInvites,
@@ -44,13 +47,12 @@ const isLoading = ref(false)
 const roster = ref<EventCollaboratorsResponse | null>(null)
 const invites = ref<EventInvite[]>([])
 
-const sameEmail = (a?: string | null, b?: string | null) =>
-  Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase())
+const isViewer = (id?: string | null) => Boolean(id && viewerId.value && String(id) === viewerId.value)
 
 const isOwner = computed(() => {
   if (isUiOnlyMode.value) return true
   if (role.value === 'partner') return false
-  return sameEmail(roster.value?.owner?.email, viewer.value?.email)
+  return isViewer(roster.value?.owner?._id)
 })
 
 const fullName = (person?: { firstName?: string, lastName?: string } | null) =>
@@ -76,7 +78,7 @@ const members = computed<Member[]>(() => {
       email: data.owner.email,
       kind: 'owner',
       joinedViaVoucher: false,
-      isSelf: sameEmail(data.owner.email, viewer.value?.email)
+      isSelf: isViewer(data.owner._id)
     })
   }
   for (const person of data.collaborators) {
@@ -86,7 +88,7 @@ const members = computed<Member[]>(() => {
       email: person.email,
       kind: 'collaborator',
       joinedViaVoucher: false,
-      isSelf: role.value !== 'partner' && sameEmail(person.email, viewer.value?.email)
+      isSelf: role.value !== 'partner' && isViewer(person._id)
     })
   }
   for (const partner of data.partnerCollaborators) {
@@ -96,7 +98,7 @@ const members = computed<Member[]>(() => {
       email: partner.email,
       kind: 'coordinator',
       joinedViaVoucher: partner.joinedVia === 'VOUCHER',
-      isSelf: role.value === 'partner' && sameEmail(partner.email, viewer.value?.email)
+      isSelf: role.value === 'partner' && isViewer(partner._id)
     })
   }
   return list

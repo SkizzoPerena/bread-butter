@@ -23,6 +23,9 @@ export interface UserAccount {
   platformCreditPhp?: number
   referralDiscountEligible?: boolean
   referralCode?: string
+  /** Partners only: whether the admins approved the account. Vouchers work once APPROVED. */
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approvalRejectionReason?: string
 }
 
 export interface AccountResponse {
