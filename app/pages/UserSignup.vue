@@ -88,6 +88,15 @@ onMounted(() => {
   }
 })
 
+// A collaboration invite email links here with the invited address, which must be the one they sign up with.
+// Watch it rather than read it once: on these pre-rendered pages the query arrives just after mount.
+watch(() => route.query.invite, (value) => {
+  const invitedEmail = typeof value === 'string' ? value.trim() : ''
+  if (invitedEmail && !state.value.email?.trim()) {
+    state.value.email = invitedEmail
+  }
+}, { immediate: true })
+
 // Sync draft changes to sessionStorage
 watch(state, (val) => {
   if (import.meta.client) {

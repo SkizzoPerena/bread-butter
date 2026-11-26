@@ -243,6 +243,8 @@ watch(eventId, () => {
               </UFormField>
             </UForm>
           </UPageCard>
+
+          <EventCollaboratorsCard :event-id="eventId" :event="eventRecord" />
         </div>
 
         <UPageCard class="white-bread-container md:col-span-2 max-h-[calc(100vh-64px)] overflow-y-auto space-y-4">

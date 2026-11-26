@@ -24,6 +24,19 @@ const route = useRoute()
 const toast = useToast()
 const { user } = useAuth('user')
 const { fetchUserEvents, updateEvent } = useEvents()
+const { listIncomingUserCollaborations } = useCollaborations()
+const pendingInviteCount = ref(0)
+
+async function loadPendingInvites() {
+  if (isUiOnlyMode.value) return
+  try {
+    const response = await listIncomingUserCollaborations()
+    pendingInviteCount.value = response.collaborations?.length ?? 0
+  } catch {
+    // The notice is optional. The dashboard works the same without it.
+    pendingInviteCount.value = 0
+  }
+}
 const { listGatherings } = useSeating()
 const { seatingPlansEnabled, loadSeatingFeature } = useSeatingFeature()
 const { loadPageData, isUiOnlyMode } = useApiMode()
@@ -398,6 +411,7 @@ watch(jamsContainerRef, (el) => {
 
 onMounted(() => {
   loadSeatingFeature()
+  loadPendingInvites()
   loadUserEvents().then(() => {
     nextTick(() => {
       updateActiveHeight()
@@ -443,6 +457,23 @@ onUnmounted(() => {
         :show-redeem="true"
         @use="openFreeCredit"
       />
+
+      <div v-if="pendingInviteCount > 0"
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border p-3 sm:p-4 bg-white/90 border-toast-600/25 text-toast-900">
+        <div class="flex items-start gap-3 min-w-0">
+          <UIcon name="i-lucide-users" class="size-6 shrink-0 text-toast-600" />
+          <div class="min-w-0">
+            <p class="font-serif font-bold text-sm sm:text-base">
+              {{ pendingInviteCount === 1 ? "You've been invited to help plan an event" : `You've been invited to help plan ${pendingInviteCount} events` }}
+            </p>
+            <p class="text-xs opacity-80">
+              Accept to see it on your dashboard.
+            </p>
+          </div>
+        </div>
+        <UButton to="/user/collaborations" size="sm" color="primary" class="font-semibold shrink-0 cursor-pointer"
+          label="View invites" />
+      </div>
 
       <!-- Main Dashboard Container -->
       <div

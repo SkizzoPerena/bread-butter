@@ -64,6 +64,12 @@ async function checkPaymentRestriction(targetPath: string) {
           }
         }
       } else if (needsCreateEventCheck) {
+        // Someone invited to help with an event may not want one of their own yet.
+        const { listIncomingUserCollaborations } = useCollaborations()
+        const invites = await listIncomingUserCollaborations().catch(() => null)
+        if ((invites?.collaborations?.length ?? 0) > 0) {
+          return navigateTo('/user/collaborations', { replace: true })
+        }
         return navigateTo('/user/create-event', { replace: true })
       }
     } else if (

@@ -234,6 +234,7 @@ export default defineNuxtConfig({
       setPath('UserReportIssue', '/user/report-issue')
       setPath('UserSignup', '/user/signup')
       setPath('UserTransactions', '/user/transactions')
+      setPath('UserCollaborations', '/user/collaborations')
 
       // Set paths for /partners/* routes
       setPath('PartnerDashboard', '/partners')

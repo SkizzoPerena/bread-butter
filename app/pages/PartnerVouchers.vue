@@ -131,6 +131,8 @@ onMounted(loadVouchers)
       description="Create promo codes for clients and manage voucher availability."
     />
 
+    <PartnerApprovalNotice />
+
     <UPageGrid class="items-start">
       <UPageCard class="white-bread-container">
         <template #header>

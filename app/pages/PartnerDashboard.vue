@@ -74,6 +74,8 @@ onMounted(loadDashboard)
       description="Track your available balance, vouchers, cashout requests, and collaborated events."
     />
 
+    <PartnerApprovalNotice />
+
     <div v-if="isUiOnlyMode" class="text-sm text-muted">
       UI-only mode is enabled, so dashboard values are shown with demo data.
     </div>
