@@ -108,7 +108,9 @@ export function shouldRedirectToPaymentPending(path: string): boolean {
     path === '/user/payment-pending' ||
     path === '/user/profile' ||
     path === '/user/transactions' ||
-    path === '/user/report-issue'
+    path === '/user/report-issue' ||
+    // Someone who signed up from a collaboration invite has no event of their own yet.
+    path === '/user/collaborations'
   ) {
     return false
   }
@@ -165,7 +167,9 @@ export function shouldRedirectToCreateEvent(path: string): boolean {
     path === '/user/payment-pending' ||
     path === '/user/profile' ||
     path === '/user/transactions' ||
-    path === '/user/report-issue'
+    path === '/user/report-issue' ||
+    // Someone who signed up from a collaboration invite has no event of their own yet.
+    path === '/user/collaborations'
   ) {
     return false
   }
@@ -207,7 +211,9 @@ export function shouldRedirectToUserPayment(path: string): boolean {
     path === '/user/payment-pending' ||
     path === '/user/profile' ||
     path === '/user/transactions' ||
-    path === '/user/report-issue'
+    path === '/user/report-issue' ||
+    // Someone who signed up from a collaboration invite has no event of their own yet.
+    path === '/user/collaborations'
   ) {
     return false
   }
